@@ -2,6 +2,8 @@
 
 **Rafiki** is the standalone CLI for **AI image generation** (Google Gemini “Nano Banana” image models) and **HTML → PNG** rendering (Puppeteer). It grew out of the KK / BC + AI knowledge base image pipeline; this repository is the **canonical** home.
 
+**One folder = all of Rafiki.** Clone this repo into a directory named `rafiki` (recommended). Everything you need to run and extend the tool — Node CLI, Python generator, styles, prompts, docs — lives **only** inside that checkout. See [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md).
+
 The npm package is **`rafiki`**. The **`image-gen`** command remains available as a **backward-compatible alias** (same `index.js`).
 
 **Repository:** [github.com/WalksWithASwagger/rafiki](https://github.com/WalksWithASwagger/rafiki)
@@ -177,14 +179,25 @@ rafiki/
 ├── data/                # usage-log.json (optional, gitignored)
 └── docs/
     ├── SCOPE.md
-    └── CHROME-PUPPETEER.md
+    ├── CHROME-PUPPETEER.md
+    └── FOLDER-LAYOUT.md
 ```
 
 ## Consuming from another monorepo (e.g. kk-ai-ecosystem)
 
-- **Sibling clone:** put this repo next to your KB as `rafiki/` (e.g. `notion-local/rafiki` beside `notion-local/kk-ai-ecosystem`). The kk-ai-ecosystem shim under `tools/image-gen` runs **`npx rafiki`** / **`npx image-gen`** and forwards to that checkout.
-- **Custom path:** set **`RAFIKI_HOME`** or **`IMAGE_GEN_HOME`** to the Rafiki repo root (must contain `index.js` and `generate.py`).
-- **npm:** `npm install https://github.com/WalksWithASwagger/rafiki.git` or publish and depend on the package name `rafiki`.
+Keep **one** Rafiki checkout on disk (this repo). The KB repo does **not** duplicate source — it uses a shim.
+
+- **Recommended layout on disk:**
+
+  ```
+  <parent>/
+    rafiki/              ← ONLY place Rafiki source lives (this git repo)
+    kk-ai-ecosystem/     ← KB; contains tools/image-gen = shim + KB outputs only
+  ```
+
+- **Sibling clone:** `git clone https://github.com/WalksWithASwagger/rafiki.git rafiki` next to `kk-ai-ecosystem/`. From the KB, `cd tools/image-gen && npx rafiki …` forwards here.
+- **Custom path:** set **`RAFIKI_HOME`** (or legacy **`IMAGE_GEN_HOME`**) to this repo’s root.
+- **npm:** `npm install https://github.com/WalksWithASwagger/rafiki.git` or depend on package name `rafiki`.
 
 ## License
 
