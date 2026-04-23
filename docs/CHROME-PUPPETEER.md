@@ -1,6 +1,6 @@
-# Chrome / Chromium for HTML rendering (`--render`)
+# Chrome / Chromium for HTML rendering (`rafiki --render`)
 
-The CLI uses Puppeteer to open local HTML files and screenshot them as PNG. Puppeteer needs a **Chrome or Chromium** binary.
+Rafiki uses Puppeteer to open local HTML files and screenshot them as PNG. Puppeteer needs a **Chrome or Chromium** binary.
 
 ## Resolution order
 

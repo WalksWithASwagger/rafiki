@@ -1,9 +1,18 @@
 {
-  "name": "image-gen",
+  "name": "rafiki",
   "version": "1.0.0",
-  "description": "Standalone CLI: Gemini image generation (Nano Banana) + Puppeteer HTML→PNG",
+  "description": "Rafiki — Gemini image generation (Nano Banana) + Puppeteer HTML→PNG",
   "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/WalksWithASwagger/rafiki.git"
+  },
+  "bugs": {
+    "url": "https://github.com/WalksWithASwagger/rafiki/issues"
+  },
+  "homepage": "https://github.com/WalksWithASwagger/rafiki#readme",
   "bin": {
+    "rafiki": "./index.js",
     "image-gen": "./index.js"
   },
   "scripts": {
@@ -19,6 +28,7 @@
     "sharp": "^0.33.0"
   },
   "keywords": [
+    "rafiki",
     "image-generation",
     "nano-banana",
     "gemini",

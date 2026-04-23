@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * Image Generation CLI
+ * Rafiki — image generation CLI
  *
  * Supports:
- * - AI image generation via Python/Nano Banana
+ * - AI image generation via Python / Gemini (Nano Banana)
  * - HTML-to-image rendering via Puppeteer
  *
  * Usage:
- *   npx image-gen ./article/image-prompts.md
- *   npx image-gen --render ./graphics/hero.html
- *   npx image-gen --render-dir ./graphics/
+ *   npx rafiki ./article/image-prompts.md
+ *   npx rafiki --render ./graphics/hero.html
+ *   (bin alias: npx image-gen …)
  */
 
 // Load environment variables from .env file
@@ -22,7 +22,7 @@ const path = require('path');
 const fs = require('fs');
 
 /**
- * Prefer tools/image-gen/.venv so `npx image-gen` works on PEP 668–managed Pythons.
+ * Prefer ./.venv so `npx rafiki` works on PEP 668–managed Pythons.
  */
 function getPythonExecutable() {
   const root = __dirname;
@@ -86,8 +86,8 @@ function resolveChromeExecutablePath() {
 const program = new Command();
 
 program
-  .name('image-gen')
-  .description('Generate images using Nano Banana (AI) or Puppeteer (HTML)')
+  .name('rafiki')
+  .description('Rafiki — Gemini image generation (Nano Banana) or Puppeteer (HTML→PNG)')
   .version('1.0.0');
 
 // AI Generation command (default)
@@ -133,7 +133,7 @@ program
     // AI Generation mode - delegate to Python
     const args = buildPythonArgs(promptsFile, options);
 
-    console.log(c.cyan('Running Nano Banana image generator...'));
+    console.log(c.cyan('Rafiki — running Nano Banana image generator...'));
 
     const pythonScript = path.join(__dirname, 'generate.py');
     const pythonBin = getPythonExecutable();

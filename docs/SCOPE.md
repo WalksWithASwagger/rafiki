@@ -2,7 +2,7 @@
 
 ## v1: CLI only
 
-This repository ships as a **command-line tool** (`npx image-gen` / `node index.js`). There is **no HTTP API**, job queue, or multi-user auth in scope for the initial extraction.
+This repository (**Rafiki**) ships as a **command-line tool** (`npx rafiki` / `rafiki`; alias `npx image-gen`). There is **no HTTP API**, job queue, or multi-user auth in scope for the initial extraction.
 
 Rationale:
 

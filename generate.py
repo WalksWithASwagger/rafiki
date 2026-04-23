@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Image Generator using Google Nano Banana (Gemini Image Generation)
+Rafiki — image generator using Google Nano Banana (Gemini Image Generation)
 
 Usage:
     python generate.py --prompt "A creative professional..." --output image.png

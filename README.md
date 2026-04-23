@@ -1,6 +1,10 @@
-# image-gen
+# Rafiki
 
-Standalone CLI for **AI image generation** (Google Gemini “Nano Banana” image models) and **HTML → PNG** rendering (Puppeteer). Originally developed for the KK / BC + AI knowledge base; this repository is the **canonical** implementation.
+**Rafiki** is the standalone CLI for **AI image generation** (Google Gemini “Nano Banana” image models) and **HTML → PNG** rendering (Puppeteer). It grew out of the KK / BC + AI knowledge base image pipeline; this repository is the **canonical** home.
+
+The npm package is **`rafiki`**. The **`image-gen`** command remains available as a **backward-compatible alias** (same `index.js`).
+
+**Repository:** [github.com/WalksWithASwagger/rafiki](https://github.com/WalksWithASwagger/rafiki)
 
 **Scope:** CLI-only for v1 — no HTTP service. See [docs/SCOPE.md](docs/SCOPE.md).
 
@@ -17,8 +21,8 @@ Standalone CLI for **AI image generation** (Google Gemini “Nano Banana” imag
 ### 1. Install dependencies
 
 ```bash
-git clone <your-fork-or-upstream-url> image-gen
-cd image-gen
+git clone https://github.com/WalksWithASwagger/rafiki.git rafiki
+cd rafiki
 
 npm install
 
@@ -29,7 +33,7 @@ python3 -m venv .venv
 
 `generate.py` uses the **`google-genai`** SDK (`pip install google-genai`), not the legacy `google-generativeai` package.
 
-The `npx image-gen` CLI uses `image-gen/.venv/bin/python3` when that venv exists; otherwise it falls back to `python3` on your `PATH`.
+The CLI uses `rafiki/.venv/bin/python3` when that venv exists; otherwise it falls back to `python3` on your `PATH`.
 
 ### 2. API key
 
@@ -46,30 +50,32 @@ Run commands from the **repository root** (this directory) so `dotenv` loads `.e
 
 Paths below are **examples**. Point at any checkout: your KB clone, a temp folder, etc.
 
+Use **`npx rafiki`** (or globally: `rafiki`). You can still run **`npx image-gen`** where that bin is installed — it is the same program.
+
 ### AI image generation
 
 ```bash
 # Single prompt
-npx image-gen --prompt "A creative professional at a mixing console" --output hero.png
+npx rafiki --prompt "A creative professional at a mixing console" --output hero.png
 
 # From image-prompts.md (path to your file)
-npx image-gen /path/to/your/article/image-prompts.md
+npx rafiki /path/to/your/article/image-prompts.md
 
 # With style and output directory
-npx image-gen /path/to/prompts/hopecode/personal-blog-examples.md \
+npx rafiki /path/to/prompts/hopecode/personal-blog-examples.md \
   --style hopecode \
   --output-dir /path/to/images/
 
-npx image-gen /path/to/image-prompts.md \
+npx rafiki /path/to/image-prompts.md \
   --model gemini-3-pro-image-preview \
   --aspect-ratio 16:9 \
   --resolution 2K \
   --style kk \
   --output-dir /path/to/images/
 
-npx image-gen /path/to/image-prompts.md --style hopecode --dry-run
-npx image-gen --usage
-npx image-gen --list-styles
+npx rafiki /path/to/image-prompts.md --style hopecode --dry-run
+npx rafiki --usage
+npx rafiki --list-styles
 ```
 
 ### HTML rendering (Puppeteer)
@@ -77,8 +83,8 @@ npx image-gen --list-styles
 Chrome resolution is documented in [docs/CHROME-PUPPETEER.md](docs/CHROME-PUPPETEER.md).
 
 ```bash
-npx image-gen --render /path/to/graphics/hero.html
-npx image-gen --render-dir /path/to/graphics/
+npx rafiki --render /path/to/graphics/hero.html
+npx rafiki --render-dir /path/to/graphics/
 ```
 
 ### Python directly
@@ -91,24 +97,24 @@ npx image-gen --render-dir /path/to/graphics/
 ### Reference images
 
 ```bash
-npx image-gen \
+npx rafiki \
   --prompt "Add certification text below this logo, same style" \
   --reference-image /path/to/logo.png \
   --model gemini-3-pro-image-preview \
   --output /path/to/out.png
 
-npx image-gen /path/to/logo-variations.md \
+npx rafiki /path/to/logo-variations.md \
   --reference-image /path/to/brand-logo.png \
   --model gemini-3-pro-image-preview \
   --resolution 2K \
   --output-dir /path/to/outputs/
 
-npx image-gen /path/to/prompts.md \
+npx rafiki /path/to/prompts.md \
   --reference-images "/path/a.png,/path/b.png,/path/c.png" \
   --output-dir /path/to/outputs/
 ```
 
-**Mockup mode** (keep garment photo, add print): `--reference-role mockup` — see previous monorepo README behavior; same flags apply.
+**Mockup mode** (keep garment photo, add print): `--reference-role mockup`.
 
 ## Models
 
@@ -127,9 +133,9 @@ npx image-gen /path/to/prompts.md \
 | `upgrade` | Bold training / transformation marketing |
 
 ```bash
-npx image-gen --prompt "..." --style hopecode
-npx image-gen --prompt "..." --no-style
-npx image-gen --list-styles
+npx rafiki --prompt "..." --style hopecode
+npx rafiki --prompt "..." --no-style
+npx rafiki --list-styles
 ```
 
 Guides: [styles/kk.md](styles/kk.md), [styles/hopecode.md](styles/hopecode.md), [styles/bcai.md](styles/bcai.md), [styles/upgrade.md](styles/upgrade.md).
@@ -159,7 +165,7 @@ After `**Prompt:**`, lines starting with `>` form the prompt (multi-line blockqu
 ## Repository layout
 
 ```
-image-gen/
+rafiki/
 ├── generate.py          # Python Gemini image generator
 ├── requirements.txt
 ├── index.js             # Node CLI (AI + Puppeteer render)
@@ -174,10 +180,11 @@ image-gen/
     └── CHROME-PUPPETEER.md
 ```
 
-## Consuming from another monorepo
+## Consuming from another monorepo (e.g. kk-ai-ecosystem)
 
-- **Sibling clone:** place this repo next to your KB (e.g. `notion-local/image-gen` beside `notion-local/kk-ai-ecosystem`) and use the shim in `kk-ai-ecosystem/tools/image-gen` (`npx image-gen` from there), or set **`IMAGE_GEN_HOME`** to this directory.
-- **npm:** `npm install /absolute/path/to/image-gen` or publish to a registry and depend on the package name.
+- **Sibling clone:** put this repo next to your KB as `rafiki/` (e.g. `notion-local/rafiki` beside `notion-local/kk-ai-ecosystem`). The kk-ai-ecosystem shim under `tools/image-gen` runs **`npx rafiki`** / **`npx image-gen`** and forwards to that checkout.
+- **Custom path:** set **`RAFIKI_HOME`** or **`IMAGE_GEN_HOME`** to the Rafiki repo root (must contain `index.js` and `generate.py`).
+- **npm:** `npm install https://github.com/WalksWithASwagger/rafiki.git` or publish and depend on the package name `rafiki`.
 
 ## License
 
