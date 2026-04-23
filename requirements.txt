@@ -1,0 +1,5 @@
+# Gemini image generation (generate.py). Install into a venv:
+#   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+google-genai>=1.0.0
+pillow>=10.0.0
+pyyaml>=6.0.0

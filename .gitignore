@@ -1,0 +1,27 @@
+# Environment variables (contains API keys - NEVER commit)
+.env
+
+# macOS / local scratch
+.DS_Store
+
+# One-off local renders (regenerable)
+output.png
+test-image.png
+output/
+
+# Generated outputs (large files, regenerable)
+outputs/
+
+# Node modules
+node_modules/
+
+# Usage tracking (local data)
+data/usage-log.json
+
+# Local Python environment (PEP 668–safe installs)
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
