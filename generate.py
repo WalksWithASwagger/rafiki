@@ -1,33 +1,26 @@
 #!/usr/bin/env python3
 """
-Rafiki — image generator using Google Nano Banana (Gemini Image Generation)
+Rafiki — multi-provider image generator
+
+Providers:
+  Gemini (Google)  — gemini-2.5-flash-image, gemini-3-pro-image-preview, …
+  OpenAI           — gpt-image-1, gpt-image-2, dall-e-3, dall-e-2
 
 Usage:
     python generate.py --prompt "A creative professional..." --output image.png
+    python generate.py --prompt "..." --model gpt-image-2 --quality high
     python generate.py --prompt-file image-prompts.md --output-dir ./images/
 """
 
+from __future__ import annotations
+
 import argparse
-import os
-import sys
-import json
 import hashlib
+import json
 import re
+import sys
 from pathlib import Path
 from datetime import datetime
-
-try:
-    from google import genai
-    from google.genai import types
-except ImportError:
-    print("Error: google-genai not installed. Run: pip install -r requirements.txt (use a venv).")
-    sys.exit(1)
-
-try:
-    from PIL import Image
-except ImportError:
-    print("Error: Pillow not installed. Run: pip install pillow")
-    sys.exit(1)
 
 try:
     import yaml
@@ -176,191 +169,83 @@ def generate_image(
     model: str = "gemini-2.5-flash-image",
     aspect_ratio: str = "16:9",
     resolution: str = "1K",
-    style: str = None,
-    reference_image: str = None,
+    quality: str = "high",
+    style: str | None = None,
+    reference_image: str | None = None,
     reference_role: str = "style",
     composition_references: list[str] | None = None,
-    dry_run: bool = False
+    dry_run: bool = False,
 ) -> bool:
-    """Generate image using Nano Banana (Gemini).
+    """Generate an image via the appropriate provider for the given model.
 
     Args:
-        prompt: Text prompt for image generation
-        output_path: Where to save the generated image
-        model: Gemini model to use
-        aspect_ratio: Image aspect ratio
-        resolution: Image resolution (1K, 2K, 4K)
-        style: Style preset to apply (kk, hopecode, bcai, or 'none'). None uses default.
-        reference_image: Path to reference image for style/composition guidance
-        reference_role: "style" = ref informs look only (default). "mockup" = ref is a real
-            garment photo to preserve while adding a described print.
-        composition_references: Extra images (mockup mode only) — print layout / art-direction refs
-            while the primary reference stays the garment photo.
-        dry_run: Preview without calling API
+        prompt: Text prompt for image generation.
+        output_path: Where to save the generated image.
+        model: Model ID — any gemini-*, gpt-image-*, or dall-e-* string.
+        aspect_ratio: Aspect ratio string or preset name.
+        resolution: Resolution hint (1K/2K/4K). Used by Gemini Pro.
+        quality: Quality hint (low/medium/high). Used by OpenAI models.
+        style: Style preset name, 'none', or None (uses default).
+        reference_image: Path to a reference image for style/composition guidance.
+        reference_role: 'style' (look-and-feel only) or 'mockup' (preserve garment).
+        composition_references: Extra print-art ref paths (mockup mode only).
+        dry_run: Preview parameters without calling any API.
     """
-
-    # Auto-detect default style if not specified
     if style is None:
         style = get_default_style()
 
-    # Dry run doesn't need API key
     if dry_run:
-        print(f"[DRY RUN] Would generate image:")
+        provider_name = "OpenAI" if model.startswith(("gpt-image", "dall-e")) else "Gemini"
+        print("[DRY RUN] Would generate image:")
+        print(f"  Provider: {provider_name}")
         print(f"  Model: {model}")
         print(f"  Aspect ratio: {aspect_ratio}")
-        print(f"  Resolution: {resolution}")
-        print(f"  Style: {style}")
-        print(f"  Reference role: {reference_role}")
+        print(f"  Resolution: {resolution}  Quality: {quality}")
+        print(f"  Style: {style}  Reference role: {reference_role}")
         if composition_references:
             print(f"  Composition refs: {len(composition_references)} image(s)")
         print(f"  Output: {output_path}")
         print(f"  Prompt: {prompt[:200]}...")
         return True
 
-    # Check for API key
-    api_key = os.environ.get("GOOGLE_API_KEY")
-    if not api_key:
-        print("Error: GOOGLE_API_KEY environment variable not set")
-        print("Get your key at: https://aistudio.google.com/app/apikey")
-        return False
-
-    # Apply style if not 'none'
+    # Apply style suffix before handing off to provider
     full_prompt = prompt
-    if style and style != 'none':
+    if style and style != "none":
         suffix = get_style_suffix(style)
         if suffix:
             full_prompt = f"{prompt}\n\n{suffix}"
         else:
             print(f"Warning: Unknown style '{style}', using prompt without style suffix")
 
+    print(f"Generating image with {model}...")
+    print(f"  Aspect ratio: {aspect_ratio}")
+    print(f"  Prompt: {prompt[:100]}...")
+
+    # Route to provider
+    sys.path.insert(0, str(Path(__file__).parent))
+    from lib.providers import get_provider
     try:
-        client = genai.Client(api_key=api_key)
-
-        # Build config based on model
-        image_config = types.ImageConfig(aspect_ratio=aspect_ratio)
-
-        # Pro model supports higher resolutions
-        if "pro" in model.lower() and resolution in ["2K", "4K"]:
-            image_config = types.ImageConfig(
-                aspect_ratio=aspect_ratio,
-                image_size=resolution
-            )
-
-        config = types.GenerateContentConfig(
-            response_modalities=['TEXT', 'IMAGE'],
-            image_config=image_config
-        )
-
-        # Build contents for API call
-        contents = []
-
-        # Add reference image if provided
-        if reference_image:
-            from PIL import Image as PILImage
-            try:
-                if composition_references and reference_role != "mockup":
-                    print("Error: --composition-references only works with --reference-role mockup")
-                    return False
-
-                # Load and validate reference image
-                ref_img_path = Path(reference_image)
-                if not ref_img_path.exists():
-                    print(f"Error: Reference image not found: {reference_image}")
-                    return False
-
-                ref_img = PILImage.open(reference_image)
-
-                # Add to contents (Gemini expects PIL Image objects)
-                contents.append(ref_img)
-
-                comp_imgs: list = []
-                if composition_references:
-                    for p in composition_references:
-                        cp = Path(p)
-                        if not cp.exists():
-                            print(f"Error: Composition reference not found: {p}")
-                            return False
-                        comp_imgs.append(PILImage.open(p))
-                        contents.append(comp_imgs[-1])
-
-                if reference_role == "mockup":
-                    comp_note = ""
-                    if comp_imgs:
-                        comp_note = (
-                            f"\n\nAfter the shirt photograph, the next {len(comp_imgs)} image(s) are REFERENCE ART "
-                            "for the PRINT ONLY (layout, ornament density, drippy typography, cosmic/vortex motifs, "
-                            "bone frames, roses, lightning, circuit accents). Synthesize ONE new original "
-                            "center-chest graphic that merges the strongest qualities of those references. "
-                            "All visible words on the new print must read as Vancouver AI / Vancouver AI Community "
-                            "per the text brief below — do not copy unrelated band or brand names from the reference art."
-                        )
-                    contents.append(
-                        "IMPORTANT: The FIRST image is a photograph of a REAL dyed long-sleeve shirt "
-                        "(flat-lay or similar). Preserve the garment, the exact tie-dye pattern, fabric texture, "
-                        "folds, collar, seams, cuffs, visible tags, sleeves, and the background (rug/floor) as "
-                        "faithfully as the model allows. Do not replace the whole photo with a flat illustration.\n\n"
-                        "Add ONE new original center-chest screen-print graphic as described below. The print must "
-                        "look like vintage hand-pulled screen ink on cotton: thick black outlines, drippy warped "
-                        "custom lettering, halftone/stipple grain, slight imperfect registration — hand-drawn 1970s "
-                        "lot-tee / rock-poster energy. Avoid corporate vector, stock illustration, or clip-art polish. "
-                        "The ink should subtly follow fabric contours over folds.\n\n"
-                        "Any words in the new print must match the brief (Vancouver AI / Vancouver AI Community only). "
-                        "Do not add other band or brand names."
-                        f"{comp_note}\n\n"
-                        f"{full_prompt}"
-                    )
-                else:
-                    contents.append(
-                        f"IMPORTANT: Use the provided image ONLY as a visual style reference "
-                        f"(textures, grain, collage technique, color palette, layout energy). "
-                        f"Do NOT copy any text, words, band names, slogans, or written content from the reference image. "
-                        f"The actual text and content for the image MUST come from the prompt below.\n\n"
-                        f"{full_prompt}"
-                    )
-
-                print(f"  Reference image: {reference_image}")
-                if comp_imgs:
-                    print(f"  Composition references: {len(comp_imgs)} image(s)")
-            except Exception as e:
-                print(f"Error loading reference image: {e}")
-                return False
-        else:
-            contents.append(full_prompt)
-
-        print(f"Generating image with {model}...")
-        print(f"  Aspect ratio: {aspect_ratio}")
-        print(f"  Prompt: {prompt[:100]}...")
-
-        response = client.models.generate_content(
-            model=model,
-            contents=contents,
-            config=config
-        )
-
-        # Extract and save image
-        for part in response.parts:
-            if part.inline_data is not None:
-                image = part.as_image()
-
-                # Ensure output directory exists
-                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-
-                image.save(output_path)
-                print(f"Image saved to: {output_path}")
-
-                # Log generation
-                log_generation(prompt, model, output_path, aspect_ratio)
-
-                return True
-
-        print("Warning: No image in response")
-        if response.text:
-            print(f"Response text: {response.text}")
+        provider = get_provider(model)
+    except ValueError as e:
+        print(f"Error: {e}")
         return False
 
-    except Exception as e:
-        print(f"Error generating image: {e}")
-        return False
+    success = provider.generate(
+        prompt=full_prompt,
+        output_path=output_path,
+        model=model,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        quality=quality,
+        reference_image=reference_image,
+        reference_role=reference_role,
+        composition_references=composition_references,
+    )
+
+    if success:
+        log_generation(prompt, model, output_path, aspect_ratio)
+
+    return success
 
 
 def main():
@@ -388,8 +273,20 @@ def main():
     parser.add_argument(
         "--model", "-m",
         default="gemini-2.5-flash-image",
-        choices=["gemini-2.5-flash-image", "gemini-3-pro-image-preview"],
-        help="Model to use (default: gemini-2.5-flash-image)"
+        help=(
+            "Model to use (default: gemini-2.5-flash-image). "
+            "Gemini: gemini-2.5-flash-image, gemini-3-pro-image-preview. "
+            "OpenAI: gpt-image-2, gpt-image-1, dall-e-3, dall-e-2."
+        ),
+    )
+    parser.add_argument(
+        "--quality", "-q",
+        default="high",
+        choices=["low", "medium", "high"],
+        help=(
+            "Image quality for OpenAI models (default: high). "
+            "Ignored by Gemini (use --resolution instead)."
+        ),
     )
     parser.add_argument(
         "--aspect-ratio", "-a",
@@ -529,11 +426,12 @@ def main():
             model=args.model,
             aspect_ratio=args.aspect_ratio,
             resolution=args.resolution,
+            quality=args.quality,
             style=style,
             reference_image=args.reference_image,
             reference_role=args.reference_role,
             composition_references=composition_ref_list,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
         )
         sys.exit(0 if success else 1)
 
@@ -555,16 +453,17 @@ def main():
             print(f"\n[{i}/{len(prompts)}] {item['name']}")
 
             if generate_image(
-                prompt=item['prompt'],
+                prompt=item["prompt"],
                 output_path=str(output_path),
                 model=args.model,
                 aspect_ratio=args.aspect_ratio,
                 resolution=args.resolution,
+                quality=args.quality,
                 style=style,
                 reference_image=ref_paths[i - 1],
                 reference_role=args.reference_role,
                 composition_references=composition_ref_list,
-                dry_run=args.dry_run
+                dry_run=args.dry_run,
             ):
                 success_count += 1
 

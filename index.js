@@ -96,9 +96,10 @@ program
   .option('-p, --prompt <text>', 'Single text prompt')
   .option('-o, --output <path>', 'Output file path', 'output.png')
   .option('-d, --output-dir <path>', 'Output directory for batch')
-  .option('-m, --model <model>', 'Model to use', 'gemini-2.5-flash-image')
+  .option('-m, --model <model>', 'Model to use (gemini-2.5-flash-image, gpt-image-2, dall-e-3, …)', 'gemini-2.5-flash-image')
   .option('-a, --aspect-ratio <ratio>', 'Aspect ratio', '16:9')
-  .option('-r, --resolution <res>', 'Resolution (1K, 2K, 4K)', '1K')
+  .option('-r, --resolution <res>', 'Resolution hint for Gemini Pro (1K, 2K, 4K)', '1K')
+  .option('-q, --quality <level>', 'Quality for OpenAI models: low | medium | high', 'high')
   .option('-s, --style <name>', 'Style to apply (kk, hopecode, bcai, or none)')
   .option('--no-style', 'Skip style suffix (same as --style=none)')
   .option('--list-styles', 'Show available styles')
@@ -189,6 +190,10 @@ function buildPythonArgs(promptsFile, options) {
 
   if (options.resolution) {
     args.push('--resolution', options.resolution);
+  }
+
+  if (options.quality) {
+    args.push('--quality', options.quality);
   }
 
   if (options.listStyles) {
