@@ -44,12 +44,6 @@ class OpenAIProvider:
             print("Error: OPENAI_API_KEY not set. Get one at https://platform.openai.com/api-keys")
             return False
 
-        if reference_image:
-            print(
-                "Warning: reference images are not yet supported for OpenAI models. "
-                "Generating text-only."
-            )
-
         size = _SIZE_MAP.get(aspect_ratio, "1024x1024")
 
         try:
@@ -61,7 +55,21 @@ class OpenAIProvider:
             if model.startswith("dall-e"):
                 return self._generate_dalle(client, prompt, output_path, model, size, quality)
 
-            # gpt-image-* models: use output_format, quality low/medium/high
+            # Reference image via images.edit() (gpt-image-* only)
+            if reference_image:
+                ref_path = Path(reference_image)
+                if not ref_path.exists():
+                    print(f"Error: Reference image not found: {reference_image}")
+                    return False
+                if reference_role == "style":
+                    print(
+                        "Note: OpenAI edit() uses the reference as the base canvas. "
+                        "For pure style transfer, consider Gemini with --reference-role style."
+                    )
+                print(f"  Reference image: {reference_image} (via images.edit)")
+                return self._generate_edit(client, prompt, output_path, model, size, quality, ref_path)
+
+            # Text-to-image: images.generate()
             response = client.images.generate(
                 model=model,
                 prompt=prompt,
@@ -70,27 +78,50 @@ class OpenAIProvider:
                 n=1,
             )
 
-            img_data = response.data[0]
-
-            # gpt-image-* always returns b64_json
-            if img_data.b64_json:
-                image_bytes = base64.b64decode(img_data.b64_json)
-            elif img_data.url:
-                import urllib.request
-                with urllib.request.urlopen(img_data.url) as r:
-                    image_bytes = r.read()
-            else:
-                print("Error: No image data in response")
-                return False
-
-            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-            Path(output_path).write_bytes(image_bytes)
-            print(f"Image saved to: {output_path}")
-            return True
+            return self._save_response(response.data[0], output_path)
 
         except Exception as e:
             print(f"Error generating image: {e}")
             return False
+
+    def _generate_edit(
+        self,
+        client,
+        prompt: str,
+        output_path: str,
+        model: str,
+        size: str,
+        quality: str,
+        ref_path: Path,
+    ) -> bool:
+        try:
+            with open(ref_path, "rb") as img_file:
+                response = client.images.edit(
+                    model=model,
+                    image=img_file,
+                    prompt=prompt,
+                    size=size,
+                    n=1,
+                )
+            return self._save_response(response.data[0], output_path)
+        except Exception as e:
+            print(f"Error in images.edit: {e}")
+            return False
+
+    def _save_response(self, img_data, output_path: str) -> bool:
+        if img_data.b64_json:
+            image_bytes = base64.b64decode(img_data.b64_json)
+        elif img_data.url:
+            import urllib.request
+            with urllib.request.urlopen(img_data.url) as r:
+                image_bytes = r.read()
+        else:
+            print("Error: No image data in response")
+            return False
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+        Path(output_path).write_bytes(image_bytes)
+        print(f"Image saved to: {output_path}")
+        return True
 
     def _generate_dalle(
         self,

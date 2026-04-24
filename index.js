@@ -286,7 +286,7 @@ async function handleHtmlRendering(options, c) {
   );
 
   const browser = await puppeteer.launch({
-    headless: 'new',
+    headless: true,
     executablePath: chromeExecutablePath,
     args: ['--no-sandbox', '--disable-setuid-sandbox']
   });
