@@ -356,12 +356,23 @@ def main():
         help="Skip generating viewer.html after a batch run",
     )
     parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_output",
+        help="Emit structured JSON result to stdout; send progress to stderr (for agents/pipelines)",
+    )
+    parser.add_argument(
         "--usage",
         action="store_true",
         help="Show usage statistics",
     )
 
     args = parser.parse_args()
+
+    # JSON mode: redirect all print() → stderr so stdout carries only the JSON result
+    _real_stdout = sys.stdout
+    if args.json_output:
+        sys.stdout = sys.stderr
 
     composition_ref_list: list[str] | None = None
     if args.composition_references:
@@ -438,6 +449,17 @@ def main():
             composition_references=composition_ref_list,
             dry_run=args.dry_run,
         )
+        if args.json_output:
+            _real_stdout.write(json.dumps({
+                "success": success,
+                "mode": "single",
+                "dry_run": args.dry_run,
+                "output_path": args.output,
+                "model": args.model,
+                "aspect_ratio": args.aspect_ratio,
+                "style": style or "none",
+                "prompt_preview": args.prompt[:120],
+            }, indent=2) + "\n")
         sys.exit(0 if success else 1)
 
     # Batch from file
@@ -483,9 +505,10 @@ def main():
         print(f"\n{prefix}Generated {success_count}/{len(prompts)} images")
 
         # Generate HTML gallery viewer
+        viewer_path_str = ""
         if not args.no_viewer:
             from lib.renderers.viewer import generate_viewer
-            viewer_path = generate_viewer(
+            vp = generate_viewer(
                 output_dir=output_dir,
                 items=viewer_items,
                 title=Path(args.prompt_file).stem.replace("-", " ").replace("_", " ").title(),
@@ -497,7 +520,30 @@ def main():
                     "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 },
             )
-            print(f"{prefix}Viewer: {viewer_path}")
+            viewer_path_str = str(vp)
+            print(f"{prefix}Viewer: {viewer_path_str}")
+
+        if args.json_output:
+            _real_stdout.write(json.dumps({
+                "success": success_count == len(prompts),
+                "mode": "batch",
+                "dry_run": args.dry_run,
+                "generated": success_count,
+                "total": len(prompts),
+                "output_dir": str(output_dir),
+                "viewer_path": viewer_path_str,
+                "model": args.model,
+                "aspect_ratio": args.aspect_ratio,
+                "style": style or "none",
+                "images": [
+                    {
+                        "name": it["name"],
+                        "output_path": it["output_path"],
+                        "ok": Path(it["output_path"]).exists(),
+                    }
+                    for it in viewer_items
+                ],
+            }, indent=2) + "\n")
 
         sys.exit(0 if success_count == len(prompts) else 1)
 

@@ -120,6 +120,7 @@ program
   )
   .option('--dry-run', 'Preview without generating')
   .option('--no-viewer', 'Skip generating viewer.html after batch runs')
+  .option('--json', 'Emit JSON result to stdout; progress to stderr (agent/pipeline use)')
   .option('--render <html>', 'Render HTML file to image')
   .option('--render-dir <dir>', 'Render all HTML files in directory')
   .option('--usage', 'Show usage statistics')
@@ -215,6 +216,10 @@ function buildPythonArgs(promptsFile, options) {
   // Commander sets viewer: false when --no-viewer is passed
   if (options.viewer === false) {
     args.push('--no-viewer');
+  }
+
+  if (options.json) {
+    args.push('--json');
   }
 
   if (options.usage) {
