@@ -348,12 +348,17 @@ def main():
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Show what would be generated without calling API"
+        help="Show what would be generated without calling API",
+    )
+    parser.add_argument(
+        "--no-viewer",
+        action="store_true",
+        help="Skip generating viewer.html after a batch run",
     )
     parser.add_argument(
         "--usage",
         action="store_true",
-        help="Show usage statistics"
+        help="Show usage statistics",
     )
 
     args = parser.parse_args()
@@ -445,6 +450,7 @@ def main():
 
         ref_paths = resolve_reference_list(len(prompts))
 
+        viewer_items: list[dict] = []
         success_count = 0
         for i, item in enumerate(prompts, 1):
             safe_name = re.sub(r'[^a-z0-9]+', '-', item['name'].lower()).strip('-')
@@ -452,7 +458,7 @@ def main():
 
             print(f"\n[{i}/{len(prompts)}] {item['name']}")
 
-            if generate_image(
+            ok = generate_image(
                 prompt=item["prompt"],
                 output_path=str(output_path),
                 model=args.model,
@@ -464,10 +470,35 @@ def main():
                 reference_role=args.reference_role,
                 composition_references=composition_ref_list,
                 dry_run=args.dry_run,
-            ):
+            )
+            if ok:
                 success_count += 1
+            viewer_items.append({
+                "name": item["name"],
+                "prompt": item["prompt"],
+                "output_path": str(output_path),
+            })
 
-        print(f"\n{'[DRY RUN] ' if args.dry_run else ''}Generated {success_count}/{len(prompts)} images")
+        prefix = "[DRY RUN] " if args.dry_run else ""
+        print(f"\n{prefix}Generated {success_count}/{len(prompts)} images")
+
+        # Generate HTML gallery viewer
+        if not args.no_viewer:
+            from lib.renderers.viewer import generate_viewer
+            viewer_path = generate_viewer(
+                output_dir=output_dir,
+                items=viewer_items,
+                title=Path(args.prompt_file).stem.replace("-", " ").replace("_", " ").title(),
+                run_meta={
+                    "model": args.model,
+                    "aspect_ratio": args.aspect_ratio,
+                    "style": style or "none",
+                    "prompt_file": args.prompt_file,
+                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                },
+            )
+            print(f"{prefix}Viewer: {viewer_path}")
+
         sys.exit(0 if success_count == len(prompts) else 1)
 
     parser.print_help()

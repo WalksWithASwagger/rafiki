@@ -119,6 +119,7 @@ program
     'Mockup: comma-separated print-art refs after the garment photo'
   )
   .option('--dry-run', 'Preview without generating')
+  .option('--no-viewer', 'Skip generating viewer.html after batch runs')
   .option('--render <html>', 'Render HTML file to image')
   .option('--render-dir <dir>', 'Render all HTML files in directory')
   .option('--usage', 'Show usage statistics')
@@ -209,6 +210,11 @@ function buildPythonArgs(promptsFile, options) {
 
   if (options.dryRun) {
     args.push('--dry-run');
+  }
+
+  // Commander sets viewer: false when --no-viewer is passed
+  if (options.viewer === false) {
+    args.push('--no-viewer');
   }
 
   if (options.usage) {
