@@ -1,6 +1,6 @@
 # Rafiki
 
-**Rafiki** is the standalone CLI for **AI image generation** (Google Gemini “Nano Banana” image models) and **HTML → PNG** rendering (Puppeteer). It grew out of the KK / BC + AI knowledge base image pipeline; this repository is the **canonical** home.
+**Rafiki** is the standalone CLI for **AI image generation** (Google Gemini + OpenAI) and **HTML → PNG** rendering (Puppeteer). It grew out of the KK / BC + AI knowledge base image pipeline; this repository is the **canonical** home.
 
 **One folder = all of Rafiki.** Clone this repo into a directory named `rafiki` (recommended). Everything you need to run and extend the tool — Node CLI, Python generator, styles, prompts, docs — lives **only** inside that checkout. See [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md).
 
@@ -12,7 +12,11 @@ The npm package is **`rafiki`**. The **`image-gen`** command remains available a
 
 ## Features
 
-- **AI generation**: Gemini image models via `google-genai` (Python) with a Node entrypoint
+- **Multi-provider AI generation**: Gemini (`gemini-2.5-flash-image`, `gemini-3-pro-image-preview`) and OpenAI (`gpt-image-2`, `dall-e-3`) via a unified CLI
+- **Run isolation**: Each batch generates a timestamped `run-YYYYMMDD-HHMMSS/` directory — generations are never overwritten
+- **Comparison viewer**: HTML gallery with tabs to switch between runs, side-by-side compare mode, and lightbox with keyboard nav
+- **Star / Reject ratings**: Rate individual images from the viewer; ratings persist in `localStorage` across page loads
+- **Filter bar**: Filter the grid by All / ★ Starred / ✕ Rejected / Unreviewed with live counts
 - **HTML rendering**: Puppeteer for diagrams, charts, quote cards
 - **Batch processing**: Parse `image-prompts.md` files (numbered sections + blockquote prompts)
 - **Style packs**: KK / HOPECODE / BCAI / Upgrade (YAML + markdown guides)
@@ -37,13 +41,13 @@ python3 -m venv .venv
 
 The CLI uses `rafiki/.venv/bin/python3` when that venv exists; otherwise it falls back to `python3` on your `PATH`.
 
-### 2. API key
-
-Create a [Google AI Studio API key](https://aistudio.google.com/app/apikey).
+### 2. API keys
 
 ```bash
 cp .env.example .env
-# Edit .env — set GOOGLE_API_KEY=...
+# Edit .env:
+#   GOOGLE_API_KEY=...    (required for Gemini — https://aistudio.google.com/app/apikey)
+#   OPENAI_API_KEY=...    (required for gpt-image-2, dall-e-3)
 ```
 
 Run commands from the **repository root** (this directory) so `dotenv` loads `.env`, or export `GOOGLE_API_KEY` in your shell.
@@ -120,10 +124,15 @@ npx rafiki /path/to/prompts.md \
 
 ## Models
 
-| Model | Speed | Resolution | Best for |
-|-------|-------|------------|----------|
-| `gemini-2.5-flash-image` | Fast | 1K | Quick iterations |
-| `gemini-3-pro-image-preview` | Slower | up to 4K | Final assets, text |
+| Model | Provider | Speed | Resolution | Best for |
+|-------|----------|-------|------------|----------|
+| `gemini-2.5-flash-image` | Gemini | Fast | 1K | Quick iterations |
+| `gemini-3-pro-image-preview` | Gemini | Slower | up to 4K | Final assets, text |
+| `gpt-image-2` | OpenAI | Medium | up to 1536px | Photorealistic, text |
+| `gpt-image-1` | OpenAI | Medium | up to 1024px | Balanced |
+| `dall-e-3` | OpenAI | Medium | up to 1792px | Artistic, precise |
+
+Pass model ID directly: `-m gpt-image-2` or `-m gemini-2.5-flash-image`.
 
 ## Styles
 
@@ -163,6 +172,39 @@ Example prompt libraries live under [prompts/](prompts/). The **KK knowledge bas
 ```
 
 After `**Prompt:**`, lines starting with `>` form the prompt (multi-line blockquotes supported).
+
+You can also add per-prompt metadata fields — they override the batch CLI defaults:
+```markdown
+## 1. Hero Banner
+**For:** LinkedIn header
+**Aspect Ratio:** 16:9
+**Model:** gpt-image-2
+**Style:** kk
+**Quality:** high
+**Prompt:**
+> ...
+```
+
+## Run isolation and the viewer
+
+Every batch run saves to a timestamped subdirectory:
+```
+output/<project>/
+  run-20260425-093605/
+    01-hero.png
+    02-card.png
+    run.json          ← metadata: model, style, timestamps, image list
+    viewer.html       ← single-run gallery (shareable)
+  latest → run-20260425-093605/   ← symlink to most recent
+  viewer.html         ← comparison viewer across all runs
+```
+
+Open `output/<project>/viewer.html` in a browser to:
+- Switch between runs via tabs at the top
+- Click **⊞ Compare all** to see every prompt slot side-by-side across runs
+- Click any image to open fullscreen lightbox (arrow keys / Esc to navigate)
+- **★ Star** or **✕ Reject** individual images — ratings persist in `localStorage`
+- Filter the grid: **All / ★ Starred / ✕ Rejected / Unreviewed**
 
 ## Repository layout
 
