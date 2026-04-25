@@ -467,16 +467,30 @@ def main():
         prompts = parse_image_prompts_md(args.prompt_file)
         print(f"Found {len(prompts)} prompts in {args.prompt_file}")
 
-        output_dir = Path(args.output_dir or Path(args.prompt_file).parent / "images")
-        output_dir.mkdir(parents=True, exist_ok=True)
+        project_dir = Path(args.output_dir or Path(args.prompt_file).parent / "images")
+        project_dir.mkdir(parents=True, exist_ok=True)
+
+        # Each run gets its own timestamped subdirectory so generations are never overwritten
+        run_ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        run_dir = project_dir / f"run-{run_ts}"
+        run_dir.mkdir(parents=True, exist_ok=True)
 
         ref_paths = resolve_reference_list(len(prompts))
+
+        run_meta = {
+            "model": args.model,
+            "aspect_ratio": args.aspect_ratio,
+            "style": style or "none",
+            "prompt_file": args.prompt_file,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "run_id": run_ts,
+        }
 
         viewer_items: list[dict] = []
         success_count = 0
         for i, item in enumerate(prompts, 1):
             safe_name = re.sub(r'[^a-z0-9]+', '-', item['name'].lower()).strip('-')
-            output_path = output_dir / f"{i:02d}-{safe_name}.png"
+            output_path = run_dir / f"{i:02d}-{safe_name}.png"
 
             print(f"\n[{i}/{len(prompts)}] {item['name']}")
 
@@ -501,25 +515,44 @@ def main():
                 "output_path": str(output_path),
             })
 
+        # Persist run metadata so the comparison viewer can reconstruct history
+        run_json_path = run_dir / "run.json"
+        run_json_path.write_text(json.dumps({
+            **run_meta,
+            "images": [
+                {
+                    "name": it["name"],
+                    "prompt": it["prompt"],
+                    "file": Path(it["output_path"]).name,
+                    "ok": Path(it["output_path"]).exists(),
+                }
+                for it in viewer_items
+            ],
+        }, indent=2, ensure_ascii=False), encoding="utf-8")
+
+        # Keep a "latest" symlink in the project dir for easy access
+        latest_link = project_dir / "latest"
+        if latest_link.is_symlink() or latest_link.exists():
+            latest_link.unlink()
+        latest_link.symlink_to(run_dir.name)
+
         prefix = "[DRY RUN] " if args.dry_run else ""
         print(f"\n{prefix}Generated {success_count}/{len(prompts)} images")
+        print(f"{prefix}Run dir: {run_dir}")
 
-        # Generate HTML gallery viewer
+        # Generate viewers
         viewer_path_str = ""
         if not args.no_viewer:
-            from lib.renderers.viewer import generate_viewer
-            vp = generate_viewer(
-                output_dir=output_dir,
+            from lib.renderers.viewer import generate_viewer, generate_comparison_viewer
+            # Per-run viewer inside the run dir
+            generate_viewer(
+                output_dir=run_dir,
                 items=viewer_items,
                 title=Path(args.prompt_file).stem.replace("-", " ").replace("_", " ").title(),
-                run_meta={
-                    "model": args.model,
-                    "aspect_ratio": args.aspect_ratio,
-                    "style": style or "none",
-                    "prompt_file": args.prompt_file,
-                    "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
-                },
+                run_meta=run_meta,
             )
+            # Project-level comparison viewer (all runs, run switcher + compare mode)
+            vp = generate_comparison_viewer(project_dir)
             viewer_path_str = str(vp)
             print(f"{prefix}Viewer: {viewer_path_str}")
 
@@ -530,7 +563,9 @@ def main():
                 "dry_run": args.dry_run,
                 "generated": success_count,
                 "total": len(prompts),
-                "output_dir": str(output_dir),
+                "project_dir": str(project_dir),
+                "run_dir": str(run_dir),
+                "run_id": run_ts,
                 "viewer_path": viewer_path_str,
                 "model": args.model,
                 "aspect_ratio": args.aspect_ratio,
