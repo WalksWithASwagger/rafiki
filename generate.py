@@ -14,6 +14,10 @@ Usage:
     python generate.py --prompt "..." -m gpt --quality high
     python generate.py -f image-prompts.md -d ./images/ --workers 4
     python generate.py --list-styles
+
+    # Rebuild viewer from actual files on disk (no re-generation):
+    python generate.py view <project>
+    python generate.py view <project> --all-runs
 """
 
 from __future__ import annotations
@@ -54,7 +58,88 @@ __all__ = [
 ]
 
 
+def _cmd_view(argv: list[str]) -> None:
+    """Rebuild viewer HTML for a project from actual files on disk."""
+    p = argparse.ArgumentParser(
+        prog="generate.py view",
+        description=(
+            "Rebuild viewer.html from actual files on disk — no re-generation.\n"
+            "Re-verifies which images exist and updates ok/error state."
+        ),
+    )
+    p.add_argument("project", help="Project dir path, or name under output/")
+    p.add_argument(
+        "--all-runs", action="store_true",
+        help="Also rebuild each run's individual viewer.html",
+    )
+    args = p.parse_args(argv)
+
+    project_dir = Path(args.project)
+    if not project_dir.exists():
+        candidate = Path(__file__).parent / "output" / args.project
+        if candidate.exists():
+            project_dir = candidate
+        else:
+            print(f"Error: project not found: {args.project!r}")
+            print(f"  Tried: {project_dir}")
+            print(f"  Tried: {candidate}")
+            sys.exit(1)
+
+    from lib.renderers.viewer import generate_comparison_viewer, generate_viewer
+
+    if args.all_runs:
+        for run_dir in sorted(project_dir.glob("run-*/")):
+            run_json = run_dir / "run.json"
+            if not run_json.exists():
+                continue
+            try:
+                data = json.loads(run_json.read_text(encoding="utf-8"))
+                items = [
+                    {
+                        "name": img["name"],
+                        "prompt": img.get("prompt", ""),
+                        "output_path": str(run_dir / img["file"]),
+                        "error": img.get("error", ""),
+                    }
+                    for img in data.get("images", [])
+                ]
+                title = (
+                    Path(data["prompt_file"]).stem.replace("-", " ").replace("_", " ").title()
+                    if data.get("prompt_file")
+                    else project_dir.name.replace("-", " ").title()
+                )
+                generate_viewer(output_dir=run_dir, items=items, title=title, run_meta=data)
+                print(f"  Rebuilt {run_dir.name}/viewer.html")
+            except Exception as e:
+                print(f"  Error rebuilding {run_dir.name}: {e}", file=sys.stderr)
+
+    vp = generate_comparison_viewer(project_dir)
+    print(f"Viewer:  {vp}")
+
+    # Print a quick on-disk summary
+    run_json_paths = sorted(project_dir.glob("run-*/run.json"))
+    total_images = present_images = 0
+    for rjp in run_json_paths:
+        try:
+            data = json.loads(rjp.read_text(encoding="utf-8"))
+            for img in data.get("images", []):
+                total_images += 1
+                if (rjp.parent / img["file"]).exists():
+                    present_images += 1
+        except Exception:
+            pass
+    print(
+        f"Summary: {len(run_json_paths)} run(s), "
+        f"{present_images}/{total_images} images on disk"
+    )
+
+
 def main() -> None:
+    # Dispatch 'view' subcommand before main arg parsing
+    if len(sys.argv) > 1 and sys.argv[1] == "view":
+        _cmd_view(sys.argv[2:])
+        return
+
     parser = argparse.ArgumentParser(
         description="Rafiki — AI image generator (Gemini + OpenAI)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
