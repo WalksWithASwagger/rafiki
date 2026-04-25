@@ -142,7 +142,7 @@ npx rafiki --list-styles
 
 Guides: [styles/kk.md](styles/kk.md), [styles/hopecode.md](styles/hopecode.md), [styles/bcai.md](styles/bcai.md), [styles/upgrade.md](styles/upgrade.md).
 
-Example prompt libraries live under [prompts/](prompts/).
+Example prompt libraries live under [prompts/](prompts/). The **KK knowledge base** diagram + image prompt bundle (HOPECODE, GNI, Web Summit zine, WAIFF keynote, MAC femme, Wikipedia Five Futures, `gpt-image-1` batch spec + HOPECODE `.txt`) is consolidated in **[`prompts/kk-kb/`](prompts/kk-kb/README.md)**; the Streamlit `gpt-image-1` batch UI is under [`tools/gpt-image-batch-ui/`](tools/gpt-image-batch-ui/README.md).
 
 ## Aspect ratio presets
 

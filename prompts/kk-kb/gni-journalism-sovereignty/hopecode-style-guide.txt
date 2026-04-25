@@ -1,0 +1,61 @@
+HOPECODE: Diagramming Ethical, Local AI Futures
+
+A infographic and diagram style guide designed for rebels, thinkers, artists, and builders who believe the future should feel like something other than a spreadsheet.
+
+Solarpunk Mycelial Mapping. HOPECODE is not branding. It's a cultural protocol—a graphic language for mapping where we're going without selling our souls to the cloud. It's the opposite of scale-for-scale's-sake. It's root-first, not reach-first.
+
+STYLE PRINCIPLES
+Structure as story. Data as ecology. Diagrams that breathe, not conform.
+This isn't UI. This is a ritual—a way to see the invisible connections under empire, under asphalt, under code.
+
+LINEWORK
+- Jittered, human, non-Euclidean. Forget gridlines—follow root lines.
+- Arrows, braids, spirals—forms that grow, not control.
+- Straight lines lie. Use paths that meander with intent.
+
+COLOR
+- Earth tones + spectral interference: ochre, ash, rust, moss, iridescent oil slick, electric fungi glow.
+- No hex codes. No palette compliance.
+- Color is not identity—it's atmosphere, weather, mood.
+
+TEXTURE
+- Leave the mess in: paper grain, analog bleed, archival rot, photocopy scars.
+- Texture isn't decoration—it's evidence of time.
+- Diagrams should look found, not made.
+
+TYPOGRAPHY
+- Code font crossbred with field notes—monospace plus marginalia.
+- One voice for structure, one for soul; both should disagree beautifully.
+- Prioritize annotations over hierarchy; meaning lives in footnotes, sidebars, scraps.
+
+TONE
+- Irreverent: sacred doesn't mean precious—call bullshit when you see it.
+- Embodied: these aren't "ideas," they're breath, skin, land, history.
+- Visionary: not utopia, not apocalypse—just something else, finally.
+- Anti-colonial: burn the blueprints, compost the charts, make new maps.
+
+FUNCTION
+HOPECODE diagrams are tools for:
+- Collective clarity without centralization
+- Mapping the mess instead of erasing it
+- Reclaiming imagination from empire's aesthetics
+
+They're made to:
+- Be forked, remixed, misused, ritualized
+- Show up in Notion dashboards, AR layers, city walls, zines, murals, tattoos
+- Evolve with context—never be final.
+
+STRUCTURE ELEMENTS
+- Nodes: people, places, values, moments—not just data
+- Branches: non-linear relationships, ancestral lines, tangents
+- Zones: contexts, vibes, ecosystems—not boxes
+- Glyphs: symbols with layered meaning—open source and sacred
+- Legends: minimal; use when needed—let people feel it first
+
+HOPECODE isn't asking for approval. It's not part of your brand system. It's the root system underneath what comes next. Use it wisely—or wildly.
+
+Just don't make it boring.
+
+HOPECODE doesn't trend. It ferments. It composts capitalism into community signal.
+
+When generating diagram images, apply the above. Prefer hand-drawn, organic, and textured; avoid corporate dashboard or stock infographics. Optional palette tokens for continuity with KK visual language: Cyberleaf Green, InfraRed Pulse, Luminous Sky Blue, Solar Punk Gold, Carbon Void Black—use as atmosphere, not rigid brand law.

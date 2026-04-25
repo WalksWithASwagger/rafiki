@@ -9,7 +9,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── package.json                 # npm package "rafiki", bins rafiki + image-gen
 ├── requirements.txt
 ├── styles/                      # Style YAML + markdown guides
-├── prompts/                     # Example prompt libraries
+├── prompts/                     # Example prompt libraries + **kk-kb** (KB image/diagram archive)
 ├── examples/
 ├── lib/
 ├── data/                        # optional usage log, refs (see .gitignore)
