@@ -121,6 +121,7 @@ def run_batch(
 
     def _run_one(task: dict) -> dict:
         start = time.time()
+        error_msg = ""
         try:
             ok = generate_image(
                 prompt=task["prompt"],
@@ -138,7 +139,13 @@ def run_batch(
         except Exception as e:
             print(f"  Error on '{task['name']}': {e}", file=sys.stderr)
             ok = False
-        return {**task, "ok": ok, "elapsed": time.time() - start}
+            error_msg = str(e)
+        # Verify the file actually landed on disk — the API can return success
+        # without writing anything (e.g. Gemini returning no image parts).
+        if not task["dry_run"] and ok and not Path(task["output_path"]).exists():
+            ok = False
+            error_msg = error_msg or "API returned success but file was not written"
+        return {**task, "ok": ok, "error": error_msg, "elapsed": time.time() - start}
 
     mode_label = f"parallel, {workers} workers" if workers > 1 else "sequential"
     print(f"\nRunning {total} prompt{'s' if total != 1 else ''} ({mode_label})")
@@ -165,20 +172,20 @@ def run_batch(
     success_count = sum(1 for r in final if r["ok"])
 
     # Save run.json manifest
+    def _img_record(r: dict) -> dict:
+        rec: dict = {
+            "name":   r["name"],
+            "prompt": r["prompt"],
+            "file":   Path(r["output_path"]).name,
+            "ok":     r["ok"],
+        }
+        if r.get("error"):
+            rec["error"] = r["error"]
+        return rec
+
     (run_dir / "run.json").write_text(
         json.dumps(
-            {
-                **run_meta,
-                "images": [
-                    {
-                        "name":   r["name"],
-                        "prompt": r["prompt"],
-                        "file":   Path(r["output_path"]).name,
-                        "ok":     r["ok"],
-                    }
-                    for r in final
-                ],
-            },
+            {**run_meta, "images": [_img_record(r) for r in final]},
             indent=2,
             ensure_ascii=False,
         ),
@@ -206,7 +213,12 @@ def run_batch(
         )
         generate_viewer(
             output_dir=run_dir,
-            items=[{"name": r["name"], "prompt": r["prompt"], "output_path": r["output_path"]} for r in final],
+            items=[{
+                "name": r["name"],
+                "prompt": r["prompt"],
+                "output_path": r["output_path"],
+                "error": r.get("error", ""),
+            } for r in final],
             title=title,
             run_meta=run_meta,
         )
