@@ -7,6 +7,7 @@
 | [gni-cosmic-diagram-style-guide.md](./gni-cosmic-diagram-style-guide.md) | **GNI lab** “cosmic / editorial” style + sample prompts |
 | [indigenomics-diagram-style-guide.md](./indigenomics-diagram-style-guide.md) | **Indigenomics** style + section prompt excerpts |
 | [hopecode-creative-big-ideas-prompts.md](./hopecode-creative-big-ideas-prompts.md) | **HOPECODE** creative stack / Vancouver diagram batch |
+| hopecode-big-ideas-batch.md | **HOPECODE** Rafiki-batch version of `hopecode-creative-big-ideas-prompts.md` *(pending Phase B merge — issue #2)* |
 | [websummit-vancouver-kk-zine-image-prompts.md](./websummit-vancouver-kk-zine-image-prompts.md) | **Web Summit Van / KK** zine + resistance **image prompts** (articles, maps, figures) |
 | [vanai-data-storytelling-hackathon-newsletter-blurb.md](./vanai-data-storytelling-hackathon-newsletter-blurb.md) | **Vancouver AI** data storytelling hackathon — short **newsletter / article** insert (not image prompts) |
 | [femme-prompts-mac-image-repository.md](./femme-prompts-mac-image-repository.md) | **BC+AI MAC** — femme / body-compute + neuro/bio/substrate **image prompts** (subgroup asset) |
@@ -14,6 +15,8 @@
 | [wikipedia-five-futures-image-prompts-archive.md](./wikipedia-five-futures-image-prompts-archive.md) | **Wikipedia “Five Futures”** — Midjourney `/imagine` set + master/subtheme prompts + keyword lists |
 | [gni-journalism-sovereignty/](./gni-journalism-sovereignty/) | GNI **sovereignty** diagram lines, `gpt-image-1` one-per-line, HOPECODE `.txt`, batch spec, Blue Engine notes |
 | [../../tools/gpt-image-batch-ui/README.md](../../tools/gpt-image-batch-ui/README.md) | **Streamlit** batch UI for `gpt-image-1` |
+| [../bcai/bcai-hopecode-visual-prompts.md](../bcai/bcai-hopecode-visual-prompts.md) | **BC+AI HOPECODE** community theory diagrams — companion to `hopecode-creative-big-ideas-prompts.md` (different themes, same aesthetic) |
+| ../bcai/bcai-hopecode-batch.md | **BC+AI HOPECODE** Rafiki-batch companion to `bcai-hopecode-visual-prompts.md` *(pending Phase B merge — issue #2)* |
 
 **Style text files (paste as prefix)**
 
