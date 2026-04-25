@@ -25,6 +25,19 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Auto-load .env from repo root so API keys work without `source .env`
+def _load_dotenv(path: Path) -> None:
+    if not path.exists():
+        return
+    import os
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip())
+
+_load_dotenv(Path(__file__).parent / ".env")
+
 from lib.core import generate_image
 from lib.models import resolve_model, ALIASES
 from lib.prompts import parse_image_prompts_md, ASPECT_RATIOS

@@ -30,6 +30,18 @@ from pathlib import Path
 _ROOT = Path(__file__).parent
 sys.path.insert(0, str(_ROOT))
 
+def _load_dotenv(path) -> None:
+    if not path.exists():
+        return
+    import os
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, _, v = line.partition("=")
+            os.environ.setdefault(k.strip(), v.strip())
+
+_load_dotenv(_ROOT / ".env")
+
 from mcp.server.fastmcp import FastMCP
 from lib.core import generate_image
 from lib.batch import run_batch
