@@ -158,6 +158,12 @@ BC AI style works best for:
 - **Community Communications**: Updates, progress reports, vision documents
 - **Professional Presentations**: Board meetings, investor decks, partner pitches
 
+## Related: KK personal creative practice (HOPECODE)
+
+[prompts/kk-kb/hopecode-creative-big-ideas-prompts.md](../kk-kb/hopecode-creative-big-ideas-prompts.md) — KK's personal creative stack, cognitive exoskeleton, daily rhythm, and field journal prompts in the same HOPECODE visual language. Different themes (personal creative practice vs community theory), same aesthetic.
+
+Runnable batch companion: [prompts/kk-kb/hopecode-big-ideas-batch.md](../kk-kb/hopecode-big-ideas-batch.md)
+
 ## Contributing
 
 These prompts are evolving documents. As the BC AI Community Centre grows, these examples should grow with it. Fork them, adapt them, make them your own.
