@@ -105,6 +105,7 @@ def _render_single(
   </div>
 </header>
 
+{_filter_bar_html()}
 <div class="grid" id="grid"></div>
 
 {_lightbox_html()}
@@ -115,6 +116,7 @@ def _render_single(
 
 <script>
 const ITEMS = {items_json};
+{_rating_js()}
 {_grid_js()}
 {_lightbox_js()}
 </script>
@@ -207,7 +209,6 @@ def _render_comparison(title: str, runs: list[dict]) -> str:
   transition: border-color 0.15s, transform 0.15s;
 }}
 .compare-cell:hover {{ border-color: var(--accent); transform: translateY(-2px); }}
-.compare-cell .img-wrap {{ aspect-ratio: 16/9; }}
 .compare-cell .run-label {{
   font-size: 0.68rem;
   color: var(--accent);
@@ -246,6 +247,7 @@ def _render_comparison(title: str, runs: list[dict]) -> str:
   <button class="run-tab compare-btn" id="compare-btn" onclick="toggleCompare()">⊞ Compare all</button>
 </div>
 
+{_filter_bar_html()}
 <div class="grid" id="grid"></div>
 <div class="compare-table" id="compare-table"></div>
 
@@ -260,6 +262,7 @@ const RUNS = {runs_json};
 let currentRun = RUNS.length - 1;
 let compareMode = false;
 
+{_rating_js()}
 {_comparison_js()}
 {_lightbox_js()}
 </script>
@@ -330,12 +333,34 @@ header h1 {
   letter-spacing: 0.01em;
 }
 
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.75rem 2rem 0;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.28rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--ink); }
+.filter-btn.active { background: rgba(124,106,247,0.2); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+
 /* ── Grid ── */
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 1.1rem;
-  padding: 1.5rem 2rem 3rem;
+  padding: 1rem 2rem 3rem;
 }
 
 /* ── Card ── */
@@ -352,8 +377,13 @@ header h1 {
   border-color: var(--accent);
   box-shadow: 0 8px 30px rgba(124,106,247,0.18);
 }
+.card.rated-star   { border-color: gold !important; box-shadow: 0 0 18px rgba(255,200,0,0.25); }
+.card.rated-reject { opacity: 0.45; }
+.card.hidden-filter { display: none; }
+
+/* fixed height, no crop — all image shapes sit properly */
 .img-wrap {
-  aspect-ratio: 16/9;
+  height: 190px;
   background: #0a0814;
   overflow: hidden;
   display: flex;
@@ -363,7 +393,7 @@ header h1 {
 .img-wrap img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 .missing {
@@ -373,7 +403,7 @@ header h1 {
   padding: 1.5rem;
   opacity: 0.6;
 }
-.card-body { padding: 0.75rem 0.9rem 0.85rem; }
+.card-body { padding: 0.75rem 0.9rem 0.5rem; }
 .card-name {
   font-size: 0.92rem;
   font-weight: 600;
@@ -408,6 +438,28 @@ header h1 {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* ── Rating bar ── */
+.card-rating {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem 0.6rem;
+  border-top: 1px solid var(--border);
+}
+.btn-rate {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--dim);
+  font-size: 0.8rem;
+  padding: 0.18rem 0.55rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1.4;
+}
+.btn-rate:hover { border-color: rgba(255,255,255,0.3); color: var(--ink); }
+.btn-rate.starred  { background: rgba(255,200,0,0.15); border-color: gold; color: gold; }
+.btn-rate.rejected { background: rgba(255,60,60,0.1); border-color: rgba(255,60,60,0.4); color: #ff6060; }
 
 /* ── Lightbox ── */
 .lb {
@@ -529,6 +581,15 @@ footer code { color: var(--accent2); }
 </style>"""
 
 
+def _filter_bar_html() -> str:
+    return """<div class="filter-bar" id="filter-bar">
+  <button class="filter-btn active" id="fb-all"        onclick="filterCards('all')">All <span id="fc-all"></span></button>
+  <button class="filter-btn"        id="fb-star"       onclick="filterCards('star')">★ Starred <span id="fc-star"></span></button>
+  <button class="filter-btn"        id="fb-reject"     onclick="filterCards('reject')">✕ Rejected <span id="fc-reject"></span></button>
+  <button class="filter-btn"        id="fb-unreviewed" onclick="filterCards('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+</div>"""
+
+
 def _lightbox_html() -> str:
     return """<div class="lb" id="lb" onclick="lbClickBg(event)">
   <button class="lb-close" onclick="lbClose()" title="Close (Esc)">✕</button>
@@ -545,6 +606,69 @@ def _lightbox_html() -> str:
 </div>"""
 
 
+def _rating_js() -> str:
+    return """
+// ── Ratings (localStorage) ──────────────────────────────────────────────────
+const RATINGS_KEY = 'rafiki:ratings';
+let _currentFilter = 'all';
+
+function _loadRatings() {
+  try { return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); }
+function getRating(key) { return _loadRatings()[key] || null; }
+function setRating(key, val) {
+  const r = _loadRatings();
+  if (r[key] === val) delete r[key]; else r[key] = val;
+  _saveRatings(r);
+}
+function applyRating(card, key) {
+  const val = getRating(key);
+  card.classList.remove('rated-star', 'rated-reject');
+  if (val === 'star')   card.classList.add('rated-star');
+  if (val === 'reject') card.classList.add('rated-reject');
+  const btnS = card.querySelector('.btn-rate.star');
+  const btnR = card.querySelector('.btn-rate.reject');
+  if (btnS) btnS.classList.toggle('starred',  val === 'star');
+  if (btnR) btnR.classList.toggle('rejected', val === 'reject');
+}
+function rateCard(e, key, val, card) {
+  e.stopPropagation();
+  setRating(key, val);
+  applyRating(card, key);
+  updateFilterCounts();
+  if (_currentFilter !== 'all') filterCards(_currentFilter);
+}
+function filterCards(mode) {
+  _currentFilter = mode;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  const active = document.getElementById('fb-' + mode);
+  if (active) active.classList.add('active');
+  const ratings = _loadRatings();
+  document.querySelectorAll('.card').forEach(card => {
+    const val = ratings[card.dataset.ratingKey] || null;
+    let show = true;
+    if (mode === 'star')            show = val === 'star';
+    else if (mode === 'reject')     show = val === 'reject';
+    else if (mode === 'unreviewed') show = !val;
+    card.classList.toggle('hidden-filter', !show);
+  });
+}
+function updateFilterCounts() {
+  const ratings = _loadRatings();
+  const cards = Array.from(document.querySelectorAll('.card'));
+  let stars = 0, rejects = 0, unreviewed = 0;
+  cards.forEach(c => {
+    const v = ratings[c.dataset.ratingKey] || null;
+    if (v === 'star') stars++; else if (v === 'reject') rejects++; else unreviewed++;
+  });
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n; };
+  set('fc-all', cards.length); set('fc-star', stars);
+  set('fc-reject', rejects);   set('fc-unreviewed', unreviewed);
+}
+"""
+
+
 def _grid_js() -> str:
     return """
 // Build grid
@@ -552,11 +676,13 @@ const grid = document.getElementById('grid');
 ITEMS.forEach((item, i) => {
   const card = document.createElement('div');
   card.className = 'card';
+  card.dataset.ratingKey = item.file;
   card.onclick = () => lbOpen(i);
 
   const promptShort = item.prompt.length > 140
     ? item.prompt.slice(0, 140) + '…'
     : item.prompt;
+  const rk = item.file;
 
   card.innerHTML = `
     <div class="img-wrap">
@@ -572,9 +698,15 @@ ITEMS.forEach((item, i) => {
       <div class="card-prompt" title="${item.prompt.replace(/"/g, '&quot;')}">${promptShort}</div>
       <div class="card-file">${item.file}</div>
     </div>
+    <div class="card-rating">
+      <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">★ Star</button>
+      <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">✕ Reject</button>
+    </div>
   `;
   grid.appendChild(card);
+  applyRating(card, rk);
 });
+updateFilterCounts();
 """
 
 
@@ -670,6 +802,8 @@ function switchRun(ri) {
   });
   document.getElementById('compare-btn').classList.remove('active');
   document.getElementById('compare-table').classList.remove('visible');
+  const filterBar = document.getElementById('filter-bar');
+  if (filterBar) filterBar.style.display = 'flex';
   showRun(ri);
 }
 
@@ -692,6 +826,8 @@ function showRun(ri) {
   run.images.forEach((item, i) => {
     const card = document.createElement('div');
     card.className = 'card';
+    const rk = run.dir + '/' + item.file;
+    card.dataset.ratingKey = rk;
     card.onclick = () => lbOpen(i, ri);
 
     const promptShort = item.prompt.length > 140
@@ -712,15 +848,23 @@ function showRun(ri) {
         <div class="card-prompt" title="${item.prompt.replace(/"/g, '&quot;')}">${promptShort}</div>
         <div class="card-file">${run.dir}/${item.file}</div>
       </div>
+      <div class="card-rating">
+        <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">&#9733; Star</button>
+        <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">&#10005; Reject</button>
+      </div>
     `;
     grid.appendChild(card);
+    applyRating(card, rk);
   });
+  updateFilterCounts();
 }
 
 function toggleCompare() {
   compareMode = !compareMode;
   document.getElementById('compare-btn').classList.toggle('active', compareMode);
   document.getElementById('grid').style.display = compareMode ? 'none' : 'grid';
+  const filterBar = document.getElementById('filter-bar');
+  if (filterBar) filterBar.style.display = compareMode ? 'none' : 'flex';
   const ct = document.getElementById('compare-table');
   ct.classList.toggle('visible', compareMode);
   if (compareMode) buildCompareTable();
@@ -760,7 +904,7 @@ function buildCompareTable() {
       if (img) cell.onclick = () => { lbItems = run.images; lbOpen(si, ri); };
 
       cell.innerHTML = `
-        <div class="img-wrap">
+        <div class="img-wrap" style="height:140px">
           ${img && img.ok
             ? `<img src="${run.dir}/${img.file}" alt="${img.name}" loading="lazy">`
             : `<div class="missing">${img ? 'Failed' : 'No image'}</div>`

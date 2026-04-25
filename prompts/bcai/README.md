@@ -50,6 +50,18 @@ Prompts for BC AI ecosystem visualizations:
 
 **Best for:** Board presentations, investor pitches, partner communications, community updates
 
+### [bcai-hopecode-visual-prompts.md](./bcai-hopecode-visual-prompts.md)
+
+**Master compendium** of HOPECODE / “dark mode aurora” prompts for BC+AI: website headers (1280×500), researcher–subject meta diagrams, situated knowledge, fractal subgroups, rhythm–ritual–reach playbook, Mycelial org chart, Surrey/Women’s/Squamish/Mind node maps, atmospheric BC-coast vignettes, **BC Studies “Reflection” paper** diagram set, **20× membership-launch** scene+line table, one-line title bank, two-line series, **solarpunk hopecore** (labor / surveillance / abundance / transcendence), and **Indigenomics / nation-based economics** headers (consent-forward, non-GDP). **Broader KK prompt index:** [`prompts/kk-kb/README-diagram-visual-resources.md`](../kk-kb/README-diagram-visual-resources.md). **Publishing / research thread (kk-b):** `content/projects/02-bc-ai-ecosystem-nonprofit/publishing/bc-grassroots-ai-asset-kit.md`.
+
+**Best for:** Regenerating article art, map thumbnails, funding/hackathon tiles, and ecosystem storytelling without WIRED/ corporate chart defaults
+
+### [context-creator-field-journals.md](./context-creator-field-journals.md)
+
+A single high-detail scene: three torn journal pages (different hands, different subject matter) with the same two words — **CONTEXT CREATOR** — circled on each, linked by mycelial threads to a bioluminescent node. “Three altitudes, same word, no coordination” — convergent independent discovery; found-object / documentary look, not deck zine.
+
+**Best for:** Keynote or article art, Theory of Change / narrative about alignment without coordination
+
 ## Writing BC AI Prompts
 
 When writing prompts for BC AI style, focus on:
