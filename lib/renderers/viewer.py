@@ -34,6 +34,7 @@ def generate_viewer(
             "file": rel,
             "ok": out.exists(),
             "aspect_ratio": item.get("aspect_ratio") or aspect_ratio,
+            "error": item.get("error", ""),
         })
 
     html = _render_single(title, js_items, model, aspect_ratio, style, timestamp, prompt_file)
@@ -51,6 +52,11 @@ def generate_comparison_viewer(project_dir: Path) -> Path:
     for rjp in run_json_paths:
         try:
             data = json.loads(rjp.read_text(encoding="utf-8"))
+            # Re-verify file existence at render time — don't trust run.json ok field
+            images = []
+            for img in data.get("images", []):
+                img_path = rjp.parent / img["file"]
+                images.append({**img, "ok": img_path.exists()})
             runs.append({
                 "id": rjp.parent.name,
                 "dir": rjp.parent.name,
@@ -59,7 +65,7 @@ def generate_comparison_viewer(project_dir: Path) -> Path:
                 "style": data.get("style", "none"),
                 "aspect_ratio": data.get("aspect_ratio", "16:9"),
                 "prompt_file": data.get("prompt_file", ""),
-                "images": data.get("images", []),
+                "images": images,
             })
         except Exception:
             continue
@@ -682,12 +688,15 @@ ITEMS.forEach((item, i) => {
   card.onclick = () => lbOpen(i);
 
   const rk = item.file;
+  const missingMsg = item.error
+    ? item.error.replace(/[<>&"]/g, '').slice(0, 80)
+    : 'not generated';
   card.innerHTML = `
     <div class="img-wrap">
       <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
       ${item.ok
         ? `<img src="${item.file}" alt="${item.name}" loading="lazy">`
-        : `<div class="missing-img">not generated</div>`}
+        : `<div class="missing-img">${missingMsg}</div>`}
     </div>
     <div class="card-foot">
       <span class="card-name">${item.name}</span>
@@ -695,6 +704,10 @@ ITEMS.forEach((item, i) => {
       <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">✕</button>
     </div>
   `;
+  const img = card.querySelector('img');
+  if (img) img.addEventListener('error', () => {
+    img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+  });
   grid.appendChild(card);
   applyRating(card, rk);
 });
@@ -799,6 +812,7 @@ function switchRun(ri) {
 
 function showRun(ri) {
   const run = RUNS[ri];
+  const arCss = (run.aspect_ratio || '16:9').replace(':', '/');
   lbItems = run.images;
   lbRunIdx = ri;
   const el = id => document.getElementById(id);
@@ -815,12 +829,15 @@ function showRun(ri) {
     const rk = run.dir + '/' + item.file;
     card.dataset.ratingKey = rk;
     card.onclick = () => lbOpen(i, ri);
+    const missingMsg = item.error
+      ? item.error.replace(/[<>&"]/g, '').slice(0, 80)
+      : 'not generated';
     card.innerHTML = `
-      <div class="img-wrap">
+      <div class="img-wrap" style="aspect-ratio:${arCss}">
         <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
         ${item.ok
           ? `<img src="${run.dir}/${item.file}" alt="${item.name}" loading="lazy">`
-          : `<div class="missing-img">not generated</div>`}
+          : `<div class="missing-img">${missingMsg}</div>`}
       </div>
       <div class="card-foot">
         <span class="card-name">${item.name}</span>
@@ -828,6 +845,10 @@ function showRun(ri) {
         <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">✕</button>
       </div>
     `;
+    const img = card.querySelector('img');
+    if (img) img.addEventListener('error', () => {
+      img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+    });
     grid.appendChild(card);
     applyRating(card, rk);
   });
@@ -864,17 +885,25 @@ function buildCompareTable() {
     ct.appendChild(row);
     RUNS.forEach((run, ri) => {
       const img = run.images[si];
+      const runArCss = (run.aspect_ratio || '16:9').replace(':', '/');
       const cell = document.createElement('div');
       cell.className = 'compare-cell';
       if (img) cell.onclick = () => { lbItems = run.images; lbOpen(si, ri); };
+      const missingMsg = img && img.error
+        ? img.error.replace(/[<>&"]/g, '').slice(0, 60)
+        : (img ? 'failed' : '—');
       cell.innerHTML = `
-        <div class="img-wrap">
+        <div class="img-wrap" style="aspect-ratio:${runArCss}">
           ${img && img.ok
             ? `<img src="${run.dir}/${img.file}" loading="lazy">`
-            : `<div class="missing-img">${img ? 'failed' : '—'}</div>`}
+            : `<div class="missing-img">${missingMsg}</div>`}
         </div>
         <div class="run-badge">Run ${ri + 1} · ${run.model || ''}</div>
       `;
+      const cellImg = cell.querySelector('img');
+      if (cellImg) cellImg.addEventListener('error', () => {
+        cellImg.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+      });
       row.appendChild(cell);
     });
   }
