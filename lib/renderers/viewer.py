@@ -80,7 +80,6 @@ def generate_comparison_viewer(project_dir: Path) -> Path:
 # ─── aspect ratio → CSS helper ───────────────────────────────────────────────
 
 def _ar_css(ar: str) -> str:
-    """Convert '9:16' → '9/16' for CSS aspect-ratio property."""
     return ar.replace(":", "/") if ar else "16/9"
 
 
@@ -247,8 +246,9 @@ let currentRun = RUNS.length - 1;
 let compareMode = false;
 
 {_rating_js()}
-{_comparison_js()}
 {_lightbox_js()}
+{_comparison_js()}
+init();
 </script>
 </body>
 </html>"""
@@ -268,7 +268,7 @@ def _shared_css(ar_css: str = "16/9") -> str:
   --accent:  #7c6af7;
   --teal:    #00c8b4;
   --gold:    #f5c518;
-  --card-w:  220px;
+  --card-w:  280px;
 }}
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{
@@ -351,15 +351,15 @@ header h1 {{
 .grid {{
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
-  gap: 1rem;
-  padding: 1rem 1.5rem 4rem;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem 4rem;
 }}
 
 /* ── Card ── */
 .card {{
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
   transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
@@ -413,21 +413,38 @@ header h1 {{
   align-items: center;
   justify-content: center;
   color: var(--dim);
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   opacity: 0.5;
+  padding: 0.5rem;
+  text-align: center;
+}}
+
+/* ── Card prompt ── */
+.card-prompt {{
+  padding: 0.55rem 0.75rem 0.4rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+  border-top: 1px solid var(--border);
 }}
 
 /* ── Card footer ── */
 .card-foot {{
-  padding: 0.5rem 0.65rem 0.45rem;
+  padding: 0.4rem 0.65rem 0.4rem;
   display: flex;
   align-items: center;
   gap: 0.4rem;
   border-top: 1px solid var(--border);
+  flex-shrink: 0;
 }}
 .card-name {{
   flex: 1;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
@@ -455,11 +472,10 @@ header h1 {{
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.96);
+  background: rgba(0,0,0,0.97);
   z-index: 9000;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
 }}
 .lb.open {{ display: flex; }}
 
@@ -470,15 +486,18 @@ header h1 {{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.7), transparent);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
   z-index: 9001;
-  pointer-events: none;
 }}
 .lb-counter {{
   font-size: 0.82rem;
   color: rgba(255,255,255,0.6);
   font-variant-numeric: tabular-nums;
-  pointer-events: none;
+}}
+.lb-top-actions {{
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
 }}
 .lb-close {{
   background: rgba(255,255,255,0.12);
@@ -493,10 +512,27 @@ header h1 {{
   align-items: center;
   justify-content: center;
   transition: background 0.15s;
-  pointer-events: all;
   line-height: 1;
 }}
 .lb-close:hover {{ background: rgba(255,255,255,0.22); }}
+.lb-action-btn {{
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.75);
+  font-size: 0.76rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  font-family: inherit;
+}}
+.lb-action-btn:hover {{ background: rgba(255,255,255,0.16); color: #fff; border-color: rgba(255,255,255,0.3); }}
+.lb-action-btn.copied {{ border-color: var(--teal); color: var(--teal); }}
 
 .lb-img-area {{
   position: relative;
@@ -505,23 +541,23 @@ header h1 {{
   justify-content: center;
   width: 100%;
   flex: 1;
-  padding: 3rem 5rem 1rem;
+  padding: 3.5rem 5rem 0.5rem;
   min-height: 0;
 }}
 .lb-img-area img {{
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
-  border-radius: 4px;
-  box-shadow: 0 20px 80px rgba(0,0,0,0.8);
+  border-radius: 6px;
+  box-shadow: 0 20px 80px rgba(0,0,0,0.9);
   display: block;
 }}
 .lb-arrow {{
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
   color: #fff;
   font-size: 1.2rem;
   width: 3rem;
@@ -536,32 +572,32 @@ header h1 {{
   z-index: 2;
   line-height: 1;
 }}
-.lb-arrow:hover {{ background: rgba(255,255,255,0.2); }}
+.lb-arrow:hover {{ background: rgba(255,255,255,0.18); }}
 .lb-arrow.prev {{ left: 1rem; }}
 .lb-arrow.next {{ right: 1rem; }}
 
-.lb-caption {{
+.lb-bottom {{
   width: 100%;
-  max-width: 800px;
-  padding: 0.75rem 1.5rem 1.25rem;
-  text-align: center;
+  max-width: 900px;
+  padding: 0.6rem 1.5rem 1rem;
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
 }}
 .lb-name {{
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--ink);
-  margin-bottom: 0.35rem;
 }}
 .lb-prompt {{
   font-size: 0.78rem;
   color: var(--dim);
-  line-height: 1.55;
-  max-height: 4.5rem;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
+  line-height: 1.6;
+  max-height: 7rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }}
 
 /* ── Run strip (compare lightbox) ── */
@@ -570,7 +606,7 @@ header h1 {{
   gap: 0.35rem;
   flex-wrap: wrap;
   justify-content: center;
-  padding: 0 1.5rem 1rem;
+  padding: 0 1.5rem 0.75rem;
   flex-shrink: 0;
 }}
 .lb-run-dot {{
@@ -601,14 +637,18 @@ def _lightbox_html() -> str:
     return """<div class="lb" id="lb" onclick="lbClickBg(event)">
   <div class="lb-top">
     <span class="lb-counter" id="lb-counter"></span>
-    <button class="lb-close" onclick="lbClose()" title="Close (Esc)">✕</button>
+    <div class="lb-top-actions">
+      <a id="lb-download" class="lb-action-btn" download="">&#11015; Download</a>
+      <button id="lb-copy" class="lb-action-btn" onclick="lbCopyPrompt(); event.stopPropagation()">&#x2398; Copy prompt</button>
+      <button class="lb-close" onclick="lbClose()" title="Close (Esc)">&#x2715;</button>
+    </div>
   </div>
-  <div class="lb-img-area">
+  <div class="lb-img-area" onclick="event.stopPropagation()">
     <button class="lb-arrow prev" onclick="lbStep(-1); event.stopPropagation()">&#8592;</button>
-    <img id="lb-img" src="" alt="" onclick="event.stopPropagation()">
+    <img id="lb-img" src="" alt="">
     <button class="lb-arrow next" onclick="lbStep(1); event.stopPropagation()">&#8594;</button>
   </div>
-  <div class="lb-caption">
+  <div class="lb-bottom" onclick="event.stopPropagation()">
     <div class="lb-name" id="lb-name"></div>
     <div class="lb-prompt" id="lb-prompt"></div>
   </div>
@@ -678,53 +718,16 @@ function updateFilterCounts() {
 """
 
 
-def _grid_js() -> str:
-    return """
-const grid = document.getElementById('grid');
-ITEMS.forEach((item, i) => {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.dataset.ratingKey = item.file;
-  card.onclick = () => lbOpen(i);
-
-  const rk = item.file;
-  const missingMsg = item.error
-    ? item.error.replace(/[<>&"]/g, '').slice(0, 80)
-    : 'not generated';
-  card.innerHTML = `
-    <div class="img-wrap">
-      <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
-      ${item.ok
-        ? `<img src="${item.file}" alt="${item.name}" loading="lazy">`
-        : `<div class="missing-img">${missingMsg}</div>`}
-    </div>
-    <div class="card-foot">
-      <span class="card-name">${item.name}</span>
-      <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">★</button>
-      <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">✕</button>
-    </div>
-  `;
-  const img = card.querySelector('img');
-  if (img) img.addEventListener('error', () => {
-    img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
-  });
-  grid.appendChild(card);
-  applyRating(card, rk);
-});
-updateFilterCounts();
-"""
-
-
 def _lightbox_js() -> str:
     return """
-let lbIdx = 0;
-let lbItems = typeof ITEMS !== 'undefined' ? ITEMS : [];
-let lbRunIdx = -1;
-const lb       = document.getElementById('lb');
-const lbImg    = document.getElementById('lb-img');
-const lbName   = document.getElementById('lb-name');
-const lbPrompt = document.getElementById('lb-prompt');
-const lbStrip  = document.getElementById('lb-run-strip');
+var lbIdx = 0;
+var lbItems = typeof ITEMS !== 'undefined' ? ITEMS : [];
+var lbRunIdx = -1;
+const lb        = document.getElementById('lb');
+const lbImg     = document.getElementById('lb-img');
+const lbName    = document.getElementById('lb-name');
+const lbPrompt  = document.getElementById('lb-prompt');
+const lbStrip   = document.getElementById('lb-run-strip');
 const lbCounter = document.getElementById('lb-counter');
 
 function lbOpen(i, runIdx) {
@@ -733,10 +736,19 @@ function lbOpen(i, runIdx) {
   const item = lbItems[lbIdx];
   const prefix = (lbRunIdx >= 0 && typeof RUNS !== 'undefined')
     ? RUNS[lbRunIdx].dir + '/' : '';
-  lbImg.src = prefix + item.file;
-  lbName.textContent = item.name;
-  lbPrompt.textContent = item.prompt;
+  const imgSrc = prefix + item.file;
+  lbImg.src = imgSrc;
+  lbImg.alt = item.name || '';
+  lbName.textContent = item.name || '';
+  lbPrompt.textContent = item.prompt || '';
   if (lbCounter) lbCounter.textContent = `${lbIdx + 1} / ${lbItems.length}`;
+
+  const dlBtn = document.getElementById('lb-download');
+  if (dlBtn) {
+    dlBtn.href = imgSrc;
+    dlBtn.download = (item.name || 'image').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.png';
+  }
+
   _buildRunStrip(lbIdx);
   lb.classList.add('open');
   document.body.style.overflow = 'hidden';
@@ -749,7 +761,7 @@ function _buildRunStrip(slotIdx) {
   RUNS.forEach((run, ri) => {
     const dot = document.createElement('button');
     dot.className = 'lb-run-dot' + (ri === lbRunIdx ? ' active' : '');
-    dot.textContent = `Run ${ri + 1} · ${run.model || run.timestamp}`;
+    dot.textContent = `${run.model || 'Run ' + (ri+1)} · ${run.timestamp}`;
     dot.onclick = (e) => {
       e.stopPropagation();
       lbRunIdx = ri;
@@ -757,6 +769,19 @@ function _buildRunStrip(slotIdx) {
       lbOpen(slotIdx, ri);
     };
     lbStrip.appendChild(dot);
+  });
+}
+
+function lbCopyPrompt() {
+  const text = document.getElementById('lb-prompt')?.textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('lb-copy');
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '&#x2713; Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
   });
 }
 
@@ -779,6 +804,46 @@ document.addEventListener('keydown', e => {
 """
 
 
+def _grid_js() -> str:
+    return """
+const grid = document.getElementById('grid');
+ITEMS.forEach((item, i) => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.dataset.ratingKey = item.file;
+  card.onclick = () => lbOpen(i);
+
+  const arCss = (item.aspect_ratio || '16:9').replace(':', '/');
+  const missingMsg = item.error
+    ? item.error.replace(/[<>&"]/g, '').slice(0, 80)
+    : 'not generated';
+
+  card.innerHTML = `
+    <div class="img-wrap" style="aspect-ratio:${arCss}">
+      <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
+      ${item.ok
+        ? `<img src="${item.file}" alt="" loading="lazy">`
+        : `<div class="missing-img">${missingMsg}</div>`}
+    </div>
+    <div class="card-prompt"></div>
+    <div class="card-foot">
+      <span class="card-name">${item.name}</span>
+      <button class="btn-rate star"   onclick="rateCard(event,'${item.file}','star',  this.closest('.card'))">&#9733;</button>
+      <button class="btn-rate reject" onclick="rateCard(event,'${item.file}','reject',this.closest('.card'))">&#x2715;</button>
+    </div>
+  `;
+  card.querySelector('.card-prompt').textContent = item.prompt || '';
+  const img = card.querySelector('img');
+  if (img) img.addEventListener('error', () => {
+    img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+  });
+  grid.appendChild(card);
+  applyRating(card, item.file);
+});
+updateFilterCounts();
+"""
+
+
 def _comparison_js() -> str:
     return """
 function init() {
@@ -791,7 +856,7 @@ function init() {
   RUNS.forEach((run, ri) => {
     const tab = document.createElement('button');
     tab.className = 'run-tab' + (ri === currentRun ? ' active' : '');
-    tab.textContent = `Run ${ri + 1}  ·  ${run.model || ''}  ·  ${run.timestamp}`;
+    tab.textContent = `${run.model || 'Run ' + (ri+1)}  ·  ${run.timestamp}`;
     tab.title = run.dir;
     tab.onclick = () => switchRun(ri);
     tabsEl.insertBefore(tab, compareBtn);
@@ -836,15 +901,17 @@ function showRun(ri) {
       <div class="img-wrap" style="aspect-ratio:${arCss}">
         <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
         ${item.ok
-          ? `<img src="${run.dir}/${item.file}" alt="${item.name}" loading="lazy">`
+          ? `<img src="${run.dir}/${item.file}" alt="" loading="lazy">`
           : `<div class="missing-img">${missingMsg}</div>`}
       </div>
+      <div class="card-prompt"></div>
       <div class="card-foot">
         <span class="card-name">${item.name}</span>
-        <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">★</button>
-        <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">✕</button>
+        <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">&#9733;</button>
+        <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">&#x2715;</button>
       </div>
     `;
+    card.querySelector('.card-prompt').textContent = item.prompt || '';
     const img = card.querySelector('img');
     if (img) img.addEventListener('error', () => {
       img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
@@ -898,7 +965,7 @@ function buildCompareTable() {
             ? `<img src="${run.dir}/${img.file}" loading="lazy">`
             : `<div class="missing-img">${missingMsg}</div>`}
         </div>
-        <div class="run-badge">Run ${ri + 1} · ${run.model || ''}</div>
+        <div class="run-badge">${run.model || 'Run ' + (ri+1)}</div>
       `;
       const cellImg = cell.querySelector('img');
       if (cellImg) cellImg.addEventListener('error', () => {
@@ -908,6 +975,4 @@ function buildCompareTable() {
     });
   }
 }
-
-init();
 """
