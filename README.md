@@ -13,14 +13,19 @@ The npm package is **`rafiki`**. The **`image-gen`** command remains available a
 ## Features
 
 - **Multi-provider AI generation**: Gemini (`gemini-2.5-flash-image`, `gemini-3-pro-image-preview`) and OpenAI (`gpt-image-2`, `dall-e-3`) via a unified CLI
-- **Run isolation**: Each batch generates a timestamped `run-YYYYMMDD-HHMMSS/` directory — generations are never overwritten
-- **Comparison viewer**: HTML gallery with tabs to switch between runs, side-by-side compare mode, and lightbox with keyboard nav
-- **Star / Reject ratings**: Rate individual images from the viewer; ratings persist in `localStorage` across page loads
-- **Filter bar**: Filter the grid by All / ★ Starred / ✕ Rejected / Unreviewed with live counts
+- **Run isolation**: Each batch creates a timestamped `run-YYYYMMDD-HHMMSS/` directory — generations are never overwritten
+- **Comparison viewer**: HTML gallery with tabs to switch runs, side-by-side compare mode, and lightbox with keyboard nav
+- **Prompts on cards**: Every card shows the prompt that generated it (3-line clamp, full text in lightbox)
+- **Lightbox**: Full-screen image with one-click download and copy-prompt button
+- **Grid resize slider**: Drag to scale cards from thumbnail to large — preference saved in `localStorage`
+- **Star / Reject ratings**: Rate images from the viewer; ratings persist across page loads
+- **Filter bar**: All / ★ Starred / ✕ Rejected / Unreviewed with live counts
+- **Master library viewer**: `generate.py library` — single page spanning all projects, with project + model filter chips
+- **Viewer rebuild**: `generate.py view <project> [--all-runs]` — regenerate viewers from disk without re-generating images
 - **HTML rendering**: Puppeteer for diagrams, charts, quote cards
 - **Batch processing**: Parse `image-prompts.md` files (numbered sections + blockquote prompts)
-- **Style packs**: KK / HOPECODE / BCAI / Upgrade (YAML + markdown guides)
-- **Usage tracking**: Optional local `data/usage-log.json` (gitignored by default)
+- **Style packs**: KK / HOPECODE / BCAI / Upgrade / Zine / GNI (YAML + markdown guides)
+- **Usage tracking**: Local `data/usage-log.json` (gitignored) — logs every API call (success and failure) with full prompt, model, style
 
 ## Setup
 
@@ -197,32 +202,64 @@ output/<project>/
     viewer.html       ← single-run gallery (shareable)
   latest → run-20260425-093605/   ← symlink to most recent
   viewer.html         ← comparison viewer across all runs
+output/library.html   ← master library spanning all projects
 ```
 
 Open `output/<project>/viewer.html` in a browser to:
 - Switch between runs via tabs at the top
 - Click **⊞ Compare all** to see every prompt slot side-by-side across runs
-- Click any image to open fullscreen lightbox (arrow keys / Esc to navigate)
+- Click any image to open fullscreen lightbox (arrow keys / Esc to navigate); download or copy prompt from the lightbox toolbar
 - **★ Star** or **✕ Reject** individual images — ratings persist in `localStorage`
 - Filter the grid: **All / ★ Starred / ✕ Rejected / Unreviewed**
+- Drag the **Grid** slider to resize cards
+
+### Rebuild viewers without re-generating
+
+```bash
+# Rebuild comparison viewer (re-checks which files exist on disk)
+python generate.py view philadelphia
+
+# Rebuild all per-run viewers too
+python generate.py view philadelphia --all-runs
+
+# Rebuild master library (all projects in one page)
+python generate.py library
+
+# Build and open in browser
+python generate.py library --open
+```
 
 ## Repository layout
 
 ```
 rafiki/
-├── generate.py          # Python Gemini image generator
+├── generate.py          # Python CLI entry — generation, view, library subcommands
 ├── requirements.txt
 ├── index.js             # Node CLI (AI + Puppeteer render)
 ├── package.json
-├── styles/              # styles.yaml + per-style docs
-├── prompts/             # Example prompt libraries
+├── styles/              # styles.yaml + per-style markdown guides
+├── prompts/             # Prompt libraries (kk/, bcai/, hopecode/, upgrade/, kk-kb/)
 ├── examples/            # Long-form workflow notes
-├── lib/                 # Optional helpers used by some flows
-├── data/                # usage-log.json (optional, gitignored)
+├── lib/
+│   ├── batch.py         # Parallel batch runner + run isolation
+│   ├── core.py          # Single-image generate_image()
+│   ├── models.py        # Model aliases + resolution
+│   ├── prompts.py       # parse_image_prompts_md()
+│   ├── styles.py        # Style suffix resolution
+│   ├── usage.py         # Usage log (data/usage-log.json)
+│   └── renderers/
+│       ├── viewer.py    # Single-run + comparison viewer HTML
+│       └── library.py   # Master library viewer HTML
+├── data/                # usage-log.json (gitignored)
+├── output/              # Generated images + viewers (gitignored)
+│   ├── <project>/       # Per-project run tree
+│   └── library.html     # Master library across all projects
 └── docs/
     ├── SCOPE.md
+    ├── FOLDER-LAYOUT.md
     ├── CHROME-PUPPETEER.md
-    └── FOLDER-LAYOUT.md
+    ├── image-pipeline-analysis.md
+    └── image-pipeline-operator.md
 ```
 
 ## Consuming from another monorepo (e.g. kk-ai-ecosystem)

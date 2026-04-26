@@ -248,7 +248,37 @@ prompts/<folder>/reference-<descriptor>.png
 
 ---
 
-## 6. Common CLI recipes
+## 6. Viewer and library commands
+
+### Rebuild viewers without re-generating images
+
+```bash
+# Rebuild comparison viewer for a project (re-verifies files on disk)
+python generate.py view philadelphia
+python generate.py view cmvan-keynote --all-runs   # also rebuild per-run viewers
+
+# Master library — all projects in one filterable page
+python generate.py library
+python generate.py library --open                  # build + open in browser
+python generate.py library --output-dir /custom/output/
+```
+
+The library at `output/library.html` shows every image across all projects with:
+- Project and model filter chips (click to narrow; click again to clear)
+- Rating filters (All / ★ Starred / ✕ Rejected / Unreviewed)
+- Grid resize slider (persisted in `localStorage`)
+
+### Per-project viewer features
+
+Open any `output/<project>/viewer.html` to:
+- Switch between runs (tabs) or compare all runs side-by-side (**⊞ Compare all**)
+- See the generating prompt on each card (3-line clamp)
+- Click to open fullscreen lightbox → download button + ⎘ Copy prompt
+- Drag the **Grid** slider to resize cards
+
+---
+
+## 7. Common CLI recipes
 
 ```bash
 # Single image — KK editorial
@@ -302,7 +332,7 @@ python generate.py -p "Minimalist Venn diagram ML NLP GenAI, deep blue space gra
 
 ---
 
-## 7. Archival warning
+## 8. Archival warning
 
 > **Archival-only files — do not batch-generate without a prompt rewrite:**
 >

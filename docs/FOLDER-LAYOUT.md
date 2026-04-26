@@ -4,19 +4,35 @@
 
 ```
 rafiki/                          ← this repo (clone anywhere; name the folder rafiki/)
-├── index.js                     # Node CLI entry
-├── generate.py                  # Gemini image generation
+├── index.js                     # Node CLI entry (AI + Puppeteer)
+├── generate.py                  # Python CLI: generate / view / library subcommands
+├── mcp_server.py                # MCP server (rafiki_generate, rafiki_batch, rafiki_list_styles)
 ├── package.json                 # npm package "rafiki", bins rafiki + image-gen
 ├── requirements.txt
-├── styles/                      # Style YAML + markdown guides
-├── prompts/                     # Example prompt libraries + **kk-kb** (KB image/diagram archive)
+├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, upgrade, zine, gni)
+├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/, kk-kb/
 ├── examples/
 ├── lib/
-├── data/                        # optional usage log, refs (see .gitignore)
+│   ├── batch.py                 # Parallel batch runner, run isolation, viewer generation
+│   ├── core.py                  # generate_image() — unified provider dispatch
+│   ├── models.py                # Alias resolution + resolution config
+│   ├── prompts.py               # parse_image_prompts_md()
+│   ├── styles.py                # Style suffix resolution + composition
+│   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
+│   └── renderers/
+│       ├── __init__.py
+│       ├── viewer.py            # Single-run viewer + comparison viewer HTML
+│       └── library.py          # Master library viewer (all projects, project/model filter chips)
+├── data/                        # usage-log.json (gitignored)
+├── output/                      # Generated images + viewers (gitignored)
+│   ├── <project>/run-*/         # Per-project run trees with run.json + viewer.html
+│   └── library.html             # Master library — built by `generate.py library`
 └── docs/
     ├── SCOPE.md
     ├── CHROME-PUPPETEER.md
-    └── FOLDER-LAYOUT.md         # this file
+    ├── FOLDER-LAYOUT.md         # this file
+    ├── image-pipeline-analysis.md
+    └── image-pipeline-operator.md
 ```
 
 ## Not in this repo (KB monorepo only)

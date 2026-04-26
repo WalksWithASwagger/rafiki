@@ -89,5 +89,19 @@ RAFIKI_HOME=/path/to/rafiki node tools/image-gen/launch.js --prompt "..."
 ## After a batch run
 
 - Images land in `--output-dir` (default: `<prompt-file-dir>/images/`)
-- `viewer.html` is auto-generated in the same directory — open it in a browser to review outputs with lightbox
+- `viewer.html` is auto-generated — open it in a browser: prompts on cards, lightbox with download + copy-prompt, grid resize slider, star/reject ratings
 - JSON output (`--json`) returns paths to all images + viewer for pipeline use
+
+## Viewer maintenance
+
+```bash
+# Rebuild comparison viewer from disk (no re-generation)
+python generate.py view <project>
+python generate.py view philadelphia --all-runs   # also rebuild per-run viewers
+
+# Master library — all projects in one page with filter chips
+python generate.py library
+python generate.py library --open                 # build + open in browser
+```
+
+The library viewer lives at `output/library.html`. It scans all `output/*/run-*/run.json`, re-verifies which files exist on disk, and generates a filterable grid by project and model.
