@@ -42,7 +42,7 @@ def parse_image_prompts_md(file_path: str | Path) -> list[dict]:
     content = Path(file_path).read_text(encoding="utf-8")
     prompts = []
 
-    sections = re.split(r"^## \d+\.", content, flags=re.MULTILINE)[1:]
+    sections = re.split(r"^## \d+[a-z]?\.", content, flags=re.MULTILINE)[1:]
 
     for section in sections:
         lines = section.strip().split("\n")

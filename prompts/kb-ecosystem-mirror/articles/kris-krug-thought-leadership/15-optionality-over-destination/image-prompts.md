@@ -4,15 +4,27 @@
 **Status:** Ready
 **Style:** kk
 
+Run: `python3 generate.py -f <this-file> -d output/kk-articles --style kk -m gpt-image-2 --workers 2`
+
 ---
 
-## 1. Hero Image
+## 1a. Hero Image — Variation A
 
 **For:** Article header / LinkedIn featured image
 **Aspect Ratio:** 16:9
 **Style:** kk
 **Prompt:**
-> A figure at a branching path system — not a simple fork but a spreading network where multiple routes remain visible and open ahead. Multiple valid roads glow teal. The figure isn't agonizing at the crossroads; they're oriented and moving, choosing a path while keeping others in view. Deep dark background (#0f0f1a), teal paths on dark ground (#00c8b4), purple ambient (#9333ea). Dark editorial illustration, cinematic.
+> A figure stands at a complex path junction where many illuminated trails diverge in different directions — not paralyzed at a crossroads but oriented and moving, weight already shifted forward, clearly picking one trail while the others remain lit and visible behind and beside them. Multiple valid routes glow with equal possibility. The figure chose without extinguishing the alternatives. Wide cinematic shot, deep dark forest floor, teal path-light glowing from the ground-level trails, the figure lit from below by the path-light at their feet, purple tree canopy above, motion implicit in the figure's forward posture.
+
+---
+
+## 1b. Hero Image — Variation B
+
+**For:** Article header / LinkedIn featured image (alternate concept)
+**Aspect Ratio:** 16:9
+**Style:** kk
+**Prompt:**
+> An open palm extended toward the viewer, fingers spread, each holding a small glowing object: a worn leather notebook, a luminous business card, a recognizable creative tool, a printed record of published work. None of them are anchored to any employer, address, or container — luminous, portable, fully owned. The hand moves through dark space and everything moves with it. The person is the constant across all possible futures. Close-up, shallow depth of field, warm amber on the skin of the hand itself, each held object emitting its own soft teal-to-gold glow, deep black background receding behind.
 
 ---
 
@@ -22,7 +34,7 @@
 **Aspect Ratio:** 1:1
 **Style:** kk
 **Prompt:**
-> Two path maps. Left: a single straight line to a fixed point — satisfying but brittle, everything depends on the destination remaining valid. Right: a branching network with multiple valid endpoints — flexible, adaptive, resilient to change. What happens when the destination disappears is visually obvious in each. Teal for the branching network. Dark editorial illustration.
+> Two path maps side by side. Left: a single straight line running from a starting point to a fixed destination — satisfying in its clarity but visibly brittle, everything depending on that one endpoint remaining valid. When the destination disappears, the line ends in void. Right: a branching network with multiple valid endpoints spreading in several directions — flexible, adaptive, the loss of any single endpoint barely affecting the whole. The brittleness of the single path vs. the resilience of the network made visually obvious. Teal for the branching network, grey for the single path. Dark editorial illustration.
 
 ---
 
@@ -32,7 +44,7 @@
 **Aspect Ratio:** 1:1
 **Style:** kk
 **Prompt:**
-> A portfolio of skills and relationships shown as portable, glowing objects — not anchored to any specific container, employer, or context. The assets move with the person as they move. Warm amber for the assets themselves, teal for the motion arrows indicating portability, dark background. The freedom of ownable capital. Dark editorial illustration.
+> A collection of portable glowing objects — a notebook, a tool, a relationship represented as a glowing contact, a body of published work — arranged in a figure's hands or a bag, clearly not attached to any wall, desk, or institution. The assets move freely with the person. Warm amber on the assets themselves, teal motion arrows indicating their portability and transferability, dark background. The freedom of truly owned, truly portable capital. Dark editorial illustration, the objects radiating their own light.
 
 ---
 
@@ -42,7 +54,7 @@
 **Aspect Ratio:** 1:1
 **Style:** kk
 **Prompt:**
-> A figure mid-turn — not abandoning their direction but deliberately angling. The teal path of their future bends slightly from where they were heading, maintaining speed through the adjustment. Not failure, recalibration. Motion blur on the figure suggesting that momentum is preserved through the pivot, not sacrificed. Dark editorial illustration.
+> A figure mid-turn — not stopping, not abandoning direction, but deliberately and fluidly angling. A teal path bends slightly from where they were heading and resumes ahead, the new angle chosen with purpose. Motion blur on the figure's limbs suggesting that speed is maintained through the adjustment, not sacrificed for it. Not failure — recalibration. Not retreat — redirection. Dark background, teal path curving through the pivot, warm amber on the figure at the turn point, motion in the visual language. Dark editorial illustration.
 
 ---
 
@@ -52,4 +64,4 @@
 **Aspect Ratio:** 1:1
 **Style:** kk
 **Prompt:**
-> Multiple roads converging at a single point — but the point is the person standing there, not a destination. The person is the constant across all possible futures. Teal roads converging on a warm amber figure. Deep dark background (#0f0f1a). The traveler, not the destination, is the through-line. Dark editorial illustration.
+> Multiple teal roads converging from the edges of the frame toward a single center point — but what's at the center is not a destination building or an endpoint marker. It's a person standing still, facing outward: all roads lead to them because they are the constant. The traveler is the through-line across all possible futures. Teal roads converging on a warm amber figure at center, deep dark background. Dark editorial illustration, minimal, the composition entirely about the person as the fixed point.
