@@ -2,9 +2,12 @@
 
 **Program:** Responsible AI Professional Certification  
 **Status:** Ready  
-**Style:** upgrade
+**Style:** bcai
+**Reference:** `/Users/kk/projects/BC + AI/rap-fall.png` — bioluminescent BC forest backdrop, dark forest green shield badge with gold border, glowing white wildflowers (Queen Anne's lace style), muted grey-green atmospheric tones
 
-Run: `python generate.py -f <this-file> -d output/rap-cert --style upgrade -m flash --workers 4`
+Visual language from reference: deep forest green (#1E3A2B) + gold/amber (#D4A017) + misty grey-green forest background + bioluminescent white glow points. Shield/badge shapes. Atmospheric depth, not flat.
+
+Run: `python generate.py -f <this-file> -d output/rap-cert --style bcai -m gpt-image-2 --reference-images "/Users/kk/projects/BC + AI/rap-fall.png" --workers 2`
 
 ---
 
@@ -12,9 +15,9 @@ Run: `python generate.py -f <this-file> -d output/rap-cert --style upgrade -m fl
 
 **For:** Header image for Luma event page
 **Aspect Ratio:** 16:9
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Abstract visualization of AI ethics and human judgment. Neural network patterns intersecting with human elements. Color palette: deep teal, warm amber, white. Clean, sophisticated, not dystopian. Subtle grid patterns suggesting frameworks and structure. Modern tech aesthetic with warmth. No faces, no robots. Professional certification feel.
+> Wide atmospheric banner: a misty BC old-growth forest at dusk, bioluminescent white wildflowers (Queen Anne's lace, wild carrot) glowing in the understory. Deep forest green canopy, grey-green muted tones throughout. Centered: an ornate shield badge in deep forest green with gold double-border containing the text RAP CERTIFICATION — Responsible AI Professional — BC+AI ecosystem. Gold star burst at top of shield. The badge sits naturally within the forest scene. Professional, grounded in place, certification authority.
 
 ---
 
@@ -22,116 +25,116 @@ Run: `python generate.py -f <this-file> -d output/rap-cert --style upgrade -m fl
 
 **For:** Link preview when sharing registration link
 **Aspect Ratio:** 16:9
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Split composition: left side shows organized framework structure (subtle grid, nodes, connections), right side shows human element (abstract warm shapes, organic forms). Meeting in the middle where they integrate. Color palette: teal, white, amber accents. Clean and professional. Space for text overlay on right third.
+> Atmospheric BC forest landscape in muted grey-green tones, bioluminescent wildflowers dotting the mid-ground. Left third: the RAP shield badge in deep forest green with gold border — large, authoritative. Right two-thirds: the forest atmosphere with space for text overlay. Clean banner ribbon across the shield reads CERTIFICATION. BC+AI ecosystem wordmark at shield base. Misty depth, professional certification feel.
 
 ---
 
-## 3. Carousel Cover Slide
+## 3. Carousel Cover
 
 **For:** LinkedIn carousel cover
 **Aspect Ratio:** 9:16
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Bold typography-forward design. Dark background (navy or charcoal). The letters RAP in large modern sans-serif. Responsible AI Professional Certification in smaller text below. Subtle geometric accent in corner. BC plus AI branding at bottom. Clean, authoritative, certification feel.
+> Vertical composition: full-bleed bioluminescent BC forest at dusk, glowing white wildflowers rising from dark forest floor. The RAP shield badge centered and dominant — deep forest green with gold double-border, star burst at apex. Text on badge: RAP in large bold type, CERTIFICATION on ribbon banner, Responsible AI Professional below, BC+AI ecosystem at base. Atmospheric, professional, place-based. The forest and the credential feel inseparable.
 
 ---
 
 ## 4. Carousel Week 1 — Foundations
 
-**For:** LinkedIn carousel week 1 breakdown
+**For:** LinkedIn carousel — Week 1 Foundations
 **Aspect Ratio:** 9:16
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Minimal educational slide design. Deep blue background with subtle texture. Large number 1 at left edge. Blueprint or grid icon representing foundations and frameworks. Space for curriculum bullet points. Clean, professional, structured. Cool blue as primary accent.
+> Vertical composition: bioluminescent forest floor with glowing root network visible beneath the soil, suggesting foundational infrastructure. Upper portion: misty forest canopy. A blueprint grid overlaid subtly in forest green and gold, representing the foundations of AI understanding. The number 1 large and gold at left edge. Week 1 Foundations in clean type. The metaphor: what grows above depends on what's built below.
 
 ---
 
 ## 5. Carousel Week 2 — Core Ethics
 
-**For:** LinkedIn carousel week 2 breakdown
+**For:** LinkedIn carousel — Week 2 Core Ethics
 **Aspect Ratio:** 9:16
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Minimal educational slide design. Teal background with subtle texture. Large number 2 at left edge. Balance or scales icon abstracted into clean geometry representing ethics. Space for curriculum bullet points. Trustworthy, principled, careful.
+> Vertical composition: two bioluminescent wildflower clusters facing each other in the forest understory, glowing white, balanced. A gold scales or balance form in negative space between them. Misty grey-green forest depth. The number 2 large and gold at left edge. Week 2 Core Ethics in clean type. The metaphor: balance, judgment, the ecosystem of responsible decisions.
 
 ---
 
 ## 6. Carousel Week 3 — Societal Impact
 
-**For:** LinkedIn carousel week 3 breakdown
+**For:** LinkedIn carousel — Week 3 Societal Impact
 **Aspect Ratio:** 9:16
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Minimal educational slide design. Forest green background with subtle texture. Large number 3 at left edge. Ripple or wave icon representing societal impact spreading outward. Space for curriculum bullet points. Community-focused, grounded, real-world.
+> Vertical composition: a single bioluminescent wildflower releasing spores or seeds that drift outward across the frame, each glowing point suggesting ripple effects through the community. The forest recedes in misty depth behind it. The number 3 large and gold at left edge. Week 3 Societal Impact in clean type. The metaphor: what we release into the ecosystem spreads.
 
 ---
 
 ## 7. Carousel Week 4 — Human Element
 
-**For:** LinkedIn carousel week 4 breakdown
+**For:** LinkedIn carousel — Week 4 Human Element
 **Aspect Ratio:** 9:16
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Minimal educational slide design. Warm amber background with subtle texture. Large number 4 at left edge. Abstract human form icon, simple and dignified. Space for curriculum bullet points. Warm, human-centered, optimistic.
+> Vertical composition: a human hand reaching gently toward a bioluminescent wildflower in a dark forest, the glow illuminating the hand from below. The forest surrounds both. Warm amber from the touch point, cool grey-green from the forest. The number 4 large and gold at left edge. Week 4 Human Element in clean type. The metaphor: technology that responds to human touch.
 
 ---
 
-## 8. Instructor Card — KK Backdrop
+## 8. Instructor Card — KK
 
-**For:** Social post introducing Kris Krüg as program lead
+**For:** Social post — Kris Krüg program lead
 **Aspect Ratio:** 1:1
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Professional portrait backdrop — warm, approachable. Abstract representation of photography meeting technology: camera aperture rings merging with circuit geometry. Colors: warm amber gradients, soft shadows. Space for name and title text overlay. Not a literal portrait — a "vibe" backdrop. Approachable expertise.
+> Square composition: bioluminescent BC forest background in atmospheric grey-green with glowing wildflower clusters. Lower third: a forest green banner with gold border containing name and title text space. Upper portion: misty canopy with bioluminescent depth. The RAP gold star burst motif in upper corner. Professional portrait backdrop that feels like the certification's world. Space for photo or name text overlay.
 
 ---
 
-## 9. Instructor Card — Academic Backdrop
+## 9. Stats Card — Time Savings
 
-**For:** Social post introducing an academic curriculum developer
+**For:** Instagram/LinkedIn stat post
 **Aspect Ratio:** 1:1
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Professional portrait backdrop — analytical, precise. Abstract representation of data and AI research: structured patterns, clean nodes, mathematical elegance. Colors: cool blues, organized geometry. Space for name and title text overlay. Scientific but approachable, rigorous but human.
+> Square composition: atmospheric BC forest at dusk, bioluminescent wildflowers framing the edges. Center: a forest green shield shape (smaller than the main badge) with gold border, containing a large gold percentage number and the stat context below. The forest gives the number weight and place. 65 to 95 percent time savings — the number as credential, not claim.
 
 ---
 
-## 10. Instructor Card — Community Backdrop
+## 10. Stats Card — Cohort Achievement
 
-**For:** Social post introducing a nonprofit/community guest instructor
+**For:** Instagram/LinkedIn stat post
 **Aspect Ratio:** 1:1
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Professional portrait backdrop — warm, human-centered. Abstract representation of community and social impact: organic shapes, interconnected nodes suggesting networks of people. Colors: warm greens, soft organic forms. Space for name and title text overlay. Approachable, trusted, values-grounded.
+> Square composition: overhead view of bioluminescent wildflowers from above, a constellation pattern of glowing points in the dark. Center: the number 100% in large gold type, with 100 percent ChatGPT adoption across cohorts below in smaller forest green text. Gold star burst accent. The constellation suggests a community that found their way together.
 
 ---
 
-## 11. Stats Card
-
-**For:** Instagram/LinkedIn posts with key program statistics
-**Aspect Ratio:** 1:1
-**Style:** upgrade
-**Prompt:**
-> Minimal stats card design. Deep navy background with subtle grain texture. Large statistic or number in warm amber as the central element. Clean sans-serif typography. Professional but energetic. Space for supporting context text. Not corporate — bold and specific.
-
----
-
-## 12. Email Header Banner
+## 11. Email Header Banner
 
 **For:** Email template header
 **Aspect Ratio:** 16:9
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Horizontal banner design. Gradient from deep navy on the left flowing to teal on the right. Subtle geometric pattern overlay suggesting structure and governance. Space for RAP wordmark left-aligned and BC plus AI logo right-aligned. Professional, clean, instantly recognizable.
+> Horizontal banner: left third features the RAP shield badge in forest green with gold border — compact, authoritative. Right two-thirds: atmospheric bioluminescent BC forest fading to misty grey-green. A subtle gold line separates badge from forest. Clean, recognizable, certification-quality. The badge and the forest belong together.
 
 ---
 
-## 13. Program Badge / Avatar
+## 12. Program Badge — Small Format
 
-**For:** RAP program Discord avatar and credential badge
+**For:** Discord avatar, credential icon, small-format badge
 **Aspect Ratio:** 1:1
-**Style:** upgrade
+**Style:** bcai
 **Prompt:**
-> Simple badge or icon design for a professional certification. Circular or shield shape. Contains abstracted elements: an open book representing learning, balance scales representing ethics, and network nodes representing AI governance. Color palette: teal and warm amber on dark background. Recognizable at small sizes. No text — pure mark.
+> Square composition: the RAP shield badge isolated against a deep forest green background with subtle bioluminescent wildflower texture. Shield in forest green with gold double-border. RAP in large bold type. CERTIFICATION on ribbon banner. BC+AI ecosystem at base. Gold star burst at apex. Recognizable at small sizes. The forest texture keeps it from feeling corporate.
+
+---
+
+## 13. Graduate Credential Visual
+
+**For:** Post-completion shareable credential image
+**Aspect Ratio:** 1:1
+**Style:** bcai
+**Prompt:**
+> Square composition: the full RAP shield badge centered and prominent, bioluminescent BC forest expanding behind it in atmospheric depth. Glowing wildflowers in the four corners of the frame. The badge glows with internal forest green light, gold border catching the bioluminescent ambience. This is the artifact of completion — forest, badge, light. A credential worth sharing.
