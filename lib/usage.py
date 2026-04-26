@@ -22,14 +22,29 @@ def save_usage_log(data: dict) -> None:
         json.dump(data, f, indent=2)
 
 
-def log_generation(prompt: str, model: str, output_path: str, aspect_ratio: str) -> None:
+def log_generation(
+    prompt: str,
+    model: str,
+    output_path: str,
+    aspect_ratio: str,
+    *,
+    style: str = "",
+    ok: bool = True,
+    error: str = "",
+) -> None:
     data = load_usage_log()
-    data["entries"].append({
+    entry: dict = {
         "timestamp": datetime.now().isoformat(),
         "model": model,
         "aspect_ratio": aspect_ratio,
         "output": str(output_path),
-        "prompt_preview": prompt[:100] + "..." if len(prompt) > 100 else prompt,
-    })
-    data["total_images"] = len(data["entries"])
+        "prompt": prompt,
+        "ok": ok,
+    }
+    if style:
+        entry["style"] = style
+    if error:
+        entry["error"] = error
+    data["entries"].append(entry)
+    data["total_images"] = sum(1 for e in data["entries"] if e.get("ok", True))
     save_usage_log(data)

@@ -58,6 +58,44 @@ __all__ = [
 ]
 
 
+def _cmd_library(argv: list[str]) -> None:
+    """Build (or rebuild) the master library.html from all runs in output/."""
+    p = argparse.ArgumentParser(
+        prog="generate.py library",
+        description="Build output/library.html — all Rafiki images in one page.",
+    )
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument("--open", action="store_true", help="Open in browser after building")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    if not output_root.exists():
+        print(f"Error: output dir not found: {output_root}")
+        sys.exit(1)
+
+    from lib.renderers.library import generate_library_viewer
+    lp = generate_library_viewer(output_root, open_browser=args.open)
+
+    run_dirs = list(output_root.glob("*/run-*/run.json"))
+    total = sum(
+        len(json.loads(p.read_text(encoding="utf-8")).get("images", []))
+        for p in run_dirs
+        if p.exists()
+    )
+    ok = sum(
+        sum(1 for img in json.loads(p.read_text(encoding="utf-8")).get("images", [])
+            if (p.parent / img["file"]).exists())
+        for p in run_dirs
+        if p.exists()
+    )
+    projects = {p.parent.parent.name for p in run_dirs}
+    print(f"Library: {lp}")
+    print(f"Images:  {ok}/{total} present  ({len(projects)} projects)")
+
+
 def _cmd_view(argv: list[str]) -> None:
     """Rebuild viewer HTML for a project from actual files on disk."""
     p = argparse.ArgumentParser(
@@ -135,9 +173,12 @@ def _cmd_view(argv: list[str]) -> None:
 
 
 def main() -> None:
-    # Dispatch 'view' subcommand before main arg parsing
+    # Dispatch subcommands before main arg parsing
     if len(sys.argv) > 1 and sys.argv[1] == "view":
         _cmd_view(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "library":
+        _cmd_library(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(

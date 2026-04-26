@@ -12,6 +12,10 @@ output/
 # Generated outputs (large files, regenerable)
 outputs/
 
+# KB mirror from kk-ai-ecosystem inventory (large copies; regenerable)
+assets/kb-import/mirror/
+assets/kb-import/prompt-stashes/
+
 # Node modules
 node_modules/
 

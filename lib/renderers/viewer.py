@@ -346,6 +346,16 @@ header h1 {{
 }}
 .filter-btn:hover {{ border-color: var(--accent); color: var(--ink); }}
 .filter-btn.active {{ background: rgba(124,106,247,0.18); border-color: var(--accent); color: var(--accent); font-weight: 600; }}
+.grid-size-label {{
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  user-select: none;
+}}
+#grid-sizer {{ width: 80px; accent-color: var(--accent); cursor: pointer; }}
 
 /* ── Grid ── */
 .grid {{
@@ -627,9 +637,10 @@ header h1 {{
 def _filter_bar_html() -> str:
     return """<div class="filter-bar" id="filter-bar">
   <button class="filter-btn active" id="fb-all"        onclick="filterCards('all')">All <span id="fc-all"></span></button>
-  <button class="filter-btn"        id="fb-star"       onclick="filterCards('star')">★ Starred <span id="fc-star"></span></button>
-  <button class="filter-btn"        id="fb-reject"     onclick="filterCards('reject')">✕ Rejected <span id="fc-reject"></span></button>
+  <button class="filter-btn"        id="fb-star"       onclick="filterCards('star')">&#9733; Starred <span id="fc-star"></span></button>
+  <button class="filter-btn"        id="fb-reject"     onclick="filterCards('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
   <button class="filter-btn"        id="fb-unreviewed" onclick="filterCards('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+  <label class="grid-size-label">Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)"></label>
 </div>"""
 
 
@@ -660,6 +671,19 @@ def _rating_js() -> str:
     return """
 const RATINGS_KEY = 'rafiki:ratings';
 let _currentFilter = 'all';
+
+function resizeGrid(v) {
+  document.documentElement.style.setProperty('--card-w', v + 'px');
+  localStorage.setItem('rafiki:cardWidth', v);
+}
+(function() {
+  const saved = localStorage.getItem('rafiki:cardWidth');
+  if (saved) {
+    resizeGrid(saved);
+    const sl = document.getElementById('grid-sizer');
+    if (sl) sl.value = saved;
+  }
+})();
 
 function _loadRatings() {
   try { return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{}'); } catch(e) { return {}; }

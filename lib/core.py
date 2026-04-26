@@ -91,7 +91,10 @@ def generate_image(
         composition_references=composition_references,
     )
 
-    if success:
-        log_generation(prompt, model, output_path, aspect_ratio)
+    log_generation(
+        prompt, model, output_path, aspect_ratio,
+        style=style or "",
+        ok=success,
+    )
 
     return success
