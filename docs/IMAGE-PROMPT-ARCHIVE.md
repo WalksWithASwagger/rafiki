@@ -1,5 +1,7 @@
 # Image prompt archive & pipeline (where things live)
 
+**Event — improve + rerun:** [Creative Mornings Vancouver — May 2026 (Punk Rock AI)](../prompts/creative-mornings-vancouver-may-2026/README.md) — slide `image-gen-prompts`, `video-gen-concepts`, Release Day `punk-zine-template-brief`.
+
 **Canonical bundle (KK knowledge base prompts, moved from `kk-ai-ecosystem`):** [`prompts/kk-kb/`](../prompts/kk-kb/README.md) — diagram index, HOPECODE / GNI / zine / WAIFF / MAC / Wikipedia Five Futures, GNI `gpt-image-1` assets, and links to the Streamlit batch UI under [`tools/gpt-image-batch-ui/`](../tools/gpt-image-batch-ui/README.md).
 
 **BC+AI style compendia (older / alternate):** [`prompts/bcai/`](../prompts/bcai/README.md) — ecosystem diagrams, HOPECODE “dark aurora” master file, field-journal scene, RAP marketing prompts. Pairs with [`styles/bcai.md`](../styles/bcai.md) and HOPECODE style when using `--style hopecode`.
