@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Images — Rafiki</title>
+<style>
+:root {
+  --bg:      #0d0b18;
+  --bg2:     #171428;
+  --surface: rgba(255,255,255,0.045);
+  --border:  #252040;
+  --ink:     #edeaff;
+  --dim:     #8a86b0;
+  --accent:  #7c6af7;
+  --teal:    #00c8b4;
+  --gold:    #f5c518;
+  --card-w:  280px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* ── Header ── */
+header {
+  padding: 1.25rem 1.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: baseline;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, var(--accent), var(--teal));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.8rem;
+  color: var(--dim);
+  align-items: center;
+}
+.meta code {
+  background: rgba(255,255,255,0.07);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: var(--teal);
+  font-family: ui-monospace, monospace;
+}
+.pill {
+  background: rgba(124,106,247,0.15);
+  border: 1px solid rgba(124,106,247,0.3);
+  color: var(--accent);
+  padding: 0.1rem 0.5rem;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* ── Filter bar ── */
+.filter-bar {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0.6rem 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.filter-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.22rem 0.65rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--ink); }
+.filter-btn.active { background: rgba(124,106,247,0.18); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.grid-size-label {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  user-select: none;
+}
+#grid-sizer { width: 80px; accent-color: var(--accent); cursor: pointer; }
+
+/* ── Grid ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr));
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem 4rem;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 32px rgba(124,106,247,0.2);
+}
+.card.rated-star   { border-color: var(--gold) !important; box-shadow: 0 0 20px rgba(245,197,24,0.2); }
+.card.rated-reject { opacity: 0.38; }
+.card.hidden-filter { display: none !important; }
+
+/* ── Image wrapper ── */
+.img-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #080612;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.card:hover .img-wrap img { transform: scale(1.03); }
+.img-num {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.4rem;
+  background: rgba(0,0,0,0.6);
+  color: rgba(255,255,255,0.8);
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+  user-select: none;
+}
+.missing-img {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dim);
+  font-size: 0.75rem;
+  opacity: 0.5;
+  padding: 0.5rem;
+  text-align: center;
+}
+
+/* ── Card prompt ── */
+.card-prompt {
+  padding: 0.55rem 0.75rem 0.4rem;
+  font-size: 0.72rem;
+  color: var(--dim);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Card footer ── */
+.card-foot {
+  padding: 0.4rem 0.65rem 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.card-name {
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn-rate {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--dim);
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.btn-rate:hover { border-color: rgba(255,255,255,0.25); color: var(--ink); }
+.btn-rate.starred  { background: rgba(245,197,24,0.15); border-color: var(--gold); color: var(--gold); }
+.btn-rate.rejected { background: rgba(255,60,60,0.1); border-color: rgba(255,80,80,0.5); color: #ff6060; }
+
+/* ── Lightbox ── */
+.lb {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.97);
+  z-index: 9000;
+  flex-direction: column;
+  align-items: center;
+}
+.lb.open { display: flex; }
+
+.lb-top {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 0.75rem 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  z-index: 9001;
+}
+.lb-counter {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.6);
+  font-variant-numeric: tabular-nums;
+}
+.lb-top-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.lb-close {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  font-size: 1.1rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  line-height: 1;
+}
+.lb-close:hover { background: rgba(255,255,255,0.22); }
+.lb-action-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.75);
+  font-size: 0.76rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  font-family: inherit;
+}
+.lb-action-btn:hover { background: rgba(255,255,255,0.16); color: #fff; border-color: rgba(255,255,255,0.3); }
+.lb-action-btn.copied { border-color: var(--teal); color: var(--teal); }
+
+.lb-img-area {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  flex: 1;
+  padding: 3.5rem 5rem 0.5rem;
+  min-height: 0;
+}
+.lb-img-area img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 20px 80px rgba(0,0,0,0.9);
+  display: block;
+}
+.lb-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  font-size: 1.2rem;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  user-select: none;
+  z-index: 2;
+  line-height: 1;
+}
+.lb-arrow:hover { background: rgba(255,255,255,0.18); }
+.lb-arrow.prev { left: 1rem; }
+.lb-arrow.next { right: 1rem; }
+
+.lb-bottom {
+  width: 100%;
+  max-width: 900px;
+  padding: 0.6rem 1.5rem 1rem;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.lb-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.lb-prompt {
+  font-size: 0.78rem;
+  color: var(--dim);
+  line-height: 1.6;
+  max-height: 7rem;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* ── Run strip (compare lightbox) ── */
+.lb-run-strip {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 1.5rem 0.75rem;
+  flex-shrink: 0;
+}
+.lb-run-dot {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--dim);
+  padding: 0.18rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.lb-run-dot:hover { border-color: var(--teal); color: var(--teal); }
+.lb-run-dot.active { background: rgba(0,200,180,0.18); border-color: var(--teal); color: var(--teal); font-weight: 600; }
+</style>
+<style>
+.run-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.6rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.15);
+  align-items: center;
+}
+.run-tab {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.28rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.run-tab:hover { border-color: var(--accent); color: var(--ink); }
+.run-tab.active { background: rgba(124,106,247,0.2); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.run-tab.compare-btn {
+  margin-left: auto;
+  background: rgba(0,200,180,0.08);
+  border-color: rgba(0,200,180,0.3);
+  color: var(--teal);
+}
+.run-tab.compare-btn.active {
+  background: rgba(0,200,180,0.2);
+  border-color: var(--teal);
+}
+/* Compare table */
+.compare-table { display: none; padding: 1.5rem 1.5rem 4rem; overflow-x: auto; }
+.compare-table.visible { display: block; }
+.compare-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 0.75rem 0 0.4rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 0.6rem;
+}
+.compare-row {
+  display: grid;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
+  align-items: start;
+}
+.compare-cell {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.compare-cell:hover { border-color: var(--accent); transform: translateY(-2px); }
+.compare-cell .run-badge {
+  font-size: 0.68rem;
+  color: var(--accent);
+  padding: 0.3rem 0.6rem 0.2rem;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+.no-runs { padding: 4rem; text-align: center; color: var(--dim); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Images</h1>
+  <div class="meta">
+    <span class="pill" id="run-pill">1 run</span>
+    <span id="cur-model"></span>
+    <span id="cur-ts"></span>
+  </div>
+</header>
+
+<div class="run-tabs" id="run-tabs">
+  <button class="run-tab compare-btn" id="compare-btn" onclick="toggleCompare()">⊞ Compare all</button>
+</div>
+
+<div class="filter-bar" id="filter-bar">
+  <button class="filter-btn active" id="fb-all"        onclick="filterCards('all')">All <span id="fc-all"></span></button>
+  <button class="filter-btn"        id="fb-star"       onclick="filterCards('star')">&#9733; Starred <span id="fc-star"></span></button>
+  <button class="filter-btn"        id="fb-reject"     onclick="filterCards('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
+  <button class="filter-btn"        id="fb-unreviewed" onclick="filterCards('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+  <label class="grid-size-label">Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)"></label>
+</div>
+<div class="grid" id="grid"></div>
+<div class="compare-table" id="compare-table"></div>
+
+<div class="lb" id="lb" onclick="lbClickBg(event)">
+  <div class="lb-top">
+    <span class="lb-counter" id="lb-counter"></span>
+    <div class="lb-top-actions">
+      <a id="lb-download" class="lb-action-btn" download="">&#11015; Download</a>
+      <button id="lb-copy" class="lb-action-btn" onclick="lbCopyPrompt(); event.stopPropagation()">&#x2398; Copy prompt</button>
+      <button class="lb-close" onclick="lbClose()" title="Close (Esc)">&#x2715;</button>
+    </div>
+  </div>
+  <div class="lb-img-area" onclick="event.stopPropagation()">
+    <button class="lb-arrow prev" onclick="lbStep(-1); event.stopPropagation()">&#8592;</button>
+    <img id="lb-img" src="" alt="">
+    <button class="lb-arrow next" onclick="lbStep(1); event.stopPropagation()">&#8594;</button>
+  </div>
+  <div class="lb-bottom" onclick="event.stopPropagation()">
+    <div class="lb-name" id="lb-name"></div>
+    <div class="lb-prompt" id="lb-prompt"></div>
+  </div>
+  <div class="lb-run-strip" id="lb-run-strip"></div>
+</div>
+
+<script>
+const RUNS = [{"id": "run-20260425-225958", "dir": "run-20260425-225958", "timestamp": "2026-04-25 22:59", "model": "gemini-2.5-flash-image", "style": "kk", "aspect_ratio": "16:9", "prompt_file": "prompts/kb-ecosystem-mirror/articles/kris-krug-thought-leadership/01-build-tools-next-job/image-prompts.md", "images": [{"name": "Hero Image", "prompt": "A lone figure at a workbench in a dimly lit studio, sketching blueprints by lamplight. Through a floor-to-ceiling window behind them, an unfamiliar city skyline glimmers — buildings in shapes that don't quite exist yet, architecture slightly ahead of its time. Tools on the bench: some recognizable, some abstract prototypes. The figure leans forward with focus, not anxiety. Deep dark background (#0f0f1a), teal glow (#00c8b4) emanating from the future city, purple (#9333ea) pooling from the lamp. Dark editorial illustration, high contrast, cinematic depth of field.", "file": "01-hero-image.png", "ok": false}, {"name": "Section Image — The Defensive Trap", "prompt": "A figure clutching a job title badge tightly to their chest, standing in a spotlight that's slowly shrinking around them. Shadow figures with updated credentials and glowing portfolios surround them at the edges of the dark frame. The metaphor of clinging to yesterday's value while the world redefines it. Teal and purple rim lighting from the surrounding figures, stark isolating white on the central figure. Dark editorial illustration, high contrast.", "file": "02-section-image-the-defensive-trap.png", "ok": false}, {"name": "Section Image — The Offensive Move", "prompt": "The same figure now leaning confidently forward into a bright doorway, holding a fan of cards representing future skills — not playing defensively but dealing from a position of preparation. Purple light from behind them, teal light ahead in the doorway. The posture shift from defensive to generative is everything. Dark editorial illustration, cinematic.", "file": "03-section-image-the-offensive-move.png", "ok": false}, {"name": "Section Image — Six-Week Transformation", "prompt": "Split composition: left half shows a cluttered desk in week one — overwhelmed, tangled cables, blank screens, uncertain energy. Right half shows the same desk six weeks later — organized around new tools, artifacts pinned up, the person upright and engaged. Teal and purple light marks the transformation from left to right, the glow intensifying on the right side. Dark editorial illustration.", "file": "04-section-image-six-week-transformation.png", "ok": false}, {"name": "Closing / Social Image", "prompt": "A single upward-reaching hand releasing a tightly-held blueprint into the air, where it dissolves and transforms into luminous floating nodes and glowing path connections. The act of letting go and becoming. Minimal composition, deeply emotional. Deep dark background (#0f0f1a), teal bloom (#00c8b4) around the released future, purple in the hand and wrist. High contrast editorial illustration.", "file": "05-closing-social-image.png", "ok": false}]}];
+const AR_CSS = "16/9";
+let currentRun = RUNS.length - 1;
+let compareMode = false;
+
+
+const RATINGS_KEY = 'rafiki:ratings';
+let _currentFilter = 'all';
+
+function resizeGrid(v) {
+  document.documentElement.style.setProperty('--card-w', v + 'px');
+  localStorage.setItem('rafiki:cardWidth', v);
+}
+(function() {
+  const saved = localStorage.getItem('rafiki:cardWidth');
+  if (saved) {
+    resizeGrid(saved);
+    const sl = document.getElementById('grid-sizer');
+    if (sl) sl.value = saved;
+  }
+})();
+
+function _loadRatings() {
+  try { return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{}'); } catch(e) { return {}; }
+}
+function _saveRatings(r) { localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); }
+function getRating(key) { return _loadRatings()[key] || null; }
+function setRating(key, val) {
+  const r = _loadRatings();
+  if (r[key] === val) delete r[key]; else r[key] = val;
+  _saveRatings(r);
+}
+function applyRating(card, key) {
+  const val = getRating(key);
+  card.classList.remove('rated-star', 'rated-reject');
+  if (val === 'star')   card.classList.add('rated-star');
+  if (val === 'reject') card.classList.add('rated-reject');
+  const btnS = card.querySelector('.btn-rate.star');
+  const btnR = card.querySelector('.btn-rate.reject');
+  if (btnS) btnS.classList.toggle('starred',  val === 'star');
+  if (btnR) btnR.classList.toggle('rejected', val === 'reject');
+}
+function rateCard(e, key, val, card) {
+  e.stopPropagation();
+  setRating(key, val);
+  applyRating(card, key);
+  updateFilterCounts();
+  if (_currentFilter !== 'all') filterCards(_currentFilter);
+}
+function filterCards(mode) {
+  _currentFilter = mode;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  const a = document.getElementById('fb-' + mode);
+  if (a) a.classList.add('active');
+  const ratings = _loadRatings();
+  document.querySelectorAll('.card').forEach(card => {
+    const val = ratings[card.dataset.ratingKey] || null;
+    let show = true;
+    if (mode === 'star')            show = val === 'star';
+    else if (mode === 'reject')     show = val === 'reject';
+    else if (mode === 'unreviewed') show = !val;
+    card.classList.toggle('hidden-filter', !show);
+  });
+}
+function updateFilterCounts() {
+  const ratings = _loadRatings();
+  const cards = Array.from(document.querySelectorAll('.card'));
+  let stars = 0, rejects = 0, unreviewed = 0;
+  cards.forEach(c => {
+    const v = ratings[c.dataset.ratingKey] || null;
+    if (v === 'star') stars++; else if (v === 'reject') rejects++; else unreviewed++;
+  });
+  const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n ? ` ${n}` : ''; };
+  set('fc-all', cards.length); set('fc-star', stars);
+  set('fc-reject', rejects); set('fc-unreviewed', unreviewed);
+}
+
+
+var lbIdx = 0;
+var lbItems = typeof ITEMS !== 'undefined' ? ITEMS : [];
+var lbRunIdx = -1;
+const lb        = document.getElementById('lb');
+const lbImg     = document.getElementById('lb-img');
+const lbName    = document.getElementById('lb-name');
+const lbPrompt  = document.getElementById('lb-prompt');
+const lbStrip   = document.getElementById('lb-run-strip');
+const lbCounter = document.getElementById('lb-counter');
+
+function lbOpen(i, runIdx) {
+  if (typeof runIdx !== 'undefined') lbRunIdx = runIdx;
+  lbIdx = ((i % lbItems.length) + lbItems.length) % lbItems.length;
+  const item = lbItems[lbIdx];
+  const prefix = (lbRunIdx >= 0 && typeof RUNS !== 'undefined')
+    ? RUNS[lbRunIdx].dir + '/' : '';
+  const imgSrc = prefix + item.file;
+  lbImg.src = imgSrc;
+  lbImg.alt = item.name || '';
+  lbName.textContent = item.name || '';
+  lbPrompt.textContent = item.prompt || '';
+  if (lbCounter) lbCounter.textContent = `${lbIdx + 1} / ${lbItems.length}`;
+
+  const dlBtn = document.getElementById('lb-download');
+  if (dlBtn) {
+    dlBtn.href = imgSrc;
+    dlBtn.download = (item.name || 'image').replace(/[^a-z0-9]+/gi, '-').toLowerCase() + '.png';
+  }
+
+  _buildRunStrip(lbIdx);
+  lb.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function _buildRunStrip(slotIdx) {
+  if (!lbStrip) return;
+  lbStrip.innerHTML = '';
+  if (typeof RUNS === 'undefined' || RUNS.length <= 1) return;
+  RUNS.forEach((run, ri) => {
+    const dot = document.createElement('button');
+    dot.className = 'lb-run-dot' + (ri === lbRunIdx ? ' active' : '');
+    dot.textContent = `${run.model || 'Run ' + (ri+1)} · ${run.timestamp}`;
+    dot.onclick = (e) => {
+      e.stopPropagation();
+      lbRunIdx = ri;
+      lbItems = run.images;
+      lbOpen(slotIdx, ri);
+    };
+    lbStrip.appendChild(dot);
+  });
+}
+
+function lbCopyPrompt() {
+  const text = document.getElementById('lb-prompt')?.textContent || '';
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('lb-copy');
+    if (!btn) return;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '&#x2713; Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function lbClose() {
+  lb.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function lbStep(dir) {
+  event.stopPropagation();
+  lbOpen(lbIdx + dir);
+}
+function lbClickBg(e) { if (e.target === lb) lbClose(); }
+
+document.addEventListener('keydown', e => {
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape')     { lbClose(); return; }
+  if (e.key === 'ArrowLeft')  { lbOpen(lbIdx - 1); return; }
+  if (e.key === 'ArrowRight') { lbOpen(lbIdx + 1); return; }
+});
+
+
+function init() {
+  if (!RUNS.length) {
+    document.getElementById('grid').innerHTML = '<div style="padding:4rem;text-align:center;color:var(--dim)">No runs found.</div>';
+    return;
+  }
+  const tabsEl = document.getElementById('run-tabs');
+  const compareBtn = document.getElementById('compare-btn');
+  RUNS.forEach((run, ri) => {
+    const tab = document.createElement('button');
+    tab.className = 'run-tab' + (ri === currentRun ? ' active' : '');
+    tab.textContent = `${run.model || 'Run ' + (ri+1)}  ·  ${run.timestamp}`;
+    tab.title = run.dir;
+    tab.onclick = () => switchRun(ri);
+    tabsEl.insertBefore(tab, compareBtn);
+  });
+  showRun(currentRun);
+}
+
+function switchRun(ri) {
+  compareMode = false;
+  currentRun = ri;
+  document.querySelectorAll('.run-tab:not(.compare-btn)').forEach((t, i) => t.classList.toggle('active', i === ri));
+  document.getElementById('compare-btn').classList.remove('active');
+  document.getElementById('compare-table').classList.remove('visible');
+  const fb = document.getElementById('filter-bar');
+  if (fb) fb.style.display = 'flex';
+  showRun(ri);
+}
+
+function showRun(ri) {
+  const run = RUNS[ri];
+  const arCss = (run.aspect_ratio || '16:9').replace(':', '/');
+  lbItems = run.images;
+  lbRunIdx = ri;
+  const el = id => document.getElementById(id);
+  el('cur-model').innerHTML = run.model ? `<code>${run.model}</code>` : '';
+  el('cur-ts').textContent  = run.timestamp || '';
+
+  const grid = el('grid');
+  grid.style.display = 'grid';
+  grid.innerHTML = '';
+
+  run.images.forEach((item, i) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const rk = run.dir + '/' + item.file;
+    card.dataset.ratingKey = rk;
+    card.onclick = () => lbOpen(i, ri);
+    const missingMsg = item.error
+      ? item.error.replace(/[<>&"]/g, '').slice(0, 80)
+      : 'not generated';
+    card.innerHTML = `
+      <div class="img-wrap" style="aspect-ratio:${arCss}">
+        <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
+        ${item.ok
+          ? `<img src="${run.dir}/${item.file}" alt="" loading="lazy">`
+          : `<div class="missing-img">${missingMsg}</div>`}
+      </div>
+      <div class="card-prompt"></div>
+      <div class="card-foot">
+        <span class="card-name">${item.name}</span>
+        <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">&#9733;</button>
+        <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">&#x2715;</button>
+      </div>
+    `;
+    card.querySelector('.card-prompt').textContent = item.prompt || '';
+    const img = card.querySelector('img');
+    if (img) img.addEventListener('error', () => {
+      img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+    });
+    grid.appendChild(card);
+    applyRating(card, rk);
+  });
+  updateFilterCounts();
+}
+
+function toggleCompare() {
+  compareMode = !compareMode;
+  document.getElementById('compare-btn').classList.toggle('active', compareMode);
+  document.getElementById('grid').style.display = compareMode ? 'none' : 'grid';
+  const fb = document.getElementById('filter-bar');
+  if (fb) fb.style.display = compareMode ? 'none' : 'flex';
+  const ct = document.getElementById('compare-table');
+  ct.classList.toggle('visible', compareMode);
+  if (compareMode) buildCompareTable();
+}
+
+function buildCompareTable() {
+  const ct = document.getElementById('compare-table');
+  ct.innerHTML = '';
+  if (!RUNS.length) return;
+  const slotCount = Math.max(...RUNS.map(r => r.images.length));
+  for (let si = 0; si < slotCount; si++) {
+    const first = RUNS.find(r => r.images[si]);
+    if (!first) continue;
+    const slotName = first.images[si]?.name || `Slot ${si + 1}`;
+    const label = document.createElement('div');
+    label.className = 'compare-label';
+    label.textContent = `${String(si + 1).padStart(2, '0')} — ${slotName}`;
+    ct.appendChild(label);
+    const row = document.createElement('div');
+    row.className = 'compare-row';
+    row.style.gridTemplateColumns = `repeat(${RUNS.length}, minmax(180px, 1fr))`;
+    ct.appendChild(row);
+    RUNS.forEach((run, ri) => {
+      const img = run.images[si];
+      const runArCss = (run.aspect_ratio || '16:9').replace(':', '/');
+      const cell = document.createElement('div');
+      cell.className = 'compare-cell';
+      if (img) cell.onclick = () => { lbItems = run.images; lbOpen(si, ri); };
+      const missingMsg = img && img.error
+        ? img.error.replace(/[<>&"]/g, '').slice(0, 60)
+        : (img ? 'failed' : '—');
+      cell.innerHTML = `
+        <div class="img-wrap" style="aspect-ratio:${runArCss}">
+          ${img && img.ok
+            ? `<img src="${run.dir}/${img.file}" loading="lazy">`
+            : `<div class="missing-img">${missingMsg}</div>`}
+        </div>
+        <div class="run-badge">${run.model || 'Run ' + (ri+1)}</div>
+      `;
+      const cellImg = cell.querySelector('img');
+      if (cellImg) cellImg.addEventListener('error', () => {
+        cellImg.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
+      });
+      row.appendChild(cell);
+    });
+  }
+}
+
+init();
+</script>
+</body>
+</html>
