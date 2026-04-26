@@ -15,9 +15,10 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | **BC+AI ecosystem assets** — RAP marketing, logos, ecosystem diagrams | Rafiki CLI | `--style bcai` (diagrams) or `--no-style` (RAP, carries own styling) | `gpt` (RAP) / `flash` (diagrams) | `python generate.py -f prompts/bcai/rap-marketing.md -d output/rap --no-style -m gpt --quality high` |
 | **HOPECODE community diagrams** — BC+AI community theory, solarpunk mapping | Rafiki CLI | `--style hopecode` | `flash` | `python generate.py -f prompts/bcai/bcai-hopecode-visual-prompts.md -d output/hopecode --style hopecode` |
 | **WAIFF punk zine slide deck** — BWR, xerox grain, ransom-note type; needs reference image | Rafiki CLI (single-prompt; file needs reformat for batch — see §5) | `--style none` (prompts carry zine aesthetic) | `pro` | `python generate.py -p "Chaotic punk zine cover..." --no-style -m pro --reference-image prompts/kk-kb/reference-collage-v2.png` |
-| **GNI cosmic editorial diagrams** — space-blue, orbital, orbit maps | Rafiki CLI or gpt-image-1 UI | `--style gni` *(pending Phase B)* | `flash` / `pro` | `python generate.py -f prompts/kk-kb/gni-cosmic-diagram-style-guide.md -d output/gni --style kk` |
+| **GNI cosmic editorial diagrams** — space-blue, orbital, orbit maps | Rafiki CLI | `--style gni` | `flash` / `pro` | `python generate.py -p "AI journalism toolkit — four orbiting quadrants: GenAI, NLP, ML, Predictive — radial nodes on deep space-blue" --style gni -m pro` |
 | **GNI sovereignty diagrams (gpt-image-1)** — 44-line .txt, HOPECODE prefix | gpt-image-1 Streamlit UI | HOPECODE prefix file | `gpt-image-1` | `cd tools/gpt-image-batch-ui && streamlit run diagram_gen_ui.py` (see §4) |
-| **MAC femme / body-compute** — abstract body-compute metaphors | Tool TBD; review avoid-clauses before generating | `--style kk` or `--no-style` | `flash` | `python generate.py -p "..." --no-style -m flash` — review MAC safety notes in prompt file first |
+| **MAC femme / body-compute** — abstract body-compute metaphors | Rafiki CLI | `--style femme` | `flash` | `python generate.py -p "Two braiding networks, warm and cool, selective membrane boundary..." --style femme -m flash` — enforce avoid-clauses; MAC community review before publishing |
+| **Indigenomics diagrams** — sovereignty-forward, ancestral wisdom + tech | Rafiki CLI | `--style indigenomics` | `flash` / `pro` | `python generate.py -p "Circular reciprocity flow diagram, braided organic-tech, navy and cedar and cyan..." --style indigenomics -m flash` — abstract motifs only; nation-specific symbols need governance review |
 | **Upgrade AI brand** — transformation/empowerment imagery | Rafiki CLI | `--style upgrade` | `flash` | `python generate.py -f prompts/upgrade/training-marketing.md -d output/upgrade --style upgrade` |
 | **KK personal / thought-leadership** — name-the-bias series, what-would-chat-do | Rafiki CLI | `--style hopecode` (name-the-bias) or `--style kk` (wwcd) | `flash` | `python generate.py -f prompts/kk/name-the-bias-hopecode.md -d output/ntb --style hopecode` |
 
@@ -56,7 +57,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 
 ## 3. Style reference
 
-Six styles are registered in `styles/styles.yaml` and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `upgrade`, `zine`, `gni`.
+Eight styles are registered in `styles/styles.yaml` and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`.
 
 ### kk
 
@@ -155,6 +156,49 @@ constellation-style connections, editorial meets engineering tone.
 ```
 
 **Composition:** Pairs well with `kk` (`--style gni+kk`) for extra professional polish. Keep away from `hopecode` — opposite aesthetic registers.
+
+---
+
+### femme
+
+**Description:** Abstract body-compute metaphors for the Mind, AI & Consciousness (MAC) subgroup of BC+AI. Deep indigo/obsidian backgrounds with blush-magenta, teal, and opalescent pastels. Contour fields, membrane boundaries, network routing, nested containers. Quiet, intimate, embodied intelligence — never representational.
+
+**Community note:** Review outputs before publishing. The avoid-clauses in the style suffix are load-bearing (no goddess iconography, no literal anatomy, no medical illustration). MAC community sign-off required for public assets.
+
+**When to use:** MAC event visuals, BC+AI content centering femme/embodied perspectives, abstract scientific imagery with intimate register.
+
+**Example prompt fragment:**
+```
+Two interpenetrating networks — warm and cool — braiding without merging.
+Boundary behaves like selective permeability: slow gradients, semi-transparent
+veils, capillary-like filaments reading as negotiation.
+```
+
+**Composition:** Use alone. Does not compose cleanly with `zine` or `gni` — distinct tonal register.
+
+**Source:** `prompts/kk-kb/femme-prompts-mac-image-repository.md`, `styles/femme.md`
+
+---
+
+### indigenomics
+
+**Description:** Indigenomics Institute visual language — ancestral wisdom + emergent technology. Deep navy/indigo/ochre palette, braided organic-tech motifs, circular and radial flows (sovereignty-first, not catch-up framing). Mythic realism meets cyberpunk.
+
+**Governance note:** Abstract motifs (braided materials, circular flows, geo-mapping nodes) are safe. Nation-specific cultural symbols (specific regalia, drums, ceremonies) require Indigenous governance and consent before use. When in doubt, ask an Indigenomics Institute contact.
+
+**When to use:** Indigenomics Institute presentations, BC+AI content centering Indigenous economic sovereignty, AI-and-governance educational diagrams.
+
+**Example prompt fragment:**
+```
+Traditional longhouse structure fused with smart city grid. Fiber-optic
+threads weave through cedar beams connecting circular community nodes.
+Deep navy background, cedar brown and electric cyan accents.
+Abstract — no specific nation's architectural details.
+```
+
+**Composition:** Pairs with `gni` for tech-heavy contexts. Keep away from `hopecode` — similar land-based language but different governance and community context.
+
+**Source:** `prompts/kk-kb/indigenomics-diagram-style-guide.md`, `styles/indigenomics.md`
 
 ---
 

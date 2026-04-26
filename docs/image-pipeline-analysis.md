@@ -29,18 +29,20 @@ Additional files:
 
 ---
 
-## 2. Style system gaps
+## 2. Style system
 
-Four production aesthetics used heavily in prompts with no first-class `styles/<name>.md` or CLI flag:
+All eight production aesthetics are now registered in `styles/styles.yaml` with markdown guides in `styles/`:
 
-| Gap | Candidate suffix source | Priority |
-|---|---|---|
-| `styles/zine.md` (WAIFF punk BWR) | Extract from `waiff-brazil-2026-keynote-image-prompts.md` — "Black/white/blood-red, halftone, xerox grain, ransom-note ransom-note type; MUST appear text" pattern | High — large active batch |
-| `styles/gni.md` (cosmic editorial) | Extract from `gni-cosmic-diagram-style-guide.md` Principles + Micro-moves sections | Medium — active GNI work |
-| `styles/femme.md` (MAC body-compute) | Extract palette/avoid-clause framework from `femme-prompts-mac-image-repository.md` §1 | Medium — needs community review |
-| `styles/indigenomics.md` | Extract from `indigenomics-diagram-style-guide.md` | Low — small corpus, community sign-off needed |
-
-Existing styles (`kk`, `hopecode`, `bcai`, `upgrade`) already cover the majority of day-to-day generation.
+| Style | File | Status | Notes |
+|---|---|---|---|
+| `zine` | `styles/zine.md` | ✓ Done | BWR xerox-grain; WAIFF batch-ready |
+| `gni` | `styles/gni.md` | ✓ Done | Cosmic editorial; GNI coaching sessions |
+| `femme` | `styles/femme.md` | ✓ Done — community review required | Abstract body-compute (MAC); enforce avoid-clauses |
+| `indigenomics` | `styles/indigenomics.md` | ✓ Done — governance review required | Nation-specific symbols need consent before use |
+| `kk` | `styles/kk.md` | ✓ Done | Default; day-to-day editorial |
+| `hopecode` | `styles/hopecode.md` | ✓ Done | Solarpunk mycelial |
+| `bcai` | `styles/bcai.md` | ✓ Done | BC ecosystem |
+| `upgrade` | `styles/upgrade.md` | ✓ Done | Upgrade AI brand |
 
 ---
 
@@ -83,20 +85,20 @@ The WAIFF punk zine scenario is the only place a **reference image** (`reference
 
 ---
 
-## 6. Proposed phases (pending user sign-off)
+## 6. Phase completion status
 
-**Phase A — fill the style gaps (small, reviewable)**  
-Write `styles/zine.md` and `styles/gni.md` by extracting from existing style-guide docs. No prompt files touched. One PR each.
+**Phase A — fill the style gaps** ✓ Complete  
+All eight styles registered: `kk`, `hopecode`, `bcai`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`. Markdown guides in `styles/`. `femme` and `indigenomics` carry community-review caveats.
 
-**Phase B — convert high-priority freeform files to Rafiki batch format**  
-Start with `waiff-brazil-2026-keynote-image-prompts.md` (slides are already numbered, conversion is mostly mechanical). Preserve originals with `-v1` suffix or a dated archive header.
+**Phase B — convert high-priority freeform files to batch format** ✓ Complete  
+`prompts/kk-kb/waiff-brazil-2026-keynote-image-prompts.md` is in `## N.` batch format with per-prompt `**Model:**`, `**Style:**`, `**Aspect Ratio:**` metadata. Run with: `python generate.py -f prompts/kk-kb/waiff-brazil-2026-keynote-image-prompts.md -d output/waiff --style zine -m pro`
 
-**Phase C — operator README**  
-`docs/image-pipeline-operator.md`: decision tree (what scenario? → which tool? → which flag? → example command). References this analysis and all `styles/` files.
+**Phase C — operator guide** ✓ Complete  
+`docs/image-pipeline-operator.md` covers all scenarios, all styles, viewer/library commands, reference image workflow, Streamlit UI, and archival warnings.
 
-**Phase D — dedupe HOPECODE (optional)**  
-After A–C, evaluate whether `bcai/` and `kk-kb/` HOPECODE content should cross-link more explicitly or be partially consolidated. Current recommendation: keep separate, add cross-links.
+**Phase D — dedupe HOPECODE** Open  
+`bcai/bcai-hopecode-visual-prompts.md` and `kk-kb/hopecode-creative-big-ideas-prompts.md` remain separate (different themes). Cross-linking via README notes is sufficient for now.
 
 ---
 
-*Next step: review this outline. Approve phases individually; Phase A (style gap files) can start immediately with no risk to existing prompts.*
+*Analysis last updated: 2026-04-25. All critical gaps closed.*

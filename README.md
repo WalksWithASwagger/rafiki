@@ -147,6 +147,10 @@ Pass model ID directly: `-m gpt-image-2` or `-m gemini-2.5-flash-image`.
 | `hopecode` | Solarpunk, organic, earth tones |
 | `bcai` | Mycelial / community diagrams |
 | `upgrade` | Bold training / transformation marketing |
+| `zine` | Punk BWR — xerox grain, ransom-note type (WAIFF decks) |
+| `gni` | Cosmic editorial — space-blue orbital diagrams (GNI journalism) |
+| `femme` | Abstract body-compute metaphors (MAC community; review outputs) |
+| `indigenomics` | Ancestral-wisdom + tech sovereignty diagrams (community review for nation-specific symbols) |
 
 ```bash
 npx rafiki --prompt "..." --style hopecode
