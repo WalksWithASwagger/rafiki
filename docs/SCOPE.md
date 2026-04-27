@@ -1,20 +1,21 @@
 # Product scope
 
-## v1: CLI only
+## v1: CLI + local portal
 
-This repository (**Rafiki**) ships as a **command-line tool** (`npx rafiki` / `rafiki`; alias `npx image-gen`). There is **no HTTP API**, job queue, or multi-user auth in scope for the initial extraction.
+This repository (**Rafiki**) ships as a **command-line tool** (`npx rafiki` / `rafiki`; alias `npx image-gen`) plus a **localhost-only HTTP portal** (`generate.py serve`). There is no multi-user auth, hosted service, or job queue in scope.
 
 Rationale:
 
-- Keeps deployment and security surface minimal (one API key on the operator’s machine).
+- Keeps deployment and security surface minimal (one API key on the operator’s machine; portal binds to 127.0.0.1 only).
 - Matches how the tool is used today: agents and humans run batch jobs from a checkout.
-- A small FastAPI/Hono wrapper can be added later without forking generation logic if a service is needed.
+- The local portal enables persistent ratings, cross-project search/filter, and (future) in-browser regen — none of which are possible with file:// viewers alone.
 
 ## Out of scope (for now)
 
 - Hosted image generation as a SaaS
 - Per-seat billing, rate limiting, or shared usage logs across machines
 - Tight coupling to any one knowledge base repository layout (consumers pass paths explicitly)
+- In-browser regen (Phase 3 — `POST /api/regen` endpoint is a 501 stub; planned)
 
 ## MCP server (`mcp_server.py`)
 

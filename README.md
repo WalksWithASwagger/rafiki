@@ -8,7 +8,7 @@ The npm package is **`rafiki`**. The **`image-gen`** command remains available a
 
 **Repository:** [github.com/WalksWithASwagger/rafiki](https://github.com/WalksWithASwagger/rafiki)
 
-**Scope:** CLI-only for v1 — no HTTP service. See [docs/SCOPE.md](docs/SCOPE.md).
+**Scope:** CLI + local portal. See [docs/SCOPE.md](docs/SCOPE.md).
 
 ## Features
 
@@ -18,9 +18,13 @@ The npm package is **`rafiki`**. The **`image-gen`** command remains available a
 - **Prompts on cards**: Every card shows the prompt that generated it (3-line clamp, full text in lightbox)
 - **Lightbox**: Full-screen image with one-click download and copy-prompt button
 - **Grid resize slider**: Drag to scale cards from thumbnail to large — preference saved in `localStorage`
-- **Star / Reject ratings**: Rate images from the viewer; ratings persist across page loads
-- **Filter bar**: All / ★ Starred / ✕ Rejected / Unreviewed with live counts
-- **Master library viewer**: `generate.py library` — single page spanning all projects, with project + model filter chips
+- **Star / Reject ratings**: Rate images from the viewer; ratings persist in `output/ratings.json` (server mode) or `localStorage` (file://)
+- **Filter bar**: All / ★ Starred / ✕ Rejected / Unreviewed with live counts; plus aspect-ratio and style chips in the library
+- **Search + sort**: Live text search across prompts; sort by newest / oldest / project / model
+- **Master library viewer**: `generate.py library` — single page spanning all projects, with project + model + AR + style filter chips
+- **Local portal**: `generate.py serve` — starts a localhost server with persistent ratings API, cross-project search, and live viewer rebuild on page load
+- **Project registry**: `config/extra-outputs.json` — register image directories from other repos so the portal and library find them without copying files
+- **Lightbox metadata**: Lightbox panel shows model, style, aspect ratio, run ID, timestamp, prompt file
 - **Viewer rebuild**: `generate.py view <project> [--all-runs]` — regenerate viewers from disk without re-generating images
 - **HTML rendering**: Puppeteer for diagrams, charts, quote cards
 - **Batch processing**: Parse `image-prompts.md` files (numbered sections + blockquote prompts)
@@ -233,14 +237,48 @@ python generate.py library
 python generate.py library --open
 ```
 
+### Local portal (server mode)
+
+```bash
+# Start portal, open browser automatically
+python generate.py serve --open
+
+# Custom port
+python generate.py serve --port 8080
+```
+
+The portal runs at `http://localhost:7433/`. Features over the static file:// viewers:
+
+- **Persistent ratings** — stored in `output/ratings.json` on disk; survive page reloads and viewer rebuilds
+- **Cross-project search** — live text filter across all prompts in the library
+- **Library rebuilt on every page load** — always reflects the current state of disk
+- **Ratings API** — `GET /api/ratings`, `POST /api/ratings`; viewer JS syncs automatically
+
+### Project registry
+
+Images can live anywhere on disk — register their directory in `config/extra-outputs.json` and the portal and library will find them:
+
+```json
+{
+  "cmvan-keynote": "/Users/you/Code/cmvan-keynote/assets/generated/slides",
+  "another-project": "/path/to/another/project/images"
+}
+```
+
+The virtual path `<project-name>/<run-id>/<file.png>` is used consistently as the image URL, rating key, and deduplication key. Extra-root projects take precedence over any same-named directory under `output/`.
+
+For file:// mode (no server), run `python generate.py link-projects` to create symlinks in `output/` pointing at registered external directories.
+
 ## Repository layout
 
 ```
 rafiki/
-├── generate.py          # Python CLI entry — generation, view, library subcommands
+├── generate.py          # Python CLI entry — generation, view, library, serve subcommands
 ├── requirements.txt
 ├── index.js             # Node CLI (AI + Puppeteer render)
 ├── package.json
+├── config/
+│   └── extra-outputs.json  # Project registry — maps project names to external image dirs
 ├── styles/              # styles.yaml + per-style markdown guides
 ├── prompts/             # Prompt libraries (kk/, bcai/, hopecode/, upgrade/, kk-kb/)
 ├── examples/            # Long-form workflow notes
@@ -249,15 +287,17 @@ rafiki/
 │   ├── core.py          # Single-image generate_image()
 │   ├── models.py        # Model aliases + resolution
 │   ├── prompts.py       # parse_image_prompts_md()
+│   ├── server.py        # Localhost portal server (ratings API, static serving)
 │   ├── styles.py        # Style suffix resolution
 │   ├── usage.py         # Usage log (data/usage-log.json)
 │   └── renderers/
 │       ├── viewer.py    # Single-run + comparison viewer HTML
-│       └── library.py   # Master library viewer HTML
+│       └── library.py   # Master library viewer HTML + extra-roots scanner
 ├── data/                # usage-log.json (gitignored)
 ├── output/              # Generated images + viewers (gitignored)
 │   ├── <project>/       # Per-project run tree
-│   └── library.html     # Master library across all projects
+│   ├── library.html     # Master library across all projects
+│   └── ratings.json     # Persistent star/reject ratings (gitignored)
 └── docs/
     ├── SCOPE.md
     ├── FOLDER-LAYOUT.md
