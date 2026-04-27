@@ -40,6 +40,7 @@ def _load_ratings(ratings_file: Path) -> dict:
 class _RafikiHandler(BaseHTTPRequestHandler):
     output_root: Path
     ratings_file: Path
+    extra_roots: dict[str, Path]  # project_name → real dir
 
     def log_message(self, fmt, *args):  # suppress noisy access log
         pass
@@ -77,15 +78,30 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(200, "text/html; charset=utf-8", lib_path.read_bytes())
 
     def _serve_static(self, rel_path: str):
-        # Strip leading slash; use normpath (not resolve) so symlinks under
-        # output_root are served correctly without resolving them away.
+        """Serve a file from output_root or, for registered projects, from
+        their real external directory — no symlinks needed."""
         rel_path = rel_path.lstrip("/")
-        target = Path(os.path.normpath(self.output_root / rel_path))
-        try:
-            target.relative_to(self.output_root)
-        except ValueError:
-            self._404()
-            return
+        parts = rel_path.split("/", 1)
+        project = parts[0]
+        rest = parts[1] if len(parts) > 1 else ""
+
+        if project in self.extra_roots:
+            # Route directly to the external project directory
+            root = self.extra_roots[project]
+            target = Path(os.path.normpath(root / rest))
+            try:
+                target.relative_to(root)
+            except ValueError:
+                self._404()
+                return
+        else:
+            target = Path(os.path.normpath(self.output_root / rel_path))
+            try:
+                target.relative_to(self.output_root)
+            except ValueError:
+                self._404()
+                return
+
         if not target.exists() or not target.is_file():
             self._404()
             return
@@ -114,32 +130,63 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(200, "application/json", b'{"ok":true}')
 
     def _serve_runs(self):
+        from lib.renderers.library import load_extra_outputs, _scan_root
         runs: list[dict] = []
-        for rjp in sorted(self.output_root.glob("*/run-*/run.json")):
-            try:
-                data = json.loads(rjp.read_text(encoding="utf-8"))
-                project = rjp.parent.parent.name
-                run_id = rjp.parent.name
-                images = []
-                for img in data.get("images", []):
-                    img_path = rjp.parent / img["file"]
-                    images.append({
-                        "file": f"{project}/{run_id}/{img['file']}",
-                        "ok": img_path.exists(),
-                        "name": img.get("name", ""),
-                    })
-                runs.append({
-                    "project": project,
-                    "run_id": run_id,
-                    "model": data.get("model", ""),
-                    "timestamp": data.get("timestamp", ""),
-                    "aspect_ratio": data.get("aspect_ratio", "16:9"),
-                    "style": data.get("style", ""),
-                    "prompt_file": data.get("prompt_file", ""),
-                    "images": images,
-                })
-            except Exception:
+        extra_roots = load_extra_outputs()
+
+        # output_root projects (excluding any overridden by extra_roots)
+        for proj_dir in sorted(self.output_root.iterdir()):
+            if not proj_dir.is_dir() or proj_dir.name in extra_roots:
                 continue
+            for rjp in sorted(proj_dir.glob("run-*/run.json")):
+                try:
+                    data = json.loads(rjp.read_text(encoding="utf-8"))
+                    project = proj_dir.name
+                    run_id = rjp.parent.name
+                    images = [
+                        {"file": f"{project}/{run_id}/{img['file']}",
+                         "ok": (rjp.parent / img["file"]).exists(),
+                         "name": img.get("name", "")}
+                        for img in data.get("images", [])
+                    ]
+                    runs.append({
+                        "project": project, "run_id": run_id,
+                        "model": data.get("model", ""),
+                        "timestamp": data.get("timestamp", ""),
+                        "aspect_ratio": data.get("aspect_ratio", "16:9"),
+                        "style": data.get("style", ""),
+                        "prompt_file": data.get("prompt_file", ""),
+                        "images": images,
+                    })
+                except Exception:
+                    continue
+
+        # extra_roots projects
+        for project_name, extra_root in extra_roots.items():
+            if not extra_root.exists():
+                continue
+            for rjp in sorted(extra_root.glob("run-*/run.json")):
+                try:
+                    data = json.loads(rjp.read_text(encoding="utf-8"))
+                    run_id = rjp.parent.name
+                    images = [
+                        {"file": f"{project_name}/{run_id}/{img['file']}",
+                         "ok": (rjp.parent / img["file"]).exists(),
+                         "name": img.get("name", "")}
+                        for img in data.get("images", [])
+                    ]
+                    runs.append({
+                        "project": project_name, "run_id": run_id,
+                        "model": data.get("model", ""),
+                        "timestamp": data.get("timestamp", ""),
+                        "aspect_ratio": data.get("aspect_ratio", "16:9"),
+                        "style": data.get("style", ""),
+                        "prompt_file": data.get("prompt_file", ""),
+                        "images": images,
+                    })
+                except Exception:
+                    continue
+
         self._respond(200, "application/json", json.dumps(runs).encode())
 
     def _regen(self):
@@ -163,19 +210,25 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
 def serve(output_root: Path, port: int = 7433, open_browser: bool = False) -> None:
     """Start the Rafiki portal server and block until Ctrl-C."""
+    from lib.renderers.library import load_extra_outputs
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
+    extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
 
     class Handler(_RafikiHandler):
         pass
 
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
+    Handler.extra_roots = extra_roots
 
     httpd = HTTPServer(("127.0.0.1", port), Handler)
     url = f"http://localhost:{port}/"
     print(f"Rafiki portal → {url}")
     print(f"Output root:    {output_root}")
+    if extra_roots:
+        for name, path in extra_roots.items():
+            print(f"  + {name} → {path}")
     print("Ctrl-C to stop.")
 
     if open_browser:

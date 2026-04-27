@@ -79,22 +79,29 @@ def _cmd_library(argv: list[str]) -> None:
         print(f"Error: output dir not found: {output_root}")
         sys.exit(1)
 
-    from lib.renderers.library import generate_library_viewer
+    from lib.renderers.library import generate_library_viewer, load_extra_outputs, _scan_root
     lp = generate_library_viewer(output_root, open_browser=args.open)
 
-    run_dirs = list(output_root.glob("*/run-*/run.json"))
-    total = sum(
-        len(json.loads(p.read_text(encoding="utf-8")).get("images", []))
-        for p in run_dirs
-        if p.exists()
-    )
-    ok = sum(
-        sum(1 for img in json.loads(p.read_text(encoding="utf-8")).get("images", [])
-            if (p.parent / img["file"]).exists())
-        for p in run_dirs
-        if p.exists()
-    )
-    projects = {p.parent.parent.name for p in run_dirs}
+    # Count across output_root + extra_roots (mirrors library generator logic)
+    seen: set[str] = set()
+    all_records: list[dict] = []
+    extra_roots = load_extra_outputs()
+    for project_name, extra_root in extra_roots.items():
+        if extra_root.exists():
+            for rec in _scan_root(extra_root, project_name, project_name):
+                seen.add(rec["file"])
+                all_records.append(rec)
+    for proj_dir in sorted(output_root.iterdir()):
+        if not proj_dir.is_dir():
+            continue
+        for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
+            if rec["file"] not in seen:
+                seen.add(rec["file"])
+                all_records.append(rec)
+
+    total = len(all_records)
+    ok = sum(1 for r in all_records if r["ok"])
+    projects = {r["project"] for r in all_records}
     print(f"Library: {lp}")
     print(f"Images:  {ok}/{total} present  ({len(projects)} projects)")
 
@@ -175,6 +182,45 @@ def _cmd_view(argv: list[str]) -> None:
     )
 
 
+def _cmd_link_projects(argv: list[str]) -> None:
+    """Recreate output/ symlinks from config/extra-outputs.json (for file:// mode)."""
+    p = argparse.ArgumentParser(
+        prog="generate.py link-projects",
+        description=(
+            "Create/refresh output/ symlinks for each project in "
+            "config/extra-outputs.json so the viewer works when opened as a file."
+        ),
+    )
+    p.add_argument("--output-dir", "-d", default=None,
+                   help="Root output directory (default: output/)")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    config_path = Path(__file__).parent / "config" / "extra-outputs.json"
+    if not config_path.exists():
+        print("No config/extra-outputs.json found — nothing to link.")
+        return
+
+    extra_roots = json.loads(config_path.read_text(encoding="utf-8"))
+    output_root.mkdir(parents=True, exist_ok=True)
+    for name, real_path in extra_roots.items():
+        real = Path(real_path)
+        link = output_root / name
+        if not real.exists():
+            print(f"  skip {name}: source not found ({real_path})")
+            continue
+        if link.is_symlink():
+            if link.resolve() == real.resolve():
+                print(f"  ok   {name} (already linked)")
+                continue
+            link.unlink()
+        elif link.exists():
+            print(f"  skip {name}: {link} exists as real dir — remove it manually to re-link")
+            continue
+        link.symlink_to(real)
+        print(f"  link {name} → {real_path}")
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -208,6 +254,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "serve":
         _cmd_serve(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "link-projects":
+        _cmd_link_projects(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(

@@ -10,31 +10,34 @@ from pathlib import Path
 from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
 
 
-def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Path:
-    """Scan output_root/*/run-*/run.json and build output_root/library.html."""
-    output_root = Path(output_root)
+def load_extra_outputs() -> dict[str, Path]:
+    """Load extra project output dirs from config/extra-outputs.json."""
+    config_path = Path(__file__).parent.parent.parent / "config" / "extra-outputs.json"
+    if not config_path.exists():
+        return {}
+    try:
+        return {name: Path(p) for name, p in json.loads(config_path.read_text()).items()}
+    except Exception:
+        return {}
 
+
+def _scan_root(root: Path, project_name: str, virtual_prefix: str) -> list[dict]:
+    """Yield image records from all run-*/run.json files under root."""
     records: list[dict] = []
-    for rjp in sorted(output_root.glob("*/run-*/run.json")):
+    for rjp in sorted(root.glob("run-*/run.json")):
         try:
             data = json.loads(rjp.read_text(encoding="utf-8"))
         except Exception:
             continue
-        project = rjp.parent.parent.name
         run_id = rjp.parent.name
         model = data.get("model", "unknown")
         timestamp = data.get("timestamp", "")
         aspect_ratio = data.get("aspect_ratio", "16:9")
         style = data.get("style", "")
-
         for img in data.get("images", []):
             img_path = rjp.parent / img["file"]
-            try:
-                rel = str(img_path.relative_to(output_root))
-            except ValueError:
-                rel = img["file"]
             records.append({
-                "project": project,
+                "project": project_name,
                 "run_id": run_id,
                 "model": model,
                 "timestamp": timestamp,
@@ -42,9 +45,37 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
                 "style": style,
                 "name": img.get("name", ""),
                 "prompt": img.get("prompt", ""),
-                "file": rel,
+                # virtual path used as img src — routed by server or via symlink
+                "file": f"{virtual_prefix}/{run_id}/{img['file']}",
                 "ok": img_path.exists(),
             })
+    return records
+
+
+def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Path:
+    """Scan output_root + any extra-outputs and build output_root/library.html."""
+    output_root = Path(output_root)
+    extra_roots = load_extra_outputs()
+
+    # Scan extra_roots first (canonical sources); track virtual paths to
+    # deduplicate — output/ may have symlinks or copies of the same run.
+    seen: set[str] = set()
+    records: list[dict] = []
+
+    for project_name, extra_root in extra_roots.items():
+        if not extra_root.exists():
+            continue
+        for rec in _scan_root(extra_root, project_name, project_name):
+            seen.add(rec["file"])
+            records.append(rec)
+
+    for proj_dir in sorted(output_root.iterdir()):
+        if not proj_dir.is_dir():
+            continue
+        for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
+            if rec["file"] not in seen:
+                seen.add(rec["file"])
+                records.append(rec)
 
     records.sort(key=lambda r: r["timestamp"], reverse=True)
 
