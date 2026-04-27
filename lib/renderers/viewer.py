@@ -37,7 +37,9 @@ def generate_viewer(
             "error": item.get("error", ""),
         })
 
-    html = _render_single(title, js_items, model, aspect_ratio, style, timestamp, prompt_file)
+    project = output_dir.parent.name
+    run_id = output_dir.name
+    html = _render_single(title, js_items, model, aspect_ratio, style, timestamp, prompt_file, project, run_id)
     viewer_path = output_dir / "viewer.html"
     viewer_path.write_text(html, encoding="utf-8")
     return viewer_path
@@ -71,7 +73,8 @@ def generate_comparison_viewer(project_dir: Path) -> Path:
             continue
 
     title = project_dir.name.replace("-", " ").replace("_", " ").title()
-    html = _render_comparison(title, runs)
+    project = project_dir.name
+    html = _render_comparison(title, runs, project)
     viewer_path = project_dir / "viewer.html"
     viewer_path.write_text(html, encoding="utf-8")
     return viewer_path
@@ -93,11 +96,19 @@ def _render_single(
     style: str,
     timestamp: str,
     prompt_file: str,
+    project: str = "",
+    run_id: str = "",
 ) -> str:
     items_json = json.dumps(items, ensure_ascii=False)
     count = len(items)
     ar_css = _ar_css(aspect_ratio)
     source_line = f"<code>{prompt_file}</code> · " if prompt_file else ""
+    project_js = json.dumps(project)
+    run_id_js = json.dumps(run_id)
+    model_js = json.dumps(model)
+    style_js = json.dumps(style)
+    ar_js = json.dumps(aspect_ratio)
+    ts_js = json.dumps(timestamp)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -127,6 +138,12 @@ def _render_single(
 <script>
 const ITEMS = {items_json};
 const AR_CSS = "{ar_css}";
+const PROJECT = {project_js};
+const RUN_ID = {run_id_js};
+const MODEL = {model_js};
+const STYLE = {style_js};
+const AR = {ar_js};
+const TIMESTAMP = {ts_js};
 {_rating_js()}
 {_grid_js()}
 {_lightbox_js()}
@@ -137,10 +154,11 @@ const AR_CSS = "{ar_css}";
 
 # ─── Comparison renderer ──────────────────────────────────────────────────────
 
-def _render_comparison(title: str, runs: list[dict]) -> str:
+def _render_comparison(title: str, runs: list[dict], project: str = "") -> str:
     runs_json = json.dumps(runs, ensure_ascii=False)
     run_count = len(runs)
     ar_css = _ar_css(runs[-1]["aspect_ratio"]) if runs else "16/9"
+    project_js = json.dumps(project)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -242,6 +260,7 @@ def _render_comparison(title: str, runs: list[dict]) -> str:
 <script>
 const RUNS = {runs_json};
 const AR_CSS = "{ar_css}";
+const PROJECT = {project_js};
 let currentRun = RUNS.length - 1;
 let compareMode = false;
 
@@ -610,6 +629,47 @@ header h1 {{
   scrollbar-color: var(--border) transparent;
 }}
 
+/* ── Lightbox meta ── */
+.lb-meta {{
+  font-size: 0.7rem;
+  color: var(--dim);
+  font-family: ui-monospace, monospace;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}}
+
+/* ── Search + sort ── */
+#search {{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 0.22rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  outline: none;
+  flex: 1;
+  min-width: 100px;
+  max-width: 220px;
+  transition: border-color 0.15s;
+}}
+#search:focus, #search:hover {{ border-color: var(--accent); }}
+#search::placeholder {{ color: var(--dim); opacity: 0.6; }}
+.sort-select {{
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.22rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+}}
+.sort-select:focus, .sort-select:hover {{ border-color: var(--accent); color: var(--ink); }}
+
 /* ── Run strip (compare lightbox) ── */
 .lb-run-strip {{
   display: flex;
@@ -640,7 +700,15 @@ def _filter_bar_html() -> str:
   <button class="filter-btn"        id="fb-star"       onclick="filterCards('star')">&#9733; Starred <span id="fc-star"></span></button>
   <button class="filter-btn"        id="fb-reject"     onclick="filterCards('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
   <button class="filter-btn"        id="fb-unreviewed" onclick="filterCards('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
-  <label class="grid-size-label">Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)"></label>
+  <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
+         oninput="_searchQuery=this.value.toLowerCase().trim();applyFilters()">
+  <label class="grid-size-label">
+    <select class="sort-select" onchange="applySort(this.value)">
+      <option value="default">⇅ Order</option>
+      <option value="name">A → Z</option>
+    </select>
+    Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
+  </label>
 </div>"""
 
 
@@ -661,6 +729,7 @@ def _lightbox_html() -> str:
   </div>
   <div class="lb-bottom" onclick="event.stopPropagation()">
     <div class="lb-name" id="lb-name"></div>
+    <div class="lb-meta" id="lb-meta"></div>
     <div class="lb-prompt" id="lb-prompt"></div>
   </div>
   <div class="lb-run-strip" id="lb-run-strip"></div>
@@ -670,7 +739,9 @@ def _lightbox_html() -> str:
 def _rating_js() -> str:
     return """
 const RATINGS_KEY = 'rafiki:ratings';
+const SERVER_MODE = location.protocol !== 'file:';
 let _currentFilter = 'all';
+let _searchQuery = '';
 
 function resizeGrid(v) {
   document.documentElement.style.setProperty('--card-w', v + 'px');
@@ -678,11 +749,7 @@ function resizeGrid(v) {
 }
 (function() {
   const saved = localStorage.getItem('rafiki:cardWidth');
-  if (saved) {
-    resizeGrid(saved);
-    const sl = document.getElementById('grid-sizer');
-    if (sl) sl.value = saved;
-  }
+  if (saved) { resizeGrid(saved); const sl = document.getElementById('grid-sizer'); if (sl) sl.value = saved; }
 })();
 
 function _loadRatings() {
@@ -694,6 +761,13 @@ function setRating(key, val) {
   const r = _loadRatings();
   if (r[key] === val) delete r[key]; else r[key] = val;
   _saveRatings(r);
+  if (SERVER_MODE) {
+    fetch('/api/ratings', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({key, value: r[key] !== undefined ? r[key] : null}),
+    }).catch(() => {});
+  }
 }
 function applyRating(card, key) {
   const val = getRating(key);
@@ -710,20 +784,24 @@ function rateCard(e, key, val, card) {
   setRating(key, val);
   applyRating(card, key);
   updateFilterCounts();
-  if (_currentFilter !== 'all') filterCards(_currentFilter);
+  if (_currentFilter !== 'all' || _searchQuery) applyFilters();
 }
 function filterCards(mode) {
   _currentFilter = mode;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.filter-btn[id^="fb-"]').forEach(b => b.classList.remove('active'));
   const a = document.getElementById('fb-' + mode);
   if (a) a.classList.add('active');
+  applyFilters();
+}
+function applyFilters() {
   const ratings = _loadRatings();
   document.querySelectorAll('.card').forEach(card => {
     const val = ratings[card.dataset.ratingKey] || null;
     let show = true;
-    if (mode === 'star')            show = val === 'star';
-    else if (mode === 'reject')     show = val === 'reject';
-    else if (mode === 'unreviewed') show = !val;
+    if (_currentFilter === 'star')            show = val === 'star';
+    else if (_currentFilter === 'reject')     show = val === 'reject';
+    else if (_currentFilter === 'unreviewed') show = !val;
+    if (show && _searchQuery) show = (card.dataset.search || '').includes(_searchQuery);
     card.classList.toggle('hidden-filter', !show);
   });
 }
@@ -738,6 +816,35 @@ function updateFilterCounts() {
   const set = (id, n) => { const el = document.getElementById(id); if (el) el.textContent = n ? ` ${n}` : ''; };
   set('fc-all', cards.length); set('fc-star', stars);
   set('fc-reject', rejects); set('fc-unreviewed', unreviewed);
+}
+function applySort(mode) {
+  const grid = document.getElementById('grid');
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.card'));
+  if (mode === 'default') {
+    cards.sort((a, b) => (parseInt(a.dataset.idx) || 0) - (parseInt(b.dataset.idx) || 0));
+  } else if (mode === 'name') {
+    cards.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
+  } else if (mode === 'newest') {
+    cards.sort((a, b) => (b.dataset.ts || '').localeCompare(a.dataset.ts || ''));
+  } else if (mode === 'oldest') {
+    cards.sort((a, b) => (a.dataset.ts || '').localeCompare(b.dataset.ts || ''));
+  } else if (mode === 'project') {
+    cards.sort((a, b) => (a.dataset.project || '').localeCompare(b.dataset.project || ''));
+  } else if (mode === 'model') {
+    cards.sort((a, b) => (a.dataset.model || '').localeCompare(b.dataset.model || ''));
+  }
+  cards.forEach(c => grid.appendChild(c));
+}
+if (SERVER_MODE) {
+  fetch('/api/ratings').then(r => r.json()).then(sv => {
+    const merged = Object.assign(_loadRatings(), sv);
+    _saveRatings(merged);
+    document.querySelectorAll('.card').forEach(c => {
+      if (c.dataset.ratingKey) applyRating(c, c.dataset.ratingKey);
+    });
+    updateFilterCounts();
+  }).catch(() => {});
 }
 """
 
@@ -766,6 +873,18 @@ function lbOpen(i, runIdx) {
   lbName.textContent = item.name || '';
   lbPrompt.textContent = item.prompt || '';
   if (lbCounter) lbCounter.textContent = `${lbIdx + 1} / ${lbItems.length}`;
+  const metaEl = document.getElementById('lb-meta');
+  if (metaEl) {
+    const run = (typeof RUNS !== 'undefined' && lbRunIdx >= 0) ? RUNS[lbRunIdx] : null;
+    const m = item.model || (run ? run.model : '') || (typeof MODEL !== 'undefined' ? MODEL : '');
+    const s = item.style || (run ? run.style : '') || (typeof STYLE !== 'undefined' ? STYLE : '');
+    const ar = item.aspect_ratio || (run ? run.aspect_ratio : '') || (typeof AR !== 'undefined' ? AR : '');
+    const ts = item.timestamp || (run ? run.timestamp : '') || (typeof TIMESTAMP !== 'undefined' ? TIMESTAMP : '');
+    const proj = item.project || (typeof PROJECT !== 'undefined' ? PROJECT : '');
+    const rid = item.run_id || (run ? run.dir : '') || (typeof RUN_ID !== 'undefined' ? RUN_ID : '');
+    const parts = [m, s && s !== 'none' ? s : '', ar, (ts || '').slice(0, 16), proj && rid ? proj + '/' + rid : (proj || rid)].filter(Boolean);
+    metaEl.textContent = parts.join('  ·  ');
+  }
 
   const dlBtn = document.getElementById('lb-download');
   if (dlBtn) {
@@ -832,9 +951,13 @@ def _grid_js() -> str:
     return """
 const grid = document.getElementById('grid');
 ITEMS.forEach((item, i) => {
+  const rk = PROJECT + '/' + RUN_ID + '/' + item.file;
   const card = document.createElement('div');
   card.className = 'card';
-  card.dataset.ratingKey = item.file;
+  card.dataset.ratingKey = rk;
+  card.dataset.idx = i;
+  card.dataset.name = item.name || '';
+  card.dataset.search = ((item.name || '') + ' ' + (item.prompt || '')).toLowerCase();
   card.onclick = () => lbOpen(i);
 
   const arCss = (item.aspect_ratio || '16:9').replace(':', '/');
@@ -852,8 +975,8 @@ ITEMS.forEach((item, i) => {
     <div class="card-prompt"></div>
     <div class="card-foot">
       <span class="card-name">${item.name}</span>
-      <button class="btn-rate star"   onclick="rateCard(event,'${item.file}','star',  this.closest('.card'))">&#9733;</button>
-      <button class="btn-rate reject" onclick="rateCard(event,'${item.file}','reject',this.closest('.card'))">&#x2715;</button>
+      <button class="btn-rate star"   onclick="rateCard(event,'${rk}','star',  this.closest('.card'))">&#9733;</button>
+      <button class="btn-rate reject" onclick="rateCard(event,'${rk}','reject',this.closest('.card'))">&#x2715;</button>
     </div>
   `;
   card.querySelector('.card-prompt').textContent = item.prompt || '';
@@ -862,7 +985,7 @@ ITEMS.forEach((item, i) => {
     img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
   });
   grid.appendChild(card);
-  applyRating(card, item.file);
+  applyRating(card, rk);
 });
 updateFilterCounts();
 """
@@ -915,8 +1038,12 @@ function showRun(ri) {
   run.images.forEach((item, i) => {
     const card = document.createElement('div');
     card.className = 'card';
-    const rk = run.dir + '/' + item.file;
+    const rk = PROJECT + '/' + run.dir + '/' + item.file;
     card.dataset.ratingKey = rk;
+    card.dataset.idx = i;
+    card.dataset.name = item.name || '';
+    card.dataset.ts = run.timestamp || '';
+    card.dataset.search = ((item.name || '') + ' ' + (item.prompt || '')).toLowerCase();
     card.onclick = () => lbOpen(i, ri);
     const missingMsg = item.error
       ? item.error.replace(/[<>&"]/g, '').slice(0, 80)

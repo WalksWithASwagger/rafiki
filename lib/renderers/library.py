@@ -25,6 +25,7 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
         model = data.get("model", "unknown")
         timestamp = data.get("timestamp", "")
         aspect_ratio = data.get("aspect_ratio", "16:9")
+        style = data.get("style", "")
 
         for img in data.get("images", []):
             img_path = rjp.parent / img["file"]
@@ -38,6 +39,7 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
                 "model": model,
                 "timestamp": timestamp,
                 "aspect_ratio": aspect_ratio,
+                "style": style,
                 "name": img.get("name", ""),
                 "prompt": img.get("prompt", ""),
                 "file": rel,
@@ -61,6 +63,8 @@ def _render_library(records: list[dict]) -> str:
     ok_count = sum(1 for r in records if r["ok"])
     projects = sorted({r["project"] for r in records})
     models = sorted({r["model"] for r in records if r["model"] not in ("unknown", "")})
+    aspect_ratios = sorted({r["aspect_ratio"] for r in records if r.get("aspect_ratio")})
+    styles = sorted({r["style"] for r in records if r.get("style") and r["style"] not in ("none", "")})
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     project_chips = "".join(
@@ -72,6 +76,16 @@ def _render_library(records: list[dict]) -> str:
         f'<button class="filter-btn chip-model" data-model="{m}" '
         f"onclick=\"filterLib('model','{m}')\">{m}</button>"
         for m in models
+    )
+    ar_chips = "".join(
+        f'<button class="filter-btn chip-ar" data-ar="{a}" '
+        f"onclick=\"filterLib('ar','{a}')\">{a}</button>"
+        for a in aspect_ratios
+    )
+    style_chips = "".join(
+        f'<button class="filter-btn chip-style" data-style="{s}" '
+        f"onclick=\"filterLib('style','{s}')\">{s}</button>"
+        for s in styles
     )
 
     return f"""<!doctype html>
@@ -98,11 +112,27 @@ def _render_library(records: list[dict]) -> str:
   <button class="filter-btn"        id="fb-star"       onclick="setRatingFilter('star')">&#9733; Starred <span id="fc-star"></span></button>
   <button class="filter-btn"        id="fb-reject"     onclick="setRatingFilter('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
   <button class="filter-btn"        id="fb-unreviewed" onclick="setRatingFilter('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+  <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
+         oninput="_searchQuery=this.value.toLowerCase().trim();applyFilters()">
   <span class="chip-sep">|</span>
   {project_chips}
   <span class="chip-sep">|</span>
   {model_chips}
-  <label class="grid-size-label">Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)"></label>
+  <span class="chip-sep">|</span>
+  {ar_chips}
+  <span class="chip-sep">|</span>
+  {style_chips}
+  <label class="grid-size-label">
+    <select class="sort-select" onchange="applySort(this.value)">
+      <option value="default">⇅ Order</option>
+      <option value="newest">Newest</option>
+      <option value="oldest">Oldest</option>
+      <option value="project">Project</option>
+      <option value="model">Model</option>
+      <option value="name">A → Z</option>
+    </select>
+    Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
+  </label>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -112,10 +142,14 @@ def _render_library(records: list[dict]) -> str:
 <script>
 const LIBRARY = {library_json};
 const ITEMS = LIBRARY;
-const RATINGS_KEY = 'rafiki:lib:ratings';
+const RATINGS_KEY = 'rafiki:ratings';
+const SERVER_MODE = location.protocol !== 'file:';
 let _ratingFilter = 'all';
 let _projFilter = null;
 let _modelFilter = null;
+let _arFilter = null;
+let _styleFilter = null;
+let _searchQuery = '';
 
 function _loadRatings() {{
   try {{ return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
@@ -126,6 +160,13 @@ function setRating(key, val) {{
   const r = _loadRatings();
   if (r[key] === val) delete r[key]; else r[key] = val;
   _saveRatings(r);
+  if (SERVER_MODE) {{
+    fetch('/api/ratings', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify({{key, value: r[key] !== undefined ? r[key] : null}}),
+    }}).catch(() => {{}});
+  }}
 }}
 function applyRating(card, key) {{
   const val = getRating(key);
@@ -153,15 +194,25 @@ function setRatingFilter(mode) {{
 }}
 function filterLib(dim, val) {{
   if (dim === 'proj') {{
-    const wasActive = _projFilter === val;
+    const was = _projFilter === val;
     document.querySelectorAll('.chip-proj').forEach(b => b.classList.remove('active'));
-    _projFilter = wasActive ? null : val;
-    if (!wasActive) document.querySelector('.chip-proj[data-proj="' + val + '"]')?.classList.add('active');
-  }} else {{
-    const wasActive = _modelFilter === val;
+    _projFilter = was ? null : val;
+    if (!was) document.querySelector('.chip-proj[data-proj="' + val + '"]')?.classList.add('active');
+  }} else if (dim === 'model') {{
+    const was = _modelFilter === val;
     document.querySelectorAll('.chip-model').forEach(b => b.classList.remove('active'));
-    _modelFilter = wasActive ? null : val;
-    if (!wasActive) document.querySelector('.chip-model[data-model="' + val + '"]')?.classList.add('active');
+    _modelFilter = was ? null : val;
+    if (!was) document.querySelector('.chip-model[data-model="' + val + '"]')?.classList.add('active');
+  }} else if (dim === 'ar') {{
+    const was = _arFilter === val;
+    document.querySelectorAll('.chip-ar').forEach(b => b.classList.remove('active'));
+    _arFilter = was ? null : val;
+    if (!was) document.querySelector('.chip-ar[data-ar="' + val + '"]')?.classList.add('active');
+  }} else if (dim === 'style') {{
+    const was = _styleFilter === val;
+    document.querySelectorAll('.chip-style').forEach(b => b.classList.remove('active'));
+    _styleFilter = was ? null : val;
+    if (!was) document.querySelector('.chip-style[data-style="' + val + '"]')?.classList.add('active');
   }}
   applyFilters();
 }}
@@ -174,8 +225,11 @@ function applyFilters() {{
     if (_ratingFilter === 'star')            show = val === 'star';
     else if (_ratingFilter === 'reject')     show = val === 'reject';
     else if (_ratingFilter === 'unreviewed') show = !val;
-    if (show && _projFilter)  show = card.dataset.project === _projFilter;
-    if (show && _modelFilter) show = card.dataset.model === _modelFilter;
+    if (show && _projFilter)   show = card.dataset.project === _projFilter;
+    if (show && _modelFilter)  show = card.dataset.model === _modelFilter;
+    if (show && _arFilter)     show = card.dataset.ar === _arFilter;
+    if (show && _styleFilter)  show = card.dataset.style === _styleFilter;
+    if (show && _searchQuery)  show = (card.dataset.search || '').includes(_searchQuery);
     card.classList.toggle('hidden-filter', !show);
   }});
 }}
@@ -195,10 +249,39 @@ function resizeGrid(v) {{
   document.documentElement.style.setProperty('--card-w', v + 'px');
   localStorage.setItem('rafiki:cardWidth', v);
 }}
+function applySort(mode) {{
+  const grid = document.getElementById('grid');
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.card'));
+  if (mode === 'default') {{
+    cards.sort((a, b) => (parseInt(a.dataset.idx) || 0) - (parseInt(b.dataset.idx) || 0));
+  }} else if (mode === 'newest') {{
+    cards.sort((a, b) => (b.dataset.ts || '').localeCompare(a.dataset.ts || ''));
+  }} else if (mode === 'oldest') {{
+    cards.sort((a, b) => (a.dataset.ts || '').localeCompare(b.dataset.ts || ''));
+  }} else if (mode === 'project') {{
+    cards.sort((a, b) => (a.dataset.project || '').localeCompare(b.dataset.project || ''));
+  }} else if (mode === 'model') {{
+    cards.sort((a, b) => (a.dataset.model || '').localeCompare(b.dataset.model || ''));
+  }} else if (mode === 'name') {{
+    cards.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
+  }}
+  cards.forEach(c => grid.appendChild(c));
+}}
 (function() {{
   const saved = localStorage.getItem('rafiki:cardWidth');
   if (saved) {{ resizeGrid(saved); const sl = document.getElementById('grid-sizer'); if (sl) sl.value = saved; }}
 }})();
+if (SERVER_MODE) {{
+  fetch('/api/ratings').then(r => r.json()).then(sv => {{
+    const merged = Object.assign(_loadRatings(), sv);
+    _saveRatings(merged);
+    document.querySelectorAll('.card').forEach(c => {{
+      if (c.dataset.ratingKey) applyRating(c, c.dataset.ratingKey);
+    }});
+    updateFilterCounts();
+  }}).catch(() => {{}});
+}}
 
 const grid = document.getElementById('grid');
 LIBRARY.forEach((item, i) => {{
@@ -206,8 +289,14 @@ LIBRARY.forEach((item, i) => {{
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.ratingKey = item.file;
+  card.dataset.idx = i;
   card.dataset.project = item.project;
   card.dataset.model = item.model;
+  card.dataset.ar = item.aspect_ratio || '';
+  card.dataset.style = item.style || '';
+  card.dataset.ts = item.timestamp || '';
+  card.dataset.name = item.name || '';
+  card.dataset.search = ((item.name || '') + ' ' + (item.prompt || '') + ' ' + (item.project || '')).toLowerCase();
   card.onclick = () => lbOpen(i);
   card.innerHTML = `
     <div class="img-wrap" style="aspect-ratio:${{arCss}}">
@@ -263,4 +352,32 @@ def _library_extra_css() -> str:
   white-space: nowrap;
   flex-shrink: 0;
 }
+#search {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 0.22rem 0.65rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  outline: none;
+  flex: 1;
+  min-width: 100px;
+  max-width: 220px;
+  transition: border-color 0.15s;
+}
+#search:focus, #search:hover { border-color: var(--accent); }
+#search::placeholder { color: var(--dim); opacity: 0.6; }
+.sort-select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.22rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+}
+.sort-select:focus, .sort-select:hover { border-color: var(--accent); color: var(--ink); }
 </style>"""

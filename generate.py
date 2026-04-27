@@ -18,6 +18,9 @@ Usage:
     # Rebuild viewer from actual files on disk (no re-generation):
     python generate.py view <project>
     python generate.py view <project> --all-runs
+
+    # Start the generative portal with persistent ratings + search:
+    python generate.py serve [--port 7433] [--open]
 """
 
 from __future__ import annotations
@@ -172,6 +175,29 @@ def _cmd_view(argv: list[str]) -> None:
     )
 
 
+def _cmd_serve(argv: list[str]) -> None:
+    """Run the Rafiki generative portal — persistent ratings, search, regen."""
+    p = argparse.ArgumentParser(
+        prog="generate.py serve",
+        description="Start the Rafiki portal at http://localhost:7433/",
+    )
+    p.add_argument("--port", type=int, default=7433, help="Port (default: 7433)")
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument("--open", action="store_true", help="Open browser on start")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    if not output_root.exists():
+        print(f"Error: output dir not found: {output_root}")
+        sys.exit(1)
+
+    from lib.server import serve
+    serve(output_root=output_root, port=args.port, open_browser=args.open)
+
+
 def main() -> None:
     # Dispatch subcommands before main arg parsing
     if len(sys.argv) > 1 and sys.argv[1] == "view":
@@ -179,6 +205,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "library":
         _cmd_library(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "serve":
+        _cmd_serve(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(
