@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -76,11 +77,12 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(200, "text/html; charset=utf-8", lib_path.read_bytes())
 
     def _serve_static(self, rel_path: str):
-        # Strip leading slash, prevent path traversal
+        # Strip leading slash; use normpath (not resolve) so symlinks under
+        # output_root are served correctly without resolving them away.
         rel_path = rel_path.lstrip("/")
-        target = (self.output_root / rel_path).resolve()
+        target = Path(os.path.normpath(self.output_root / rel_path))
         try:
-            target.relative_to(self.output_root.resolve())
+            target.relative_to(self.output_root)
         except ValueError:
             self._404()
             return
