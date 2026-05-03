@@ -1,182 +1,67 @@
-# The Upgrade AI Prompt Library
+# The Upgrade — Prompt Library
 
-Welcome to The Upgrade AI prompt library - example prompts for creating bold, transformation-focused training and marketing visuals.
+Prompt library for **The Upgrade** — KK's newsletter and podcast covering AI & society — and the related **The Upgrade AI** training program. Both surfaces share the same `upgrade` visual style: bold transformation, deep purple + bright orange + light blue, human-centered AI as partner.
 
-## What is The Upgrade AI Style?
+## What is The Upgrade?
 
-The Upgrade AI style embodies bold transformation and empowerment with an energetic, professional-yet-personable aesthetic. It's designed to make professionals feel: "I can do this. This is for me. This will change my work in real ways."
+**The Upgrade (Newsletter + Podcast):** independent editorial covering how AI is reshaping work, governance, communities, and everyday life. Practical, human-centered, written for professionals who want to think clearly about AI without hype or doom.
 
-**Key characteristics:**
-- Bold color palette (deep purple, bright orange, light blue)
-- Transformation metaphors (upgrades, level-ups, before/after)
-- Human-centered technology (AI as partner, not replacement)
-- Dynamic, energetic composition
-- "Creative chaos meets polished execution"
+**The Upgrade AI (Training):** the companion training program that teaches an "AI mindset" — using AI as a collaborator and force multiplier.
 
-See the full [Upgrade AI Style Guide](../../styles/upgrade.md) for complete brand guidelines.
+Both share a single visual identity so issues, episodes, and course materials feel like one connected world.
 
-## Using These Prompts
+## Visual System
 
-All prompts work with:
+- **Style flag:** `upgrade`
+- **Palette:** Deep Purple (wisdom, transformation), Bright Orange (energy, action), Light Blue (technology, trust), White (clarity)
+- **Tone:** Bold and energetic yet welcoming, tech-forward but human-centered
+- **Avoid:** robotic AI clichés, dystopian tech, anything cold or alienating
 
-```bash
-npx image-gen ./prompts/upgrade/[file].md --style upgrade
-```
+See the full [Upgrade Style Guide](../../styles/upgrade.md) for complete brand guidelines.
 
-The `--style upgrade` flag automatically applies The Upgrade AI aesthetic.
-
-### Single Prompt Usage
+## Run the whole folder
 
 ```bash
-npx image-gen --prompt "Professional transformation journey" \
-  --style upgrade \
-  --aspect-ratio 16:9 \
-  --output hero-image.png
+python generate.py -f prompts/upgrade/newsletter-heroes.md   -d output/upgrade-newsletter --style upgrade -m gpt-image-2 -w 2
+python generate.py -f prompts/upgrade/social-tiles.md        -d output/upgrade-social    --style upgrade -m gpt-image-2 -w 2
+python generate.py -f prompts/upgrade/podcast-thumbnails.md  -d output/upgrade-podcast   --style upgrade -m gpt-image-2 -w 2
+python generate.py -f prompts/upgrade/training-marketing.md  -d output/upgrade-training  --style upgrade -m gpt-image-2 -w 2
 ```
 
-## Prompt Library Contents
+## Image Index
 
-### [training-marketing.md](./training-marketing.md)
+| File | Surface | Aspect | Count | Best for |
+|------|---------|--------|-------|----------|
+| [`newsletter-heroes.md`](./newsletter-heroes.md) | Newsletter | 16:9 | 8 | Weekly issue cover art, themed by editorial beat |
+| [`social-tiles.md`](./social-tiles.md) | Social | 1:1 | 6 | Instagram, LinkedIn, X — quote cards, summaries, announcements |
+| [`podcast-thumbnails.md`](./podcast-thumbnails.md) | Podcast | 1:1 | 4 | Episode art for guest, solo, series-opener, live formats |
+| [`training-marketing.md`](./training-marketing.md) | Training | varies | — | Course headers, skill diagrams, program marketing |
 
-Prompts for Upgrade AI training and marketing content:
-- Course hero images
-- Skill development diagrams
-- AI + Human partnership visuals
-- Professional growth graphics
-- Community learning networks
-- Training module headers
-- Promotional CTAs
+**Total reusable prompts: 18 (newsletter + social + podcast)** plus the existing training-marketing library.
 
-**Best for:** Course marketing, program materials, social media, email campaigns, landing pages
+## Best-for use cases
 
-## Writing Upgrade AI Prompts
+- **Newsletter heroes** — top-of-issue art that signals the editorial beat (policy, tools, human stories, etc.) without tying art to a specific article. Reusable across issues sharing a theme.
+- **Social tiles** — square assets for promoting issues, episodes, quotes, and guests on Instagram/LinkedIn/X. Some are designed as backdrops for overlaid text.
+- **Podcast thumbnails** — square art for episode covers in podcast apps. Differentiated by format (guest interview, solo, series-opener, live).
+- **Training marketing** — course landing pages, module headers, program promo (existing library).
 
-### Content Focus
+## Writing more Upgrade prompts
 
-- **Transformation Narrative**: Show the journey from current state to empowered future
-- **Human Centerpiece**: People are always the focus, AI is the tool
-- **Skill Growth**: Visualize capability building and expertise development
-- **Community**: Learning together, collaborative growth
-- **Accessibility**: This is achievable, you belong here
+The `upgrade` style suffix handles palette, energy, and tone automatically. Prompts should describe:
 
-### Style Handles Automatically
+- **What to show** — the metaphor, the people, the focal object
+- **Composition** — focal point, layered depth, where text could overlay
+- **Mood** — empowering, curious, urgent, contemplative — but never cold or dystopian
 
-The upgrade style suffix provides:
-- Purple/orange/blue color palette
-- Energetic, dynamic composition
-- Transformation visual metaphors
-- Empowerment tone
-- Professional yet personable feel
+Trust the style for color and typography energy. Write for the editorial beat, not for one specific article — these are reusable assets.
 
-### Prompt Structure Focus On
+## Comparison with other styles
 
-**WHAT to show:**
-- The transformation (from → to)
-- The professional (who this is for)
-- The capability (what they'll gain)
-- The partnership (human + AI collaboration)
-- The outcome (empowered expertise)
-
-**Let style handle HOW:**
-- Color choices (purple/orange/blue)
-- Energy level (dynamic, bold)
-- Visual metaphors (upgrades, level-ups)
-- Composition (focal points, CTAs)
-
-## Prompt Format
-
-```markdown
-## N. Title — Purpose
-
-**For:** Usage context (course header, social post, email, etc.)
-**Aspect:** Aspect ratio (16:9, 1:1, 9:16, etc.)
-**File name:** suggested-filename.png
-
-**Prompt:**
-> Describe the transformation content, focusing on who, what capability,
-> and what outcome. The Upgrade AI style handles the bold aesthetic.
-```
-
-## Key Messaging to Include
-
-When writing prompts, consider weaving in these themes:
-
-- **"AI Mindset"** - Thinking with AI as a partner
-- **"Rapid Upgrade"** - Fast, effective transformation
-- **"Accelerate Your Success"** - Measurable improvement
-- **"Expand Your Potential, Keep Your Spark"** - Enhancement, not replacement
-- **Community & Collaboration** - Learning together
-- **Practical Application** - Real-world impact
-
-## Best Practices
-
-1. **Show the transformation**: Always visualize change/growth/development
-2. **Center the human**: People empowered by tech, not replaced
-3. **Make it achievable**: Visuals should feel "I can do this"
-4. **Include community**: Learning happens together
-5. **Be specific about outcome**: What capability do they gain?
-6. **Trust the energy**: Let the style provide boldness and dynamism
-
-## Batch Processing
-
-Generate all prompts:
-
-```bash
-npx image-gen ./prompts/upgrade/training-marketing.md \
-  --style upgrade \
-  --output-dir ./upgrade-images/
-```
-
-Creates numbered outputs like:
-- `01-course-hero.png`
-- `02-skill-development.png`
-- etc.
-
-## Visual Do's and Don'ts
-
-**DO:**
-- Show professionals actively engaging with AI tools
-- Use upward arrows, progress bars, achievement unlocks
-- Include diverse representation of learners
-- Show collaborative learning environments
-- Emphasize "aha!" moments and breakthroughs
-- Make CTAs visually prominent
-
-**DON'T:**
-- Use robotic or dystopian AI imagery
-- Show technology as threatening or replacing humans
-- Create cold, alienating tech aesthetics
-- Use confusing jargon or complex diagrams
-- Make learning look inaccessible or elitist
-- Forget the transformation narrative
-
-## Use Cases
-
-Perfect for:
-- Course marketing landing pages
-- Social media promotional graphics
-- Email campaign headers
-- Training module introductions
-- Program overviews and pitch decks
-- Success story visualizations
-- Community update graphics
-- Event promotion materials
-
-## Comparison with Other Styles
-
-**vs. kk:** Upgrade is energetic transformation, kk is polished editorial
-**vs. HOPECODE:** Upgrade is empowering professionals, HOPECODE is radical critique
-**vs. BC AI:** Upgrade focuses on individual growth, BC AI on ecosystem networks
-
-## Brand Promise
-
-Every Upgrade AI visual should communicate:
-- AI amplifies human potential (never replaces it)
-- Technology serves people (not the other way around)
-- Expertise is accessible (you can learn this)
-- Community supports growth (you're not alone)
-- Transformation is achievable (start today, see results)
+- **vs. `kk`** — Upgrade is energetic and transformation-focused; kk is polished editorial dark-mode.
+- **vs. `bcai`** — Upgrade centers individual transformation; bcai centers community/ecosystem networks.
+- **vs. `hopecode`** — Upgrade is bold and accessible; hopecode is anti-corporate and radical.
 
 ---
 
-**Remember:** We're not selling hype—we're offering real transformation. Every visual should make someone lean in and say "tell me more."
+**Remember:** The Upgrade isn't selling hype — it's offering clear-eyed transformation. Every visual should make a reader lean in and say "tell me more."
