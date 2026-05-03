@@ -396,6 +396,37 @@ def _cmd_deploy(argv: list[str]) -> None:
     print(f"Deployed: {url}")
 
 
+def _cmd_social_expand(argv: list[str]) -> None:
+    """Generate platform-specific social posts for a project's latest run."""
+    p = argparse.ArgumentParser(
+        prog="generate.py social-expand",
+        description=(
+            "LLM second pass: expand each generated image's title + caption "
+            "into platform-specific social posts (LinkedIn, X, Instagram). "
+            "Writes <latest-run>/social-posts.json."
+        ),
+    )
+    p.add_argument("project", help="Project dir path, or name under output/")
+    p.add_argument(
+        "--platform", nargs="+", default=None,
+        choices=["linkedin", "x", "instagram"],
+        help="Subset of platforms to generate (default: all three)",
+    )
+    p.add_argument("--model", default="gpt-4o-mini",
+                   help="OpenAI chat model (default: gpt-4o-mini)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Skip API calls; write a placeholder showing what would run")
+    args = p.parse_args(argv)
+
+    from lib.social import expand
+    expand(
+        args.project,
+        platforms=args.platform,
+        model=args.model,
+        dry_run=args.dry_run,
+    )
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -449,6 +480,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "registry":
         _cmd_registry(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "social-expand":
+        _cmd_social_expand(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(
