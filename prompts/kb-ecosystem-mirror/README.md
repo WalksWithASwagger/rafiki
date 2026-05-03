@@ -41,3 +41,21 @@ Run `find . -name '*.md' | sort` from this directory for the exact list.
 ## Rerun (with Rafiki) — read this first
 
 See **[RERUN-PIPELINE-PLAN.md](../../docs/RERUN-PIPELINE-PLAN.md)** for phased batches, model/style defaults, and example commands. This folder is the **raw prompt library**; [`kk-kb/`](../kk-kb/README.md) is the **curated diagram + zine** archive. Run batches when you’re ready — no need to delete anything here if you add `v2` prompts next to `v1`.
+
+## Visual system
+
+**Mixed styles — every prompt file declares its own `**Style:**`** (most thought-leadership articles use `kk`; Creative Mornings + WAIFF Brazil use punk-zine / hopecode; RAP marketing uses `bcai`/`upgrade`). Style guides live in [`../../styles/`](../../styles/). No single palette or reference image applies across this mirror — treat each `image-prompts.md` as self-describing.
+
+## Run command
+
+Pick any prompt file in the mirror and run it directly; the file's declared style flag is what matters:
+
+```bash
+# Example: regenerate a thought-leadership article's image pack
+python generate.py \
+  -f prompts/kb-ecosystem-mirror/articles/kris-krug-thought-leadership/01-build-tools-next-job/image-prompts.md \
+  -d output/kb-mirror/01-build-tools-next-job \
+  --style kk -m gpt-image-2 -w 2
+```
+
+For the punk-zine and HOPECODE overlays, swap `--style kk` for `zine` / `hopecode` — match what the file's frontmatter declares. For phased multi-file runs, follow [RERUN-PIPELINE-PLAN.md](../../docs/RERUN-PIPELINE-PLAN.md) instead of invoking files one at a time.
