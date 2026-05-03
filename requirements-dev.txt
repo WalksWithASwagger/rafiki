@@ -1,0 +1,4 @@
+# Test-only dependencies. Install with:
+#   .venv/bin/pip install -r requirements-dev.txt
+pytest>=8.0
+pytest-mock>=3.12
