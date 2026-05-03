@@ -23,11 +23,48 @@ The viewer logic is identical for every series — only the data changes.
 python generate-presentation-viewer.py \
     --data <path/to/data.json> \
     --output <path/to/output-dir> \
-    [--title "Optional title override"]
+    [--title "Optional title override"] \
+    [--self-contained] \
+    [--max-width 1200]
 ```
 
 The script writes `<output-dir>/viewer.html` and resolves image `src` paths
 relative to that output directory.
+
+### Flags
+
+| Flag | Default | Description |
+|---|---|---|
+| `--data` | required | Path to the JSON data file. |
+| `--output` | required | Output directory. `viewer.html` is written here. |
+| `--title` | from data | Override the `title` field from the JSON. |
+| `--self-contained` | off | Embed every image as a base64 `data:` URI so the rendered HTML is a single portable file with no companion image directory. |
+| `--max-width N` | none | When used with `--self-contained`, resize each image to a max width of `N` pixels (preserving aspect ratio) before encoding. Has no effect without `--self-contained` and emits a warning in that case. |
+
+### Portable single-file mode
+
+By default, the viewer references images via relative paths
+(`src="../../output/.../slug.png"`), which means the rendered HTML is only
+useful next to its image directory. With `--self-contained`, every image is
+read from disk, optionally resized, base64-encoded, and embedded directly in
+the HTML — so a single `.html` file can be emailed, dropped into a Slack
+channel, or hosted anywhere with no companion assets.
+
+The trade-off is file size. Embedding 40 PNGs at full resolution (1536×1024)
+produces a viewer in the ~120 MB range. Using `--max-width 1200` brings each
+image down to roughly 1.5–2 MB after re-encoding, but PNG is a lossless
+format and the totals add up quickly. If file size matters, prefer
+`--max-width 800` or smaller. The script prints the final file size after
+writing and emits a warning to stderr when the embedded payload exceeds 50 MB.
+
+```bash
+# Single portable file, images capped at 1200 px wide
+python generate-presentation-viewer.py \
+    --data prompts/bcai/rap-viewer-data.json \
+    --output /tmp/rap-viewer \
+    --self-contained \
+    --max-width 1200
+```
 
 ## Existing wrappers
 
