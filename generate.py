@@ -18,6 +18,11 @@ Usage:
     # Rebuild viewer from actual files on disk (no re-generation):
     python generate.py view <project>
     python generate.py view <project> --all-runs
+    python generate.py view <project> --approved
+
+    # Curate approved set + clean old runs (see docs/ARCHIVE.md):
+    python generate.py approve <project> [--run <run-id>]
+    python generate.py clean <project> [--keep-approved] [--older-than 30d] [--dry-run]
 
     # Start the generative portal with persistent ratings + search:
     python generate.py serve [--port 7433] [--open]
@@ -120,7 +125,17 @@ def _cmd_view(argv: list[str]) -> None:
         "--all-runs", action="store_true",
         help="Also rebuild each run's individual viewer.html",
     )
+    p.add_argument(
+        "--approved", action="store_true",
+        help="Build viewer from output/<project>/approved/ instead of run-*/",
+    )
     args = p.parse_args(argv)
+
+    if args.approved:
+        from lib.archive import build_approved_viewer
+        vp = build_approved_viewer(args.project)
+        print(f"Approved viewer: {vp}")
+        return
 
     project_dir = Path(args.project)
     if not project_dir.exists():
@@ -499,6 +514,64 @@ def _cmd_serve(argv: list[str]) -> None:
     serve(output_root=output_root, port=args.port, open_browser=args.open, public=args.public)
 
 
+def _cmd_approve(argv: list[str]) -> None:
+    """Copy starred images from a run into output/<project>/approved/."""
+    p = argparse.ArgumentParser(
+        prog="generate.py approve",
+        description="Promote starred images into the project's approved/ set.",
+    )
+    p.add_argument("project", help="Project name under output/ (or absolute path)")
+    p.add_argument("--run", default=None,
+                   help="Run id to approve from (default: latest run)")
+    args = p.parse_args(argv)
+
+    from lib.archive import approve as _approve
+    n = _approve(args.project, run=args.run)
+    print(f"Approved {n} image(s) → output/{args.project}/approved/")
+
+
+def _parse_days(spec: str) -> int:
+    """Parse '30d' / '7' into an int day count."""
+    s = spec.strip().lower()
+    if s.endswith("d"):
+        s = s[:-1]
+    try:
+        return int(s)
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(
+            f"--older-than expects N or Nd (e.g. 30 or 30d), got {spec!r}"
+        ) from e
+
+
+def _cmd_clean(argv: list[str]) -> None:
+    """Delete old run-* dirs, optionally keeping runs with approved images."""
+    p = argparse.ArgumentParser(
+        prog="generate.py clean",
+        description="Remove run-*/ dirs from a project. approved/ is never touched.",
+    )
+    p.add_argument("project", help="Project name under output/ (or absolute path)")
+    p.add_argument("--keep-approved", action="store_true",
+                   help="Only delete runs whose images are all in approved/")
+    p.add_argument("--older-than", default=None, metavar="DAYS",
+                   help="Only delete runs older than N days (e.g. 30 or 30d)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print what would be deleted without removing anything")
+    args = p.parse_args(argv)
+
+    older = _parse_days(args.older_than) if args.older_than else None
+    from lib.archive import clean as _clean
+    deleted = _clean(
+        args.project,
+        keep_approved=args.keep_approved,
+        older_than_days=older,
+        dry_run=args.dry_run,
+    )
+    verb = "Would delete" if args.dry_run else "Deleted"
+    print(f"{verb} {len(deleted)} run dir(s):")
+    for d in deleted:
+        print(f"  {d}")
+
+
 def main() -> None:
     # Dispatch subcommands before main arg parsing
     if len(sys.argv) > 1 and sys.argv[1] == "view":
@@ -513,8 +586,14 @@ def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "link-projects":
         _cmd_link_projects(sys.argv[2:])
         return
+    if len(sys.argv) > 1 and sys.argv[1] == "approve":
+        _cmd_approve(sys.argv[2:])
+        return
     if len(sys.argv) > 1 and sys.argv[1] == "canva-export":
         _cmd_canva_export(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "clean":
+        _cmd_clean(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "deploy":
         _cmd_deploy(sys.argv[2:])
