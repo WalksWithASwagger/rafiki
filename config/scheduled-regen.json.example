@@ -1,0 +1,22 @@
+[
+  {
+    "_comment": "Each entry is a regen job. Required: name, prompt_file, output_dir, interval_days. Optional: model, style, notify, workers.",
+    "name": "upgrade-newsletter-heroes",
+    "prompt_file": "prompts/upgrade/newsletter-heroes.md",
+    "output_dir": "output/upgrade-newsletter",
+    "model": "gpt-image-2",
+    "style": "upgrade",
+    "interval_days": 30,
+    "notify": true
+  },
+  {
+    "name": "bcai-ecosystem-diagrams",
+    "prompt_file": "prompts/bcai/ecosystem-diagrams.md",
+    "output_dir": "output/bcai-ecosystem",
+    "model": "gemini-3-pro-image-preview",
+    "style": "bcai",
+    "interval_days": 90,
+    "notify": false,
+    "workers": 2
+  }
+]

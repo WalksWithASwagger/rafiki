@@ -244,6 +244,80 @@ def _cmd_canva_export(argv: list[str]) -> None:
     print(f"Canva export: {result}")
 
 
+def _cmd_regen(argv: list[str]) -> None:
+    """Run scheduled regeneration jobs from config/scheduled-regen.json."""
+    p = argparse.ArgumentParser(
+        prog="generate.py regen",
+        description=(
+            "Run scheduled regeneration jobs from config/scheduled-regen.json. "
+            "Without flags, runs any job whose latest run-*/ is older than its interval_days."
+        ),
+    )
+    p.add_argument("--dry-run", action="store_true",
+                   help="List jobs and last-run ages; don't run anything")
+    p.add_argument("--name", default=None,
+                   help="Run a specific job by name regardless of schedule")
+    p.add_argument("--yes", "-y", action="store_true",
+                   help="Skip the confirmation prompt before running due jobs")
+    p.add_argument("--config", default=None,
+                   help="Override config path (default: config/scheduled-regen.json)")
+    args = p.parse_args(argv)
+
+    repo_root = Path(__file__).parent
+    config_path = Path(args.config) if args.config else repo_root / "config" / "scheduled-regen.json"
+
+    from lib.regen import load_config, due_jobs, latest_run_age_days, run_job
+
+    try:
+        jobs = load_config(config_path)
+    except FileNotFoundError:
+        print(f"No config at {config_path}.")
+        print("Copy config/scheduled-regen.json.example to get started.")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error loading config: {e}")
+        sys.exit(1)
+
+    if args.dry_run:
+        due = {j.name for j in due_jobs(jobs, repo_root=repo_root)}
+        print(f"Scheduled regen jobs ({len(jobs)} configured):")
+        for job in jobs:
+            age = latest_run_age_days((repo_root / job.output_dir).resolve())
+            age_str = f"{age}d ago" if age is not None else "never run"
+            mark = "DUE" if job.name in due else "ok "
+            print(f"  [{mark}] {job.name:40s} interval={job.interval_days}d  last={age_str}")
+        return
+
+    if args.name:
+        targets = [j for j in jobs if j.name == args.name]
+        if not targets:
+            print(f"Error: no job named {args.name!r}")
+            sys.exit(1)
+    else:
+        targets = due_jobs(jobs, repo_root=repo_root)
+        if not targets:
+            print("No jobs are due.")
+            return
+        print(f"{len(targets)} job(s) due:")
+        for j in targets:
+            print(f"  - {j.name}")
+        if not args.yes:
+            try:
+                resp = input("Run them? [y/N] ").strip().lower()
+            except EOFError:
+                resp = ""
+            if resp != "y":
+                print("Aborted.")
+                return
+
+    for job in targets:
+        print(f"\n=== Regenerating: {job.name} ===")
+        summary = run_job(job, repo_root=repo_root)
+        print(f"  status: {summary['status']}")
+        if job.notify:
+            print(f"  [notify] {job.name} → {summary['status']} (output: {job.output_dir})")
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -288,6 +362,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "canva-export":
         _cmd_canva_export(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "regen":
+        _cmd_regen(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(

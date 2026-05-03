@@ -32,3 +32,6 @@ __pycache__/
 
 # Claude Code runtime files
 .claude/scheduled_tasks.lock
+
+# Local scheduled regen config (template: config/scheduled-regen.json.example)
+config/scheduled-regen.json
