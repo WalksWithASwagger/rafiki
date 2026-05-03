@@ -16,10 +16,19 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+
+def _slugify(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def _has_social_items(data: Dict[str, Any]) -> bool:
+    return any(item.get("social") is not None for item in data["items"])
 
 
 def _load_data(data_path: Path) -> Dict[str, Any]:
@@ -67,6 +76,39 @@ def _build_items_js(data: Dict[str, Any], output_dir: Path) -> str:
     return json.dumps(enriched, indent=2, ensure_ascii=False)
 
 
+def build_social_posts_md(data: Dict[str, Any], output_dir: Path) -> Optional[str]:
+    """Build a markdown bundle of all flagged social posts.
+
+    Returns None when no item has a non-null `social` field, so callers can
+    skip writing the file entirely. Image paths are resolved with the same
+    relpath logic the viewer uses for `<img src>`.
+    """
+    if not _has_social_items(data):
+        return None
+
+    categories = {c["id"]: c for c in data["categories"]}
+    image_dirs = {int(k): v for k, v in data["image_dirs"].items()}
+
+    sections: List[str] = []
+    for item in data["items"]:
+        if item.get("social") is None:
+            continue
+        cat = categories[item["category"]]
+        run_dir = _resolve_image_dir(image_dirs[item["category"]])
+        image_path = run_dir / f"{item['slug']}.png"
+        rel_src = os.path.relpath(os.path.abspath(image_path), os.path.abspath(output_dir))
+        section = (
+            f"## {cat['short']} · {item['title']}\n\n"
+            f"![{item['title']}]({rel_src})\n\n"
+            f"**Caption:** {item['caption']}\n\n"
+            f"**Social post:**\n\n"
+            f"```\n{item['social']}\n```\n\n"
+            f"---\n"
+        )
+        sections.append(section)
+    return "\n".join(sections)
+
+
 def _build_tabs_html(data: Dict[str, Any]) -> str:
     all_label = data.get("all_tab_label", f"All {data['category_label_singular']}s")
     parts = [f'    <button class="tab active" data-cat="0">{all_label}</button>']
@@ -86,6 +128,35 @@ def build_viewer(data: Dict[str, Any], output_dir: Path) -> str:
     style_label = header.get("style_label", "")
     style_meta = header.get("style_meta", "")
     style_description = header.get("style_description", "")
+
+    has_social = _has_social_items(data)
+    export_slug = _slugify(data["title"]) or "social-posts"
+    export_button_html = (
+        '    <button class="btn btn-outline" id="export-social" style="margin-left: 12px;">⬇ Export social posts</button>'
+        if has_social
+        else ""
+    )
+    export_filename_js = json.dumps(f"{export_slug}-social-posts.txt")
+    export_script = (
+        f"""
+document.getElementById("export-social").addEventListener("click", () => {{
+  const flagged = ITEMS.filter(item => item.social);
+  if (!flagged.length) return;
+  const body = flagged.map(item => `=== ${{item.categoryShort}} · ${{item.title}} ===\\n${{item.social}}\\n`).join("\\n");
+  const blob = new Blob([body], {{ type: "text/plain;charset=utf-8" }});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = {export_filename_js};
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}});
+"""
+        if has_social
+        else ""
+    )
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -204,6 +275,7 @@ def build_viewer(data: Dict[str, Any], output_dir: Path) -> str:
   <div class="search-wrap">
     <input type="text" id="search" placeholder="Search titles & captions…" autocomplete="off">
   </div>
+{export_button_html}
 </div>
 
 <div class="grid" id="grid"></div>
@@ -353,7 +425,7 @@ document.querySelectorAll(".tab").forEach(tab => {{
 }});
 
 document.getElementById("search").addEventListener("input", render);
-
+{export_script}
 render();
 </script>
 </body>
@@ -383,6 +455,13 @@ def main() -> None:
     out.write_text(html, encoding="utf-8")
     print(f"Viewer: {out}")
     print(f"Items: {len(data['items'])} entries across {len(data['categories'])} {data['category_label_singular'].lower()}s")
+
+    social_md = build_social_posts_md(data, output_dir)
+    if social_md is not None:
+        social_out = output_dir / "social-posts.md"
+        social_out.write_text(social_md, encoding="utf-8")
+        social_count = sum(1 for item in data["items"] if item.get("social") is not None)
+        print(f"Social posts: {social_out} ({social_count} sections)")
 
 
 if __name__ == "__main__":
