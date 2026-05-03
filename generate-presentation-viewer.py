@@ -14,12 +14,17 @@ See `docs/PRESENTATION-VIEWER.md` for the JSON schema.
 from __future__ import annotations
 
 import argparse
+import base64
+import io
 import json
 import os
+import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+
+SIZE_WARN_THRESHOLD = 50 * 1024 * 1024  # 50 MB
 
 
 def _load_data(data_path: Path) -> Dict[str, Any]:
@@ -41,17 +46,56 @@ def _resolve_image_dir(image_dir: str) -> Path:
     return SCRIPT_DIR / p
 
 
-def _build_items_js(data: Dict[str, Any], output_dir: Path) -> str:
+def _encode_image_data_uri(image_path: Path, max_width: Optional[int]) -> str:
+    """Read an image from disk, optionally resize to max_width, return a data: URI.
+
+    Pillow is imported lazily so the default code path has no hard dependency.
+    """
+    from PIL import Image  # noqa: WPS433 — lazy import keeps default path light
+
+    if max_width is not None:
+        with Image.open(image_path) as im:
+            im.load()
+            if im.width > max_width:
+                new_height = round(im.height * (max_width / im.width))
+                im = im.resize((max_width, new_height), Image.LANCZOS)
+            buf = io.BytesIO()
+            im.save(buf, format="PNG")
+            payload = buf.getvalue()
+    else:
+        payload = image_path.read_bytes()
+
+    encoded = base64.b64encode(payload).decode("ascii")
+    return f"data:image/png;base64,{encoded}"
+
+
+def _build_items_js(
+    data: Dict[str, Any],
+    output_dir: Path,
+    self_contained: bool = False,
+    max_width: Optional[int] = None,
+) -> tuple[str, int]:
+    """Build the JS-embedded items array.
+
+    Returns ``(json_string, embedded_bytes)`` where ``embedded_bytes`` is the
+    total raw byte count of all base64 payloads (zero in non-self-contained
+    mode). The caller uses it to print a size warning.
+    """
     categories = {c["id"]: c for c in data["categories"]}
     image_dirs = {int(k): v for k, v in data["image_dirs"].items()}
 
     enriched: List[Dict[str, Any]] = []
+    embedded_bytes = 0
     for item in data["items"]:
         cat_id = item["category"]
         cat = categories[cat_id]
         run_dir = _resolve_image_dir(image_dirs[cat_id])
         image_path = run_dir / f"{item['slug']}.png"
-        rel_src = os.path.relpath(os.path.abspath(image_path), os.path.abspath(output_dir))
+        if self_contained:
+            src = _encode_image_data_uri(image_path, max_width)
+            embedded_bytes += len(src)
+        else:
+            src = os.path.relpath(os.path.abspath(image_path), os.path.abspath(output_dir))
         enriched.append(
             {
                 "category": cat_id,
@@ -61,10 +105,10 @@ def _build_items_js(data: Dict[str, Any], output_dir: Path) -> str:
                 "caption": item["caption"],
                 "social": item.get("social"),
                 "square": bool(item.get("square", False)),
-                "src": rel_src,
+                "src": src,
             }
         )
-    return json.dumps(enriched, indent=2, ensure_ascii=False)
+    return json.dumps(enriched, indent=2, ensure_ascii=False), embedded_bytes
 
 
 def _build_tabs_html(data: Dict[str, Any]) -> str:
@@ -76,8 +120,23 @@ def _build_tabs_html(data: Dict[str, Any]) -> str:
     return "\n".join(parts)
 
 
-def build_viewer(data: Dict[str, Any], output_dir: Path) -> str:
-    items_js = _build_items_js(data, output_dir)
+def build_viewer(
+    data: Dict[str, Any],
+    output_dir: Path,
+    self_contained: bool = False,
+    max_width: Optional[int] = None,
+) -> str:
+    html, _ = _build_viewer_with_size(data, output_dir, self_contained, max_width)
+    return html
+
+
+def _build_viewer_with_size(
+    data: Dict[str, Any],
+    output_dir: Path,
+    self_contained: bool,
+    max_width: Optional[int],
+) -> tuple[str, int]:
+    items_js, embedded_bytes = _build_items_js(data, output_dir, self_contained, max_width)
     tabs_html = _build_tabs_html(data)
     item_count = len(data["items"])
     page_title = data.get("page_title", data["title"])
@@ -87,7 +146,7 @@ def build_viewer(data: Dict[str, Any], output_dir: Path) -> str:
     style_meta = header.get("style_meta", "")
     style_description = header.get("style_description", "")
 
-    return f"""<!DOCTYPE html>
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -358,6 +417,15 @@ render();
 </script>
 </body>
 </html>"""
+    return html, embedded_bytes
+
+
+def _format_size(num_bytes: int) -> str:
+    mb = num_bytes / (1024 * 1024)
+    if mb >= 1:
+        return f"{mb:.1f} MB"
+    kb = num_bytes / 1024
+    return f"{kb:.1f} KB"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -365,6 +433,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data", required=True, type=Path, help="Path to viewer JSON data file")
     parser.add_argument("--output", required=True, type=Path, help="Output directory (viewer.html written here)")
     parser.add_argument("--title", help="Override the title from the data file")
+    parser.add_argument(
+        "--self-contained",
+        action="store_true",
+        help="Embed every image as a base64 data: URI so the HTML is a single portable file.",
+    )
+    parser.add_argument(
+        "--max-width",
+        type=int,
+        default=None,
+        help="With --self-contained, resize each image to this max width (px) before encoding. "
+             "Aspect ratio is preserved. Without this, images are embedded at full resolution.",
+    )
     return parser
 
 
@@ -373,15 +453,31 @@ def main() -> None:
     data_path = args.data
     output_dir = args.output
 
+    if args.max_width is not None and not args.self_contained:
+        print("warning: --max-width has no effect without --self-contained", file=sys.stderr)
+
     data = _load_data(data_path)
     if args.title:
         data["title"] = args.title
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    html = build_viewer(data, output_dir)
+    html, embedded_bytes = _build_viewer_with_size(
+        data, output_dir, args.self_contained, args.max_width
+    )
     out = output_dir / "viewer.html"
     out.write_text(html, encoding="utf-8")
+
+    if args.self_contained and embedded_bytes > SIZE_WARN_THRESHOLD:
+        print(
+            f"warning: embedded image payload is {_format_size(embedded_bytes)} "
+            f"(over {_format_size(SIZE_WARN_THRESHOLD)} threshold). "
+            f"Consider --max-width to reduce file size.",
+            file=sys.stderr,
+        )
+
+    file_size = out.stat().st_size
     print(f"Viewer: {out}")
+    print(f"File: {out.name} ({_format_size(file_size)})")
     print(f"Items: {len(data['items'])} entries across {len(data['categories'])} {data['category_label_singular'].lower()}s")
 
 
