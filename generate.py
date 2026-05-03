@@ -367,6 +367,35 @@ def _cmd_registry(argv: list[str]) -> None:
         return
 
 
+def _cmd_deploy(argv: list[str]) -> None:
+    """Deploy a project's viewer directory to Vercel as a static site."""
+    p = argparse.ArgumentParser(
+        prog="generate.py deploy",
+        description=(
+            "Deploy <project>'s viewer to Vercel.\n"
+            "Requires the `vercel` CLI on PATH (npm i -g vercel) and a prior `vercel login`."
+        ),
+    )
+    p.add_argument("project", help="Project name under output/, or use --viewer-dir")
+    p.add_argument("--prod", action="store_true", help="Deploy to production (default: preview)")
+    p.add_argument("--viewer-dir", default=None, help="Explicit path to dir containing viewer.html")
+    p.add_argument("--dry-run", action="store_true", help="Print the command without running it")
+    args = p.parse_args(argv)
+
+    from lib.deploy.vercel import deploy, VercelNotInstalledError, ViewerNotFoundError
+
+    viewer_dir = Path(args.viewer_dir) if args.viewer_dir else None
+    try:
+        url = deploy(args.project, viewer_dir=viewer_dir, prod=args.prod, dry_run=args.dry_run)
+    except (VercelNotInstalledError, ViewerNotFoundError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.dry_run:
+        return
+    print(f"Deployed: {url}")
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -411,6 +440,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "canva-export":
         _cmd_canva_export(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "deploy":
+        _cmd_deploy(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "regen":
         _cmd_regen(sys.argv[2:])
