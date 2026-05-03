@@ -11,8 +11,13 @@ USAGE_LOG_PATH = Path(__file__).parent.parent / "data" / "usage-log.json"
 
 def load_usage_log() -> dict:
     if USAGE_LOG_PATH.exists():
-        with open(USAGE_LOG_PATH) as f:
-            return json.load(f)
+        try:
+            with open(USAGE_LOG_PATH) as f:
+                return json.load(f)
+        except (json.JSONDecodeError, OSError):
+            # Corrupted log — back it up and start fresh rather than crashing the batch
+            backup = USAGE_LOG_PATH.with_suffix(".json.bak")
+            USAGE_LOG_PATH.rename(backup)
     return {"entries": [], "total_images": 0}
 
 

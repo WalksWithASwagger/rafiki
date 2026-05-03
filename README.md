@@ -30,6 +30,7 @@ The npm package is **`rafiki`**. The **`image-gen`** command remains available a
 - **Batch processing**: Parse `image-prompts.md` files (numbered sections + blockquote prompts)
 - **Style packs**: KK / HOPECODE / BCAI / Upgrade / Zine / GNI (YAML + markdown guides)
 - **Usage tracking**: Local `data/usage-log.json` (gitignored) — logs every API call (success and failure) with full prompt, model, style
+- **Custom presentation viewers**: `generate-rap-viewer.py` pattern — standalone HTML viewers with human-readable captions, social post copy, and week/category filter tabs (see `prompts/bcai/` for the RAP certification example)
 
 ## Setup
 

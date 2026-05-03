@@ -29,3 +29,6 @@ data/usage-log.json
 __pycache__/
 *.pyc
 *.pyo
+
+# Claude Code runtime files
+.claude/scheduled_tasks.lock
