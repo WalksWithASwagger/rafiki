@@ -318,6 +318,55 @@ def _cmd_regen(argv: list[str]) -> None:
             print(f"  [notify] {job.name} → {summary['status']} (output: {job.output_dir})")
 
 
+def _cmd_registry(argv: list[str]) -> None:
+    """Asset registry — index, search, export across all projects."""
+    p = argparse.ArgumentParser(
+        prog="generate.py registry",
+        description="Cross-project image asset registry (index/search/export).",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+
+    sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
+
+    sp_search = sub.add_parser("search", help="Search registry by title/caption/tags")
+    sp_search.add_argument("query", help="Substring to match (case-insensitive)")
+    sp_search.add_argument("--json", action="store_true", dest="json_output",
+                           help="Emit results as JSON")
+
+    sp_export = sub.add_parser("export", help="Export registry to CSV or JSON")
+    sp_export.add_argument("--format", choices=["csv", "json"], default="csv")
+
+    args = p.parse_args(argv)
+
+    from lib.registry import index as registry_index, search as registry_search, export as registry_export
+
+    if args.action == "index":
+        entries = registry_index()
+        projects = sorted({e.project for e in entries})
+        print(f"Indexed {len(entries)} assets across {len(projects)} project(s).")
+        return
+
+    if args.action == "search":
+        results = registry_search(args.query)
+        if args.json_output:
+            print(json.dumps([e.to_dict() for e in results], indent=2))
+            return
+        if not results:
+            print(f"No matches for {args.query!r}.")
+            return
+        print(f"{len(results)} match(es) for {args.query!r}:")
+        for e in results:
+            print(f"  [{e.project}] {e.title}")
+            print(f"    id={e.id}  style={e.style}  model={e.model}")
+            print(f"    {e.path}")
+        return
+
+    if args.action == "export":
+        path = registry_export(format=args.format)
+        print(f"Exported registry: {path}")
+        return
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -365,6 +414,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "regen":
         _cmd_regen(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "registry":
+        _cmd_registry(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(

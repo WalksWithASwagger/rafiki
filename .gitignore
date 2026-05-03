@@ -22,6 +22,10 @@ node_modules/
 # Usage tracking (local data)
 data/usage-log.json
 
+# Asset registry — local cache, regenerable via `generate.py registry index`
+data/asset-registry.json
+data/asset-registry.csv
+
 # Local Python environment (PEP 668–safe installs)
 .venv/
 
