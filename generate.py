@@ -427,6 +427,50 @@ def _cmd_social_expand(argv: list[str]) -> None:
     )
 
 
+def _cmd_notion_export(argv: list[str]) -> None:
+    """Push approved images for a project to a Notion database."""
+    p = argparse.ArgumentParser(
+        prog="generate.py notion-export",
+        description=(
+            "Push approved Rafiki images to a Notion gallery database. "
+            "Reads NOTION_API_KEY (and NOTION_DATABASE_ID, if --database is "
+            "omitted) from the environment. See docs/NOTION-EXPORT.md."
+        ),
+    )
+    p.add_argument("project", help="Project name under output/, or absolute path")
+    p.add_argument("--database", default=None,
+                   help="Notion database id (default: $NOTION_DATABASE_ID)")
+    p.add_argument("--dry-run", action="store_true",
+                   help="Print what would be uploaded; make no API calls")
+    p.add_argument("--force", action="store_true",
+                   help="Re-export images already in .notion-exported.json")
+    p.add_argument("--output-dir", "-d", default=None,
+                   help="Root output directory (default: output/)")
+    args = p.parse_args(argv)
+
+    from lib.exporters.notion import export, NotionExportError
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    try:
+        result = export(
+            args.project,
+            database_id=args.database,
+            output_root=output_root,
+            dry_run=args.dry_run,
+            force=args.force,
+        )
+    except NotionExportError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(
+        f"\nNotion export: {result['exported']} exported, "
+        f"{result['skipped']} skipped, {len(result['errors'])} error(s) "
+        f"(source: {result['source']})"
+    )
+    sys.exit(0 if not result["errors"] else 1)
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -474,6 +518,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "deploy":
         _cmd_deploy(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "notion-export":
+        _cmd_notion_export(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "regen":
         _cmd_regen(sys.argv[2:])

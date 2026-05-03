@@ -1,1 +1,1 @@
-"""Asset exporters — package metadata + image bundles for downstream tools."""
+"""Rafiki exporters — package images + metadata for external destinations."""
