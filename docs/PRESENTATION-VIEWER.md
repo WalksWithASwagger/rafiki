@@ -9,6 +9,11 @@ series of generated images. It produces a static `viewer.html` with:
 - responsive card grid with optional square-aspect override
 - lightbox with prev/next navigation, keyboard shortcuts, download link
 - ready-to-post social copy with one-click clipboard copy
+- "Export social posts" button (controls bar) that downloads all flagged
+  posts as a single `.txt` — appears only when at least one item has a
+  non-null `social` field
+- companion `social-posts.md` written next to `viewer.html` with one
+  section per flagged item — written only when the data has social items
 
 The viewer logic is identical for every series — only the data changes.
 
