@@ -221,6 +221,29 @@ def _cmd_link_projects(argv: list[str]) -> None:
         print(f"  link {name} → {real_path}")
 
 
+def _cmd_canva_export(argv: list[str]) -> None:
+    """Export approved/latest-run images + assets.csv for Canva bulk upload."""
+    p = argparse.ArgumentParser(
+        prog="generate.py canva-export",
+        description=(
+            "Bundle a project's images and a metadata CSV for Canva.\n"
+            "Source: output/<project>/approved/ if present, else latest run-*/."
+        ),
+    )
+    p.add_argument("project", help="Project name under output/ (e.g. rap-all-weeks)")
+    p.add_argument("--output", "-o", default=None,
+                   help="Export dir (default: output/<project>/canva-export/)")
+    p.add_argument("--no-zip", action="store_true",
+                   help="Skip zipping the bundle (return the dir instead)")
+    args = p.parse_args(argv)
+
+    from lib.exporters.canva import export
+
+    out = Path(args.output) if args.output else None
+    result = export(project=args.project, output_dir=out, zip=not args.no_zip)
+    print(f"Canva export: {result}")
+
+
 def _cmd_serve(argv: list[str]) -> None:
     """Run the Rafiki generative portal — persistent ratings, search, regen."""
     p = argparse.ArgumentParser(
@@ -257,6 +280,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "link-projects":
         _cmd_link_projects(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "canva-export":
+        _cmd_canva_export(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(
