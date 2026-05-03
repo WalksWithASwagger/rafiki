@@ -233,6 +233,11 @@ def _cmd_serve(argv: list[str]) -> None:
         help="Root output directory (default: output/ next to generate.py)",
     )
     p.add_argument("--open", action="store_true", help="Open browser on start")
+    p.add_argument(
+        "--public", action="store_true",
+        help="Bind to 0.0.0.0 (all interfaces) instead of 127.0.0.1. "
+             "Set PORTAL_USERNAME and PORTAL_PASSWORD to enable Basic auth.",
+    )
     args = p.parse_args(argv)
 
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
@@ -241,7 +246,7 @@ def _cmd_serve(argv: list[str]) -> None:
         sys.exit(1)
 
     from lib.server import serve
-    serve(output_root=output_root, port=args.port, open_browser=args.open)
+    serve(output_root=output_root, port=args.port, open_browser=args.open, public=args.public)
 
 
 def main() -> None:
