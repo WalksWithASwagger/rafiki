@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import secrets
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+
+def _basic_auth_credentials() -> tuple[str, str] | None:
+    """Return (user, password) if both PORTAL_USERNAME and PORTAL_PASSWORD are
+    set in the environment; otherwise None (auth disabled)."""
+    user = os.environ.get("PORTAL_USERNAME")
+    pw = os.environ.get("PORTAL_PASSWORD")
+    if user and pw:
+        return user, pw
+    return None
 
 
 _MIME_MAP: dict[str, str] = {
@@ -45,10 +57,40 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # suppress noisy access log
         pass
 
+    def _check_auth(self) -> bool:
+        """If PORTAL_USERNAME + PORTAL_PASSWORD are set, require Basic auth.
+        Returns True if the request may proceed; otherwise sends 401 and
+        returns False."""
+        creds = _basic_auth_credentials()
+        if creds is None:
+            return True
+        expected_user, expected_pw = creds
+        header = self.headers.get("Authorization", "")
+        if header.startswith("Basic "):
+            try:
+                decoded = base64.b64decode(header[len("Basic "):]).decode("utf-8")
+                user, _, pw = decoded.partition(":")
+            except Exception:
+                user, pw = "", ""
+            user_ok = secrets.compare_digest(user, expected_user)
+            pw_ok = secrets.compare_digest(pw, expected_pw)
+            if user_ok and pw_ok:
+                return True
+        self.send_response(401)
+        self.send_header("WWW-Authenticate", 'Basic realm="Rafiki Portal"')
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return False
+
     def do_OPTIONS(self):
+        if not self._check_auth():
+            return
         self._respond(204, "text/plain", b"")
 
     def do_GET(self):
+        if not self._check_auth():
+            return
         path = urlparse(self.path).path
         if path in ("/", ""):
             self._serve_library()
@@ -62,6 +104,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._404()
 
     def do_POST(self):
+        if not self._check_auth():
+            return
         path = urlparse(self.path).path
         if path == "/api/ratings":
             self._update_ratings()
@@ -208,7 +252,12 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(404, "application/json", b'{"error":"not found"}')
 
 
-def serve(output_root: Path, port: int = 7433, open_browser: bool = False) -> None:
+def serve(
+    output_root: Path,
+    port: int = 7433,
+    open_browser: bool = False,
+    public: bool = False,
+) -> None:
     """Start the Rafiki portal server and block until Ctrl-C."""
     from lib.renderers.library import load_extra_outputs
     output_root = Path(output_root).resolve()
@@ -222,13 +271,25 @@ def serve(output_root: Path, port: int = 7433, open_browser: bool = False) -> No
     Handler.ratings_file = ratings_file
     Handler.extra_roots = extra_roots
 
-    httpd = HTTPServer(("127.0.0.1", port), Handler)
-    url = f"http://localhost:{port}/"
+    bind_host = "0.0.0.0" if public else "127.0.0.1"
+    httpd = HTTPServer((bind_host, port), Handler)
+    display_host = "localhost" if not public else "0.0.0.0"
+    url = f"http://{display_host}:{port}/"
     print(f"Rafiki portal → {url}")
     print(f"Output root:    {output_root}")
     if extra_roots:
         for name, path in extra_roots.items():
             print(f"  + {name} → {path}")
+
+    auth_on = _basic_auth_credentials() is not None
+    if public and not auth_on:
+        print(
+            "WARNING: --public bound to 0.0.0.0 with NO authentication. "
+            "Set PORTAL_USERNAME and PORTAL_PASSWORD to enable Basic auth."
+        )
+    elif auth_on:
+        print("Auth: Basic (PORTAL_USERNAME / PORTAL_PASSWORD)")
+
     print("Ctrl-C to stop.")
 
     if open_browser:

@@ -17,6 +17,30 @@ Rationale:
 - Tight coupling to any one knowledge base repository layout (consumers pass paths explicitly)
 - In-browser regen (Phase 3 — `POST /api/regen` endpoint is a 501 stub; planned)
 
+## Portal auth (`generate.py serve`)
+
+By default the portal binds to `127.0.0.1` and runs unauthenticated — the v1
+default for solo local use.
+
+To share the portal with a teammate on the same network, two opt-in switches
+work together:
+
+- `--public` — bind to `0.0.0.0` (all interfaces) instead of loopback.
+- `PORTAL_USERNAME` + `PORTAL_PASSWORD` env vars — when **both** are set, the
+  server requires HTTP Basic auth on every request (constant-time compare via
+  `secrets.compare_digest`). If only one is set, auth stays off.
+
+Combining them is the recommended pattern for team review:
+
+```bash
+PORTAL_USERNAME=team \
+PORTAL_PASSWORD=$(openssl rand -hex 16) \
+python generate.py serve --public
+```
+
+Running `--public` without credentials is allowed but prints a clear warning;
+the server will still start so you don't get locked out by a typo.
+
 ## MCP server (`mcp_server.py`)
 
 Rafiki ships an MCP server so any Claude session can invoke image generation as a structured tool call (no subprocess needed).
