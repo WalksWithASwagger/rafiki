@@ -4,7 +4,7 @@
  * Rafiki — image generation CLI
  *
  * Supports:
- * - AI image generation via Python / Gemini (Nano Banana)
+ * - AI image generation via Python / Gemini / OpenAI
  * - HTML-to-image rendering via Puppeteer
  *
  * Usage:
@@ -14,10 +14,10 @@
  */
 
 // Load environment variables from .env file
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const { Command } = require('commander');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 
@@ -83,12 +83,97 @@ function resolveChromeExecutablePath() {
   return undefined;
 }
 
+async function runDoctor(c) {
+  const pythonBin = getPythonExecutable();
+  const pythonVersion = spawnSync(pythonBin, ['--version'], { encoding: 'utf8' });
+  const pythonOk = pythonVersion.status === 0;
+
+  const pythonDeps = pythonOk
+    ? spawnSync(
+        pythonBin,
+        [
+          '-c',
+          [
+            'import importlib, json',
+            'checks = [',
+            '  ("google.genai", "google-genai"),',
+            '  ("openai", "openai"),',
+            '  ("PIL", "pillow"),',
+            '  ("yaml", "pyyaml"),',
+            ']',
+            'missing = []',
+            'for module_name, package_name in checks:',
+            '  try:',
+            '    importlib.import_module(module_name)',
+            '  except Exception:',
+            '    missing.append(package_name)',
+            'print(json.dumps({"missing": missing}))',
+          ].join('\n'),
+        ],
+        { encoding: 'utf8' }
+      )
+    : null;
+
+  let missingPythonDeps = [];
+  if (pythonDeps && pythonDeps.status === 0) {
+    try {
+      const parsed = JSON.parse(pythonDeps.stdout || '{}');
+      missingPythonDeps = parsed.missing || [];
+    } catch (err) {
+      missingPythonDeps = ['unable-to-parse'];
+    }
+  }
+
+  const hasGoogleKey = Boolean(process.env.GOOGLE_API_KEY);
+  const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
+  const chromeExecutablePath = resolveChromeExecutablePath();
+  const envFilePath = path.join(__dirname, '.env');
+  const envFileExists = fs.existsSync(envFilePath);
+  const criticalIssues = !pythonOk || missingPythonDeps.length > 0 || (!hasGoogleKey && !hasOpenAIKey);
+
+  const statusLine = (ok, label, detail) => {
+    const badge = ok ? c.green('[ok]') : c.red('[missing]');
+    console.log(`${badge} ${label}: ${detail}`);
+  };
+
+  console.log(c.cyan('Rafiki doctor'));
+  console.log(c.gray(`  repo: ${__dirname}`));
+
+  statusLine(true, 'Node.js', process.version);
+  statusLine(pythonOk, 'Python', pythonOk ? (pythonVersion.stdout || pythonVersion.stderr).trim() : pythonVersion.error?.message || 'not available');
+  statusLine(
+    missingPythonDeps.length === 0,
+    'Python deps',
+    missingPythonDeps.length === 0 ? 'requirements installed' : `missing ${missingPythonDeps.join(', ')}`
+  );
+  statusLine(envFileExists, '.env file', envFileExists ? envFilePath : 'optional but not present');
+  statusLine(hasGoogleKey, 'GOOGLE_API_KEY', hasGoogleKey ? 'set' : 'not set');
+  statusLine(hasOpenAIKey, 'OPENAI_API_KEY', hasOpenAIKey ? 'set' : 'not set');
+  statusLine(Boolean(chromeExecutablePath), 'Chrome/Chromium', chromeExecutablePath || 'will rely on Puppeteer defaults');
+
+  if (criticalIssues) {
+    console.log('');
+    console.log(c.yellow('Suggested next steps:'));
+    if (!pythonOk) {
+      console.log('  - Install Python 3 and ensure `python3` is on your PATH, or create `.venv` in the repo root.');
+    }
+    if (missingPythonDeps.length > 0) {
+      console.log('  - Install Python dependencies: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`');
+    }
+    if (!hasGoogleKey && !hasOpenAIKey) {
+      console.log('  - Add at least one provider key in `.env` or your shell environment.');
+    }
+  }
+
+  process.exit(criticalIssues ? 1 : 0);
+}
+
 const program = new Command();
 
 program
   .name('rafiki')
-  .description('Rafiki — Gemini image generation (Nano Banana) or Puppeteer (HTML→PNG)')
-  .version('1.0.0');
+  .description('Rafiki — local-first AI image generation or Puppeteer (HTML→PNG)')
+  .version('1.1.0');
 
 // AI Generation command (default)
 program
@@ -124,8 +209,14 @@ program
   .option('--render <html>', 'Render HTML file to image')
   .option('--render-dir <dir>', 'Render all HTML files in directory')
   .option('--usage', 'Show usage statistics')
+  .option('--doctor', 'Check Python, dependencies, keys, and Chrome availability')
   .action(async (promptsFile, options) => {
     const c = await loadChalk();
+
+    if (options.doctor) {
+      await runDoctor(c);
+      return;
+    }
 
     // HTML Rendering mode
     if (options.render || options.renderDir) {
@@ -136,7 +227,7 @@ program
     // AI Generation mode - delegate to Python
     const args = buildPythonArgs(promptsFile, options);
 
-    console.log(c.cyan('Rafiki — running Nano Banana image generator...'));
+    console.log(c.cyan('Rafiki — running image generator...'));
 
     const pythonScript = path.join(__dirname, 'generate.py');
     const pythonBin = getPythonExecutable();
