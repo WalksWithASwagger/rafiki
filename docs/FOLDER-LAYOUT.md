@@ -35,6 +35,8 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
     └── image-pipeline-operator.md
 ```
 
-## Not in this repo (KB monorepo only)
+## Optional sibling repos
 
-The knowledge base keeps a **thin shim** at `kk-ai-ecosystem/tools/image-gen/` (`launch.js` + tiny `package.json`) plus **KB-specific artifacts** (e.g. `outputs/`, `data/refs/`) that stay versioned with content. That path is **not** a second copy of Rafiki — it forwards to this checkout via `RAFIKI_HOME` / sibling `../rafiki/` (see that repo’s `tools/image-gen/README.md`).
+Other repos can point at this checkout instead of duplicating Rafiki source.
+If you keep a thin wrapper elsewhere, treat that repo as a consumer and keep
+the Rafiki code, config, docs, and Python environment here.

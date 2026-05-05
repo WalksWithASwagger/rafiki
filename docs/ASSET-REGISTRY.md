@@ -2,8 +2,8 @@
 
 A lightweight, cross-project searchable index of generated images. Built by
 walking every project in `output/` (plus any extras from
-`config/extra-outputs.json`), preferring an `approved/` subdir and falling
-back to the latest `run-*` dir.
+`config/extra-outputs.json` and `config/extra-outputs.local.json`), preferring
+an `approved/` subdir and falling back to the latest `run-*` dir.
 
 The registry is a **local cache** — `data/asset-registry.json` and
 `data/asset-registry.csv` are gitignored. Regenerate any time.
@@ -13,7 +13,7 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | field | type | source |
 |---|---|---|
 | `id` | str | `<project>-<png-stem>` |
-| `project` | str | dir name under `output/` or key in `extra-outputs.json` |
+| `project` | str | dir name under `output/` or key in the extra-output config |
 | `title` | str | `viewer-data.json` → `run.json` `name` → derived from filename |
 | `caption` | str | `viewer-data.json` → `run.json` `prompt` |
 | `tags` | list[str] | `viewer-data.json` + `run.json` tags + `aspect_ratio` |

@@ -1,9 +1,10 @@
 """Cross-project image asset registry — index, search, export.
 
-Walks every project under output/ (and any roots in config/extra-outputs.json),
-preferring an approved/ subdir, and falls back to the latest run-* dir. Pulls
-metadata from run.json (canonical) and merges optional title/caption/tags from
-a sibling viewer-data.json when present.
+Walks every project under output/ and any roots configured in
+config/extra-outputs.json plus config/extra-outputs.local.json, preferring an
+approved/ subdir and falling back to the latest run-* dir. Pulls metadata from
+run.json (canonical) and merges optional title/caption/tags from a sibling
+viewer-data.json when present.
 
 The on-disk registry is a local cache (gitignored) — regenerate with
 `generate.py registry index` after a batch run or curation.
@@ -18,12 +19,13 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from lib import extra_outputs
+
 logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "output"
-EXTRA_OUTPUTS_CONFIG = REPO_ROOT / "config" / "extra-outputs.json"
 REGISTRY_JSON = DATA_DIR / "asset-registry.json"
 REGISTRY_CSV = DATA_DIR / "asset-registry.csv"
 
@@ -64,14 +66,7 @@ class AssetEntry:
 
 
 def _load_extra_roots() -> dict[str, Path]:
-    if not EXTRA_OUTPUTS_CONFIG.exists():
-        return {}
-    try:
-        raw = json.loads(EXTRA_OUTPUTS_CONFIG.read_text(encoding="utf-8"))
-        return {name: Path(p) for name, p in raw.items()}
-    except Exception as e:
-        logger.warning("Failed to read %s: %s", EXTRA_OUTPUTS_CONFIG, e)
-        return {}
+    return extra_outputs.load_extra_outputs()
 
 
 def _latest_run_dir(project_dir: Path) -> Path | None:
@@ -197,7 +192,7 @@ def _entries_from_dir(
 
 
 def _project_roots(output_root: Path | None = None) -> dict[str, Path]:
-    """Map project name -> project dir, merging output/ and extra-outputs.json."""
+    """Map project name -> project dir, merging output/ and extra-output config."""
     output_root = Path(output_root) if output_root else DEFAULT_OUTPUT_ROOT
     roots: dict[str, Path] = {}
 

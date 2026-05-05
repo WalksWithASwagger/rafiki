@@ -198,31 +198,33 @@ def _cmd_view(argv: list[str]) -> None:
 
 
 def _cmd_link_projects(argv: list[str]) -> None:
-    """Recreate output/ symlinks from config/extra-outputs.json (for file:// mode)."""
+    """Recreate output/ symlinks from configured extra outputs (for file:// mode)."""
     p = argparse.ArgumentParser(
         prog="generate.py link-projects",
         description=(
             "Create/refresh output/ symlinks for each project in "
-            "config/extra-outputs.json so the viewer works when opened as a file."
+            "config/extra-outputs.json or config/extra-outputs.local.json so "
+            "the viewer works when opened as a file."
         ),
     )
     p.add_argument("--output-dir", "-d", default=None,
                    help="Root output directory (default: output/)")
     args = p.parse_args(argv)
 
+    from lib.extra_outputs import extra_outputs_config_paths, load_extra_outputs
+
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
-    config_path = Path(__file__).parent / "config" / "extra-outputs.json"
-    if not config_path.exists():
-        print("No config/extra-outputs.json found — nothing to link.")
+    extra_roots = load_extra_outputs()
+    if not extra_roots:
+        config_names = ", ".join(path.name for path in extra_outputs_config_paths())
+        print(f"No extra output mappings found in {config_names} — nothing to link.")
         return
 
-    extra_roots = json.loads(config_path.read_text(encoding="utf-8"))
     output_root.mkdir(parents=True, exist_ok=True)
-    for name, real_path in extra_roots.items():
-        real = Path(real_path)
+    for name, real in extra_roots.items():
         link = output_root / name
         if not real.exists():
-            print(f"  skip {name}: source not found ({real_path})")
+            print(f"  skip {name}: source not found ({real})")
             continue
         if link.is_symlink():
             if link.resolve() == real.resolve():
@@ -233,7 +235,7 @@ def _cmd_link_projects(argv: list[str]) -> None:
             print(f"  skip {name}: {link} exists as real dir — remove it manually to re-link")
             continue
         link.symlink_to(real)
-        print(f"  link {name} → {real_path}")
+        print(f"  link {name} → {real}")
 
 
 def _cmd_canva_export(argv: list[str]) -> None:
