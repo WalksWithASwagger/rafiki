@@ -43,7 +43,10 @@ def server(tmp_path, monkeypatch):
     monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
 
     Handler = _make_handler_class(tmp_path)
-    httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    try:
+        httpd = HTTPServer(("127.0.0.1", 0), Handler)
+    except PermissionError:
+        pytest.skip("socket binding not permitted in this environment")
     port = httpd.server_address[1]
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()

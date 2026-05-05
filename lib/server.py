@@ -5,12 +5,21 @@ from __future__ import annotations
 import base64
 import json
 import os
+import re
 import secrets
 import threading
 import webbrowser
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
+
+from lib.batch import run_batch
+from lib.models import resolve_model
+from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MODEL = "gemini-2.5-flash-image"
+_TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
 def _basic_auth_credentials() -> tuple[str, str] | None:
@@ -47,6 +56,225 @@ def _load_ratings(ratings_file: Path) -> dict:
         except Exception:
             pass
     return {}
+
+
+def _slugify(value: str) -> str:
+    out = []
+    for ch in value.lower():
+        if ch.isalnum():
+            out.append(ch)
+        elif ch in "-_ ":
+            out.append("-")
+    slug = "".join(out)
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")
+    return slug
+
+
+def _coerce_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in _TRUE_VALUES
+    return False
+
+
+def _coerce_str(value: object, *, field: str, required: bool = False) -> str:
+    if value is None:
+        if required:
+            raise ValueError(f"{field} is required")
+        return ""
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    text = value.strip()
+    if required and not text:
+        raise ValueError(f"{field} is required")
+    return text
+
+
+def _coerce_list_of_paths(value: object, *, field: str) -> list[str]:
+    if value in (None, "", []):
+        return []
+    if isinstance(value, str):
+        return [part.strip() for part in value.split(",") if part.strip()]
+    if isinstance(value, list):
+        parts = []
+        for item in value:
+            if not isinstance(item, str):
+                raise ValueError(f"{field} entries must be strings")
+            item = item.strip()
+            if item:
+                parts.append(item)
+        return parts
+    raise ValueError(f"{field} must be a comma-separated string or list of strings")
+
+
+def _coerce_workers(value: object) -> int:
+    if value in (None, ""):
+        return 1
+    try:
+        workers = int(value)
+    except (TypeError, ValueError) as e:
+        raise ValueError("workers must be an integer") from e
+    if workers < 1:
+        raise ValueError("workers must be at least 1")
+    return min(workers, 8)
+
+
+def _normalise_aspect_ratio(value: object) -> str:
+    text = _coerce_str(value, field="aspect_ratio") if value is not None else "16:9"
+    if not text:
+        text = "16:9"
+    return ASPECT_RATIOS.get(text, text)
+
+
+def _resolve_project_name(payload: dict, *, mode: str) -> str:
+    raw = _coerce_str(payload.get("project"), field="project")
+    if not raw and mode == "batch":
+        prompt_file = _coerce_str(payload.get("prompt_file"), field="prompt_file")
+        if prompt_file:
+            raw = Path(prompt_file).stem
+    if not raw:
+        raw = "studio"
+    slug = _slugify(raw)
+    if not slug:
+        raise ValueError("project must contain at least one letter or number")
+    return slug
+
+
+def _resolve_prompt_file(value: object) -> Path:
+    raw = _coerce_str(value, field="prompt_file", required=True)
+    path = Path(raw).expanduser()
+    if not path.is_absolute():
+        path = (REPO_ROOT / path).resolve()
+    else:
+        path = path.resolve()
+    if not path.exists() or not path.is_file():
+        raise ValueError(f"prompt_file not found: {path}")
+    if path.suffix.lower() not in {".md", ".markdown"}:
+        raise ValueError("prompt_file must be a Markdown file")
+    return path
+
+
+def _resolve_ref_paths(
+    *,
+    prompt_count: int,
+    reference_image: str = "",
+    reference_images: object = None,
+) -> list[str | None]:
+    multi = _coerce_list_of_paths(reference_images, field="reference_images")
+    if multi:
+        if len(multi) == 1:
+            return multi * prompt_count
+        if len(multi) != prompt_count:
+            raise ValueError(
+                f"reference_images has {len(multi)} path(s) but {prompt_count} prompt(s)"
+            )
+        return multi
+    if reference_image:
+        return [reference_image] * prompt_count
+    return [None] * prompt_count
+
+
+def _prompt_name_from_text(prompt: str) -> str:
+    first_line = prompt.strip().splitlines()[0] if prompt.strip() else "Prompt Studio"
+    compact = re.sub(r"\s+", " ", first_line).strip()
+    return compact[:60] if compact else "Prompt Studio"
+
+
+def _result_payload(result, *, mode: str, project: str) -> dict:
+    return {
+        "ok": True,
+        "all_ok": result.success,
+        "mode": mode,
+        "project": project,
+        "generated": result.success_count,
+        "total": result.total,
+        "run_id": result.run_id,
+        "run_dir": str(result.run_dir),
+        "project_dir": str(result.project_dir),
+        "viewer_path": result.viewer_path,
+        "viewer_url": f"/output/{project}/viewer.html",
+        "run_viewer_url": f"/output/{project}/run-{result.run_id}/viewer.html",
+        "library_url": "/",
+        "images": result.images,
+    }
+
+
+def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+
+    mode = _coerce_str(payload.get("mode"), field="mode") or "single"
+    if mode not in {"single", "batch"}:
+        raise ValueError("mode must be 'single' or 'batch'")
+
+    project = _resolve_project_name(payload, mode=mode)
+    project_dir = output_root / project
+    model = resolve_model(_coerce_str(payload.get("model"), field="model") or DEFAULT_MODEL)
+    aspect_ratio = _normalise_aspect_ratio(payload.get("aspect_ratio"))
+    resolution = _coerce_str(payload.get("resolution"), field="resolution") or "1K"
+    quality = _coerce_str(payload.get("quality"), field="quality") or "high"
+    style = _coerce_str(payload.get("style"), field="style") or None
+    reference_image = _coerce_str(payload.get("reference_image"), field="reference_image")
+    reference_role = _coerce_str(payload.get("reference_role"), field="reference_role") or "style"
+    if reference_role not in {"style", "mockup"}:
+        raise ValueError("reference_role must be 'style' or 'mockup'")
+    composition_references = _coerce_list_of_paths(
+        payload.get("composition_references"),
+        field="composition_references",
+    ) or None
+    dry_run = _coerce_bool(payload.get("dry_run"))
+    workers = _coerce_workers(payload.get("workers"))
+
+    if mode == "single":
+        prompt = _coerce_str(payload.get("prompt"), field="prompt", required=True)
+        name = _coerce_str(payload.get("name"), field="name") or _prompt_name_from_text(prompt)
+        result = run_batch(
+            prompts=[{"name": name, "prompt": prompt}],
+            project_dir=project_dir,
+            model=model,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            quality=quality,
+            style=style,
+            ref_paths=[reference_image or None],
+            reference_role=reference_role,
+            composition_references=composition_references,
+            dry_run=dry_run,
+            workers=1,
+            generate_viewer_html=True,
+            prompt_file="",
+        )
+        return _result_payload(result, mode=mode, project=project)
+
+    prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
+    prompts = parse_image_prompts_md(prompt_file)
+    if not prompts:
+        raise ValueError(f"no prompts found in {prompt_file}")
+    ref_paths = _resolve_ref_paths(
+        prompt_count=len(prompts),
+        reference_image=reference_image,
+        reference_images=payload.get("reference_images"),
+    )
+    result = run_batch(
+        prompts=prompts,
+        project_dir=project_dir,
+        model=model,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+        quality=quality,
+        style=style,
+        ref_paths=ref_paths,
+        reference_role=reference_role,
+        composition_references=composition_references,
+        dry_run=dry_run,
+        workers=workers,
+        generate_viewer_html=True,
+        prompt_file=str(prompt_file),
+    )
+    return _result_payload(result, mode=mode, project=project)
 
 
 class _RafikiHandler(BaseHTTPRequestHandler):
@@ -234,8 +462,32 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(runs).encode())
 
     def _regen(self):
-        # Phase 3 placeholder — SSE regen not yet implemented
-        self._respond(501, "application/json", b'{"error":"regen not yet implemented"}')
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+        except Exception:
+            self._respond(400, "application/json", b'{"error":"bad request"}')
+            return
+
+        try:
+            result = _run_portal_job(payload, output_root=self.output_root)
+        except ValueError as e:
+            self._respond(
+                400,
+                "application/json",
+                json.dumps({"error": str(e)}).encode("utf-8"),
+            )
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "generation failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -272,7 +524,7 @@ def serve(
     Handler.extra_roots = extra_roots
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"
-    httpd = HTTPServer((bind_host, port), Handler)
+    httpd = ThreadingHTTPServer((bind_host, port), Handler)
     display_host = "localhost" if not public else "0.0.0.0"
     url = f"http://{display_host}:{port}/"
     print(f"Rafiki portal → {url}")
