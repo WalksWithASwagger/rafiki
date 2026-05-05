@@ -8,14 +8,14 @@ Rationale:
 
 - Keeps deployment and security surface minimal (one API key on the operator’s machine; portal binds to 127.0.0.1 only).
 - Matches how the tool is used today: agents and humans run batch jobs from a checkout.
-- The local portal enables persistent ratings, cross-project search/filter, and (future) in-browser regen — none of which are possible with file:// viewers alone.
+- The local portal enables persistent ratings, cross-project search/filter, and local run launching — none of which are possible with file:// viewers alone.
 
 ## Out of scope (for now)
 
 - Hosted image generation as a SaaS
 - Per-seat billing, rate limiting, or shared usage logs across machines
 - Tight coupling to any one knowledge base repository layout (consumers pass paths explicitly)
-- In-browser regen (Phase 3 — `POST /api/regen` endpoint is a 501 stub; planned)
+- Hosted background job orchestration or queue workers
 
 ## Portal auth (`generate.py serve`)
 
@@ -40,6 +40,17 @@ python generate.py serve --public
 
 Running `--public` without credentials is allowed but prints a clear warning;
 the server will still start so you don't get locked out by a typo.
+
+## Prompt Studio
+
+When running through `generate.py serve`, the library page includes a prompt
+studio that can:
+
+- generate a single prompt into `output/<project>/run-*`
+- run a Markdown prompt file batch into `output/<project>/run-*`
+
+This is intentionally local-first. The server runs the same Python generation
+path as the CLI and writes into the same output tree.
 
 ## MCP server (`mcp_server.py`)
 

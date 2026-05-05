@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+.claude/
+.github/
+assets/
+data/
+examples/
+node_modules/
+output/
+outputs/
+prompts/
+scripts/
+tests/
+tools/

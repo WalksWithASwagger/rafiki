@@ -1,6 +1,9 @@
 # Rafiki — Master Roadmap
 
-**Purpose:** Rafiki is the content pipeline for all KK / BC + AI visual production. This document defines the direction, priorities, and backlog.
+**Purpose:** This is the maintainers' working backlog for Rafiki and some of
+the example content ecosystems it has been used to support.
+
+For the public release track, see [PUBLIC-RELEASE-PLAN.md](PUBLIC-RELEASE-PLAN.md).
 
 **Guiding principle:** Default to `gpt-image-2` via OpenAI — best output quality and most cost-effective for this workflow. Gemini remains available for style-transfer experiments.
 
@@ -13,7 +16,7 @@
 - Per-run viewers with lightbox, ratings, compare mode
 - Master library viewer spanning all projects
 - Local portal server (`generate.py serve`) with persistent ratings API
-- Project registry (`config/extra-outputs.json`) to pull in images from other repos
+- Project registry (`config/extra-outputs.json` plus local override support) to pull in images from other repos
 - 4 style packs: `bcai`, `kk`, `hopecode`, `upgrade` (+ cmvan, zine, gni)
 - Full RAP certification visual curriculum — 40 images across 4 weeks
 - Combined presentation viewer (`generate-rap-viewer.py`) with captions + social post copy

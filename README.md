@@ -1,106 +1,129 @@
 # Rafiki
 
-**Rafiki** is the standalone CLI for **AI image generation** (Google Gemini + OpenAI) and **HTML → PNG** rendering (Puppeteer). It grew out of the KK / BC + AI knowledge base image pipeline; this repository is the **canonical** home.
+Rafiki is a local-first workflow for AI image generation, batch prompt runs,
+reviewing outputs in a browser, and rendering HTML to PNG.
 
-**One folder = all of Rafiki.** Clone this repo into a directory named `rafiki` (recommended). Everything you need to run and extend the tool — Node CLI, Python generator, styles, prompts, docs — lives **only** inside that checkout. See [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md).
+It combines:
 
-The npm package is **`rafiki`**. The **`image-gen`** command remains available as a **backward-compatible alias** (same `index.js`).
+- a Node CLI entry point: `rafiki` and the legacy alias `image-gen`
+- a Python generation engine for Gemini and OpenAI image models
+- a local review portal for comparing runs, rating outputs, and browsing a
+  project library
+- a Puppeteer-based HTML-to-image renderer for cards, diagrams, and slide art
 
-**Repository:** [github.com/WalksWithASwagger/rafiki](https://github.com/WalksWithASwagger/rafiki)
+Rafiki is designed to run from a checkout on your machine. Your API keys stay
+local. There is no hosted Rafiki service.
 
-**Scope:** CLI + local portal. See [docs/SCOPE.md](docs/SCOPE.md).
+## Status
 
-## Features
+Rafiki is ready for real work and is being cleaned up for broader public use.
+The recommended install path today is still: clone the repo, install
+dependencies, run locally.
 
-- **Multi-provider AI generation**: Gemini (`gemini-2.5-flash-image`, `gemini-3-pro-image-preview`) and OpenAI (`gpt-image-2`, `dall-e-3`) via a unified CLI
-- **Run isolation**: Each batch creates a timestamped `run-YYYYMMDD-HHMMSS/` directory — generations are never overwritten
-- **Comparison viewer**: HTML gallery with tabs to switch runs, side-by-side compare mode, and lightbox with keyboard nav
-- **Prompts on cards**: Every card shows the prompt that generated it (3-line clamp, full text in lightbox)
-- **Lightbox**: Full-screen image with one-click download and copy-prompt button
-- **Grid resize slider**: Drag to scale cards from thumbnail to large — preference saved in `localStorage`
-- **Star / Reject ratings**: Rate images from the viewer; ratings persist in `output/ratings.json` (server mode) or `localStorage` (file://)
-- **Filter bar**: All / ★ Starred / ✕ Rejected / Unreviewed with live counts; plus aspect-ratio and style chips in the library
-- **Search + sort**: Live text search across prompts; sort by newest / oldest / project / model
-- **Master library viewer**: `generate.py library` — single page spanning all projects, with project + model + AR + style filter chips
-- **Local portal**: `generate.py serve` — starts a localhost server with persistent ratings API, cross-project search, and live viewer rebuild on page load
-- **Project registry**: `config/extra-outputs.json` — register image directories from other repos so the portal and library find them without copying files
-- **Lightbox metadata**: Lightbox panel shows model, style, aspect ratio, run ID, timestamp, prompt file
-- **Viewer rebuild**: `generate.py view <project> [--all-runs]` — regenerate viewers from disk without re-generating images
-- **HTML rendering**: Puppeteer for diagrams, charts, quote cards
-- **Batch processing**: Parse `image-prompts.md` files (numbered sections + blockquote prompts)
-- **Style packs**: KK / HOPECODE / BCAI / Upgrade / Zine / GNI (YAML + markdown guides)
-- **Usage tracking**: Local `data/usage-log.json` (gitignored) — logs every API call (success and failure) with full prompt, model, style
-- **Custom presentation viewers**: `generate-rap-viewer.py` pattern — standalone HTML viewers with human-readable captions, social post copy, and week/category filter tabs (see `prompts/bcai/` for the RAP certification example)
+Public release plan: [docs/PUBLIC-RELEASE-PLAN.md](docs/PUBLIC-RELEASE-PLAN.md)
 
-## Setup
+## What Rafiki Does
 
-### 1. Install dependencies
+- Generate single images from a prompt
+- Run batches from Markdown prompt files
+- Keep every batch in an isolated `run-*` directory
+- Rebuild viewers without re-running generation
+- Review outputs in a local comparison viewer and library
+- Rate images as starred, rejected, or unreviewed
+- Render HTML files to PNG with Puppeteer
+- Register image outputs from other directories on disk
+- Export approved assets for downstream workflows
+
+## Quickstart
+
+### 1. Clone and install
 
 ```bash
-git clone https://github.com/WalksWithASwagger/rafiki.git rafiki
+git clone https://github.com/WalksWithASwagger/rafiki.git
 cd rafiki
 
 npm install
 
-# Python: local venv (recommended on macOS / Homebrew Python — PEP 668)
 python3 -m venv .venv
 ./.venv/bin/pip install -r requirements.txt
+./.venv/bin/pip install -r requirements-dev.txt
 ```
 
-`generate.py` uses the **`google-genai`** SDK (`pip install google-genai`), not the legacy `google-generativeai` package.
-
-The CLI uses `rafiki/.venv/bin/python3` when that venv exists; otherwise it falls back to `python3` on your `PATH`.
-
-### 2. API keys
+### 2. Add provider keys
 
 ```bash
 cp .env.example .env
-# Edit .env:
-#   GOOGLE_API_KEY=...    (required for Gemini — https://aistudio.google.com/app/apikey)
-#   OPENAI_API_KEY=...    (required for gpt-image-2, dall-e-3)
 ```
 
-Run commands from the **repository root** (this directory) so `dotenv` loads `.env`, or export `GOOGLE_API_KEY` in your shell.
+Add at least one of:
 
-## Usage
+- `GOOGLE_API_KEY` for Gemini models
+- `OPENAI_API_KEY` for OpenAI image models
 
-Paths below are **examples**. Point at any checkout: your KB clone, a temp folder, etc.
-
-Use **`npx rafiki`** (or globally: `rafiki`). You can still run **`npx image-gen`** where that bin is installed — it is the same program.
-
-### AI image generation
+### 3. Run setup diagnostics
 
 ```bash
-# Single prompt
-npx rafiki --prompt "A creative professional at a mixing console" --output hero.png
+npm run doctor
+```
 
-# From image-prompts.md (path to your file)
-npx rafiki /path/to/your/article/image-prompts.md
+Or:
 
-# With style and output directory
-npx rafiki /path/to/prompts/hopecode/personal-blog-examples.md \
-  --style hopecode \
-  --output-dir /path/to/images/
+```bash
+npx rafiki --doctor
+```
 
+### 4. Generate something
+
+```bash
+npx rafiki --prompt "A cinematic portrait of a radio host in a neon-lit studio" \
+  --model gpt-image-2 \
+  --output output.png
+```
+
+## Common Workflows
+
+### Single prompt
+
+```bash
+npx rafiki --prompt "A creative strategist sketching a systems map" --output hero.png
+```
+
+### Batch prompt file
+
+```bash
+npx rafiki /path/to/image-prompts.md --output-dir /path/to/output/project
+```
+
+### Styled generation
+
+```bash
 npx rafiki /path/to/image-prompts.md \
+  --style hopecode \
   --model gemini-3-pro-image-preview \
-  --aspect-ratio 16:9 \
-  --resolution 2K \
-  --style kk \
-  --output-dir /path/to/images/
-
-npx rafiki /path/to/image-prompts.md --style hopecode --dry-run
-npx rafiki --usage
-npx rafiki --list-styles
+  --output-dir /path/to/output/project
 ```
 
-### HTML rendering (Puppeteer)
-
-Chrome resolution is documented in [docs/CHROME-PUPPETEER.md](docs/CHROME-PUPPETEER.md).
+### No style suffix
 
 ```bash
-npx rafiki --render /path/to/graphics/hero.html
-npx rafiki --render-dir /path/to/graphics/
+npx rafiki --prompt "Minimal monochrome diagram" --no-style --output diagram.png
+```
+
+### Reference images
+
+```bash
+npx rafiki \
+  --prompt "Keep the composition, modernize the visual language" \
+  --reference-image /path/to/reference.png \
+  --model gemini-3-pro-image-preview \
+  --output output.png
+```
+
+### HTML to PNG
+
+```bash
+npx rafiki --render /path/to/card.html
+npx rafiki --render-dir /path/to/html-assets/
 ```
 
 ### Python directly
@@ -110,87 +133,58 @@ npx rafiki --render-dir /path/to/graphics/
 ./.venv/bin/python generate.py --prompt-file image-prompts.md --output-dir ./images/
 ```
 
-### Reference images
+## Local Portal
+
+Start the portal:
 
 ```bash
-npx rafiki \
-  --prompt "Add certification text below this logo, same style" \
-  --reference-image /path/to/logo.png \
-  --model gemini-3-pro-image-preview \
-  --output /path/to/out.png
-
-npx rafiki /path/to/logo-variations.md \
-  --reference-image /path/to/brand-logo.png \
-  --model gemini-3-pro-image-preview \
-  --resolution 2K \
-  --output-dir /path/to/outputs/
-
-npx rafiki /path/to/prompts.md \
-  --reference-images "/path/a.png,/path/b.png,/path/c.png" \
-  --output-dir /path/to/outputs/
+python generate.py serve --open
 ```
 
-**Mockup mode** (keep garment photo, add print): `--reference-role mockup`.
+By default it runs on `http://localhost:7433/`.
 
-## Models
+The portal adds:
 
-| Model | Provider | Speed | Resolution | Best for |
-|-------|----------|-------|------------|----------|
-| `gemini-2.5-flash-image` | Gemini | Fast | 1K | Quick iterations |
-| `gemini-3-pro-image-preview` | Gemini | Slower | up to 4K | Final assets, text |
-| `gpt-image-2` | OpenAI | Medium | up to 1536px | Photorealistic, text |
-| `gpt-image-1` | OpenAI | Medium | up to 1024px | Balanced |
-| `dall-e-3` | OpenAI | Medium | up to 1792px | Artistic, precise |
+- persistent ratings stored on disk
+- cross-project browsing and search
+- lightbox review
+- run comparison
+- library rebuilding on page load
+- prompt studio for single prompts and Markdown batches
 
-Pass model ID directly: `-m gpt-image-2` or `-m gemini-2.5-flash-image`.
+The prompt studio writes into `output/<project>/run-*` using the same
+generation path as the CLI, so portal-generated runs show up in the normal
+viewer and library flow.
 
-## Styles
-
-| Style | Notes |
-|-------|--------|
-| `kk` (default) | Dark editorial, teal / purple |
-| `hopecode` | Solarpunk, organic, earth tones |
-| `bcai` | Mycelial / community diagrams |
-| `upgrade` | Bold training / transformation marketing |
-| `zine` | Punk BWR — xerox grain, ransom-note type (WAIFF decks) |
-| `gni` | Cosmic editorial — space-blue orbital diagrams (GNI journalism) |
-| `femme` | Abstract body-compute metaphors (MAC community; review outputs) |
-| `indigenomics` | Ancestral-wisdom + tech sovereignty diagrams (community review for nation-specific symbols) |
+Useful commands:
 
 ```bash
-npx rafiki --prompt "..." --style hopecode
-npx rafiki --prompt "..." --no-style
-npx rafiki --list-styles
+python generate.py view <project>
+python generate.py view <project> --all-runs
+python generate.py library
+python generate.py library --open
 ```
 
-Guides: [styles/kk.md](styles/kk.md), [styles/hopecode.md](styles/hopecode.md), [styles/bcai.md](styles/bcai.md), [styles/upgrade.md](styles/upgrade.md).
+## Prompt File Format
 
-Example prompt libraries live under [prompts/](prompts/). The **KK knowledge base** diagram + image prompt bundle (HOPECODE, GNI, Web Summit zine, WAIFF keynote, MAC femme, Wikipedia Five Futures, `gpt-image-1` batch spec + HOPECODE `.txt`) is consolidated in **[`prompts/kk-kb/`](prompts/kk-kb/README.md)**; the Streamlit `gpt-image-1` batch UI is under [`tools/gpt-image-batch-ui/`](tools/gpt-image-batch-ui/README.md).
-
-## Aspect ratio presets
-
-`linkedin` (16:9), `instagram` (1:1), `twitter` (16:9), `story` (9:16), `square` (1:1) — pass as `--aspect-ratio`.
-
-## `image-prompts.md` format
+Rafiki batch runs parse numbered Markdown sections with blockquote prompts:
 
 ```markdown
-## 1. Hero Image — Title
-**For:** Article header, LinkedIn
+## 1. Hero Image
+**For:** Article header
 **Prompt:**
-> A creative professional standing at a mixing console...
+> A documentary-style portrait of a community organizer...
 
-## 2. Quote Card — Key Message
-**For:** Social media, pull quote
+## 2. Quote Card
+**For:** Social media
 **Prompt:**
-> Clean typography on dark background...
+> Bold editorial typography over textured paper grain...
 ```
 
-After `**Prompt:**`, lines starting with `>` form the prompt (multi-line blockquotes supported).
+Per-prompt overrides are supported:
 
-You can also add per-prompt metadata fields — they override the batch CLI defaults:
 ```markdown
 ## 1. Hero Banner
-**For:** LinkedIn header
 **Aspect Ratio:** 16:9
 **Model:** gpt-image-2
 **Style:** kk
@@ -199,130 +193,100 @@ You can also add per-prompt metadata fields — they override the batch CLI defa
 > ...
 ```
 
-## Run isolation and the viewer
+## Models
 
-Every batch run saves to a timestamped subdirectory:
-```
-output/<project>/
-  run-20260425-093605/
-    01-hero.png
-    02-card.png
-    run.json          ← metadata: model, style, timestamps, image list
-    viewer.html       ← single-run gallery (shareable)
-  latest → run-20260425-093605/   ← symlink to most recent
-  viewer.html         ← comparison viewer across all runs
-output/library.html   ← master library spanning all projects
-```
+Rafiki supports both Gemini and OpenAI image models through the same CLI.
 
-Open `output/<project>/viewer.html` in a browser to:
-- Switch between runs via tabs at the top
-- Click **⊞ Compare all** to see every prompt slot side-by-side across runs
-- Click any image to open fullscreen lightbox (arrow keys / Esc to navigate); download or copy prompt from the lightbox toolbar
-- **★ Star** or **✕ Reject** individual images — ratings persist in `localStorage`
-- Filter the grid: **All / ★ Starred / ✕ Rejected / Unreviewed**
-- Drag the **Grid** slider to resize cards
+- `gemini-2.5-flash-image`: fast iteration
+- `gemini-3-pro-image-preview`: higher-end Gemini image generation
+- `gpt-image-2`: strong general-purpose OpenAI image generation
+- `gpt-image-1`
+- `dall-e-3`
 
-### Rebuild viewers without re-generating
+The current CLI default is `gemini-2.5-flash-image`. Pass `--model` to select
+another provider or model explicitly.
 
-```bash
-# Rebuild comparison viewer (re-checks which files exist on disk)
-python generate.py view philadelphia
+## Styles
 
-# Rebuild all per-run viewers too
-python generate.py view philadelphia --all-runs
+Built-in styles are configured in `styles/styles.yaml` and can be composed
+with `+`.
 
-# Rebuild master library (all projects in one page)
-python generate.py library
+Examples:
 
-# Build and open in browser
-python generate.py library --open
-```
+- `kk`
+- `hopecode`
+- `bcai`
+- `upgrade`
+- `zine`
+- `gni`
+- `femme`
+- `indigenomics`
 
-### Local portal (server mode)
+Useful commands:
 
 ```bash
-# Start portal, open browser automatically
-python generate.py serve --open
-
-# Custom port
-python generate.py serve --port 8080
+npx rafiki --list-styles
+npx rafiki --prompt "..." --style kk+bcai
 ```
 
-The portal runs at `http://localhost:7433/`. Features over the static file:// viewers:
+## External Project Registry
 
-- **Persistent ratings** — stored in `output/ratings.json` on disk; survive page reloads and viewer rebuilds
-- **Cross-project search** — live text filter across all prompts in the library
-- **Library rebuilt on every page load** — always reflects the current state of disk
-- **Ratings API** — `GET /api/ratings`, `POST /api/ratings`; viewer JS syncs automatically
+If you want the portal and library to include outputs that live outside this
+repo, copy the example file and create a local override:
 
-### Project registry
+```bash
+cp config/extra-outputs.json.example config/extra-outputs.local.json
+```
 
-Images can live anywhere on disk — register their directory in `config/extra-outputs.json` and the portal and library will find them:
+Example:
 
 ```json
 {
-  "cmvan-keynote": "/Users/you/Code/cmvan-keynote/assets/generated/slides",
-  "another-project": "/path/to/another/project/images"
+  "workshop-deck": "/absolute/path/to/another/project/output",
+  "campaign-assets": "/absolute/path/to/a/generated-images-directory"
 }
 ```
 
-The virtual path `<project-name>/<run-id>/<file.png>` is used consistently as the image URL, rating key, and deduplication key. Extra-root projects take precedence over any same-named directory under `output/`.
+This file is intentionally gitignored.
 
-For file:// mode (no server), run `python generate.py link-projects` to create symlinks in `output/` pointing at registered external directories.
+For `file://` viewing without the server, create symlinks into `output/`:
 
-## Repository layout
-
-```
-rafiki/
-├── generate.py          # Python CLI entry — generation, view, library, serve subcommands
-├── requirements.txt
-├── index.js             # Node CLI (AI + Puppeteer render)
-├── package.json
-├── config/
-│   └── extra-outputs.json  # Project registry — maps project names to external image dirs
-├── styles/              # styles.yaml + per-style markdown guides
-├── prompts/             # Prompt libraries (kk/, bcai/, hopecode/, upgrade/, kk-kb/)
-├── examples/            # Long-form workflow notes
-├── lib/
-│   ├── batch.py         # Parallel batch runner + run isolation
-│   ├── core.py          # Single-image generate_image()
-│   ├── models.py        # Model aliases + resolution
-│   ├── prompts.py       # parse_image_prompts_md()
-│   ├── server.py        # Localhost portal server (ratings API, static serving)
-│   ├── styles.py        # Style suffix resolution
-│   ├── usage.py         # Usage log (data/usage-log.json)
-│   └── renderers/
-│       ├── viewer.py    # Single-run + comparison viewer HTML
-│       └── library.py   # Master library viewer HTML + extra-roots scanner
-├── data/                # usage-log.json (gitignored)
-├── output/              # Generated images + viewers (gitignored)
-│   ├── <project>/       # Per-project run tree
-│   ├── library.html     # Master library across all projects
-│   └── ratings.json     # Persistent star/reject ratings (gitignored)
-└── docs/
-    ├── SCOPE.md
-    ├── FOLDER-LAYOUT.md
-    ├── CHROME-PUPPETEER.md
-    ├── image-pipeline-analysis.md
-    └── image-pipeline-operator.md
+```bash
+python generate.py link-projects
 ```
 
-## Consuming from another monorepo (e.g. kk-ai-ecosystem)
+## Security and Scope
 
-Keep **one** Rafiki checkout on disk (this repo). The KB repo does **not** duplicate source — it uses a shim.
+- Provider keys belong in your shell environment or an untracked `.env`
+- `python generate.py serve` binds to `127.0.0.1` by default
+- If you use `--public`, set both `PORTAL_USERNAME` and `PORTAL_PASSWORD`
+- Rafiki is a local-first tool, not a hosted multi-user platform
 
-- **Recommended layout on disk:**
+Read:
 
-  ```
-  <parent>/
-    rafiki/              ← ONLY place Rafiki source lives (this git repo)
-    kk-ai-ecosystem/     ← KB; contains tools/image-gen = shim + KB outputs only
-  ```
+- [SECURITY.md](SECURITY.md)
+- [docs/SCOPE.md](docs/SCOPE.md)
 
-- **Sibling clone:** `git clone https://github.com/WalksWithASwagger/rafiki.git rafiki` next to `kk-ai-ecosystem/`. From the KB, `cd tools/image-gen && npx rafiki …` forwards here.
-- **Custom path:** set **`RAFIKI_HOME`** (or legacy **`IMAGE_GEN_HOME`**) to this repo’s root.
-- **npm:** `npm install https://github.com/WalksWithASwagger/rafiki.git` or depend on package name `rafiki`.
+## Development
+
+Useful commands:
+
+```bash
+npm test
+npm run pack:check
+python3 -m pytest -q
+```
+
+Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## Docs
+
+- [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md)
+- [docs/CHROME-PUPPETEER.md](docs/CHROME-PUPPETEER.md)
+- [docs/ASSET-REGISTRY.md](docs/ASSET-REGISTRY.md)
+- [docs/SCOPE.md](docs/SCOPE.md)
+- [docs/PUBLIC-RELEASE-PLAN.md](docs/PUBLIC-RELEASE-PLAN.md)
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

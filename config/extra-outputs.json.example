@@ -1,0 +1,4 @@
+{
+  "sample-project": "/absolute/path/to/another/project/output",
+  "shared-review-board": "/absolute/path/to/a/generated-images-directory"
+}

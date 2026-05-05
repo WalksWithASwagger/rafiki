@@ -1,7 +1,7 @@
 {
   "name": "rafiki",
   "version": "1.1.0",
-  "description": "Rafiki — Gemini image generation (Nano Banana) + Puppeteer HTML→PNG",
+  "description": "Local-first AI image generation and review workflow with a CLI, portal, and HTML-to-image rendering",
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -17,7 +17,37 @@
   },
   "scripts": {
     "generate": "node index.js",
-    "render": "node index.js --render"
+    "render": "node index.js --render",
+    "doctor": "node index.js --doctor",
+    "test": "python -m pytest -q",
+    "test:python": "python -m pytest -q",
+    "pack:check": "npm pack --dry-run"
+  },
+  "files": [
+    "index.js",
+    "generate.py",
+    "mcp_server.py",
+    "lib/**/*.py",
+    "styles/**/*.md",
+    "styles/styles.yaml",
+    "config/extra-outputs.json",
+    "config/extra-outputs.json.example",
+    "config/scheduled-regen.json.example",
+    ".env.example",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "requirements.txt",
+    "requirements-dev.txt",
+    "docs/ASSET-REGISTRY.md",
+    "docs/CHROME-PUPPETEER.md",
+    "docs/FOLDER-LAYOUT.md",
+    "docs/PUBLIC-RELEASE-PLAN.md",
+    "docs/SCOPE.md"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "chalk": "^5.3.0",
@@ -30,11 +60,13 @@
   "keywords": [
     "rafiki",
     "image-generation",
-    "nano-banana",
     "gemini",
+    "openai",
+    "prompt-engineering",
+    "creative-tools",
     "puppeteer",
-    "social-media"
+    "html-to-image"
   ],
-  "author": "KK AI Ecosystem",
+  "author": "Rafiki contributors",
   "license": "MIT"
 }

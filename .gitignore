@@ -15,7 +15,7 @@ outputs/
 # Notion exporter idempotency log (per-project, local state)
 output/*/.notion-exported.json
 
-# KB mirror from kk-ai-ecosystem inventory (large copies; regenerable)
+# Knowledge-base mirror artifacts (large copies; regenerable)
 assets/kb-import/mirror/
 assets/kb-import/prompt-stashes/
 
@@ -39,6 +39,14 @@ __pycache__/
 
 # Claude Code runtime files
 .claude/scheduled_tasks.lock
+.claude/settings.local.json
+.claude/worktrees/
 
 # Local scheduled regen config (template: config/scheduled-regen.json.example)
 config/scheduled-regen.json
+
+# Local external-project registry override (template: config/extra-outputs.json.example)
+config/extra-outputs.local.json
+
+# Local package artifacts
+*.tgz
