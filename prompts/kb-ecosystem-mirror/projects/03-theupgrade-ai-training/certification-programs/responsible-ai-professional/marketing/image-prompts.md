@@ -3,11 +3,11 @@
 **Program:** Responsible AI Professional Certification  
 **Status:** Ready  
 **Style:** bcai
-**Reference:** `/Users/kk/projects/BC + AI/rap-fall.png` — bioluminescent BC forest backdrop, dark forest green shield badge with gold border, glowing white wildflowers (Queen Anne's lace style), muted grey-green atmospheric tones
+**Reference:** `/path/to/your/reference/rap-fall.png` — bioluminescent BC forest backdrop, dark forest green shield badge with gold border, glowing white wildflowers (Queen Anne's lace style), muted grey-green atmospheric tones
 
 Visual language from reference: deep forest green (#1E3A2B) + gold/amber (#D4A017) + misty grey-green forest background + bioluminescent white glow points. Shield/badge shapes. Atmospheric depth, not flat.
 
-Run: `python generate.py -f <this-file> -d output/rap-cert --style bcai -m gpt-image-2 --reference-images "/Users/kk/projects/BC + AI/rap-fall.png" --workers 2`
+Run: `python generate.py -f <this-file> -d output/rap-cert --style bcai -m gpt-image-2 --reference-images "/path/to/your/reference/rap-fall.png" --workers 2`
 
 ---
 

@@ -140,7 +140,7 @@ Modern, sophisticated design. Typography: clean sans-serif. High quality promoti
 ### Using Nano Banana Tool:
 
 ```bash
-cd /Users/kk/Code/notion-local/kk-ai-ecosystem/tools/image-gen
+cd /path/to/kk-ai-ecosystem/tools/image-gen
 python generate.py --prompt-file prompts/2026-01-24-what-would-chat-do.md --output-dir ./output/wit-regatta-2026/
 ```
 

@@ -7,7 +7,7 @@ Uses the repo’s **HOPECODE style suffix** (`--style hopecode`) so jittered myc
 **Batch — no reference images** (let style suffix + text drive the look):
 
 ```bash
-cd /Users/kk/Code/notion-local/kk-ai-ecosystem/tools/image-gen
+cd /path/to/kk-ai-ecosystem/tools/image-gen
 npx image-gen ../../content/projects/ed-ai-education-meetup/image-prompts-ed-ai-meetup-v2-hopecode-4.md \
   --model gemini-3-pro-image-preview \
   --resolution 2K \

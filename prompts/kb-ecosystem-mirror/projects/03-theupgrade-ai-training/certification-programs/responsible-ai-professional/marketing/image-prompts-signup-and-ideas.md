@@ -2,10 +2,10 @@
 
 **Program:** Responsible AI Professional Certification  
 **Style:** bcai  
-**Reference:** `/Users/kk/projects/BC + AI/rap-fall.png`  
+**Reference:** `/path/to/your/reference/rap-fall.png`  
 Visual language: bioluminescent BC forest, deep forest green + gold shield badge, glowing Queen Anne's lace wildflowers, misty atmospheric grey-green tones.
 
-Run: `python generate.py -f <this-file> -d output/rap-cert --style bcai -m gpt-image-2 --reference-images "/Users/kk/projects/BC + AI/rap-fall.png" --workers 2`
+Run: `python generate.py -f <this-file> -d output/rap-cert --style bcai -m gpt-image-2 --reference-images "/path/to/your/reference/rap-fall.png" --workers 2`
 
 ---
 

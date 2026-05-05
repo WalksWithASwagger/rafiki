@@ -68,13 +68,13 @@ expressed as BC old-growth forest metaphors. Each file is a self-contained batch
 | [`rap-week-3-societal-impact.md`](./rap-week-3-societal-impact.md) | Week 3 — Societal Impact | Deployment readiness, High-stakes domains, Job displacement, Augmentation vs replacement, Environmental cost, Right-sizing models, AI literacy, Deployment checklist, Worker surveillance, Failure response |
 | [`rap-week-4-human-element.md`](./rap-week-4-human-element.md) | Week 4 — Human Element | Deepfakes, Trust erosion, AI disclosure, Parasocial dynamics, Children & AI, Creativity, Agency, Meaning, Indigenous knowledge, Human flourishing |
 
-**Visual system:** deep forest green `#1E3A2B` + gold/amber `#D4A017` + bioluminescent white glow + misty grey-green atmosphere. Reference image: `/Users/kk/projects/BC + AI/rap-fall.png`.
+**Visual system:** deep forest green `#1E3A2B` + gold/amber `#D4A017` + bioluminescent white glow + misty grey-green atmosphere. Reference image: `/path/to/your/reference/rap-fall.png`.
 
 **Run any week:**
 ```bash
 python generate.py -f prompts/bcai/rap-week-1-foundations.md -d output/rap-week-1 \
   --style bcai -m gpt-image-2 \
-  --reference-images "/Users/kk/projects/BC + AI/rap-fall.png" -w 2
+  --reference-images "/path/to/your/reference/rap-fall.png" -w 2
 ```
 
 **Combined viewer with captions + social post copy:**

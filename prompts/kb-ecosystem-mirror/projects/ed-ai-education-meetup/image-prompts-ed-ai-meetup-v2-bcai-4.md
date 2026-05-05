@@ -7,7 +7,7 @@ Uses **`--style bcai`** so forest/coast palette, mycelial-but-professional netwo
 **Batch — no reference images** for variety. If one lockup drifts off-palette, rerun **one** image with `--prompt` + `--reference-image .../ref-bc-ai-ecosystem-wordmark-dark.png`.
 
 ```bash
-cd /Users/kk/Code/notion-local/kk-ai-ecosystem/tools/image-gen
+cd /path/to/kk-ai-ecosystem/tools/image-gen
 npx image-gen ../../content/projects/ed-ai-education-meetup/image-prompts-ed-ai-meetup-v2-bcai-4.md \
   --model gemini-3-pro-image-preview \
   --resolution 2K \

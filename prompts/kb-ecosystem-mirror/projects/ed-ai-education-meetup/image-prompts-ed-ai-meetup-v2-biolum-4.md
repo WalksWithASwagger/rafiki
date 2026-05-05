@@ -7,7 +7,7 @@
 **Batch — no reference images** (forces originality; refs were homogenizing earlier):
 
 ```bash
-cd /Users/kk/Code/notion-local/kk-ai-ecosystem/tools/image-gen
+cd /path/to/kk-ai-ecosystem/tools/image-gen
 npx image-gen ../../content/projects/ed-ai-education-meetup/image-prompts-ed-ai-meetup-v2-biolum-4.md \
   --model gemini-3-pro-image-preview \
   --resolution 2K \
