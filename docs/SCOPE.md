@@ -54,24 +54,12 @@ path as the CLI and writes into the same output tree.
 
 ## MCP server (`mcp_server.py`)
 
-Rafiki ships an MCP server so any Claude session can invoke image generation as a structured tool call (no subprocess needed).
+Rafiki ships an MCP server so local tools can invoke image generation, style
+lookup, usage, and the broader `generate.py` CLI surface as structured tool
+calls. The server loads `.env` from this repo and keeps the Python generation
+path canonical.
 
-Add to `~/.claude/settings.json` or a project's `.claude/settings.json`:
-
-```json
-"mcpServers": {
-  "rafiki": {
-    "command": "/absolute/path/to/rafiki/.venv/bin/python",
-    "args": ["/absolute/path/to/rafiki/mcp_server.py"],
-    "env": {
-      "GOOGLE_API_KEY": "...",
-      "OPENAI_API_KEY": "..."
-    }
-  }
-}
-```
-
-Tools exposed: `rafiki_generate`, `rafiki_batch`, `rafiki_list_styles`.
+See [MCP.md](MCP.md).
 
 ## Claude Code skill
 

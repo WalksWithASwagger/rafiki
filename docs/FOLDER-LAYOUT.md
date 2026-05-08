@@ -6,7 +6,7 @@
 rafiki/                          ← this repo (clone anywhere; name the folder rafiki/)
 ├── index.js                     # Node CLI entry (AI + Puppeteer)
 ├── generate.py                  # Python CLI: generate / view / library subcommands
-├── mcp_server.py                # MCP server (rafiki_generate, rafiki_batch, rafiki_list_styles)
+├── mcp_server.py                # MCP server (generation tools + CLI bridge)
 ├── package.json                 # npm package "rafiki", bins rafiki + image-gen
 ├── requirements.txt
 ├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, upgrade, zine, gni)
@@ -29,6 +29,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   └── library.html             # Master library — built by `generate.py library`
 └── docs/
     ├── SCOPE.md
+    ├── MCP.md
     ├── CHROME-PUPPETEER.md
     ├── FOLDER-LAYOUT.md         # this file
     ├── image-pipeline-analysis.md

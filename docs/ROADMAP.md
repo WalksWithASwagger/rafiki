@@ -1,150 +1,243 @@
-# Rafiki — Master Roadmap
+# Rafiki Roadmap
 
-**Purpose:** This is the maintainers' working backlog for Rafiki and some of
-the example content ecosystems it has been used to support.
+Last reviewed: 2026-05-07
 
-For the public release track, see [PUBLIC-RELEASE-PLAN.md](PUBLIC-RELEASE-PLAN.md).
+This roadmap is the maintainers' working plan for Rafiki after reviewing the
+current project structure, docs, tests, and code. It replaces the older backlog
+items that were already shipped and separates public-release hygiene from
+product expansion.
 
-**Guiding principle:** Default to `gpt-image-2` via OpenAI — best output quality and most cost-effective for this workflow. Gemini remains available for style-transfer experiments.
+For the public-facing release checklist, see
+[PUBLIC-RELEASE-PLAN.md](PUBLIC-RELEASE-PLAN.md).
 
----
+## Product Direction
 
-## Current State (May 2026)
+Rafiki is a local-first creative operations tool:
 
-### What works today
-- `generate.py` — batch generation from Markdown prompt files, multi-provider (OpenAI/Gemini), run isolation, usage tracking
-- Per-run viewers with lightbox, ratings, compare mode
-- Master library viewer spanning all projects
-- Local portal server (`generate.py serve`) with persistent ratings API
-- Project registry (`config/extra-outputs.json` plus local override support) to pull in images from other repos
-- 4 style packs: `bcai`, `kk`, `hopecode`, `upgrade` (+ cmvan, zine, gni)
-- Full RAP certification visual curriculum — 40 images across 4 weeks
-- Combined presentation viewer (`generate-rap-viewer.py`) with captions + social post copy
+- generate images from single prompts or Markdown prompt files
+- keep every batch run isolated and reviewable
+- browse, rate, approve, export, and deploy generated assets
+- let local agents call the same workflows through MCP
+- keep provider keys and generated outputs on the operator's machine
 
-### Known gaps
-- No automated social post export (have to copy manually from viewer)
-- No image metadata embedding (EXIF/XMP) for archival provenance
-- Viewer images reference by relative path — not portable as a single file
-- No prompt versioning / diff tracking across regenerations
-- No per-image cost tracking (tokens/API cost per generation)
+Rafiki v1 is not a hosted SaaS, shared queue, billing system, or multi-user
+image generation platform.
 
----
+## Current System Map
 
-## Phase 1 — Polish & Stability (now → near term)
+| Area | Primary files | Current state |
+|---|---|---|
+| Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
+| Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, deploy, exports, scheduled regen, and portal startup. |
+| Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library, ratings API, prompt studio, auth for public binding, and run browsing. |
+| Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
+| Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, and Vercel deploy helper. |
+| Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
+| Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
+| Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist, but public/private boundaries need clearer ownership. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 88 Python tests plus CI for Python tests and `npm pack --dry-run`. |
 
-**Goal:** Make the current pipeline bulletproof for daily use.
+## What Is Already Shipped
 
-| Item | Why | Effort |
-|------|-----|--------|
-| Fix concurrent write race condition in `data/usage-log.json` | Batches with ≥2 workers can corrupt the log | S — file lock or atomic write |
-| Add `--model` default to `gpt-image-2` in all docs + prompt file headers | Explicit > implicit; removes ambiguity for new prompt files | XS |
-| `generate-rap-viewer.py` → generalize to `generate-presentation-viewer.py` | Pattern is reusable for any content series; RAP is the first instance | M |
-| Add `--self-contained` flag to presentation viewer | Embed images as base64 for a truly portable single-file share | M |
-| Expand `.gitignore` entries for common output artifacts | Avoid accidentally committing large PNGs into prompts dirs | XS |
+- Batch generation from Markdown prompt files
+- Single-prompt generation
+- Gemini and OpenAI provider support
+- Model aliases and style composition
+- Reference image and mockup support
+- Run isolation with `run-*` directories and `latest` symlink
+- Per-run and comparison viewers
+- Master library viewer
+- Local portal with ratings and prompt studio
+- Basic auth for intentionally public portal binding
+- Usage log with thread-level write protection and atomic writes
+- Archive approval and cleanup flows
+- Reusable presentation viewer
+- Self-contained presentation viewer mode
+- Social post export from presentation viewer data
+- Asset registry with search and CSV/JSON export
+- Canva export bundle
+- Notion export with dry-run and idempotency log
+- Vercel static viewer deploy helper
+- Scheduled regeneration config and runner
+- MCP server for local agent/tool access
+- NPM package allowlist and package smoke check
+- Contributor, security, scope, and release docs
 
----
+## Review Findings
 
-## Phase 2 — Content Pipeline Expansion (next)
+### Structure
 
-**Goal:** Rafiki covers all recurring content needs, not just one-off batches.
+- The repository has a useful split between CLI, Python library modules, docs,
+  prompts, and tests.
+- `generate.py` is now the central command dispatcher. That is practical, but
+  it is large enough that future subcommands should move toward thin command
+  modules instead of continuing to grow the file indefinitely.
+- Prompt collections are valuable examples, but they mix reusable public
+  examples with project-specific working material and local media references.
+  This is fine for the private working repo, but it needs a release policy.
+- Generated output, usage logs, registries, local config, and worktrees are
+  correctly ignored.
 
-### 2a. Social Post Export
-- Add "Export social posts" button to presentation viewer — downloads a `.txt` with all flagged post copy, one per section
-- Or: generate a `social-posts.md` file alongside `viewer.html` when running `generate-rap-viewer.py`
+### Documentation
 
-### 2b. Prompt Library System
-Formalize the prompt library as a structured content asset:
-- `prompts/bcai/` — BC + AI curriculum, ecosystem, RAP cert
-- `prompts/kk/` — personal brand, KK content series
-- `prompts/upgrade/` — The Upgrade newsletter/podcast visual library
-- `prompts/gni/` — Google News Initiative / journalism AI visuals
-- Each folder gets a `README.md` with run commands, visual system description, and image index
+- The top-level README now tells a coherent v1 story: local CLI, portal,
+  review flow, exports, and MCP.
+- The old roadmap was stale. It listed several shipped features as gaps.
+- `docs/PUBLIC-RELEASE-PLAN.md`, `docs/SCOPE.md`, `SECURITY.md`, and
+  `CONTRIBUTING.md` agree on the local-first boundary.
+- `docs/MCP.md` and the README currently include this machine's absolute
+  install path. That is useful locally but a public-release blocker.
+- The docs set is broad enough that it needs an index or "start here" map.
+  Important workflow docs are discoverable only if you already know their names.
 
-### 2c. Archive Strategy
-Define a clear archival flow:
-- Approved images → `output/<project>/approved/` (hand-curated, never auto-deleted)
-- All runs → `output/<project>/run-*/` (retained by default, purgeable via `generate.py clean --keep-approved`)
-- Presentation viewers → `output/<project>-viewer/` (regenerable from approved set)
+### Code
 
-### 2d. The Upgrade Visual Library
-Systematically generate visual assets for all Upgrade newsletter + podcast content:
-- Article hero images (16:9)
-- Social tiles (1:1 square)
-- Email header banners
-- Run command pattern already established; just needs prompt files
+- Test coverage is now meaningful across usage logging, providers, portal
+  generation, auth, registry, Canva export, Notion export, scheduled regen,
+  archive cleanup, social expansion, deployment, self-contained viewers, and
+  MCP wrappers.
+- The core risk is not missing tests anymore; it is end-to-end drift between
+  the Node CLI, Python CLI, portal, MCP bridge, and docs.
+- Defaults are inconsistent at the product level: code defaults to
+  `gemini-2.5-flash-image`, while prior roadmap language favored
+  `gpt-image-2`. This needs an explicit decision, not quiet drift.
+- The MCP server is useful now, but its `rafiki_run` bridge should keep getting
+  stricter typed wrappers for high-value workflows as they stabilize.
+- Cost, provenance, and asset lifecycle metadata exist only partially.
 
----
+## Roadmap Themes
 
-## Phase 3 — Workflow Integration (medium term)
+1. Release hygiene before expansion.
+2. One canonical workflow per job, exposed consistently through CLI, portal,
+   MCP, and docs.
+3. Registry-backed asset management instead of repeated filesystem scanning.
+4. More evidence in every run: source prompt, model, cost estimate, provenance,
+   approval status, and downstream export state.
+5. Keep local-first as the security and product boundary.
 
-**Goal:** Rafiki fits into the broader content production workflow without manual steps.
+## Phase 0: Stabilize The Current Branch
 
-### 3a. Notion Integration
-- Export approved images + captions to Notion pages automatically
-- `generate-rap-viewer.py` output → Notion gallery block (via API)
+Goal: make the current work coherent and safe to merge.
 
-### 3b. Canva Integration
-- Export images + captions as Canva-ready assets (PNG + metadata CSV)
-- The Canva MCP is already available — hook it into the presentation viewer export
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Decide whether to keep the local MCP install docs with absolute paths or convert them to placeholders plus `rafiki_status` output. | No tracked public docs contain private local paths unless explicitly marked as local-only. |
+| P0 | Resolve the default model policy. | README, CLI defaults, portal default, MCP default, examples, and roadmap all say the same thing. |
+| P0 | Keep the MCP server registered locally but document that registration is a local setup step, not repo state. | Codex and Claude Code can still list `rafiki`; repo docs explain portable setup. |
+| P1 | Add a short docs index. | A new contributor can start from README and find scope, MCP, registry, exports, deploy, scheduled regen, archive, and presentation viewer docs in one place. |
+| P1 | Add an end-to-end MCP smoke test script or test fixture. | CI or local test can start the MCP stdio server, list tools, and call `rafiki_status`. |
+| P1 | Add a CLI JSON smoke test. | `generate.py --prompt ... --dry-run --json` and one batch dry-run path are covered. |
 
-### 3c. Prompt → Social Post LLM Pass
-- After a batch generates, optionally run a second pass: feed the image + caption to an LLM and generate platform-specific social post variants (LinkedIn long-form, X short, Instagram)
-- Store variants in `<run-dir>/social-posts.json`
+## Phase 1: Public Release Hygiene
 
-### 3d. Scheduled Regeneration
-- Some prompt sets need periodic refresh (new visual treatments of evergreen content)
-- Use Claude Code scheduled tasks to trigger regeneration runs and post a summary of what was generated
+Goal: make Rafiki safe and understandable outside this machine.
 
----
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Scrub tracked local paths and private project assumptions from public docs. | `rg "/Users/kk|private|local-only"` has only intentional examples or private docs. |
+| P0 | Define prompt/media release policy. | Public package/repo clearly distinguishes reusable examples from private working prompt libraries and local images. |
+| P0 | Package story audit. | `npm pack --dry-run` includes all runtime files and excludes private/generated assets by design. |
+| P1 | Add a public quickstart fixture. | A tiny sample `image-prompts.md` and dry-run workflow can be used without private prompt libraries. |
+| P1 | Add docs lint or link smoke check. | Broken internal links are caught before release. |
+| P1 | Expand `npm run doctor`. | Doctor checks MCP dependency, .env presence, Chrome/Puppeteer status, and gives precise remediation. |
 
-## Phase 4 — Scale & Sharing (longer term)
+## Phase 2: Workflow Reliability
 
-**Goal:** Rafiki outputs are shareable beyond the local machine.
+Goal: make common creative workflows hard to break.
 
-### 4a. Hosted Viewer
-- Deploy `output/rap-all-weeks/viewer.html` to a static host (Vercel, Netlify, or Cloudflare Pages)
-- Team can review and pull from a URL, no file sharing needed
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Add cross-surface regression tests. | The same generation options are verified through Python CLI, Node CLI, portal job helper, and MCP wrapper. |
+| P1 | Split `generate.py` subcommands into command modules when touched. | New command work does not make the dispatcher larger. |
+| P1 | Strengthen run manifests. | `run.json` records provider, model, style, prompt file, reference images, CLI/tool source, timings, and error states consistently. |
+| P1 | Add cost and throughput estimates. | Usage and run summaries can answer "what did this run cost and how long did it take?" |
+| P2 | Make cleanup safer. | `clean` can report reclaimable disk space and defaults to dry-run in docs. |
 
-### 4b. Password-Protected Team Portal
-- Wrap the local portal in basic auth for team sharing
-- Or: use Vercel + environment variable for lightweight access control
+## Phase 3: Registry-Backed Asset Library
 
-### 4c. Image CDN / Asset Registry
-- Track all approved images in a lightweight registry (JSON or SQLite)
-- Enables searching across all content by concept, week, style, date
-- Foundation for a searchable asset library across all projects
+Goal: make the asset registry the source of truth for browsing, search, and
+exports.
 
----
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
+| P1 | Add approval/export state to registry entries. | Registry can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
+| P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
+| P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
 
-## Prompt Backlog (content to generate)
+## Phase 4: Portal As Command Center
 
-| Project | Prompt file needed | Priority |
-|---------|-------------------|----------|
-| The Upgrade — newsletter hero images | `prompts/upgrade/newsletter-heroes.md` | High |
-| RAP certification — logo/badge variations | `prompts/bcai/rap-logo-variations.md` ✓ (exists, may need rerun) | Medium |
-| RAP marketing — recruitment/social | `prompts/bcai/rap-marketing.md` ✓ (exists) | Medium |
-| KK personal brand — speaker/profile images | `prompts/kk/speaker-series.md` | Medium |
-| GNI coaching sessions — workshop visuals | `prompts/gni/coaching-sessions.md` | Low |
-| BC AI ecosystem — org/stakeholder maps | `prompts/bcai/ecosystem-diagrams.md` ✓ (exists) | Low |
-| The Upgrade — podcast episode thumbnails | `prompts/upgrade/podcast-thumbnails.md` | Low |
+Goal: make the local portal the best default interface for review and curation.
 
----
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Surface run status and errors better in the portal. | A failed generation shows useful error state and next action, not just missing images. |
+| P1 | Add curation actions from the UI. | Starred assets can be promoted to `approved/` without leaving the portal. |
+| P1 | Add export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable where assets are reviewed. |
+| P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
+| P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
 
-## Technical Debt
+## Phase 5: Agent And Automation Layer
 
-| Item | Risk | Fix |
-|------|------|-----|
-| `data/usage-log.json` concurrent write corruption | Medium — already bit us once | Atomic write via temp file + rename |
-| Viewer image paths are relative, not absolute | Low — works fine for local use | `--self-contained` flag for portable exports |
-| No test coverage on `lib/` modules | Low — easy to verify manually | Add `tests/test_usage.py`, `tests/test_providers.py` |
-| `generate-rap-viewer.py` has hardcoded run dir timestamps | Low — only matters if you rerun and want the viewer to update | Accept `--week-dirs` overrides or auto-detect latest run |
+Goal: let local agents use Rafiki safely and predictably.
 
----
+| Priority | Work | Success criteria |
+|---|---|---|
+| P0 | Keep MCP docs and tool schemas current with every CLI addition. | New stable CLI workflows either get direct MCP wrappers or explicit `rafiki_run` examples. |
+| P1 | Add direct MCP wrappers for the most-used bridge workflows. | Registry search/export, viewer rebuild, Canva export, Notion dry-run/export, and render can be called without free-form args. |
+| P1 | Add local automation recipes. | Scheduled regen, prompt library refresh, and post-run summary jobs have copyable examples. |
+| P2 | Add agent-readable output contracts. | Tools return stable JSON with paths, URLs, counts, errors, and mutation flags. |
 
-## Conventions
+## Phase 6: Sharing And Deployment
 
-- **Default model:** `gpt-image-2` (OpenAI) — best quality/cost ratio for this workflow
-- **Default style:** `bcai` for BC + AI content, `kk` for personal brand
-- **Reference image:** always pass `--reference-images` for style consistency within a content series
-- **Workers:** `-w 2` is the sweet spot — parallel without hammering rate limits
-- **Naming:** prompt files in `prompts/<brand>/<project>.md`, outputs in `output/<project>/`
+Goal: share review artifacts without turning Rafiki into a hosted product.
+
+| Priority | Work | Success criteria |
+|---|---|---|
+| P1 | Harden static viewer deploy flow. | `deploy` can publish a known viewer dir, report URL, and fail cleanly without Vercel installed. |
+| P1 | Document secure team review patterns. | Local public portal with auth and static deploy options are clearly distinguished. |
+| P2 | Add self-contained export presets. | Operators can choose "small review file" vs "full quality archive" without tuning flags each time. |
+| P2 | Explore CDN-backed approved assets. | Only after registry metadata and export state are reliable locally. |
+
+## Content And Prompt Roadmap
+
+| Area | Current state | Next step |
+|---|---|---|
+| BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
+| KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
+| The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
+| KB ecosystem mirror | Large mirrored prompt tree exists. | Keep mirror policy current and add a freshness check or sync summary. |
+| Creative Mornings | Prompt and video concept files exist. | Decide whether this is a reusable example or private campaign material. |
+| Debbie Krug | Album art and local photo references exist. | Keep out of public package and document private-media handling. |
+
+## Verification Gates
+
+Before declaring a roadmap phase done:
+
+- `npm test`
+- `npm run pack:check`
+- `npm run doctor`
+- MCP smoke: list tools and call `rafiki_status`
+- At least one dry-run generation path through CLI or MCP
+- Docs checked for stale "known gap" claims
+- Git status reviewed for unrelated local artifacts
+
+## Near-Term Execution Order
+
+1. Clean up public docs around absolute local MCP paths.
+2. Decide and apply the default model policy.
+3. Add docs index and link smoke.
+4. Add MCP and CLI dry-run smoke tests.
+5. Make registry metadata feed the library viewer.
+6. Add portal curation/export actions.
+7. Package a small public quickstart fixture.
+
+## Non-Goals For Now
+
+- Hosted multi-tenant image generation
+- Shared team billing or centralized usage logs
+- Database-backed job queues
+- Replacing the local filesystem as the primary asset store
+- Moving private prompt/media collections into the public package by default
+

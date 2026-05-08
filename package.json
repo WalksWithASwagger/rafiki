@@ -19,8 +19,8 @@
     "generate": "node index.js",
     "render": "node index.js --render",
     "doctor": "node index.js --doctor",
-    "test": "python -m pytest -q",
-    "test:python": "python -m pytest -q",
+    "test": "node scripts/run-pytest.js",
+    "test:python": "node scripts/run-pytest.js",
     "pack:check": "npm pack --dry-run"
   },
   "files": [
@@ -43,6 +43,7 @@
     "docs/ASSET-REGISTRY.md",
     "docs/CHROME-PUPPETEER.md",
     "docs/FOLDER-LAYOUT.md",
+    "docs/MCP.md",
     "docs/PUBLIC-RELEASE-PLAN.md",
     "docs/SCOPE.md"
   ],

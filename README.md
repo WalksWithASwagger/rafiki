@@ -133,6 +133,22 @@ npx rafiki --render-dir /path/to/html-assets/
 ./.venv/bin/python generate.py --prompt-file image-prompts.md --output-dir ./images/
 ```
 
+## MCP
+
+Rafiki can be installed as a local MCP server so Codex, Claude Code, and other
+MCP clients can call it as tools instead of shelling out manually.
+
+```bash
+codex mcp add rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
+claude mcp add --scope user rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
+```
+
+Exposed tools include `rafiki_generate`, `rafiki_batch`,
+`rafiki_list_styles`, `rafiki_usage`, `rafiki_status`, and `rafiki_run` for
+the broader `generate.py` CLI surface.
+
+Details: [docs/MCP.md](docs/MCP.md)
+
 ## Local Portal
 
 Start the portal:
