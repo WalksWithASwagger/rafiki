@@ -35,9 +35,13 @@ CSV_COLUMNS = [
     "title",
     "caption",
     "tags",
+    "approval_status",
+    "source_prompt",
     "style",
     "model",
     "aspect_ratio",
+    "source",
+    "source_run",
     "indexed_at",
     "path",
 ]
@@ -50,9 +54,13 @@ class AssetEntry:
     title: str
     caption: str
     tags: list[str] = field(default_factory=list)
+    approval_status: str = ""
+    source_prompt: str = ""
     style: str = ""
     model: str = ""
     aspect_ratio: str = ""
+    source: str = ""
+    source_run: str = ""
     indexed_at: str = ""
     path: str = ""
 
@@ -120,6 +128,27 @@ def _load_run_meta(directory: Path) -> tuple[dict, dict[str, dict]]:
     return data, per_file
 
 
+def _load_approved_index(directory: Path) -> dict[str, dict]:
+    index_file = directory / "index.json"
+    if not index_file.exists():
+        return {}
+    try:
+        data = json.loads(index_file.read_text(encoding="utf-8"))
+    except Exception as e:
+        logger.warning("Malformed approved index at %s: %s", index_file, e)
+        return {}
+
+    entries = data.get("images", []) if isinstance(data, dict) else []
+    out: dict[str, dict] = {}
+    for item in entries:
+        if not isinstance(item, dict):
+            continue
+        key = item.get("slug") or item.get("file") or item.get("original_file")
+        if key:
+            out[str(key)] = item
+    return out
+
+
 def _slugify(value: str) -> str:
     out = []
     for ch in value.lower():
@@ -137,6 +166,7 @@ def _entries_from_dir(
     project: str,
     directory: Path,
     indexed_at: str,
+    source: str = "",
 ) -> list[AssetEntry]:
     """Build AssetEntry list from PNGs in directory + adjacent metadata."""
     if not directory.exists():
@@ -144,23 +174,33 @@ def _entries_from_dir(
 
     run_meta, per_file = _load_run_meta(directory)
     viewer_meta = _load_viewer_data(directory)
+    approved_meta = _load_approved_index(directory) if source == "approved" else {}
 
     style = run_meta.get("style", "") or ""
     model = run_meta.get("model", "") or ""
     aspect_ratio = run_meta.get("aspect_ratio", "") or ""
+    run_id = directory.name if directory.name.startswith("run-") else ""
+    approval_status = "approved" if source == "approved" else "unapproved"
 
     entries: list[AssetEntry] = []
-    for png in sorted(directory.glob("*.png")):
-        fname = png.name
+    image_paths = sorted(
+        p for p in directory.iterdir()
+        if p.is_file() and p.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
+    )
+    for image_path in image_paths:
+        fname = image_path.name
+        approved = approved_meta.get(fname, {})
         img_meta = per_file.get(fname, {})
         view = viewer_meta.get(fname, {})
+        source_prompt = approved.get("prompt") or img_meta.get("prompt") or view.get("caption") or ""
 
         title = (
             view.get("title")
+            or approved.get("name")
             or img_meta.get("name")
-            or png.stem.replace("-", " ").replace("_", " ").title()
+            or image_path.stem.replace("-", " ").replace("_", " ").title()
         )
-        caption = view.get("caption") or img_meta.get("prompt") or ""
+        caption = view.get("caption") or source_prompt or ""
 
         tags: list[str] = []
         for src in (view.get("tags"), img_meta.get("tags")):
@@ -169,21 +209,30 @@ def _entries_from_dir(
         if aspect_ratio and aspect_ratio not in tags:
             tags.append(aspect_ratio)
 
+        image_style = approved.get("style") or img_meta.get("style") or style
+        image_model = approved.get("model") or img_meta.get("model") or model
+        image_aspect_ratio = approved.get("aspect_ratio") or img_meta.get("aspect_ratio") or aspect_ratio
+        image_source_run = approved.get("source_run") or run_id
+
         try:
-            rel_path = png.resolve().relative_to(REPO_ROOT).as_posix()
+            rel_path = image_path.resolve().relative_to(REPO_ROOT).as_posix()
         except ValueError:
-            rel_path = png.resolve().as_posix()
+            rel_path = image_path.resolve().as_posix()
 
         entries.append(
             AssetEntry(
-                id=f"{project}-{png.stem}",
+                id=f"{project}-{image_path.stem}",
                 project=project,
                 title=str(title),
                 caption=str(caption),
                 tags=tags,
-                style=str(style),
-                model=str(model),
-                aspect_ratio=str(aspect_ratio),
+                approval_status=approval_status,
+                source_prompt=str(source_prompt),
+                style=str(image_style),
+                model=str(image_model),
+                aspect_ratio=str(image_aspect_ratio),
+                source=source,
+                source_run=str(image_source_run),
                 indexed_at=indexed_at,
                 path=rel_path,
             )
@@ -210,8 +259,8 @@ def _project_roots(output_root: Path | None = None) -> dict[str, Path]:
     return roots
 
 
-def index(output_root: Path | None = None) -> list[AssetEntry]:
-    """Walk projects, build registry entries, persist to data/asset-registry.json."""
+def collect(output_root: Path | None = None) -> list[AssetEntry]:
+    """Walk projects and build registry entries without writing the local cache."""
     indexed_at = datetime.now().isoformat(timespec="seconds")
     roots = _project_roots(output_root)
 
@@ -220,17 +269,24 @@ def index(output_root: Path | None = None) -> list[AssetEntry]:
         try:
             approved = project_dir / "approved"
             if approved.is_dir():
-                entries = _entries_from_dir(project, approved, indexed_at)
+                entries = _entries_from_dir(project, approved, indexed_at, source="approved")
             else:
                 latest = _latest_run_dir(project_dir)
                 if latest is None:
                     logger.info("No approved/ or run-* in %s — skipping", project_dir)
                     continue
-                entries = _entries_from_dir(project, latest, indexed_at)
+                entries = _entries_from_dir(project, latest, indexed_at, source="latest-run")
             all_entries.extend(entries)
         except Exception as e:
             logger.warning("Skipping project %s due to error: %s", project, e)
             continue
+
+    return all_entries
+
+
+def index(output_root: Path | None = None) -> list[AssetEntry]:
+    """Walk projects, build registry entries, persist to data/asset-registry.json."""
+    all_entries = collect(output_root)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     REGISTRY_JSON.write_text(
