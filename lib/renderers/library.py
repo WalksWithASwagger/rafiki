@@ -193,6 +193,62 @@ def _studio_panel_html(style_names: list[str], default_style: str, model_options
 """
 
 
+def _actions_panel_html(projects: list[str]) -> str:
+    project_opts = "".join(f'<option value="{project}">{project}</option>' for project in projects)
+    return f"""
+<section class="portal-actions-panel" id="portal-actions-panel">
+  <div class="portal-actions-heading">
+    <h2>Curation & Export</h2>
+    <span id="actions-discovery" class="portal-actions-note">Loading actions...</span>
+  </div>
+  <form id="portal-action-form" class="portal-actions-form" onsubmit="submitPortalAction(event)">
+    <label>
+      <span>Project</span>
+      <select id="action-project" name="project">{project_opts}</select>
+    </label>
+    <label>
+      <span>Action</span>
+      <select id="action-name" name="action" onchange="syncPortalAction()">
+        <option value="approve-starred">Approve Starred</option>
+        <option value="canva-export">Canva Export</option>
+        <option value="notion-export">Notion Dry Run</option>
+        <option value="registry-export">Registry Export</option>
+        <option value="static-deploy">Static Deploy Helper</option>
+      </select>
+    </label>
+    <label class="portal-action-field action-run">
+      <span>Run</span>
+      <input id="action-run" type="text" placeholder="latest">
+    </label>
+    <label class="portal-action-field action-format">
+      <span>Format</span>
+      <select id="action-format">
+        <option value="csv">CSV</option>
+        <option value="json">JSON</option>
+      </select>
+    </label>
+    <label class="portal-action-field action-database">
+      <span>Database</span>
+      <input id="action-database" type="text" placeholder="Notion database id">
+    </label>
+    <label class="portal-action-field action-viewer">
+      <span>Viewer Dir</span>
+      <input id="action-viewer" type="text" placeholder="auto">
+    </label>
+    <div class="portal-action-toggles">
+      <label><input id="action-dry-run" type="checkbox" checked onchange="syncPortalAction()"> Dry run</label>
+      <label><input id="action-confirm" type="checkbox"> Confirm</label>
+      <label class="action-nozip"><input id="action-nozip" type="checkbox"> No zip</label>
+      <label class="action-prod"><input id="action-prod" type="checkbox"> Prod</label>
+      <label class="action-force"><input id="action-force" type="checkbox"> Force</label>
+    </div>
+    <button id="action-submit" class="portal-action-submit" type="submit">Run Action</button>
+  </form>
+  <div class="portal-action-status" id="portal-action-status" aria-live="polite"></div>
+</section>
+"""
+
+
 def _render_library(records: list[dict]) -> str:
     library_json = json.dumps(records, ensure_ascii=False)
     ok_count = sum(1 for r in records if r["ok"])
@@ -246,6 +302,7 @@ def _render_library(records: list[dict]) -> str:
 </header>
 
 {_studio_panel_html(all_style_names, default_style, model_options)}
+{_actions_panel_html(projects)}
 
 <div class="filter-bar" id="filter-bar">
   <button class="filter-btn active" id="fb-all"        onclick="setRatingFilter('all')">All <span id="fc-all"></span></button>
@@ -423,6 +480,88 @@ function setStudioStatus(kind, html) {{
   status.className = 'studio-status studio-status-' + kind;
   status.innerHTML = html;
 }}
+function setPortalActionStatus(kind, html) {{
+  const status = document.getElementById('portal-action-status');
+  if (!status) return;
+  status.className = 'portal-action-status portal-action-status-' + kind;
+  status.innerHTML = html;
+}}
+function syncPortalAction() {{
+  const action = document.getElementById('action-name')?.value || 'approve-starred';
+  const show = (selector, enabled) => document.querySelectorAll(selector).forEach(el => el.classList.toggle('portal-action-hidden', !enabled));
+  show('.action-run', action === 'approve-starred');
+  show('.action-format', action === 'registry-export');
+  show('.action-database,.action-force', action === 'notion-export');
+  show('.action-viewer,.action-prod', action === 'static-deploy');
+  show('.action-nozip', action === 'canva-export');
+}}
+async function loadPortalActions() {{
+  if (!SERVER_MODE) return;
+  try {{
+    const resp = await fetch('/api/actions');
+    const data = await resp.json();
+    const count = Array.isArray(data.actions) ? data.actions.length : 0;
+    const target = document.getElementById('actions-discovery');
+    if (target) target.textContent = count + ' local action' + (count === 1 ? '' : 's') + ' available';
+  }} catch (err) {{
+    const target = document.getElementById('actions-discovery');
+    if (target) target.textContent = 'Actions unavailable';
+  }}
+}}
+async function submitPortalAction(event) {{
+  event.preventDefault();
+  const action = document.getElementById('action-name')?.value || '';
+  const payload = {{
+    action,
+    project: document.getElementById('action-project')?.value || '',
+    dry_run: document.getElementById('action-dry-run')?.checked || false,
+    confirm: document.getElementById('action-confirm')?.checked || false,
+  }};
+  const run = document.getElementById('action-run')?.value.trim() || '';
+  const databaseId = document.getElementById('action-database')?.value.trim() || '';
+  const viewerDir = document.getElementById('action-viewer')?.value.trim() || '';
+  if (action === 'approve-starred' && run) payload.run = run;
+  if (action === 'registry-export') payload.format = document.getElementById('action-format')?.value || 'csv';
+  if (action === 'canva-export') payload.no_zip = document.getElementById('action-nozip')?.checked || false;
+  if (action === 'notion-export') {{
+    if (databaseId) payload.database_id = databaseId;
+    payload.force = document.getElementById('action-force')?.checked || false;
+  }}
+  if (action === 'static-deploy') {{
+    if (viewerDir) payload.viewer_dir = viewerDir;
+    payload.prod = document.getElementById('action-prod')?.checked || false;
+  }}
+
+  const submit = document.getElementById('action-submit');
+  if (submit) submit.disabled = true;
+  setPortalActionStatus('busy', 'Running ' + studioEscapeHtml(action) + '...');
+  try {{
+    const resp = await fetch('/api/actions', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(payload),
+    }});
+    const data = await resp.json().catch(() => ({{error: 'Invalid server response'}}));
+    if (!resp.ok || !data.ok) {{
+      setPortalActionStatus('error', studioEscapeHtml(data.error || data.detail || 'Action failed.'));
+      return;
+    }}
+    const bits = [];
+    if (data.approved_count !== undefined) bits.push(data.approved_count + ' approved');
+    if (data.image_count !== undefined) bits.push(data.image_count + ' image(s)');
+    if (data.exported !== undefined) bits.push(data.exported + ' exported');
+    if (data.count !== undefined) bits.push(data.count + ' indexed');
+    if (data.result_path) bits.push('<code>' + studioEscapeHtml(data.result_path) + '</code>');
+    if (data.path) bits.push('<code>' + studioEscapeHtml(data.path) + '</code>');
+    if (data.url) bits.push('<a href="' + data.url + '">' + studioEscapeHtml(data.url) + '</a>');
+    if (data.viewer_path) bits.push('<code>' + studioEscapeHtml(data.viewer_path) + '</code>');
+    setPortalActionStatus('success', studioEscapeHtml(data.action) + ': ' + (bits.join(' · ') || 'complete'));
+  }} catch (err) {{
+    setPortalActionStatus('error', studioEscapeHtml(err?.message || 'Request failed.'));
+  }} finally {{
+    if (submit) submit.disabled = false;
+  }}
+}}
 async function submitStudio(event) {{
   event.preventDefault();
   const mode = document.getElementById('studio-mode')?.value || 'single';
@@ -500,12 +639,19 @@ async function submitStudio(event) {{
   const saved = localStorage.getItem('rafiki:cardWidth');
   if (saved) {{ resizeGrid(saved); const sl = document.getElementById('grid-sizer'); if (sl) sl.value = saved; }}
   syncStudioMode();
+  syncPortalAction();
+  loadPortalActions();
   if (!SERVER_MODE) {{
     document.getElementById('studio-panel')?.classList.add('studio-disabled');
+    document.getElementById('portal-actions-panel')?.classList.add('studio-disabled');
     document.querySelectorAll('#studio-form input, #studio-form textarea, #studio-form select, #studio-form button').forEach(el => {{
       el.disabled = true;
     }});
+    document.querySelectorAll('#portal-action-form input, #portal-action-form select, #portal-action-form button').forEach(el => {{
+      el.disabled = true;
+    }});
     setStudioStatus('info', 'Prompt Studio requires <code>python generate.py serve</code>. File-based viewers are read-only.');
+    setPortalActionStatus('info', 'Curation and export actions require <code>python generate.py serve</code>.');
   }}
 }})();
 if (SERVER_MODE) {{
@@ -768,8 +914,101 @@ def _library_extra_css() -> str:
   opacity: 0.72;
   filter: grayscale(0.12);
 }
+.portal-actions-panel {
+  margin: 0.8rem 1.5rem 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.portal-actions-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+.portal-actions-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.portal-actions-note {
+  color: var(--dim);
+  font-size: 0.76rem;
+}
+.portal-actions-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+.portal-actions-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.portal-actions-form label span {
+  color: var(--dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.portal-actions-form input[type="text"],
+.portal-actions-form select {
+  width: 100%;
+  min-width: 0;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 0.58rem 0.68rem;
+  font: inherit;
+  box-sizing: border-box;
+}
+.portal-action-toggles {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+  color: var(--dim);
+  font-size: 0.78rem;
+}
+.portal-action-toggles label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+}
+.portal-action-submit {
+  border: 1px solid rgba(124,106,247,0.34);
+  background: rgba(124,106,247,0.14);
+  color: var(--accent);
+  border-radius: 10px;
+  padding: 0.62rem 0.95rem;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.portal-action-submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.portal-action-status {
+  min-height: 1.2rem;
+  margin-top: 0.75rem;
+  color: var(--dim);
+  font-size: 0.82rem;
+}
+.portal-action-status-error { color: #ff8f8f; }
+.portal-action-status-busy { color: var(--teal); }
+.portal-action-status-success { color: var(--ink); }
+.portal-action-hidden { display: none !important; }
 @media (max-width: 820px) {
   .studio-heading {
+    flex-direction: column;
+  }
+  .portal-actions-heading {
+    align-items: flex-start;
     flex-direction: column;
   }
   .studio-note {
