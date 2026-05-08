@@ -35,6 +35,7 @@ image generation platform.
 | Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, and Vercel deploy helper. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
+| Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist, but public/private boundaries need clearer ownership. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 88 Python tests plus CI for Python tests and `npm pack --dry-run`. |
 
@@ -240,4 +241,3 @@ Before declaring a roadmap phase done:
 - Database-backed job queues
 - Replacing the local filesystem as the primary asset store
 - Moving private prompt/media collections into the public package by default
-

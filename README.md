@@ -298,6 +298,9 @@ Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 ## Docs
 
 - [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md)
+- [docs/DELIVERY-PIPELINE.md](docs/DELIVERY-PIPELINE.md)
+- [docs/MCP.md](docs/MCP.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
 - [docs/CHROME-PUPPETEER.md](docs/CHROME-PUPPETEER.md)
 - [docs/ASSET-REGISTRY.md](docs/ASSET-REGISTRY.md)
 - [docs/SCOPE.md](docs/SCOPE.md)

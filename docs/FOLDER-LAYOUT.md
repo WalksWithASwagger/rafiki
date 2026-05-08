@@ -9,6 +9,14 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── mcp_server.py                # MCP server (generation tools + CLI bridge)
 ├── package.json                 # npm package "rafiki", bins rafiki + image-gen
 ├── requirements.txt
+├── .github/
+│   ├── ISSUE_TEMPLATE/          # Agent-ready issue template
+│   ├── branch-protection.md     # Recommended GitHub protection settings
+│   └── workflows/ci.yml         # Python tests + npm package smoke
+├── .claude/skills/              # Local skills for Rafiki, issue writing, and PR review
+├── meta/
+│   ├── audits/                  # Agent loop audit logs
+│   └── routines/                # Repeatable agent workflow prompts
 ├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, upgrade, zine, gni)
 ├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/, kk-kb/
 ├── examples/
@@ -30,6 +38,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 └── docs/
     ├── SCOPE.md
     ├── MCP.md
+    ├── DELIVERY-PIPELINE.md     # Linear/GitHub issue-to-PR workflow
     ├── CHROME-PUPPETEER.md
     ├── FOLDER-LAYOUT.md         # this file
     ├── image-pipeline-analysis.md

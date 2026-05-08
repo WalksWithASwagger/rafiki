@@ -43,8 +43,10 @@
     "docs/ASSET-REGISTRY.md",
     "docs/CHROME-PUPPETEER.md",
     "docs/FOLDER-LAYOUT.md",
+    "docs/DELIVERY-PIPELINE.md",
     "docs/MCP.md",
     "docs/PUBLIC-RELEASE-PLAN.md",
+    "docs/ROADMAP.md",
     "docs/SCOPE.md"
   ],
   "engines": {
