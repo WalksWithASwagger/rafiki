@@ -1,0 +1,80 @@
+project:
+  id: "rafiki"
+  name: "Rafiki"
+  type: "repo"
+  owner: "kk"
+  production_surface: "local-first creative operations CLI, portal, and MCP surfaces"
+  primary_repo: "/Users/kk/Code/notion-local/rafiki"
+
+source_systems:
+  github: "WalksWithASwagger/rafiki"
+  linear: "Rafiki Roadmap Delivery"
+  docs:
+    - "README.md"
+    - "docs/ROADMAP.md"
+    - "docs/DELIVERY-PIPELINE.md"
+    - "meta/routines/"
+  analytics: []
+  crm: []
+
+loops:
+  - name: "release_hygiene_sweep"
+    cadence: "weekly or before public release work"
+    agent: "ai-native-company-os"
+    trigger: "scheduled sweep, release-prep request, or GitHub/Linear queue review"
+    output_artifacts:
+      - "triage brief"
+      - "manifest or workflow proposals"
+      - "GitHub/Linear handoff notes when explicitly approved"
+    approval_required_for:
+      - "publishing public release changes"
+      - "model-default policy decisions"
+      - "public/private prompt or media boundary decisions"
+
+  - name: "github_linear_dev_loop"
+    cadence: "on demand"
+    agent: "github-linear-swarm"
+    trigger: "user asks to swarm Rafiki GitHub issues or PRs"
+    output_artifacts:
+      - "PR/issue map"
+      - "bounded review or fix lanes"
+      - "verification summary"
+    approval_required_for:
+      - "merge decisions"
+      - "external comments when not explicitly requested"
+
+memory:
+  hot_sources:
+    - "open GitHub issues and PRs"
+    - "Linear project: Rafiki Roadmap Delivery"
+    - "docs/ROADMAP.md"
+    - "docs/DELIVERY-PIPELINE.md"
+    - "meta/routines/"
+  durable_artifacts:
+    - "docs/PUBLIC-RELEASE-PLAN.md"
+    - "meta/audits/dev-loop-log.csv"
+    - "automation memory: ai-native-company-os-weekly-sweep"
+  lessons_path: ".company-os/lessons.md"
+
+validation:
+  commands:
+    - "npm test"
+    - "npm run pack:check"
+    - "npm run doctor"
+  smoke_checks:
+    - "MCP smoke when touching mcp_server.py or docs/MCP.md"
+    - "package smoke when touching package.json, README, or release docs"
+
+risk_policy:
+  autonomous_allowed:
+    - "read/search"
+    - "draft internal artifacts"
+    - "run local tests and dry-runs"
+    - "prepare bounded issue or PR handoffs"
+  approval_required:
+    - "external sends or public comments"
+    - "production deploys"
+    - "destructive cleanup"
+    - "billing/legal/security/HR commitments"
+    - "model-default policy decisions"
+    - "public release boundary decisions"
