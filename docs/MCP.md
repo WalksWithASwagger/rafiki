@@ -1,8 +1,8 @@
 # Rafiki MCP
 
 Rafiki ships a local MCP server at `mcp_server.py`. It exposes the common
-image-generation functions directly and a constrained bridge to the canonical
-`generate.py` CLI for everything else.
+image-generation functions directly, typed wrappers for stable local workflows,
+and a constrained bridge to the canonical CLI for everything else.
 
 The server uses the official Python MCP SDK's `FastMCP` API and runs over
 stdio by default, which is the right fit for local desktop tools.
@@ -53,22 +53,105 @@ be duplicated into every client config.
 - `rafiki_batch`: run an `image-prompts.md` batch with run isolation.
 - `rafiki_list_styles`: list style presets and descriptions.
 - `rafiki_usage`: return the local usage log.
-- `rafiki_run`: run supported `generate.py` workflows without a shell.
+- `rafiki_registry_search`: search the persisted asset registry by title,
+  caption, and tags.
+- `rafiki_registry_export`: export the registry to CSV or JSON.
+- `rafiki_viewer_rebuild`: rebuild project, run, or approved viewers without
+  regenerating images.
+- `rafiki_render`: render one HTML file or a directory of HTML files to PNG.
+- `rafiki_canva_export`: build a Canva bulk-upload bundle from approved or
+  latest-run images.
+- `rafiki_notion_export`: dry-run or export approved/latest-run images to a
+  Notion gallery database.
+- `rafiki_run`: run supported fallback CLI workflows without a shell.
+
+Typed workflow tools return stable JSON with `success`, `tool`, `dry_run`,
+`mutating`, and `external` fields, plus workflow-specific paths, URLs, counts,
+stdout/stderr, or error details.
+
+## Typed Workflow Examples
+
+Asset registry:
+
+`rafiki_registry_search`:
+
+```json
+{"query": "certification", "limit": 10}
+```
+
+`rafiki_registry_export`:
+
+```json
+{"format": "json", "dry_run": true}
+```
+
+Viewers:
+
+`rafiki_viewer_rebuild`:
+
+```json
+{"project": "rap-all-weeks", "all_runs": true, "dry_run": true}
+```
+
+`rafiki_viewer_rebuild`:
+
+```json
+{"project": "rap-all-weeks", "approved": true}
+```
+
+HTML rendering:
+
+`rafiki_render`:
+
+```json
+{"html_path": "/absolute/path/to/card.html", "dry_run": true}
+```
+
+`rafiki_render`:
+
+```json
+{"html_dir": "/absolute/path/to/cards"}
+```
+
+Canva and Notion export:
+
+`rafiki_canva_export`:
+
+```json
+{"project": "rap-all-weeks", "dry_run": true}
+```
+
+`rafiki_canva_export`:
+
+```json
+{"project": "rap-all-weeks", "no_zip": true}
+```
+
+`rafiki_notion_export`:
+
+```json
+{"project": "rap-all-weeks", "database_id": "notion-db-id", "dry_run": true}
+```
+
+`rafiki_notion_export`:
+
+```json
+{"project": "rap-all-weeks", "database_id": "notion-db-id", "dry_run": false}
+```
 
 ## CLI Bridge Examples
 
-`rafiki_run` accepts `generate.py` arguments only. Do not include `python`,
-`rafiki`, or `generate.py`.
+`rafiki_run` is still available for less common workflows. It accepts Rafiki
+CLI arguments only. Do not include `python`, `rafiki`, or `generate.py`.
+Prefer the typed tools above for registry, viewer rebuild, render, Canva, and
+Notion workflows.
 
 ```json
 {"args": ["--usage"]}
-{"args": ["view", "rap-all-weeks", "--all-runs"]}
 {"args": ["library"]}
-{"args": ["registry", "search", "certification"]}
-{"args": ["registry", "export", "--format", "json"]}
-{"args": ["--render", "/absolute/path/to/card.html"]}
-{"args": ["canva-export", "rap-all-weeks", "--no-zip"]}
-{"args": ["notion-export", "rap-all-weeks", "--dry-run"]}
+{"args": ["approve", "rap-all-weeks", "--run", "20260507-100000"]}
+{"args": ["clean", "rap-all-weeks", "--dry-run"]}
+{"args": ["social-expand", "rap-all-weeks", "--dry-run"]}
 {"args": ["regen", "--dry-run"]}
 ```
 
@@ -81,14 +164,24 @@ portal process. Start it directly when needed:
 
 ## Safety Notes
 
-The MCP server never invokes a shell. `rafiki_run` always executes:
+The MCP server never invokes a shell. `rafiki_run` Python workflows execute:
 
 ```bash
 <python> /Users/kk/Code/notion-local/rafiki/generate.py <args...>
 ```
 
-Some Rafiki CLI workflows still mutate local state or external systems:
-`approve`, `clean`, `canva-export`, `deploy`, `notion-export`, `regen`, and
-`social-expand`. The returned JSON includes `mutating: true` for those calls so
-MCP clients can surface approvals or logs clearly.
+Render-only bridge calls execute:
 
+```bash
+node /Users/kk/Code/notion-local/rafiki/index.js <args...>
+```
+
+Typed tools mark local writes and external calls explicitly. For example,
+registry export, viewer rebuild, render, and Canva export are local mutations
+when `dry_run` is false; Notion export is external and only mutates remote
+Notion state plus the local export log when `dry_run` is false.
+
+Some fallback CLI workflows still mutate local state or external systems:
+`approve`, `clean`, `deploy`, `regen`, and `social-expand`. The returned JSON
+includes `mutating: true` for those calls so MCP clients can surface approvals
+or logs clearly. Use each workflow's own `--dry-run` flag where available.

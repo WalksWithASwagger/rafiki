@@ -8,6 +8,12 @@ Tools:
   rafiki_batch          Process an image-prompts.md file
   rafiki_list_styles    List available style presets
   rafiki_usage          Show local generation usage
+  rafiki_registry_search Search the asset registry
+  rafiki_registry_export Export the asset registry
+  rafiki_viewer_rebuild Rebuild a project viewer
+  rafiki_render         Render HTML to PNG through the Node CLI
+  rafiki_canva_export   Export a Canva upload bundle
+  rafiki_notion_export  Dry-run or export approved images to Notion
   rafiki_run            Run any supported Rafiki CLI workflow
 
 Install locally:
@@ -32,6 +38,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 _ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT))
@@ -155,6 +162,75 @@ def _trim(text: str, limit: int = 20000) -> str:
     return text[:limit] + f"\n...[trimmed {len(text) - limit} chars]"
 
 
+def _file_url(path: Path) -> str:
+    return path.resolve(strict=False).as_uri()
+
+
+def _path_info(path: Path) -> dict[str, str]:
+    resolved = path.resolve(strict=False)
+    return {"path": str(resolved), "url": resolved.as_uri()}
+
+
+def _error_payload(tool: str, error: str, **extra: Any) -> str:
+    return _json({
+        "success": False,
+        "tool": tool,
+        "error": error,
+        **extra,
+    })
+
+
+def _run_command(
+    command: list[str],
+    timeout_seconds: int,
+    *,
+    mutating: bool,
+    external: bool = False,
+) -> dict:
+    timeout = max(1, min(int(timeout_seconds), 3600))
+    try:
+        proc = subprocess.run(
+            command,
+            cwd=str(_ROOT),
+            env=os.environ.copy(),
+            text=True,
+            capture_output=True,
+            timeout=timeout,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as e:
+        return {
+            "success": False,
+            "timeout": True,
+            "timeout_seconds": timeout,
+            "command": command,
+            "cwd": str(_ROOT),
+            "mutating": mutating,
+            "external": external,
+            "stdout": _trim(e.stdout or ""),
+            "stderr": _trim(e.stderr or ""),
+        }
+
+    stdout = proc.stdout or ""
+    parsed_stdout = None
+    try:
+        parsed_stdout = json.loads(stdout)
+    except json.JSONDecodeError:
+        pass
+
+    return {
+        "success": proc.returncode == 0,
+        "exit_code": proc.returncode,
+        "command": command,
+        "cwd": str(_ROOT),
+        "mutating": mutating,
+        "external": external,
+        "stdout": _trim(stdout),
+        "stderr": _trim(proc.stderr or ""),
+        "json": parsed_stdout,
+    }
+
+
 def _validate_cli_args(args: list[str]) -> tuple[bool, str]:
     if not args:
         return False, "args is required"
@@ -186,45 +262,145 @@ def _run_generate_py(args: list[str], timeout_seconds: int) -> dict:
     if not ok:
         return {"success": False, "error": error, "args": args}
 
-    timeout = max(1, min(int(timeout_seconds), 3600))
+    if args[0] in {"--render", "--render-dir"}:
+        return _run_node_rafiki(args, timeout_seconds, mutating=True)
+
     command = [sys.executable, str(_ROOT / "generate.py"), *args]
-    try:
-        proc = subprocess.run(
-            command,
-            cwd=str(_ROOT),
-            env=os.environ.copy(),
-            text=True,
-            capture_output=True,
-            timeout=timeout,
-            check=False,
-        )
-    except subprocess.TimeoutExpired as e:
+    action = args[0]
+    return _run_command(
+        command,
+        timeout_seconds,
+        mutating=action in _CLI_MUTATING_SUBCOMMANDS,
+    )
+
+
+def _run_node_rafiki(
+    args: list[str],
+    timeout_seconds: int,
+    *,
+    mutating: bool,
+) -> dict:
+    return _run_command(
+        ["node", str(_ROOT / "index.js"), *args],
+        timeout_seconds,
+        mutating=mutating,
+    )
+
+
+def _resolve_project_dir(project: str, output_root: str = "") -> Path:
+    project_path = Path(project)
+    if project_path.is_absolute() or project_path.exists():
+        return project_path.resolve(strict=False)
+    root = Path(output_root) if output_root else _ROOT / "output"
+    return (root / project).resolve(strict=False)
+
+
+def _viewer_preview(
+    project: str,
+    *,
+    all_runs: bool,
+    approved: bool,
+    output_root: str = "",
+) -> dict:
+    project_dir = _resolve_project_dir(project, output_root)
+    if not project_dir.is_dir():
         return {
             "success": False,
-            "timeout": True,
-            "timeout_seconds": timeout,
-            "command": command,
-            "stdout": _trim(e.stdout or ""),
-            "stderr": _trim(e.stderr or ""),
+            "error": f"Project not found: {project_dir}",
+            "project": project,
+            "project_dir": str(project_dir),
         }
 
-    stdout = proc.stdout or ""
-    parsed_stdout = None
-    try:
-        parsed_stdout = json.loads(stdout)
-    except json.JSONDecodeError:
-        pass
+    if approved:
+        viewer_path = project_dir / "approved" / "viewer.html"
+        approved_dir = project_dir / "approved"
+        image_count = len(list(approved_dir.glob("*.png"))) if approved_dir.exists() else 0
+        return {
+            "success": approved_dir.is_dir(),
+            "error": "" if approved_dir.is_dir() else f"Approved set not found: {approved_dir}",
+            "project": project,
+            "project_dir": str(project_dir),
+            "viewer_path": str(viewer_path),
+            "viewer_url": _file_url(viewer_path),
+            "run_count": 0,
+            "image_count": image_count,
+            "run_viewer_paths": [],
+        }
 
-    action = args[0]
+    run_dirs = sorted(p for p in project_dir.glob("run-*") if p.is_dir())
+    image_count = 0
+    for run_dir in run_dirs:
+        try:
+            data = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        image_count += len(data.get("images", []))
+
+    viewer_path = project_dir / "viewer.html"
+    run_viewer_paths = [str(run_dir / "viewer.html") for run_dir in run_dirs] if all_runs else []
     return {
-        "success": proc.returncode == 0,
-        "exit_code": proc.returncode,
-        "command": command,
-        "cwd": str(_ROOT),
-        "mutating": action in _CLI_MUTATING_SUBCOMMANDS,
-        "stdout": _trim(stdout),
-        "stderr": _trim(proc.stderr or ""),
-        "json": parsed_stdout,
+        "success": True,
+        "project": project,
+        "project_dir": str(project_dir),
+        "viewer_path": str(viewer_path),
+        "viewer_url": _file_url(viewer_path),
+        "run_count": len(run_dirs),
+        "image_count": image_count,
+        "run_viewer_paths": run_viewer_paths,
+    }
+
+
+def _render_targets(html_path: str = "", html_dir: str = "") -> tuple[list[Path], str]:
+    if bool(html_path) == bool(html_dir):
+        return [], "Pass exactly one of html_path or html_dir"
+
+    if html_path:
+        path = Path(html_path)
+        if not path.exists():
+            return [], f"HTML file not found: {path}"
+        return [path.resolve()], ""
+
+    directory = Path(html_dir)
+    if not directory.is_dir():
+        return [], f"HTML directory not found: {directory}"
+    files = sorted(path.resolve() for path in directory.iterdir() if path.suffix == ".html")
+    if not files:
+        return [], f"No HTML files found in {directory}"
+    return files, ""
+
+
+def _canva_preview(
+    project: str,
+    *,
+    output_dir: str = "",
+    no_zip: bool = False,
+    output_root: str = "",
+) -> dict:
+    from lib.exporters import canva
+
+    root = Path(output_root) if output_root else canva.DEFAULT_OUTPUT_ROOT
+    project_dir = root / project
+    if not project_dir.is_dir():
+        return {"success": False, "error": f"Project not found: {project_dir}"}
+
+    try:
+        source = canva._resolve_source(project_dir)
+    except FileNotFoundError as e:
+        return {"success": False, "error": str(e)}
+
+    images = sorted(source.glob("*.png"))
+    export_dir = Path(output_dir) if output_dir else project_dir / "canva-export"
+    result_path = export_dir if no_zip else export_dir.with_suffix(".zip")
+    return {
+        "success": True,
+        "project": project,
+        "project_dir": str(project_dir.resolve(strict=False)),
+        "source_dir": str(source.resolve(strict=False)),
+        "output_dir": str(export_dir.resolve(strict=False)),
+        "result_path": str(result_path.resolve(strict=False)),
+        "result_url": _file_url(result_path),
+        "image_count": len(images),
+        "zip": not no_zip,
     }
 
 
@@ -248,6 +424,12 @@ def rafiki_status() -> str:
             "rafiki_batch",
             "rafiki_list_styles",
             "rafiki_usage",
+            "rafiki_registry_search",
+            "rafiki_registry_export",
+            "rafiki_viewer_rebuild",
+            "rafiki_render",
+            "rafiki_canva_export",
+            "rafiki_notion_export",
             "rafiki_run",
         ],
         "cli_bridge_subcommands": sorted(_CLI_SUBCOMMANDS),
@@ -409,6 +591,7 @@ def rafiki_batch(
         dry_run=dry_run,
         generate_viewer_html=not no_viewer,
         prompt_file=str(prompt_path),
+        invocation_source="mcp",
     )
 
     return json.dumps({
@@ -453,15 +636,313 @@ def rafiki_usage() -> str:
 
 
 @mcp.tool()
+def rafiki_registry_search(query: str, limit: int = 20) -> str:
+    """Search the persisted Rafiki asset registry.
+
+    Args:
+        query: Case-insensitive substring matched against title, caption, and tags.
+        limit: Maximum number of results to return, capped at 100.
+    """
+    from lib import registry
+
+    safe_limit = max(1, min(int(limit), 100))
+    results = [entry.to_dict() for entry in registry.search(query)[:safe_limit]]
+    return _json({
+        "success": True,
+        "tool": "rafiki_registry_search",
+        "query": query,
+        "limit": safe_limit,
+        "count": len(results),
+        "mutating": False,
+        "external": False,
+        "results": results,
+    })
+
+
+@mcp.tool()
+def rafiki_registry_export(format: str = "csv", dry_run: bool = False) -> str:
+    """Export the persisted asset registry to CSV or JSON.
+
+    Args:
+        format: csv | json.
+        dry_run: Preview the export path and count without writing files.
+    """
+    from lib import registry
+
+    fmt = format.lower()
+    if fmt not in {"csv", "json"}:
+        return _error_payload(
+            "rafiki_registry_export",
+            "format must be 'csv' or 'json'",
+            format=format,
+            dry_run=dry_run,
+            mutating=False,
+            external=False,
+        )
+
+    entries = registry._load_registry()
+    path = registry.REGISTRY_CSV if fmt == "csv" else registry.REGISTRY_JSON
+    if dry_run:
+        return _json({
+            "success": True,
+            "tool": "rafiki_registry_export",
+            "format": fmt,
+            "dry_run": True,
+            "mutating": False,
+            "external": False,
+            "count": len(entries),
+            **_path_info(path),
+        })
+
+    try:
+        exported = registry.export(format=fmt)
+    except ValueError as e:
+        return _error_payload(
+            "rafiki_registry_export",
+            str(e),
+            format=format,
+            dry_run=dry_run,
+            mutating=False,
+            external=False,
+        )
+    return _json({
+        "success": True,
+        "tool": "rafiki_registry_export",
+        "format": fmt,
+        "dry_run": False,
+        "mutating": True,
+        "external": False,
+        "count": len(entries),
+        **_path_info(exported),
+    })
+
+
+@mcp.tool()
+def rafiki_viewer_rebuild(
+    project: str,
+    all_runs: bool = False,
+    approved: bool = False,
+    output_root: str = "",
+    dry_run: bool = False,
+    timeout_seconds: int = 300,
+) -> str:
+    """Rebuild viewer.html for a project without regenerating images.
+
+    Args:
+        project: Project path, or project name under output_root/output/.
+        all_runs: Also rebuild each run-*/viewer.html.
+        approved: Build output/<project>/approved/viewer.html instead.
+        output_root: Optional root for project names. Absolute project paths ignore this.
+        dry_run: Preview paths and counts without writing viewer files.
+        timeout_seconds: Seconds before the CLI subprocess is stopped.
+    """
+    preview = _viewer_preview(
+        project,
+        all_runs=all_runs,
+        approved=approved,
+        output_root=output_root,
+    )
+    base = {
+        "tool": "rafiki_viewer_rebuild",
+        "dry_run": dry_run,
+        "mutating": not dry_run,
+        "external": False,
+        **preview,
+    }
+    if dry_run or not preview.get("success"):
+        return _json(base)
+
+    args = ["view", str(preview["project_dir"])]
+    if all_runs:
+        args.append("--all-runs")
+    if approved:
+        args.append("--approved")
+    run = _run_generate_py(args, timeout_seconds)
+    return _json({
+        **base,
+        **run,
+        "tool": "rafiki_viewer_rebuild",
+        "mutating": True,
+        "external": False,
+    })
+
+
+@mcp.tool()
+def rafiki_render(
+    html_path: str = "",
+    html_dir: str = "",
+    dry_run: bool = False,
+    timeout_seconds: int = 900,
+) -> str:
+    """Render one HTML file or a directory of HTML files to PNG.
+
+    Args:
+        html_path: Single HTML file to render.
+        html_dir: Directory whose top-level .html files should be rendered.
+        dry_run: Preview output PNG paths without launching Chrome.
+        timeout_seconds: Seconds before the Node subprocess is stopped.
+    """
+    targets, error = _render_targets(html_path, html_dir)
+    if error:
+        return _error_payload(
+            "rafiki_render",
+            error,
+            html_path=html_path,
+            html_dir=html_dir,
+            dry_run=dry_run,
+            mutating=False,
+            external=False,
+        )
+
+    output_paths = [target.with_suffix(".png") for target in targets]
+    args = ["--render", str(targets[0])] if html_path else ["--render-dir", html_dir]
+    base = {
+        "success": True,
+        "tool": "rafiki_render",
+        "dry_run": dry_run,
+        "mutating": not dry_run,
+        "external": False,
+        "count": len(targets),
+        "html_paths": [str(path) for path in targets],
+        "output_paths": [str(path.resolve(strict=False)) for path in output_paths],
+        "output_urls": [_file_url(path) for path in output_paths],
+        "command": ["node", str(_ROOT / "index.js"), *args],
+    }
+    if dry_run:
+        return _json(base)
+
+    run = _run_node_rafiki(args, timeout_seconds, mutating=True)
+    return _json({**base, **run, "tool": "rafiki_render"})
+
+
+@mcp.tool()
+def rafiki_canva_export(
+    project: str,
+    output_dir: str = "",
+    no_zip: bool = False,
+    output_root: str = "",
+    dry_run: bool = False,
+) -> str:
+    """Export approved/latest-run images and assets.csv for Canva bulk upload.
+
+    Args:
+        project: Project name under output_root/output/.
+        output_dir: Optional export directory.
+        no_zip: Return the export directory instead of a .zip bundle.
+        output_root: Optional output root for tests or alternate workspaces.
+        dry_run: Preview source/output paths and image count without writing files.
+    """
+    preview = _canva_preview(
+        project,
+        output_dir=output_dir,
+        no_zip=no_zip,
+        output_root=output_root,
+    )
+    base = {
+        "tool": "rafiki_canva_export",
+        "dry_run": dry_run,
+        "mutating": not dry_run,
+        "external": False,
+        **preview,
+    }
+    if dry_run or not preview.get("success"):
+        return _json(base)
+
+    from lib.exporters import canva
+
+    root = Path(output_root) if output_root else canva.DEFAULT_OUTPUT_ROOT
+    try:
+        result = _capture(
+            canva.export,
+            project,
+            output_dir=Path(output_dir) if output_dir else None,
+            zip=not no_zip,
+            output_root=root,
+        )
+    except FileNotFoundError as e:
+        return _error_payload(
+            "rafiki_canva_export",
+            str(e),
+            project=project,
+            dry_run=dry_run,
+            mutating=False,
+            external=False,
+        )
+
+    return _json({
+        **base,
+        "success": True,
+        "result_path": str(result.resolve(strict=False)),
+        "result_url": _file_url(result),
+    })
+
+
+@mcp.tool()
+def rafiki_notion_export(
+    project: str,
+    database_id: str = "",
+    output_root: str = "",
+    dry_run: bool = True,
+    force: bool = False,
+) -> str:
+    """Dry-run or export approved/latest-run images to a Notion database.
+
+    Args:
+        project: Project name under output_root/output/, or an absolute path.
+        database_id: Optional Notion database id; falls back to env for real exports.
+        output_root: Optional output root for project names.
+        dry_run: Skip Notion API calls and local export-log writes.
+        force: Re-export images already recorded in the local export log.
+    """
+    from lib.exporters import notion
+
+    try:
+        result = _capture(
+            notion.export,
+            project,
+            database_id=database_id or None,
+            output_root=Path(output_root) if output_root else None,
+            dry_run=dry_run,
+            force=force,
+        )
+    except notion.NotionExportError as e:
+        return _error_payload(
+            "rafiki_notion_export",
+            str(e),
+            project=project,
+            dry_run=dry_run,
+            force=force,
+            mutating=False,
+            external=True,
+        )
+
+    return _json({
+        "success": not result["errors"],
+        "tool": "rafiki_notion_export",
+        "project": project,
+        "database_id": database_id or "",
+        "dry_run": dry_run,
+        "force": force,
+        "mutating": not dry_run,
+        "external": True,
+        **result,
+    })
+
+
+@mcp.tool()
 def rafiki_run(args: list[str], timeout_seconds: int = 900) -> str:
     """Run a supported Rafiki CLI workflow through generate.py.
 
     Use this for workflows not covered by the direct tools, such as:
-    ['view', 'project', '--all-runs'], ['library'], ['registry', 'search', 'logo'],
-    ['--render', '/path/to/card.html'], ['canva-export', 'project'], or ['regen', '--dry-run'].
+    ['library'], ['approve', 'project'], ['clean', 'project', '--dry-run'],
+    ['social-expand', 'project', '--dry-run'], or ['regen', '--dry-run'].
+    Prefer the typed wrappers for registry, viewer rebuild, render, Canva export,
+    and Notion export workflows.
 
-    The server never invokes a shell. It runs:
+    The server never invokes a shell. Python workflows run:
     <this python> <repo>/generate.py <args...>
+    Render-only bridge calls run:
+    node <repo>/index.js <args...>
 
     Args:
         args: generate.py arguments only; do not include python, rafiki, or generate.py.

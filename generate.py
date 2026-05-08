@@ -803,6 +803,7 @@ def main() -> None:
             workers=args.workers,
             generate_viewer_html=not args.no_viewer,
             prompt_file=args.prompt_file,
+            invocation_source="python-cli",
         )
 
         if args.json_output:
