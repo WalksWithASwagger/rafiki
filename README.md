@@ -177,6 +177,7 @@ Useful commands:
 ```bash
 python generate.py view <project>
 python generate.py view <project> --all-runs
+npx rafiki view <project> --all-runs
 python generate.py library
 python generate.py library --open
 ```

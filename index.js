@@ -319,6 +319,47 @@ program
   .description('Rafiki — local-first AI image generation or Puppeteer (HTML→PNG)')
   .version('1.1.0');
 
+program
+  .command('view <project>')
+  .description('Rebuild project viewer.html from files already on disk')
+  .option('--all-runs', 'Also rebuild each run viewer.html')
+  .option('--approved', 'Build the approved-set viewer')
+  .action(async (project, options) => {
+    const c = await loadChalk();
+    const args = ['view', project];
+    if (options.allRuns) {
+      args.push('--all-runs');
+    }
+    if (options.approved) {
+      args.push('--approved');
+    }
+
+    console.log(c.cyan('Rafiki — rebuilding viewer...'));
+    const pythonScript = path.join(__dirname, 'generate.py');
+    const pythonBin = getPythonExecutable();
+    const proc = spawn(pythonBin, [pythonScript, ...args], {
+      stdio: 'inherit',
+      env: process.env
+    });
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        console.log(c.red(`Process exited with code ${code}`));
+      }
+      process.exit(code);
+    });
+
+    proc.on('error', (err) => {
+      console.log(c.red(`Failed to start Python: ${err.message}`));
+      console.log(
+        c.yellow(
+          'Create .venv and install deps: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt'
+        )
+      );
+      process.exit(1);
+    });
+  });
+
 // AI Generation command (default)
 program
   .argument('[prompts-file]', 'Path to image-prompts.md file')
