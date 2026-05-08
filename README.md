@@ -76,8 +76,13 @@ npx rafiki --doctor
 
 ```bash
 npx rafiki --prompt "A cinematic portrait of a radio host in a neon-lit studio" \
-  --model gpt-image-2 \
   --output output.png
+```
+
+For a public batch fixture:
+
+```bash
+npx rafiki examples/quickstart-image-prompts.md --dry-run --no-viewer
 ```
 
 ## Common Workflows
@@ -99,7 +104,6 @@ npx rafiki /path/to/image-prompts.md --output-dir /path/to/output/project
 ```bash
 npx rafiki /path/to/image-prompts.md \
   --style hopecode \
-  --model gemini-3-pro-image-preview \
   --output-dir /path/to/output/project
 ```
 
@@ -115,7 +119,6 @@ npx rafiki --prompt "Minimal monochrome diagram" --no-style --output diagram.png
 npx rafiki \
   --prompt "Keep the composition, modernize the visual language" \
   --reference-image /path/to/reference.png \
-  --model gemini-3-pro-image-preview \
   --output output.png
 ```
 
@@ -139,8 +142,8 @@ Rafiki can be installed as a local MCP server so Codex, Claude Code, and other
 MCP clients can call it as tools instead of shelling out manually.
 
 ```bash
-codex mcp add rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
-claude mcp add --scope user rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
+codex mcp add rafiki -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
+claude mcp add --scope user rafiki -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
 ```
 
 Exposed tools include `rafiki_generate`, `rafiki_batch`,
@@ -220,8 +223,22 @@ Rafiki supports both Gemini and OpenAI image models through the same CLI.
 - `gpt-image-1`
 - `dall-e-3`
 
-The current CLI default is `gemini-2.5-flash-image`. Pass `--model` to select
-another provider or model explicitly.
+The CLI, portal, and MCP default is `gemini-2.5-flash-image`. Pass `--model`
+to select another provider or model explicitly. Choose Gemini for fast local
+iteration and Gemini Pro reference or high-resolution work. Choose OpenAI when
+the prompt set was authored against OpenAI outputs, when you need OpenAI-only
+model behavior, or when using the separate `gpt-image-1` Streamlit workflow.
+
+Details: [docs/MODEL-POLICY.md](docs/MODEL-POLICY.md)
+
+## Prompt And Media Boundary
+
+The public npm package intentionally excludes private prompt libraries,
+campaign media, mirrored knowledge-base prompts, generated outputs, and local
+asset folders. It includes only a tiny onboarding fixture:
+`examples/quickstart-image-prompts.md`.
+
+Details: [docs/PROMPT-MEDIA-POLICY.md](docs/PROMPT-MEDIA-POLICY.md)
 
 ## Styles
 

@@ -13,6 +13,10 @@ deeper operating docs by surface area.
   verification gates, and near-term execution order.
 - [Public Release Plan](PUBLIC-RELEASE-PLAN.md) - release hygiene, product
   positioning, onboarding, and public launch checklist.
+- [Model Policy](MODEL-POLICY.md) - default model, provider choices, and
+  Gemini versus OpenAI guidance.
+- [Prompt And Media Release Policy](PROMPT-MEDIA-POLICY.md) - public package
+  fixture, private prompt library handling, and media boundaries.
 
 ## Runtime Surfaces
 

@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-07
+Last reviewed: 2026-05-08
 
 This roadmap is the maintainers' working plan for Rafiki after reviewing the
 current project structure, docs, tests, and code. It replaces the older backlog
@@ -36,7 +36,7 @@ image generation platform.
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
-| Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist, but public/private boundaries need clearer ownership. |
+| Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 88 Python tests plus CI for Python tests and `npm pack --dry-run`. |
 
 ## What Is Already Shipped
@@ -74,9 +74,10 @@ image generation platform.
 - `generate.py` is now the central command dispatcher. That is practical, but
   it is large enough that future subcommands should move toward thin command
   modules instead of continuing to grow the file indefinitely.
-- Prompt collections are valuable examples, but they mix reusable public
-  examples with project-specific working material and local media references.
-  This is fine for the private working repo, but it needs a release policy.
+- Prompt collections are valuable working material, but the public release
+  boundary is explicit: private prompt libraries and local media stay outside
+  the npm package, while `examples/quickstart-image-prompts.md` is the public
+  onboarding fixture.
 - Generated output, usage logs, registries, local config, and worktrees are
   correctly ignored.
 
@@ -87,8 +88,9 @@ image generation platform.
 - The old roadmap was stale. It listed several shipped features as gaps.
 - `docs/PUBLIC-RELEASE-PLAN.md`, `docs/SCOPE.md`, `SECURITY.md`, and
   `CONTRIBUTING.md` agree on the local-first boundary.
-- `docs/MCP.md` and the README currently include this machine's absolute
-  install path. That is useful locally but a public-release blocker.
+- `docs/MCP.md` and the README now use portable MCP install placeholders.
+  `rafiki_status` is the source for machine-specific commands in a local
+  checkout.
 - The docs set is broad enough that it needs an index or "start here" map.
   Important workflow docs are discoverable only if you already know their names.
 
@@ -100,9 +102,9 @@ image generation platform.
   MCP wrappers.
 - The core risk is not missing tests anymore; it is end-to-end drift between
   the Node CLI, Python CLI, portal, MCP bridge, and docs.
-- Defaults are inconsistent at the product level: code defaults to
-  `gemini-2.5-flash-image`, while prior roadmap language favored
-  `gpt-image-2`. This needs an explicit decision, not quiet drift.
+- Defaults are now consistent at the product level: CLI, portal, MCP, and
+  public docs default to `gemini-2.5-flash-image`; OpenAI models are selected
+  explicitly for OpenAI-specific workflows.
 - The MCP server is useful now, but its `rafiki_run` bridge should keep getting
   stricter typed wrappers for high-value workflows as they stabilize.
 - Cost, provenance, and asset lifecycle metadata exist only partially.
@@ -123,8 +125,8 @@ Goal: make the current work coherent and safe to merge.
 
 | Priority | Work | Success criteria |
 |---|---|---|
-| P0 | Decide whether to keep the local MCP install docs with absolute paths or convert them to placeholders plus `rafiki_status` output. | No tracked public docs contain private local paths unless explicitly marked as local-only. |
-| P0 | Resolve the default model policy. | README, CLI defaults, portal default, MCP default, examples, and roadmap all say the same thing. |
+| P0 | Keep public MCP docs portable and use `rafiki_status` for checkout-specific commands. | No tracked public docs contain machine-specific local paths. |
+| P0 | Maintain the default model policy. | README, CLI defaults, portal default, MCP default, examples, and roadmap all say `gemini-2.5-flash-image` is the default. |
 | P0 | Keep the MCP server registered locally but document that registration is a local setup step, not repo state. | Codex and Claude Code can still list `rafiki`; repo docs explain portable setup. |
 | P1 | Add a short docs index. | A new contributor can start from README and find scope, MCP, registry, exports, deploy, scheduled regen, archive, and presentation viewer docs in one place. |
 | P1 | Add an end-to-end MCP smoke test script or test fixture. | CI or local test can start the MCP stdio server, list tools, and call `rafiki_status`. |
@@ -136,8 +138,8 @@ Goal: make Rafiki safe and understandable outside this machine.
 
 | Priority | Work | Success criteria |
 |---|---|---|
-| P0 | Scrub tracked local paths and private project assumptions from public docs. | `rg "/Users/kk|private|local-only"` has only intentional examples or private docs. |
-| P0 | Define prompt/media release policy. | Public package/repo clearly distinguishes reusable examples from private working prompt libraries and local images. |
+| P0 | Scrub tracked local paths and private project assumptions from public docs. | `rg "/Users/kk|private|local-only"` has only intentional policy references. |
+| P0 | Define prompt/media release policy. | Public package/repo clearly distinguishes the public fixture from private working prompt libraries and local images. |
 | P0 | Package story audit. | `npm pack --dry-run` includes all runtime files and excludes private/generated assets by design. |
 | P1 | Add a public quickstart fixture. | A tiny sample `image-prompts.md` and dry-run workflow can be used without private prompt libraries. |
 | P1 | Add docs lint or link smoke check. | Broken internal links are caught before release. |
@@ -226,13 +228,10 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Clean up public docs around absolute local MCP paths.
-2. Decide and apply the default model policy.
-3. Add docs index and link smoke.
-4. Add MCP and CLI dry-run smoke tests.
-5. Make registry metadata feed the library viewer.
-6. Add portal curation/export actions.
-7. Package a small public quickstart fixture.
+1. Add MCP and CLI dry-run smoke tests.
+2. Make registry metadata feed the library viewer.
+3. Add portal curation/export actions.
+4. Expand doctor remediation for package and browser setup.
 
 ## Non-Goals For Now
 

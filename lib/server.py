@@ -14,11 +14,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from lib.batch import run_batch
-from lib.models import resolve_model
+from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+DEFAULT_MODEL = DEFAULT_IMAGE_MODEL
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 
 
@@ -326,6 +326,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_library()
         elif path.startswith("/output/"):
             self._serve_static(path[len("/output/"):])
+        elif path == "/api/actions":
+            self._serve_actions()
         elif path == "/api/ratings":
             self._serve_ratings()
         elif path == "/api/runs":
@@ -341,6 +343,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._update_ratings()
         elif path == "/api/regen":
             self._regen()
+        elif path == "/api/actions":
+            self._run_action()
         else:
             self._404()
 
@@ -384,6 +388,11 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def _serve_ratings(self):
         ratings = _load_ratings(self.ratings_file)
         self._respond(200, "application/json", json.dumps(ratings).encode())
+
+    def _serve_actions(self):
+        from lib.portal_actions import discover_actions
+
+        self._respond(200, "application/json", json.dumps({"actions": discover_actions()}).encode())
 
     def _update_ratings(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -486,6 +495,35 @@ class _RafikiHandler(BaseHTTPRequestHandler):
                 500,
                 "application/json",
                 json.dumps({"error": "generation failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _run_action(self):
+        from lib.portal_actions import run_action
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+        except Exception:
+            self._respond(400, "application/json", b'{"error":"bad request"}')
+            return
+
+        try:
+            result = run_action(payload, output_root=self.output_root)
+        except PermissionError as e:
+            self._respond(409, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except (ValueError, FileNotFoundError) as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "portal action failed", "detail": str(e)}).encode("utf-8"),
             )
             return
 

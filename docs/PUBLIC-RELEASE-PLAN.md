@@ -21,6 +21,21 @@ Rafiki v1 is a local tool:
 
 It is not a hosted multi-user service.
 
+## Public Boundary
+
+Public docs use portable placeholders such as `/path/to/rafiki`. Machine-local
+install commands belong in `rafiki_status`, which computes them from the
+current checkout without hard-coding one contributor's filesystem.
+
+Prompt and media policy lives in [PROMPT-MEDIA-POLICY.md](PROMPT-MEDIA-POLICY.md).
+The only prompt fixture included in the public npm package is
+`examples/quickstart-image-prompts.md`; private prompt libraries and source
+media stay outside the package allowlist.
+
+Model policy lives in [MODEL-POLICY.md](MODEL-POLICY.md). The v1 default across
+CLI, portal, and MCP is `gemini-2.5-flash-image`; OpenAI models are selected
+explicitly when a workflow needs OpenAI-specific behavior.
+
 ## Phase 1: Release Hygiene
 
 - Scrub tracked local paths and project-specific machine config
@@ -65,3 +80,5 @@ It is not a hosted multi-user service.
 - `npm pack --dry-run` publishes only the intended runtime surface
 - README covers install, quickstart, security, scope, and common workflows
 - CI runs on pull requests
+- `rg "/Users/kk|local-only|private" README.md docs package.json` returns only
+  intentional policy references

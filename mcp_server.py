@@ -60,7 +60,7 @@ from lib.core import generate_image
 from lib.batch import run_batch
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 from lib.styles import load_styles
-from lib.models import resolve_model
+from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.usage import load_usage_log
 
 _CLI_SUBCOMMANDS = {
@@ -448,7 +448,7 @@ def rafiki_status() -> str:
 def rafiki_generate(
     prompt: str,
     output_path: str = "output.png",
-    model: str = "gemini-2.5-flash-image",
+    model: str = DEFAULT_IMAGE_MODEL,
     aspect_ratio: str = "16:9",
     resolution: str = "1K",
     quality: str = "high",
@@ -519,7 +519,7 @@ def rafiki_generate(
 def rafiki_batch(
     prompt_file: str,
     output_dir: str = "",
-    model: str = "gemini-2.5-flash-image",
+    model: str = DEFAULT_IMAGE_MODEL,
     aspect_ratio: str = "16:9",
     resolution: str = "1K",
     quality: str = "high",
