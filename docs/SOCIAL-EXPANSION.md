@@ -4,7 +4,7 @@ After Rafiki generates a batch, `social-expand` runs a second LLM pass
 to produce platform-specific social copy per image (LinkedIn, X,
 Instagram). Output lives in `<latest-run>/social-posts.json` for
 downstream tools. Presentation-viewer support for platform-specific tabs is
-tracked separately in issue #70.
+available when a viewer item's image directory contains `social-posts.json`.
 
 ## Constraints per platform
 
@@ -53,6 +53,7 @@ python generate.py social-expand rap-cert --dry-run
 }
 ```
 
-The reusable presentation viewer does not yet read this file directly. Until
-issue #70 lands, treat `social-posts.json` as a downstream handoff artifact or
-copy the platform copy into viewer data explicitly.
+The reusable presentation viewer reads this file directly when its
+`image_dirs` entry points at the run directory. Matching is by item slug, and
+the lightbox renders LinkedIn, X, and Instagram as platform tabs while keeping
+any legacy single `social` string as the `Original` tab.
