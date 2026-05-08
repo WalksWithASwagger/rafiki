@@ -20,13 +20,13 @@ From this checkout:
 Codex:
 
 ```bash
-codex mcp add rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
+codex mcp add rafiki -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
 ```
 
 Claude Code:
 
 ```bash
-claude mcp add --scope user rafiki -- /Users/kk/Code/notion-local/rafiki/.venv/bin/python /Users/kk/Code/notion-local/rafiki/mcp_server.py
+claude mcp add --scope user rafiki -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
 ```
 
 Generic MCP JSON:
@@ -35,8 +35,8 @@ Generic MCP JSON:
 {
   "mcpServers": {
     "rafiki": {
-      "command": "/Users/kk/Code/notion-local/rafiki/.venv/bin/python",
-      "args": ["/Users/kk/Code/notion-local/rafiki/mcp_server.py"]
+      "command": "/path/to/rafiki/.venv/bin/python",
+      "args": ["/path/to/rafiki/mcp_server.py"]
     }
   }
 }
@@ -44,6 +44,9 @@ Generic MCP JSON:
 
 The server loads `.env` from the Rafiki repo root, so API keys do not need to
 be duplicated into every client config.
+
+`rafiki_status` returns machine-specific install commands for the current
+checkout when you need copy-paste commands for your own client.
 
 ## Exposed Tools
 
@@ -167,13 +170,13 @@ portal process. Start it directly when needed:
 The MCP server never invokes a shell. `rafiki_run` Python workflows execute:
 
 ```bash
-<python> /Users/kk/Code/notion-local/rafiki/generate.py <args...>
+<python> /path/to/rafiki/generate.py <args...>
 ```
 
 Render-only bridge calls execute:
 
 ```bash
-node /Users/kk/Code/notion-local/rafiki/index.js <args...>
+node /path/to/rafiki/index.js <args...>
 ```
 
 Typed tools mark local writes and external calls explicitly. For example,

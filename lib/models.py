@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+DEFAULT_IMAGE_MODEL = "gemini-2.5-flash-image"
+
+
 ALIASES: dict[str, str] = {
     "flash":  "gemini-2.5-flash-image",
     "nano":   "gemini-2.5-flash-image",

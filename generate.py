@@ -51,7 +51,7 @@ def _load_dotenv(path: Path) -> None:
 _load_dotenv(Path(__file__).parent / ".env")
 
 from lib.core import generate_image
-from lib.models import resolve_model, ALIASES
+from lib.models import DEFAULT_IMAGE_MODEL, resolve_model, ALIASES
 from lib.prompts import parse_image_prompts_md, ASPECT_RATIOS
 from lib.styles import load_styles, get_default_style
 from lib.usage import load_usage_log
@@ -629,9 +629,9 @@ def main() -> None:
     parser.add_argument("--output-dir", "-d",
                         help="Output directory for batch runs")
     parser.add_argument(
-        "--model", "-m", default="gemini-2.5-flash-image",
+        "--model", "-m", default=DEFAULT_IMAGE_MODEL,
         help=(
-            "Model ID or alias (default: gemini-2.5-flash-image). "
+            f"Model ID or alias (default: {DEFAULT_IMAGE_MODEL}). "
             "Aliases: flash/nano/pro (Gemini), gpt/gpt1/dalle3 (OpenAI). "
             "Full IDs: gpt-image-2, dall-e-3, gemini-3-pro-image-preview."
         ),
