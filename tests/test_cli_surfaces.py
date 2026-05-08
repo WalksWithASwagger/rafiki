@@ -57,6 +57,30 @@ def _batch_options(output_dir: Path) -> list[str]:
     ]
 
 
+def _single_options(output_path: Path) -> list[str]:
+    return [
+        "--prompt",
+        "A compact studio poster for a local AI image workflow",
+        "--output",
+        str(output_path),
+        "--model",
+        "gpt-image-2",
+        "--aspect-ratio",
+        "4:5",
+        "--quality",
+        "medium",
+        "--no-style",
+        "--reference-image",
+        "/tmp/ref-single.png",
+        "--reference-role",
+        "mockup",
+        "--composition-references",
+        "/tmp/print-single.png",
+        "--dry-run",
+        "--json",
+    ]
+
+
 def _python_batch_args(prompt_file: Path, output_dir: Path) -> list[str]:
     return ["--prompt-file", str(prompt_file), *_batch_options(output_dir)]
 
@@ -88,6 +112,39 @@ def _assert_batch_json_contract(payload: dict, output_dir: Path) -> None:
     assert run_dir.exists()
     assert (run_dir / "run.json").exists()
     assert list(run_dir.glob("*.png")) == []
+
+
+def _assert_single_json_contract(payload: dict, output_path: Path) -> None:
+    assert payload["success"] is True
+    assert payload["mode"] == "single"
+    assert payload["dry_run"] is True
+    assert payload["output_path"] == str(output_path)
+    assert payload["model"] == "gpt-image-2"
+    assert payload["aspect_ratio"] == "4:5"
+    assert payload["style"] == "none"
+    assert payload["prompt_preview"].startswith("A compact studio poster")
+    assert not output_path.exists()
+
+
+def test_python_cli_single_prompt_dry_run_json_contract(tmp_path: Path) -> None:
+    output_path = tmp_path / "single-python.png"
+
+    proc = _run([sys.executable, "generate.py", *_single_options(output_path)])
+    payload = json.loads(proc.stdout)
+
+    assert "[DRY RUN]" in proc.stderr
+    _assert_single_json_contract(payload, output_path)
+
+
+def test_node_cli_single_prompt_dry_run_json_stdout_contract(tmp_path: Path) -> None:
+    output_path = tmp_path / "single-node.png"
+
+    proc = _run(["node", "index.js", *_single_options(output_path)])
+    payload = json.loads(proc.stdout)
+
+    assert "Rafiki" in proc.stderr
+    assert "[DRY RUN]" in proc.stderr
+    _assert_single_json_contract(payload, output_path)
 
 
 def test_python_cli_batch_dry_run_json_contract(tmp_path: Path) -> None:
