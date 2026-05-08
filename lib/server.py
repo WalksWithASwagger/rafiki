@@ -246,6 +246,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
             workers=1,
             generate_viewer_html=True,
             prompt_file="",
+            invocation_source="portal",
         )
         return _result_payload(result, mode=mode, project=project)
 
@@ -273,6 +274,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         workers=workers,
         generate_viewer_html=True,
         prompt_file=str(prompt_file),
+        invocation_source="portal",
     )
     return _result_payload(result, mode=mode, project=project)
 
