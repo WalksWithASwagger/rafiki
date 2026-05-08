@@ -38,5 +38,8 @@ jobs:
       - name: Run tests
         run: python -m pytest -q
 
+      - name: Check documentation links
+        run: npm run docs:check
+
       - name: Check npm package contents
         run: npm pack --dry-run
