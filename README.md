@@ -290,6 +290,7 @@ Useful commands:
 ```bash
 npm test
 npm run pack:check
+npm run docs:check
 python3 -m pytest -q
 ```
 
@@ -297,14 +298,16 @@ Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Docs
 
-- [docs/FOLDER-LAYOUT.md](docs/FOLDER-LAYOUT.md)
-- [docs/DELIVERY-PIPELINE.md](docs/DELIVERY-PIPELINE.md)
-- [docs/MCP.md](docs/MCP.md)
-- [docs/ROADMAP.md](docs/ROADMAP.md)
-- [docs/CHROME-PUPPETEER.md](docs/CHROME-PUPPETEER.md)
-- [docs/ASSET-REGISTRY.md](docs/ASSET-REGISTRY.md)
-- [docs/SCOPE.md](docs/SCOPE.md)
-- [docs/PUBLIC-RELEASE-PLAN.md](docs/PUBLIC-RELEASE-PLAN.md)
+Start with the [docs index](docs/INDEX.md) for the full map.
+
+Key references:
+
+- [Scope](docs/SCOPE.md)
+- [MCP](docs/MCP.md)
+- [Asset Registry](docs/ASSET-REGISTRY.md)
+- [Deployment](docs/DEPLOYMENT.md)
+- [Delivery Pipeline](docs/DELIVERY-PIPELINE.md)
+- [Scheduled Regeneration](docs/SCHEDULED-REGEN.md)
 
 ## License
 
