@@ -17,6 +17,11 @@ the rest.
    ```
    This copies starred images into `output/rap-week-1/approved/` and
    appends an entry to `output/rap-week-1/approved/index.json` per image.
+   Project names can also come from `config/extra-outputs.json` or
+   `config/extra-outputs.local.json`; local mappings override shared ones.
+   In that case, `approve <project>` writes to the configured project path's
+   `approved/` directory while still reading ratings from `output/ratings.json`
+   using the configured project key.
 3. **Clean** old run dirs once their keepers are safely in `approved/`:
    ```bash
    python generate.py clean rap-week-1 --keep-approved --dry-run
@@ -79,6 +84,10 @@ or trace it later:
   eligible for deletion when *every* image listed in its `run.json` has a
   matching `approved/index.json` entry for that same `source_run`. If
   even one image in the run hasn't been approved, the run is kept.
+- **Extra-output projects stay scoped to their configured path.** If a
+  project name appears in `extra-outputs`, `approve` and `clean` use that
+  path instead of falling back to `output/<project>/`. Missing configured
+  paths fail closed with `FileNotFoundError`.
 - **`--older-than 30d` and `--keep-approved` compose.** When both are
   passed, both conditions must hold before a run is deleted.
 - **`approved/` is never touched by `clean`.**

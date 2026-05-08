@@ -13,6 +13,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from lib import archive  # noqa: E402
+from lib import extra_outputs  # noqa: E402
 
 
 def _make_run(
@@ -52,6 +53,26 @@ def _make_run(
 
 def _set_ratings(output_root: Path, ratings: dict[str, str]) -> None:
     (output_root / "ratings.json").write_text(json.dumps(ratings), encoding="utf-8")
+
+
+def _configure_extra_outputs(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    shared: dict[str, str],
+    local: dict[str, str] | None = None,
+) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    shared_config = config_dir / "extra-outputs.json"
+    local_config = config_dir / "extra-outputs.local.json"
+    shared_config.write_text(json.dumps(shared), encoding="utf-8")
+    if local is not None:
+        local_config.write_text(json.dumps(local), encoding="utf-8")
+
+    monkeypatch.setattr(extra_outputs, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(extra_outputs, "CONFIG_DIR", config_dir)
+    monkeypatch.setattr(extra_outputs, "EXTRA_OUTPUTS_CONFIG", shared_config)
+    monkeypatch.setattr(extra_outputs, "EXTRA_OUTPUTS_LOCAL_CONFIG", local_config)
 
 
 def test_approve_copies_starred_images_to_approved_dir(tmp_path: Path) -> None:
@@ -217,6 +238,83 @@ def test_clean_older_than_days_filters_by_age(tmp_path: Path) -> None:
 
     assert deleted == [old]
     assert fresh.exists()
+
+
+def test_approve_uses_configured_extra_output_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+    external_project = tmp_path / "elsewhere" / "project-dir"
+    _make_run(tmp_path / "elsewhere", "project-dir", "20260501-120000", [
+        {"name": "A", "file": "01-a.png", "prompt": "external prompt"},
+    ])
+    _set_ratings(output_root, {
+        "external/run-20260501-120000/01-a.png": "star",
+    })
+    _configure_extra_outputs(
+        monkeypatch,
+        tmp_path,
+        {"external": str(tmp_path / "missing-project")},
+        {"external": str(external_project)},
+    )
+
+    assert archive.approve("external", output_root=output_root) == 1
+
+    approved = external_project / "approved"
+    assert (approved / "01-a.png").exists()
+    index = json.loads((approved / "index.json").read_text(encoding="utf-8"))
+    assert index["images"][0]["prompt"] == "external prompt"
+
+
+def test_clean_keep_approved_uses_configured_extra_output_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+    external_project = tmp_path / "external-project"
+    run_dir = _make_run(tmp_path, "external-project", "20260501-120000", [
+        {"name": "A", "file": "01-a.png", "prompt": "p"},
+    ])
+    _set_ratings(output_root, {
+        "external/run-20260501-120000/01-a.png": "star",
+    })
+    _configure_extra_outputs(monkeypatch, tmp_path, {"external": str(external_project)})
+    archive.approve("external", output_root=output_root)
+    unrelated = output_root / "external"
+    unrelated.mkdir()
+
+    deleted = archive.clean(
+        "external",
+        keep_approved=True,
+        dry_run=True,
+        output_root=output_root,
+    )
+
+    assert deleted == [run_dir]
+    assert run_dir.exists()
+    assert unrelated.exists()
+
+
+def test_missing_configured_extra_output_does_not_fall_back_to_output_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+    fallback_project = output_root / "external"
+    _make_run(output_root, "external", "20260501-120000", [
+        {"name": "A", "file": "01-a.png", "prompt": "p"},
+    ])
+    missing_project = tmp_path / "missing-external"
+    _configure_extra_outputs(monkeypatch, tmp_path, {"external": str(missing_project)})
+
+    with pytest.raises(FileNotFoundError, match=str(missing_project)):
+        archive.clean("external", dry_run=True, output_root=output_root)
+
+    assert fallback_project.exists()
 
 
 def test_build_approved_viewer_writes_html(tmp_path: Path) -> None:

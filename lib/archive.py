@@ -28,12 +28,19 @@ import shutil
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from lib import extra_outputs
 
-def _project_dir(output_root: Path, project: str) -> Path:
+
+def _project_ref(output_root: Path, project: str) -> tuple[Path, str]:
     candidate = Path(project)
-    if candidate.is_absolute() and candidate.exists():
-        return candidate
-    return output_root / project
+    if candidate.is_absolute():
+        return candidate, candidate.name
+
+    extra_roots = extra_outputs.load_extra_outputs()
+    if project in extra_roots:
+        return extra_roots[project], project
+
+    return output_root / project, project
 
 
 def _load_ratings(output_root: Path) -> dict[str, str]:
@@ -100,7 +107,7 @@ def approve(
     approved image is a no-op).
     """
     output_root = (output_root or _default_output_root()).resolve()
-    project_dir = _project_dir(output_root, project)
+    project_dir, project_name = _project_ref(output_root, project)
     if not project_dir.exists():
         raise FileNotFoundError(f"project not found: {project_dir}")
 
@@ -123,7 +130,6 @@ def approve(
     if run_data is None:
         raise FileNotFoundError(f"run.json missing for {run_dir}")
 
-    project_name = project_dir.name
     run_id = run_dir.name
     ratings = _load_ratings(output_root)
 
@@ -200,7 +206,7 @@ def clean(
     The ``approved/`` directory is never touched.
     """
     output_root = (output_root or _default_output_root()).resolve()
-    project_dir = _project_dir(output_root, project)
+    project_dir, _project_name = _project_ref(output_root, project)
     if not project_dir.exists():
         raise FileNotFoundError(f"project not found: {project_dir}")
 
@@ -255,7 +261,7 @@ def build_approved_viewer(
     from lib.renderers.viewer import generate_viewer
 
     output_root = (output_root or _default_output_root()).resolve()
-    project_dir = _project_dir(output_root, project)
+    project_dir, _project_name = _project_ref(output_root, project)
     approved_dir = project_dir / "approved"
     if not approved_dir.exists():
         raise FileNotFoundError(f"no approved set: {approved_dir}")
