@@ -16,6 +16,31 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from lib.core import generate_image
 
 
+def _provider_for_model(model: str) -> str | None:
+    if model.startswith("gemini"):
+        return "Gemini"
+    if model.startswith(("gpt-image", "dall-e")):
+        return "OpenAI"
+    return None
+
+
+def _cost_estimate_for_model(model: str) -> dict:
+    provider = _provider_for_model(model)
+    return {
+        "currency": "USD",
+        "amount": None,
+        "estimated": False,
+        "basis": "not_estimated",
+        "provider": provider,
+        "model": model,
+        "note": "Rafiki does not bundle provider pricing; use provider billing exports for exact cost.",
+    }
+
+
+def _iso_now() -> datetime:
+    return datetime.now().astimezone()
+
+
 @dataclass
 class BatchResult:
     success_count: int
@@ -46,6 +71,7 @@ def run_batch(
     workers: int = 1,
     generate_viewer_html: bool = True,
     prompt_file: str = "",
+    invocation_source: str = "python-cli",
 ) -> BatchResult:
     """Generate a batch of images with run isolation and an HTML viewer.
 
@@ -78,49 +104,82 @@ def run_batch(
     project_dir = Path(project_dir)
     project_dir.mkdir(parents=True, exist_ok=True)
 
-    run_ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    run_started = _iso_now()
+    run_start_monotonic = time.monotonic()
+    run_ts = run_started.strftime("%Y%m%d-%H%M%S")
     run_dir = project_dir / f"run-{run_ts}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     if ref_paths is None:
         ref_paths = [None] * len(prompts)
 
+    run_reference_images = [
+        ref for ref in [*(ref_paths or []), *(composition_references or [])] if ref
+    ]
     run_meta = {
         "model": model,
         "aspect_ratio": aspect_ratio,
         "style": style or "none",
         "prompt_file": prompt_file,
-        "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "prompt_source": prompt_file or "inline",
+        "invocation": {"surface": invocation_source},
+        "timestamp": run_started.strftime("%Y-%m-%d %H:%M"),
+        "started_at": run_started.isoformat(timespec="seconds"),
         "run_id": run_ts,
     }
+    if run_reference_images:
+        run_meta["reference_images"] = run_reference_images
+        run_meta["reference_role"] = reference_role
 
     # Build per-image task dicts, applying per-prompt overrides
     tasks: list[dict] = []
     for i, item in enumerate(prompts):
         safe_name = re.sub(r"[^a-z0-9]+", "-", item["name"].lower()).strip("-")
         output_path = run_dir / f"{i + 1:02d}-{safe_name}.png"
+        task_model = item.get("model") or model
+        task_style = item.get("style") or style
         tasks.append({
             "index":      i,
             "name":       item["name"],
             "prompt":     item["prompt"],
             "output_path": str(output_path),
             # Per-prompt overrides fall back to batch defaults
-            "model":       item.get("model") or model,
+            "model":       task_model,
             "aspect_ratio": item.get("aspect_ratio") or aspect_ratio,
             "resolution":  resolution,
             "quality":     item.get("quality") or quality,
-            "style":       item.get("style") or style,
+            "style":       task_style,
+            "provider":    _provider_for_model(task_model),
             "reference_image": ref_paths[i] if i < len(ref_paths) else None,
             "reference_role": reference_role,
             "composition_references": composition_references,
             "dry_run":    dry_run,
+            "cost_estimate": _cost_estimate_for_model(task_model),
         })
+
+    task_providers = sorted({t["provider"] for t in tasks if t.get("provider")})
+    if len(task_providers) == 1:
+        run_meta["provider"] = task_providers[0]
+    elif task_providers:
+        run_meta["providers"] = task_providers
+    task_models = sorted({t["model"] for t in tasks})
+    if len(task_models) > 1:
+        run_meta["models"] = task_models
+    run_meta["cost_estimate"] = {
+        "currency": "USD",
+        "amount": None,
+        "estimated": False,
+        "basis": "not_estimated",
+        "image_count": len(tasks),
+        "note": "Per-image provider pricing is not bundled; use provider billing exports for exact cost.",
+    }
 
     total = len(tasks)
     results: list[dict | None] = [None] * total
 
     def _run_one(task: dict) -> dict:
-        start = time.time()
+        started_at = _iso_now()
+        start = time.monotonic()
         error_msg = ""
         try:
             ok = generate_image(
@@ -140,12 +199,25 @@ def run_batch(
             print(f"  Error on '{task['name']}': {e}", file=sys.stderr)
             ok = False
             error_msg = str(e)
+        if not ok and not error_msg:
+            error_msg = "generation failed"
         # Verify the file actually landed on disk — the API can return success
         # without writing anything (e.g. Gemini returning no image parts).
         if not task["dry_run"] and ok and not Path(task["output_path"]).exists():
             ok = False
             error_msg = error_msg or "API returned success but file was not written"
-        return {**task, "ok": ok, "error": error_msg, "elapsed": time.time() - start}
+        finished_at = _iso_now()
+        duration_seconds = round(time.monotonic() - start, 3)
+        return {
+            **task,
+            "ok": ok,
+            "state": "succeeded" if ok else "failed",
+            "error": error_msg,
+            "elapsed": duration_seconds,
+            "started_at": started_at.isoformat(timespec="seconds"),
+            "finished_at": finished_at.isoformat(timespec="seconds"),
+            "duration_seconds": duration_seconds,
+        }
 
     mode_label = f"parallel, {workers} workers" if workers > 1 else "sequential"
     print(f"\nRunning {total} prompt{'s' if total != 1 else ''} ({mode_label})")
@@ -170,15 +242,47 @@ def run_batch(
     # Flatten (no Nones should remain, but be safe)
     final: list[dict] = [r for r in results if r is not None]
     success_count = sum(1 for r in final if r["ok"])
+    failure_count = total - success_count
+    run_finished = _iso_now()
+    if failure_count == 0:
+        run_state = "succeeded"
+    elif success_count == 0:
+        run_state = "failed"
+    else:
+        run_state = "partial"
+    run_meta.update({
+        "finished_at": run_finished.isoformat(timespec="seconds"),
+        "duration_seconds": round(time.monotonic() - run_start_monotonic, 3),
+        "state": run_state,
+    })
+    if failure_count:
+        noun = "image" if failure_count == 1 else "images"
+        run_meta["error"] = f"{failure_count} of {total} {noun} failed"
 
     # Save run.json manifest
     def _img_record(r: dict) -> dict:
+        reference_images = [
+            ref for ref in [r.get("reference_image"), *(r.get("composition_references") or [])] if ref
+        ]
         rec: dict = {
-            "name":   r["name"],
-            "prompt": r["prompt"],
-            "file":   Path(r["output_path"]).name,
-            "ok":     r["ok"],
+            "name":             r["name"],
+            "prompt":           r["prompt"],
+            "file":             Path(r["output_path"]).name,
+            "ok":               r["ok"],
+            "state":            r["state"],
+            "model":            r["model"],
+            "aspect_ratio":     r["aspect_ratio"],
+            "style":            r["style"] or "none",
+            "cost_estimate":    r["cost_estimate"],
+            "started_at":       r["started_at"],
+            "finished_at":      r["finished_at"],
+            "duration_seconds": r["duration_seconds"],
         }
+        if r.get("provider"):
+            rec["provider"] = r["provider"]
+        if reference_images:
+            rec["reference_images"] = reference_images
+            rec["reference_role"] = r["reference_role"]
         if r.get("error"):
             rec["error"] = r["error"]
         return rec

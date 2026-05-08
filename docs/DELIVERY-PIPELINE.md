@@ -124,5 +124,8 @@ Run the smallest meaningful set for the change:
 - MCP smoke: list tools and call `rafiki_status`
 - CLI dry run: `python generate.py --prompt "..." --dry-run --json`
 - docs check: search for stale local paths or broken links when touching docs
+- scheduled regen docs: `python generate.py regen --config config/scheduled-regen.json.example --dry-run`
 
 If a gate cannot run locally, the PR must say why and mark the missing proof.
+
+For local automation recipes, see [SCHEDULED-REGEN.md](SCHEDULED-REGEN.md).

@@ -84,7 +84,7 @@ function resolveChromeExecutablePath() {
 }
 
 async function runDoctor(c) {
-  const pythonBin = getPythonExecutable();
+  const pythonBin = process.env.RAFIKI_DOCTOR_PYTHON || getPythonExecutable();
   const pythonVersion = spawnSync(pythonBin, ['--version'], { encoding: 'utf8' });
   const pythonOk = pythonVersion.status === 0;
 
@@ -96,10 +96,12 @@ async function runDoctor(c) {
           [
             'import importlib, json',
             'checks = [',
+            '  ("dotenv", "python-dotenv"),',
             '  ("google.genai", "google-genai"),',
             '  ("openai", "openai"),',
             '  ("PIL", "pillow"),',
             '  ("yaml", "pyyaml"),',
+            '  ("tenacity", "tenacity"),',
             ']',
             'missing = []',
             'for module_name, package_name in checks:',
@@ -115,57 +117,199 @@ async function runDoctor(c) {
     : null;
 
   let missingPythonDeps = [];
+  let pythonDepsCheckError = null;
   if (pythonDeps && pythonDeps.status === 0) {
     try {
       const parsed = JSON.parse(pythonDeps.stdout || '{}');
       missingPythonDeps = parsed.missing || [];
     } catch (err) {
-      missingPythonDeps = ['unable-to-parse'];
+      pythonDepsCheckError = 'unable to parse dependency check output';
     }
+  } else if (pythonDeps) {
+    pythonDepsCheckError = (pythonDeps.stderr || pythonDeps.error?.message || 'dependency check failed').trim();
+  }
+
+  const mcpServerPath = path.join(__dirname, 'mcp_server.py');
+  const mcpCheck = pythonOk && fs.existsSync(mcpServerPath)
+    ? spawnSync(
+        pythonBin,
+        [
+          '-c',
+          [
+            'import importlib, json, py_compile, sys',
+            `server_path = ${JSON.stringify(mcpServerPath)}`,
+            'result = {"server_exists": True, "server_compiles": False, "sdk_imports": False, "error": ""}',
+            'try:',
+            '  py_compile.compile(server_path, doraise=True)',
+            '  result["server_compiles"] = True',
+            '  importlib.import_module("mcp.server.fastmcp")',
+            '  result["sdk_imports"] = True',
+            'except Exception as exc:',
+            '  result["error"] = str(exc)',
+            'print(json.dumps(result))',
+          ].join('\n'),
+        ],
+        { encoding: 'utf8' }
+      )
+    : null;
+
+  let mcpStatus = {
+    serverExists: fs.existsSync(mcpServerPath),
+    serverCompiles: false,
+    sdkImports: false,
+    error: '',
+  };
+  if (mcpCheck && mcpCheck.status === 0) {
+    try {
+      const parsed = JSON.parse(mcpCheck.stdout || '{}');
+      mcpStatus = {
+        serverExists: Boolean(parsed.server_exists),
+        serverCompiles: Boolean(parsed.server_compiles),
+        sdkImports: Boolean(parsed.sdk_imports),
+        error: parsed.error || '',
+      };
+    } catch (err) {
+      mcpStatus.error = 'unable to parse MCP check output';
+    }
+  } else if (mcpCheck) {
+    mcpStatus.error = (mcpCheck.stderr || mcpCheck.error?.message || 'MCP check failed').trim();
+  }
+
+  let browserStatus = {
+    level: 'ok',
+    detail: '',
+    actions: [],
+  };
+  let puppeteer;
+  try {
+    puppeteer = require('puppeteer');
+    require('sharp');
+    const chromeExecutablePath = resolveChromeExecutablePath();
+    if (chromeExecutablePath) {
+      browserStatus.detail = `puppeteer and sharp installed; Chrome/Chromium at ${chromeExecutablePath}`;
+    } else {
+      const bundledPath = puppeteer.executablePath();
+      if (bundledPath && fs.existsSync(bundledPath)) {
+        browserStatus.detail = `puppeteer and sharp installed; Puppeteer browser at ${bundledPath}`;
+      } else {
+        browserStatus = {
+          level: 'warn',
+          detail: 'puppeteer and sharp installed, but no Chrome/Chromium executable was found',
+          actions: [
+            'Install Chrome/Chromium, set `PUPPETEER_EXECUTABLE_PATH`, or run `npx puppeteer browsers install chrome`.',
+          ],
+        };
+      }
+    }
+  } catch (err) {
+    browserStatus = {
+      level: 'warn',
+      detail: `browser rendering dependencies are unavailable: ${err.message}`,
+      actions: ['Run `npm install` before using `rafiki --render` or `--render-dir`.'],
+    };
   }
 
   const hasGoogleKey = Boolean(process.env.GOOGLE_API_KEY);
   const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
-  const chromeExecutablePath = resolveChromeExecutablePath();
   const envFilePath = path.join(__dirname, '.env');
   const envFileExists = fs.existsSync(envFilePath);
-  const criticalIssues = !pythonOk || missingPythonDeps.length > 0 || (!hasGoogleKey && !hasOpenAIKey);
+  const diagnostics = [];
 
-  const statusLine = (ok, label, detail) => {
-    const badge = ok ? c.green('[ok]') : c.red('[missing]');
+  const addDiagnostic = (level, label, detail, actions = []) => {
+    diagnostics.push({ level, label, detail, actions });
+  };
+
+  const providerDetails = [
+    `GOOGLE_API_KEY ${hasGoogleKey ? 'set' : 'not set'}`,
+    `OPENAI_API_KEY ${hasOpenAIKey ? 'set' : 'not set'}`,
+  ].join('; ');
+
+  addDiagnostic('ok', 'Node.js', process.version);
+  addDiagnostic(
+    pythonOk ? 'ok' : 'fail',
+    'Python',
+    pythonOk ? (pythonVersion.stdout || pythonVersion.stderr).trim() : pythonVersion.error?.message || 'not available',
+    pythonOk ? [] : ['Install Python 3 and ensure `python3` is on PATH, or create `.venv` in the repo root.']
+  );
+  if (pythonOk) {
+    addDiagnostic(
+      missingPythonDeps.length === 0 && !pythonDepsCheckError ? 'ok' : 'fail',
+      'Python deps',
+      pythonDepsCheckError || (missingPythonDeps.length === 0 ? 'core requirements installed' : `missing ${missingPythonDeps.join(', ')}`),
+      missingPythonDeps.length > 0 || pythonDepsCheckError
+        ? ['Install Python dependencies: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`.']
+        : []
+    );
+  }
+  addDiagnostic(
+    envFileExists ? 'ok' : 'warn',
+    '.env file',
+    envFileExists ? envFilePath : 'optional; shell environment will be used',
+    envFileExists ? [] : ['Create `.env` from `.env.example` if you want local provider keys loaded automatically.']
+  );
+  addDiagnostic(
+    hasGoogleKey || hasOpenAIKey ? 'ok' : 'warn',
+    'Provider keys',
+    providerDetails,
+    hasGoogleKey || hasOpenAIKey
+      ? []
+      : ['Add `GOOGLE_API_KEY` for Gemini or `OPENAI_API_KEY` for OpenAI image generation.']
+  );
+  addDiagnostic(
+    mcpStatus.serverExists && mcpStatus.serverCompiles && mcpStatus.sdkImports ? 'ok' : 'warn',
+    'MCP availability',
+    mcpStatus.serverExists && mcpStatus.serverCompiles && mcpStatus.sdkImports
+      ? 'mcp_server.py compiles and FastMCP imports'
+      : mcpStatus.error || (mcpStatus.serverExists ? 'mcp_server.py is present but MCP is not ready' : 'mcp_server.py is missing'),
+    mcpStatus.serverExists && mcpStatus.serverCompiles && mcpStatus.sdkImports
+      ? []
+      : ['Install Python dependencies from `requirements.txt`, then re-run `rafiki doctor`.']
+  );
+  addDiagnostic(
+    browserStatus.level,
+    'Browser rendering',
+    browserStatus.detail,
+    browserStatus.actions
+  );
+
+  const statusLine = (level, label, detail) => {
+    const badges = {
+      ok: c.green('[ok]'),
+      warn: c.yellow('[warn]'),
+      fail: c.red('[fail]'),
+    };
+    const badge = badges[level] || badges.warn;
     console.log(`${badge} ${label}: ${detail}`);
   };
 
   console.log(c.cyan('Rafiki doctor'));
   console.log(c.gray(`  repo: ${__dirname}`));
+  console.log(c.gray(`  python: ${pythonBin}`));
 
-  statusLine(true, 'Node.js', process.version);
-  statusLine(pythonOk, 'Python', pythonOk ? (pythonVersion.stdout || pythonVersion.stderr).trim() : pythonVersion.error?.message || 'not available');
-  statusLine(
-    missingPythonDeps.length === 0,
-    'Python deps',
-    missingPythonDeps.length === 0 ? 'requirements installed' : `missing ${missingPythonDeps.join(', ')}`
-  );
-  statusLine(envFileExists, '.env file', envFileExists ? envFilePath : 'optional but not present');
-  statusLine(hasGoogleKey, 'GOOGLE_API_KEY', hasGoogleKey ? 'set' : 'not set');
-  statusLine(hasOpenAIKey, 'OPENAI_API_KEY', hasOpenAIKey ? 'set' : 'not set');
-  statusLine(Boolean(chromeExecutablePath), 'Chrome/Chromium', chromeExecutablePath || 'will rely on Puppeteer defaults');
+  for (const diagnostic of diagnostics) {
+    statusLine(diagnostic.level, diagnostic.label, diagnostic.detail);
+  }
 
-  if (criticalIssues) {
+  const criticalIssues = diagnostics.filter(diagnostic => diagnostic.level === 'fail');
+  const warnings = diagnostics.filter(diagnostic => diagnostic.level === 'warn');
+  const actions = diagnostics.flatMap(diagnostic => diagnostic.actions);
+  if (actions.length > 0) {
+    const heading = criticalIssues.length > 0 ? 'Required next steps:' : 'Suggested next steps:';
     console.log('');
-    console.log(c.yellow('Suggested next steps:'));
-    if (!pythonOk) {
-      console.log('  - Install Python 3 and ensure `python3` is on your PATH, or create `.venv` in the repo root.');
-    }
-    if (missingPythonDeps.length > 0) {
-      console.log('  - Install Python dependencies: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`');
-    }
-    if (!hasGoogleKey && !hasOpenAIKey) {
-      console.log('  - Add at least one provider key in `.env` or your shell environment.');
+    console.log(c.yellow(heading));
+    for (const action of actions) {
+      console.log(`  - ${action}`);
     }
   }
 
-  process.exit(criticalIssues ? 1 : 0);
+  console.log('');
+  if (criticalIssues.length > 0) {
+    console.log(c.red(`Doctor found ${criticalIssues.length} critical issue(s) and ${warnings.length} warning(s).`));
+  } else {
+    console.log(c.green(`Doctor found 0 critical issue(s) and ${warnings.length} warning(s).`));
+  }
+
+  process.exit(criticalIssues.length > 0 ? 1 : 0);
 }
 
 const program = new Command();
@@ -227,7 +371,11 @@ program
     // AI Generation mode - delegate to Python
     const args = buildPythonArgs(promptsFile, options);
 
-    console.log(c.cyan('Rafiki — running image generator...'));
+    if (options.json) {
+      console.error(c.cyan('Rafiki — running image generator...'));
+    } else {
+      console.log(c.cyan('Rafiki — running image generator...'));
+    }
 
     const pythonScript = path.join(__dirname, 'generate.py');
     const pythonBin = getPythonExecutable();
