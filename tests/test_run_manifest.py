@@ -105,6 +105,50 @@ def test_run_manifest_records_item_failure_state_and_error(tmp_path, monkeypatch
     assert "error" not in data["images"][1]
 
 
+def test_run_manifest_verifies_success_wrote_file(tmp_path, monkeypatch):
+    def fake_generate_image(**kwargs):
+        return True
+
+    monkeypatch.setattr(batch_module, "generate_image", fake_generate_image)
+
+    result = batch_module.run_batch(
+        prompts=[{"name": "Missing File", "prompt": "no output"}],
+        project_dir=tmp_path / "images",
+        model="gemini-2.5-flash-image",
+        dry_run=False,
+        generate_viewer_html=False,
+    )
+
+    data = _manifest(result.run_dir)
+
+    assert result.success_count == 0
+    assert data["state"] == "failed"
+    assert data["images"][0]["ok"] is False
+    assert data["images"][0]["state"] == "failed"
+    assert data["images"][0]["error"] == "API returned success but file was not written"
+
+
+def test_run_manifest_records_exception_detail(tmp_path, monkeypatch):
+    def fake_generate_image(**kwargs):
+        raise RuntimeError("quota exhausted")
+
+    monkeypatch.setattr(batch_module, "generate_image", fake_generate_image)
+
+    result = batch_module.run_batch(
+        prompts=[{"name": "Quota", "prompt": "too much"}],
+        project_dir=tmp_path / "images",
+        model="gemini-2.5-flash-image",
+        dry_run=False,
+        generate_viewer_html=False,
+    )
+
+    data = _manifest(result.run_dir)
+
+    assert result.success is False
+    assert data["images"][0]["ok"] is False
+    assert data["images"][0]["error"] == "quota exhausted"
+
+
 def test_run_manifest_uses_provider_list_for_mixed_provider_runs(tmp_path):
     result = batch_module.run_batch(
         prompts=[
