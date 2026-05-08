@@ -32,6 +32,7 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       AGENTIC_PROVIDER: ${{ github.event.inputs.provider || vars.AGENTIC_PROVIDER || 'noop' }}
       AGENTIC_PROVIDER_COMMAND: ${{ secrets.AGENTIC_PROVIDER_COMMAND }}
+      LOOP_PAUSED: ${{ vars.LOOP_PAUSED || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:

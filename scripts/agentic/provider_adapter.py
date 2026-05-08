@@ -55,6 +55,8 @@ def run_command(issue_file: Path, root: Path, contract: dict[str, Any]) -> dict[
         },
     )
     stats = changed_stats(root)
+    stdout_bytes = len(result.stdout.encode("utf-8"))
+    stderr_bytes = len(result.stderr.encode("utf-8"))
     return {
         "ok": result.returncode == 0,
         "provider": "command",
@@ -63,12 +65,11 @@ def run_command(issue_file: Path, root: Path, contract: dict[str, Any]) -> dict[
         if result.returncode == 0
         else "Command provider failed.",
         "returncode": result.returncode,
-        "stdout": result.stdout[-4000:],
-        "stderr": result.stderr[-4000:],
+        "output_redacted": True,
+        "stdout_bytes": stdout_bytes,
+        "stderr_bytes": stderr_bytes,
         "stats": stats,
-        "verification_log": "\n".join(
-            part for part in [result.stdout, result.stderr] if part
-        ).strip(),
+        "verification_log": "Command provider output is redacted from JSON results.",
     }
 
 

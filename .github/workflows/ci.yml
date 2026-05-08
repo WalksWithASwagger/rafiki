@@ -36,10 +36,13 @@ jobs:
           python -m pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Run tests
-        run: python -m pytest -q
+        run: npm test
 
       - name: Check documentation links
         run: npm run docs:check
 
       - name: Check npm package contents
-        run: npm pack --dry-run
+        run: npm run pack:check
+
+      - name: Run doctor
+        run: npm run doctor
