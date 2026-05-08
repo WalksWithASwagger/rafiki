@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -47,6 +48,28 @@ def _data_without_social() -> Dict[str, Any]:
     return data
 
 
+def _data_with_social_posts_json(tmp_path: Path) -> Dict[str, Any]:
+    run_dir = tmp_path / "run-20260101-000000"
+    run_dir.mkdir()
+    (run_dir / "social-posts.json").write_text(
+        json.dumps({
+            "01-foo": {
+                "title": "Foo Title",
+                "caption": "Foo caption.",
+                "platforms": {
+                    "linkedin": "LinkedIn copy",
+                    "x": "X copy",
+                    "instagram": "Instagram copy",
+                },
+            }
+        }),
+        encoding="utf-8",
+    )
+    data = _data_without_social()
+    data["image_dirs"] = {"1": str(run_dir), "2": str(tmp_path / "missing")}
+    return data
+
+
 def test_social_posts_md_emitted(tmp_path):
     data = _data_with_social()
     md = gpv.build_social_posts_md(data, tmp_path)
@@ -79,3 +102,28 @@ def test_export_button_absent_when_no_social_items(tmp_path):
     assert 'id="export-social"' not in html
     assert "Export social posts" not in html
     assert "URL.createObjectURL" not in html
+
+
+def test_viewer_loads_platform_social_posts_json(tmp_path):
+    html = gpv.build_viewer(_data_with_social_posts_json(tmp_path), tmp_path)
+
+    assert '"socialPlatforms": {' in html
+    assert '"linkedin": "LinkedIn copy"' in html
+    assert '"x": "X copy"' in html
+    assert '"instagram": "Instagram copy"' in html
+    assert 'id="lb-social-tabs"' in html
+    assert "function socialEntries(item)" in html
+    assert "renderSocialTabs(entries, 0)" in html
+    assert 'id="export-social"' in html
+
+
+def test_social_posts_md_includes_platform_variants_from_json(tmp_path):
+    md = gpv.build_social_posts_md(_data_with_social_posts_json(tmp_path), tmp_path)
+
+    assert md is not None
+    assert "**LinkedIn:**" in md
+    assert "LinkedIn copy" in md
+    assert "**X:**" in md
+    assert "X copy" in md
+    assert "**Instagram:**" in md
+    assert "Instagram copy" in md

@@ -26,6 +26,12 @@ from typing import Any, Dict, List, Optional
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 SIZE_WARN_THRESHOLD = 50 * 1024 * 1024  # 50 MB
+SOCIAL_PLATFORM_LABELS = {
+    "linkedin": "LinkedIn",
+    "x": "X",
+    "instagram": "Instagram",
+}
+SOCIAL_PLATFORM_ORDER = list(SOCIAL_PLATFORM_LABELS)
 
 
 def _slugify(text: str) -> str:
@@ -33,7 +39,13 @@ def _slugify(text: str) -> str:
 
 
 def _has_social_items(data: Dict[str, Any]) -> bool:
-    return any(item.get("social") is not None for item in data["items"])
+    social_by_category = _social_posts_by_category(data)
+    return any(
+        item.get("social") is not None
+        or item.get("socialPlatforms")
+        or _social_platforms_for_item(item, social_by_category.get(item["category"], {}))
+        for item in data["items"]
+    )
 
 
 def _load_data(data_path: Path) -> Dict[str, Any]:
@@ -53,6 +65,63 @@ def _resolve_image_dir(image_dir: str) -> Path:
     if p.is_absolute():
         return p
     return SCRIPT_DIR / p
+
+
+def _load_social_posts(run_dir: Path) -> Dict[str, Any]:
+    path = run_dir / "social-posts.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data if isinstance(data, dict) else {}
+
+
+def _social_posts_by_category(data: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+    image_dirs = {int(k): v for k, v in data["image_dirs"].items()}
+    return {
+        cat_id: _load_social_posts(_resolve_image_dir(image_dir))
+        for cat_id, image_dir in image_dirs.items()
+    }
+
+
+def _normalize_social_platforms(value: Any) -> Dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    normalized: Dict[str, str] = {}
+    for key, text in value.items():
+        if not isinstance(key, str) or not isinstance(text, str) or not text.strip():
+            continue
+        normalized[key.lower()] = text
+    return normalized
+
+
+def _social_platforms_for_item(item: Dict[str, Any], run_social_posts: Dict[str, Any]) -> Dict[str, str]:
+    inline = (
+        item.get("socialPlatforms")
+        or item.get("social_platforms")
+        or item.get("platforms")
+    )
+    platforms = _normalize_social_platforms(inline)
+    if platforms:
+        return platforms
+
+    run_entry = run_social_posts.get(item["slug"], {})
+    if isinstance(run_entry, dict):
+        return _normalize_social_platforms(run_entry.get("platforms"))
+    return {}
+
+
+def _social_entries(item: Dict[str, Any]) -> List[Dict[str, str]]:
+    entries: List[Dict[str, str]] = []
+    if item.get("social"):
+        entries.append({"key": "original", "label": "Original", "text": item["social"]})
+
+    platforms = _normalize_social_platforms(item.get("socialPlatforms"))
+    for key in SOCIAL_PLATFORM_ORDER:
+        if key in platforms:
+            entries.append({"key": key, "label": SOCIAL_PLATFORM_LABELS[key], "text": platforms[key]})
+    for key in sorted(k for k in platforms if k not in SOCIAL_PLATFORM_LABELS):
+        entries.append({"key": key, "label": key.replace("-", " ").title(), "text": platforms[key]})
+    return entries
 
 
 def _encode_image_data_uri(image_path: Path, max_width: Optional[int]) -> str:
@@ -92,6 +161,7 @@ def _build_items_js(
     """
     categories = {c["id"]: c for c in data["categories"]}
     image_dirs = {int(k): v for k, v in data["image_dirs"].items()}
+    social_by_category = _social_posts_by_category(data)
 
     enriched: List[Dict[str, Any]] = []
     embedded_bytes = 0
@@ -113,6 +183,7 @@ def _build_items_js(
                 "title": item["title"],
                 "caption": item["caption"],
                 "social": item.get("social"),
+                "socialPlatforms": _social_platforms_for_item(item, social_by_category.get(cat_id, {})),
                 "square": bool(item.get("square", False)),
                 "src": src,
             }
@@ -132,21 +203,33 @@ def build_social_posts_md(data: Dict[str, Any], output_dir: Path) -> Optional[st
 
     categories = {c["id"]: c for c in data["categories"]}
     image_dirs = {int(k): v for k, v in data["image_dirs"].items()}
+    social_by_category = _social_posts_by_category(data)
 
     sections: List[str] = []
     for item in data["items"]:
-        if item.get("social") is None:
+        item_with_platforms = {
+            **item,
+            "socialPlatforms": _social_platforms_for_item(
+                item,
+                social_by_category.get(item["category"], {}),
+            ),
+        }
+        entries = _social_entries(item_with_platforms)
+        if not entries:
             continue
         cat = categories[item["category"]]
         run_dir = _resolve_image_dir(image_dirs[item["category"]])
         image_path = run_dir / f"{item['slug']}.png"
         rel_src = os.path.relpath(os.path.abspath(image_path), os.path.abspath(output_dir))
+        social_blocks = "\n\n".join(
+            f"**{entry['label']}:**\n\n```\n{entry['text']}\n```"
+            for entry in entries
+        )
         section = (
             f"## {cat['short']} · {item['title']}\n\n"
             f"![{item['title']}]({rel_src})\n\n"
             f"**Caption:** {item['caption']}\n\n"
-            f"**Social post:**\n\n"
-            f"```\n{item['social']}\n```\n\n"
+            f"{social_blocks}\n\n"
             f"---\n"
         )
         sections.append(section)
@@ -199,9 +282,12 @@ def _build_viewer_with_size(
     export_script = (
         f"""
 document.getElementById("export-social").addEventListener("click", () => {{
-  const flagged = ITEMS.filter(item => item.social);
+  const flagged = ITEMS.map(item => [item, socialEntries(item)]).filter(([, entries]) => entries.length);
   if (!flagged.length) return;
-  const body = flagged.map(item => `=== ${{item.categoryShort}} · ${{item.title}} ===\\n${{item.social}}\\n`).join("\\n");
+  const body = flagged.map(([item, entries]) => {{
+    const copy = entries.map(entry => `--- ${{entry.label}} ---\\n${{entry.text}}`).join("\\n\\n");
+    return `=== ${{item.categoryShort}} · ${{item.title}} ===\\n${{copy}}\\n`;
+  }}).join("\\n");
   const blob = new Blob([body], {{ type: "text/plain;charset=utf-8" }});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -291,6 +377,9 @@ document.getElementById("export-social").addEventListener("click", () => {{
   .lb-caption {{ font-size: 0.9rem; color: var(--muted); line-height: 1.6; }}
   .lb-social {{ background: #1a1005; border: 1px solid #8a5a10; border-radius: 8px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }}
   .lb-social-label {{ font-size: 0.75rem; font-weight: 700; letter-spacing: .06em; color: #e8a820; text-transform: uppercase; }}
+  .lb-social-tabs {{ display: flex; flex-wrap: wrap; gap: 6px; }}
+  .lb-social-tab {{ background: transparent; border: 1px solid #5e4214; border-radius: 20px; color: #caa765; cursor: pointer; font-size: 0.72rem; font-weight: 700; padding: 5px 10px; }}
+  .lb-social-tab.active {{ background: #e8a820; border-color: #e8a820; color: #1a1005; }}
   .lb-social-text {{ font-size: 0.85rem; color: #d4c090; line-height: 1.6; white-space: pre-wrap; }}
   .lb-download {{ display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }}
   .btn {{ display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 20px; font-size: 0.82rem; font-weight: 600; cursor: pointer; border: none; transition: all .15s; text-decoration: none; }}
@@ -356,6 +445,7 @@ document.getElementById("export-social").addEventListener("click", () => {{
       <div class="lb-caption" id="lb-caption"></div>
       <div class="lb-social" id="lb-social-box" style="display:none">
         <div class="lb-social-label">📣 Ready-to-post copy</div>
+        <div class="lb-social-tabs" id="lb-social-tabs"></div>
         <div class="lb-social-text" id="lb-social-text"></div>
       </div>
       <div class="lb-download">
@@ -399,7 +489,7 @@ function render() {{
       <div class="card-body">
         <div class="card-meta">
           <span class="week-badge">${{item.categoryShort}} · ${{item.categoryLabel.replace(/^[^—]+—\\s*/, "")}}</span>
-          ${{item.social ? '<span class="social-badge">📣 Social</span>' : ""}}
+          ${{socialEntries(item).length ? '<span class="social-badge">📣 Social</span>' : ""}}
         </div>
         <div class="card-title">${{item.title}}</div>
         <div class="card-caption">${{item.caption}}</div>
@@ -419,15 +509,16 @@ function openLightbox(i) {{
   document.getElementById("lb-dl").href = item.src;
   document.getElementById("lb-dl").download = item.src.split("/").pop();
 
+  const entries = socialEntries(item);
   const socialBadge = document.getElementById("lb-social-badge");
   const socialBox = document.getElementById("lb-social-box");
   const copyBtn = document.getElementById("lb-copy-social");
   const confirmEl = document.getElementById("copy-confirm");
 
-  if (item.social) {{
+  if (entries.length) {{
     socialBadge.style.display = "";
     socialBox.style.display = "";
-    document.getElementById("lb-social-text").textContent = item.social;
+    renderSocialTabs(entries, 0);
     copyBtn.style.display = "";
   }} else {{
     socialBadge.style.display = "none";
@@ -445,6 +536,42 @@ function closeLightbox() {{
   document.body.style.overflow = "";
 }}
 
+function socialEntries(item) {{
+  const entries = [];
+  if (item.social) entries.push({{ key: "original", label: "Original", text: item.social }});
+  const platforms = item.socialPlatforms || {{}};
+  const labels = {{ linkedin: "LinkedIn", x: "X", instagram: "Instagram" }};
+  ["linkedin", "x", "instagram"].forEach(key => {{
+    if (platforms[key]) entries.push({{ key, label: labels[key], text: platforms[key] }});
+  }});
+  Object.keys(platforms).sort().forEach(key => {{
+    if (!labels[key] && platforms[key]) {{
+      entries.push({{
+        key,
+        label: key.replace(/[-_]+/g, " ").replace(/\\b\\w/g, c => c.toUpperCase()),
+        text: platforms[key],
+      }});
+    }}
+  }});
+  return entries;
+}}
+
+function renderSocialTabs(entries, active) {{
+  const tabs = document.getElementById("lb-social-tabs");
+  const text = document.getElementById("lb-social-text");
+  if (!tabs || !text) return;
+  tabs.innerHTML = "";
+  entries.forEach((entry, i) => {{
+    const tab = document.createElement("button");
+    tab.className = "lb-social-tab" + (i === active ? " active" : "");
+    tab.type = "button";
+    tab.textContent = entry.label;
+    tab.addEventListener("click", () => renderSocialTabs(entries, i));
+    tabs.appendChild(tab);
+  }});
+  text.textContent = entries[active]?.text || "";
+}}
+
 document.getElementById("lb-close").addEventListener("click", closeLightbox);
 document.getElementById("lightbox").addEventListener("click", e => {{ if (e.target === document.getElementById("lightbox")) closeLightbox(); }});
 
@@ -459,8 +586,9 @@ document.getElementById("lb-next").addEventListener("click", e => {{
 
 document.getElementById("lb-copy-social").addEventListener("click", () => {{
   const item = visibleItems[activeIndex];
-  if (!item.social) return;
-  navigator.clipboard.writeText(item.social).then(() => {{
+  const text = document.getElementById("lb-social-text").textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {{
     const el = document.getElementById("copy-confirm");
     el.classList.add("show");
     setTimeout(() => el.classList.remove("show"), 2000);

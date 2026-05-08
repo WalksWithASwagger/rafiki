@@ -8,10 +8,12 @@ series of generated images. It produces a static `viewer.html` with:
 - live search across titles and captions
 - responsive card grid with optional square-aspect override
 - lightbox with prev/next navigation, keyboard shortcuts, download link
-- ready-to-post social copy with one-click clipboard copy
+- ready-to-post social copy with one-click clipboard copy, including
+  platform tabs for LinkedIn, X, and Instagram when `social-posts.json`
+  is present beside a run
 - "Export social posts" button (controls bar) that downloads all flagged
   posts as a single `.txt` — appears only when at least one item has a
-  non-null `social` field
+  non-null `social` field or platform variants
 - companion `social-posts.md` written next to `viewer.html` with one
   section per flagged item — written only when the data has social items
 
@@ -113,6 +115,11 @@ output directory — see `generate-rap-viewer.py` for the pattern.
       "title": "Card title",
       "caption": "One-line description shown on the card and lightbox.",
       "social": null,                      // or a string with the post text
+      "socialPlatforms": {                 // optional; normally loaded from social-posts.json
+        "linkedin": "LinkedIn-ready copy",
+        "x": "X-ready copy",
+        "instagram": "Instagram-ready copy"
+      },
       "square": false                      // optional; render this card 1:1 instead of 16:9
     }
   ]
@@ -127,6 +134,15 @@ in the JSON are resolved relative to the repo root (where
 resulting `src` in the generated HTML is computed with `os.path.relpath`
 against the output directory, so `--output` can point anywhere — to `/tmp`,
 to a sibling project, etc.
+
+### Platform social tabs
+
+When an image directory contains `social-posts.json` from
+`python generate.py social-expand <project>`, the presentation viewer loads
+the matching entry by item `slug` and embeds its `platforms` map into the
+viewer. The lightbox then shows tabs for LinkedIn, X, and Instagram. If the
+item also has the legacy `social` string, that copy remains available as an
+`Original` tab, so existing viewer data and exports keep working.
 
 ## Adding a new content series
 
