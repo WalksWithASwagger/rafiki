@@ -371,7 +371,11 @@ program
     // AI Generation mode - delegate to Python
     const args = buildPythonArgs(promptsFile, options);
 
-    console.log(c.cyan('Rafiki — running image generator...'));
+    if (options.json) {
+      console.error(c.cyan('Rafiki — running image generator...'));
+    } else {
+      console.log(c.cyan('Rafiki — running image generator...'));
+    }
 
     const pythonScript = path.join(__dirname, 'generate.py');
     const pythonBin = getPythonExecutable();
