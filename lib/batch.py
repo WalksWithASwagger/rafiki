@@ -24,6 +24,19 @@ def _provider_for_model(model: str) -> str | None:
     return None
 
 
+def _cost_estimate_for_model(model: str) -> dict:
+    provider = _provider_for_model(model)
+    return {
+        "currency": "USD",
+        "amount": None,
+        "estimated": False,
+        "basis": "not_estimated",
+        "provider": provider,
+        "model": model,
+        "note": "Rafiki does not bundle provider pricing; use provider billing exports for exact cost.",
+    }
+
+
 def _iso_now() -> datetime:
     return datetime.now().astimezone()
 
@@ -58,6 +71,7 @@ def run_batch(
     workers: int = 1,
     generate_viewer_html: bool = True,
     prompt_file: str = "",
+    invocation_source: str = "python-cli",
 ) -> BatchResult:
     """Generate a batch of images with run isolation and an HTML viewer.
 
@@ -99,7 +113,6 @@ def run_batch(
     if ref_paths is None:
         ref_paths = [None] * len(prompts)
 
-    run_provider = _provider_for_model(model)
     run_reference_images = [
         ref for ref in [*(ref_paths or []), *(composition_references or [])] if ref
     ]
@@ -109,12 +122,11 @@ def run_batch(
         "style": style or "none",
         "prompt_file": prompt_file,
         "prompt_source": prompt_file or "inline",
+        "invocation": {"surface": invocation_source},
         "timestamp": run_started.strftime("%Y-%m-%d %H:%M"),
         "started_at": run_started.isoformat(timespec="seconds"),
         "run_id": run_ts,
     }
-    if run_provider:
-        run_meta["provider"] = run_provider
     if run_reference_images:
         run_meta["reference_images"] = run_reference_images
         run_meta["reference_role"] = reference_role
@@ -142,7 +154,25 @@ def run_batch(
             "reference_role": reference_role,
             "composition_references": composition_references,
             "dry_run":    dry_run,
+            "cost_estimate": _cost_estimate_for_model(task_model),
         })
+
+    task_providers = sorted({t["provider"] for t in tasks if t.get("provider")})
+    if len(task_providers) == 1:
+        run_meta["provider"] = task_providers[0]
+    elif task_providers:
+        run_meta["providers"] = task_providers
+    task_models = sorted({t["model"] for t in tasks})
+    if len(task_models) > 1:
+        run_meta["models"] = task_models
+    run_meta["cost_estimate"] = {
+        "currency": "USD",
+        "amount": None,
+        "estimated": False,
+        "basis": "not_estimated",
+        "image_count": len(tasks),
+        "note": "Per-image provider pricing is not bundled; use provider billing exports for exact cost.",
+    }
 
     total = len(tasks)
     results: list[dict | None] = [None] * total
@@ -243,6 +273,7 @@ def run_batch(
             "model":            r["model"],
             "aspect_ratio":     r["aspect_ratio"],
             "style":            r["style"] or "none",
+            "cost_estimate":    r["cost_estimate"],
             "started_at":       r["started_at"],
             "finished_at":      r["finished_at"],
             "duration_seconds": r["duration_seconds"],

@@ -591,6 +591,7 @@ def rafiki_batch(
         dry_run=dry_run,
         generate_viewer_html=not no_viewer,
         prompt_file=str(prompt_path),
+        invocation_source="mcp",
     )
 
     return json.dumps({
