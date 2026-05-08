@@ -1,6 +1,6 @@
 [
   {
-    "_comment": "Each entry is a regen job. Required: name, prompt_file, output_dir, interval_days. Optional: model, style, notify, workers.",
+    "_comment": "Each entry is a regen job. Keep tracked examples repo-relative. Put private absolute paths only in gitignored config/scheduled-regen.json.",
     "name": "upgrade-newsletter-heroes",
     "prompt_file": "prompts/upgrade/newsletter-heroes.md",
     "output_dir": "output/upgrade-newsletter",
