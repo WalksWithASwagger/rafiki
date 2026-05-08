@@ -7,6 +7,7 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+from lib import registry
 from lib.extra_outputs import load_extra_outputs
 from lib.styles import get_default_style, load_styles
 from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
@@ -43,30 +44,77 @@ def _scan_root(root: Path, project_name: str, virtual_prefix: str) -> list[dict]
     return records
 
 
+def _entry_file_src(entry: registry.AssetEntry, output_root: Path) -> str:
+    path = Path(entry.path)
+    resolved = path if path.is_absolute() else registry.REPO_ROOT / path
+
+    try:
+        return resolved.resolve().relative_to(output_root.resolve()).as_posix()
+    except ValueError:
+        pass
+
+    if not path.is_absolute() and path.parts and path.parts[0] == output_root.name:
+        return Path(*path.parts[1:]).as_posix()
+
+    if entry.source == "approved":
+        return f"{entry.project}/approved/{path.name}"
+    if entry.source_run:
+        return f"{entry.project}/{entry.source_run}/{path.name}"
+    return path.as_posix()
+
+
+def _records_from_registry(output_root: Path) -> list[dict]:
+    records: list[dict] = []
+    for entry in registry.collect(output_root):
+        file_src = _entry_file_src(entry, output_root)
+        title = entry.title or entry.caption or Path(entry.path).stem
+        source_prompt = entry.source_prompt or entry.caption
+        records.append({
+            "project": entry.project,
+            "run_id": entry.source_run,
+            "model": entry.model or "unknown",
+            "timestamp": entry.indexed_at,
+            "aspect_ratio": entry.aspect_ratio or "16:9",
+            "style": entry.style,
+            "name": title,
+            "title": title,
+            "caption": entry.caption,
+            "tags": entry.tags,
+            "approval_status": entry.approval_status,
+            "source_prompt": source_prompt,
+            "prompt": source_prompt,
+            "file": file_src,
+            "ok": Path(entry.path).exists() if Path(entry.path).is_absolute() else (registry.REPO_ROOT / entry.path).exists(),
+        })
+    return records
+
+
 def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Path:
     """Scan output_root + any extra-outputs and build output_root/library.html."""
     output_root = Path(output_root)
     extra_roots = load_extra_outputs()
 
-    # Scan extra_roots first (canonical sources); track virtual paths to
-    # deduplicate — output/ may have symlinks or copies of the same run.
-    seen: set[str] = set()
-    records: list[dict] = []
+    records = _records_from_registry(output_root)
 
-    for project_name, extra_root in extra_roots.items():
-        if not extra_root.exists():
-            continue
-        for rec in _scan_root(extra_root, project_name, project_name):
-            seen.add(rec["file"])
-            records.append(rec)
+    if not records:
+        # Legacy fallback for malformed or output-only projects that cannot be
+        # represented by the registry metadata loader.
+        seen: set[str] = set()
 
-    for proj_dir in sorted(output_root.iterdir()):
-        if not proj_dir.is_dir():
-            continue
-        for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
-            if rec["file"] not in seen:
+        for project_name, extra_root in extra_roots.items():
+            if not extra_root.exists():
+                continue
+            for rec in _scan_root(extra_root, project_name, project_name):
                 seen.add(rec["file"])
                 records.append(rec)
+
+        for proj_dir in sorted(output_root.iterdir()):
+            if not proj_dir.is_dir():
+                continue
+            for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
+                if rec["file"] not in seen:
+                    seen.add(rec["file"])
+                    records.append(rec)
 
     records.sort(key=lambda r: r["timestamp"], reverse=True)
 
@@ -532,7 +580,7 @@ LIBRARY.forEach((item, i) => {{
   card.dataset.style = item.style || '';
   card.dataset.ts = item.timestamp || '';
   card.dataset.name = item.name || '';
-  card.dataset.search = ((item.name || '') + ' ' + (item.prompt || '') + ' ' + (item.project || '')).toLowerCase();
+  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '')).toLowerCase();
   card.onclick = () => lbOpen(i);
   card.innerHTML = `
     <div class="img-wrap" style="aspect-ratio:${{arCss}}">
@@ -541,15 +589,39 @@ LIBRARY.forEach((item, i) => {{
         ? '<img src="' + item.file + '" alt="" loading="lazy">'
         : '<div class="missing-img">not generated</div>'}}
     </div>
+    <div class="card-meta-row">
+      <span class="approval-badge"></span>
+      <span class="model-badge"></span>
+    </div>
+    <div class="card-title"></div>
     <div class="card-prompt"></div>
+    <div class="tag-row"></div>
     <div class="card-foot">
-      <span class="card-name">${{item.name}}</span>
+      <span class="card-name"></span>
       <span class="proj-badge">${{item.project.replace(/-/g, ' ')}}</span>
       <button class="btn-rate star"   onclick="rateCard(event,'${{item.file}}','star',  this.closest('.card'))">&#9733;</button>
       <button class="btn-rate reject" onclick="rateCard(event,'${{item.file}}','reject',this.closest('.card'))">&#x2715;</button>
     </div>
   `;
-  card.querySelector('.card-prompt').textContent = item.prompt || '';
+  card.querySelector('.card-title').textContent = item.title || item.name || '';
+  card.querySelector('.card-prompt').textContent = item.caption || item.source_prompt || item.prompt || '';
+  card.querySelector('.card-name').textContent = item.name || '';
+  const approval = card.querySelector('.approval-badge');
+  if (approval) {{
+    approval.textContent = item.approval_status || 'run';
+    approval.classList.toggle('approval-approved', item.approval_status === 'approved');
+  }}
+  const modelBadge = card.querySelector('.model-badge');
+  if (modelBadge) {{
+    modelBadge.textContent = [item.model, item.style, item.aspect_ratio].filter(Boolean).join(' · ');
+  }}
+  const tagRow = card.querySelector('.tag-row');
+  (item.tags || []).slice(0, 5).forEach(tag => {{
+    const el = document.createElement('span');
+    el.className = 'tag';
+    el.textContent = tag;
+    tagRow.appendChild(el);
+  }});
   const img = card.querySelector('img');
   if (img) img.addEventListener('error', () => {{
     img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
@@ -587,6 +659,48 @@ def _library_extra_css() -> str:
   font-family: ui-monospace, monospace;
   white-space: nowrap;
   flex-shrink: 0;
+}
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.65rem 0;
+  min-height: 1.35rem;
+}
+.approval-badge,
+.model-badge,
+.tag {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--dim);
+  font-size: 0.58rem;
+  line-height: 1.1;
+  padding: 0.14rem 0.3rem;
+  white-space: nowrap;
+}
+.approval-approved {
+  border-color: rgba(0,200,180,0.32);
+  background: rgba(0,200,180,0.10);
+  color: var(--teal);
+}
+.model-badge {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.card-title {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.25;
+  padding: 0.38rem 0.65rem 0;
+}
+.tag-row {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.65rem 0;
+  min-height: 1rem;
 }
 #search {
   background: var(--surface);
