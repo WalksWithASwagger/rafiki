@@ -14,11 +14,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from lib.batch import run_batch
-from lib.models import resolve_model
+from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL = "gemini-2.5-flash-image"
+DEFAULT_MODEL = DEFAULT_IMAGE_MODEL
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 
 

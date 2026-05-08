@@ -7,7 +7,7 @@ This repo uses GitHub as execution truth and Linear as planning/status truth. v1
 - GitHub repo: `WalksWithASwagger/rafiki`
 - Linear team: `Bc-ai` (`BC`)
 - Linear project: `Rafiki Roadmap Delivery`
-- Canonical local root: `/Users/kk/Code/notion-local/rafiki`
+- Canonical local root: the current Rafiki checkout
 
 ## Labels
 

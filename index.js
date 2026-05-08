@@ -313,6 +313,7 @@ async function runDoctor(c) {
 }
 
 const program = new Command();
+const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image';
 
 program
   .name('rafiki')
@@ -366,7 +367,7 @@ program
   .option('-p, --prompt <text>', 'Single text prompt')
   .option('-o, --output <path>', 'Output file path', 'output.png')
   .option('-d, --output-dir <path>', 'Output directory for batch')
-  .option('-m, --model <model>', 'Model to use (gemini-2.5-flash-image, gpt-image-2, dall-e-3, …)', 'gemini-2.5-flash-image')
+  .option('-m, --model <model>', 'Model to use (default: gemini-2.5-flash-image; pass gpt-image-2 for OpenAI)', DEFAULT_IMAGE_MODEL)
   .option('-a, --aspect-ratio <ratio>', 'Aspect ratio', '16:9')
   .option('-r, --resolution <res>', 'Resolution hint for Gemini Pro (1K, 2K, 4K)', '1K')
   .option('-q, --quality <level>', 'Quality for OpenAI models: low | medium | high', 'high')
