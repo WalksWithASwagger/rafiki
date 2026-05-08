@@ -47,6 +47,7 @@
     "docs/MCP.md",
     "docs/PUBLIC-RELEASE-PLAN.md",
     "docs/ROADMAP.md",
+    "docs/SCHEDULED-REGEN.md",
     "docs/SCOPE.md"
   ],
   "engines": {
