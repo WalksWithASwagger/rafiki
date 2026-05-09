@@ -31,7 +31,7 @@ Additional files:
 
 ## 2. Style system
 
-All eight production aesthetics are now registered in `styles/styles.yaml` with markdown guides in `styles/`:
+Eleven production aesthetics are now registered in `styles/styles.yaml` with markdown guides in `styles/`:
 
 | Style | File | Status | Notes |
 |---|---|---|---|
@@ -42,7 +42,10 @@ All eight production aesthetics are now registered in `styles/styles.yaml` with 
 | `kk` | `styles/kk.md` | ✓ Done | Default; day-to-day editorial |
 | `hopecode` | `styles/hopecode.md` | ✓ Done | Solarpunk mycelial |
 | `bcai` | `styles/bcai.md` | ✓ Done | BC ecosystem |
+| `futureproof-mythic` | `styles/futureproof-mythic.md` | ✓ Done | Surrealist PNW folk-myth; Futureproof worlds and posters |
+| `bcai-ecosystem` | `styles/bcai-ecosystem.md` | ✓ Done | BC + AI logo-forward ecosystem assets, credentials, and badges |
 | `upgrade` | `styles/upgrade.md` | ✓ Done | Upgrade AI brand |
+| `cmvan` | `styles/cmvan.md` | ✓ Done | Creative Mornings Vancouver / Punk Rock AI live-event collage |
 
 ---
 
@@ -88,7 +91,7 @@ The WAIFF punk zine scenario is the only place a **reference image** (`reference
 ## 6. Phase completion status
 
 **Phase A — fill the style gaps** ✓ Complete  
-All eight styles registered: `kk`, `hopecode`, `bcai`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`. Markdown guides in `styles/`. `femme` and `indigenomics` carry community-review caveats.
+All eleven styles registered: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`, `cmvan`. Markdown guides in `styles/`. `femme` and `indigenomics` carry community-review caveats.
 
 **Phase B — convert high-priority freeform files to batch format** ✓ Complete  
 `prompts/kk-kb/waiff-brazil-2026-keynote-image-prompts.md` is in `## N.` batch format with per-prompt `**Model:**`, `**Style:**`, `**Aspect Ratio:**` metadata. Run with: `python generate.py -f prompts/kk-kb/waiff-brazil-2026-keynote-image-prompts.md -d output/waiff --style zine -m pro`

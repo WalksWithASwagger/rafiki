@@ -35,6 +35,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | `prompts/kk/name-the-bias-social-variants.md` | KK personal / thought-leadership | `## N.` sections + `**Prompt:**` blockquotes | Yes | 6 square/vertical social variants for name-the-bias |
 | `prompts/bcai/rap-marketing.md` | BC+AI ecosystem — RAP certification | `## N.` sections + `**Prompt:**` blockquotes | Yes | RAP brand colors embedded; use `--no-style` |
 | `prompts/bcai/rap-logo-variations.md` | BC+AI ecosystem — RAP logos | `## N.` sections + `**Prompt:**` blockquotes | Yes | Logo variants; use `--no-style` |
+| `prompts/bcai/rap-martin-revisions.md` | BC+AI ecosystem — RAP lecture revisions | `## N.` sections + `**Prompt:**` blockquotes | Yes | Martin revision pass for RAP Weeks 1-3; optional local reference via `--reference-images` |
 | `prompts/bcai/ecosystem-diagrams.md` | BC+AI ecosystem assets | `## N.` sections + `**Prompt:**` blockquotes | Yes | Mycelial network ecosystem diagrams |
 | `prompts/bcai/bcai-hopecode-visual-prompts.md` | BC+AI / HOPECODE community | `## N.` sections + `**Prompt:**` blockquotes | Yes | Also contains HOPECODE style preface block for single-prompt overrides |
 | `prompts/bcai/context-creator-field-journals.md` | BC+AI ecosystem | `## N.` sections + `**Prompt:**` blockquotes | Yes | Field journal visual series |
@@ -57,7 +58,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 
 ## 3. Style reference
 
-Eight styles are registered in `styles/styles.yaml` and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`.
+Eleven styles are registered in `styles/styles.yaml` and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`, `cmvan`.
 
 ### kk
 
@@ -106,6 +107,40 @@ radial from center, minimum 15% white space.
 ```
 
 **Composition:** Pairs well with `hopecode` for grassroots-organic feel. Sits between `kk` (polished) and `hopecode` (radical).
+
+---
+
+### futureproof-mythic
+
+**Description:** Surrealist Pacific Northwest folk-myth language for Futureproof Festival worlds, rituals, creatures, posters, and invitation scenes.
+
+**When to use:** Mythic event posters, track worlds, surreal social cards, portal scenes, archetypal portraits, and civic-imagination campaign imagery.
+
+**Example prompt fragment:**
+```
+Surrealist Pacific Northwest folk-art poster, one strong mythic focal point,
+living technology woven through cedar forest and river motifs, aurora teal,
+coral, ember gold, analog grain, handmade symbolic density.
+```
+
+**Composition:** Use alone when the image needs a storybook or talismanic register. Keep one focal symbol readable even when adding dense supporting details.
+
+---
+
+### bcai-ecosystem
+
+**Description:** BC + AI logo-forward ecosystem language for polished community assets, credentials, badges, schedules, partner-facing cards, and reusable campaign templates.
+
+**When to use:** BC + AI event credentials, speaker cards, sponsor thank-yous, stickers, network maps, track badges, and partner-facing social assets.
+
+**Example prompt fragment:**
+```
+BC + AI mark embedded inside a living ecosystem map, circular badge grammar,
+mycelial/circuit network structure, deep forest green, coast teal, warm gold,
+generous hierarchy, clear space for title and date.
+```
+
+**Composition:** Cleaner and more production-ready than `futureproof-mythic`; pair with `bcai` only when the BC natural network layer should be stronger than the logo system.
 
 ---
 
@@ -199,6 +234,25 @@ Abstract — no specific nation's architectural details.
 **Composition:** Pairs with `gni` for tech-heavy contexts. Keep away from `hopecode` — similar land-based language but different governance and community context.
 
 **Source:** `prompts/kk-kb/indigenomics-diagram-style-guide.md`, `styles/indigenomics.md`
+
+---
+
+### cmvan
+
+**Description:** Creative Mornings Vancouver / Punk Rock AI collage. Black/white halftone plus blood red and hot pink, dripping paint type, distressed physical objects, fire, torn paper, tape, and dense live-event chaos.
+
+**When to use:** Creative Mornings Vancouver keynote slides, Punk Rock AI social cards, Release Day templates, loud event announcements, and poster-like campaign assets.
+
+**Example prompt fragment:**
+```
+Maximalist punk zine collage in black, white, blood red, and hot pink only.
+Distressed halftone photography, dripping paint typography, torn paper,
+tape, staple holes, spray bleed, fire energy, dense overlapping layers.
+```
+
+**Composition:** More chaotic and color-saturated than `zine`; use when hot pink, photographic objects, and loud live-event energy are intentional parts of the brief.
+
+**Source:** `prompts/creative-mornings-vancouver-may-2026/`, `styles/cmvan.md`
 
 ---
 
