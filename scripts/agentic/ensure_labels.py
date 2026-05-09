@@ -26,12 +26,16 @@ LABEL_STYLE = {
 
 def desired_labels(contract: dict[str, Any]) -> list[str]:
     labels = contract["labels"]
-    return [
+    desired = [
         labels["ready"],
         *labels.get("ready_aliases", []),
         labels["review_ready"],
         *labels["stop"],
     ]
+    for label in contract.get("default_triage", {}).get("baseline_labels", []):
+        if label not in desired:
+            desired.append(label)
+    return desired
 
 
 def ensure_label(name: str, root: Path) -> None:

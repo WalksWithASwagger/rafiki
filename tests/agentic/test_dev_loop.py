@@ -255,3 +255,45 @@ def test_runner_marks_passing_change_ready_for_pr(tmp_path):
     assert payload["action"] == "open-pr"
     assert payload["status"] == "ready-for-pr"
     assert changed_stats(repo)["changed_files"] >= 1
+
+
+def test_runner_prefixes_pr_title_and_body_with_linear_key(tmp_path):
+    repo = copy_contract_repo(tmp_path)
+    issue = complete_issue(tmp_path)
+    issue.write_text(
+        issue.read_text(encoding="utf-8").replace("Make a tiny change.", "Make a tiny change for BC-42."),
+        encoding="utf-8",
+    )
+    env = os.environ.copy()
+    env["AGENTIC_PROVIDER_COMMAND"] = (
+        f'{sys.executable} -c "from pathlib import Path; '
+        "Path('agent-output.txt').write_text('done\\n', encoding='utf-8')\""
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(DEV_LOOP),
+            "--issue-number",
+            "4",
+            "--issue-title",
+            "Tighten PR metadata",
+            "--issue-file",
+            str(issue),
+            "--labels",
+            "agent:ready",
+            "--provider",
+            "command",
+        ],
+        cwd=repo,
+        env=env,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads((repo / "agentic-dev-loop-result.json").read_text(encoding="utf-8"))
+    pr_body = (repo / "agentic-pr-body.md").read_text(encoding="utf-8")
+    assert result.returncode == 0
+    assert payload["linear_key"] == "BC-42"
+    assert payload["pr_title"] == "BC-42: Tighten PR metadata"
+    assert "Linear: BC-42" in pr_body

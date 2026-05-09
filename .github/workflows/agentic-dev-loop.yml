@@ -30,6 +30,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
       AGENTIC_PROVIDER: ${{ github.event.inputs.provider || vars.AGENTIC_PROVIDER || 'noop' }}
       AGENTIC_PROVIDER_COMMAND: ${{ secrets.AGENTIC_PROVIDER_COMMAND }}
       LOOP_PAUSED: ${{ vars.LOOP_PAUSED || 'false' }}
@@ -58,8 +59,22 @@ jobs:
       - name: Create work branch
         id: branch
         run: |
-          SLUG=$(python3 -c "import pathlib, sys; sys.path.insert(0, 'scripts/agentic'); from common import slugify; print(slugify(pathlib.Path('$RUNNER_TEMP/issue-title.txt').read_text()))")
-          REF=$(python3 -c "import pathlib, re; text=pathlib.Path('$RUNNER_TEMP/issue-title.txt').read_text()+pathlib.Path('$RUNNER_TEMP/issue.md').read_text(); match=re.search(r'\b[A-Z]{2,}-[0-9]+\b', text); print(match.group(0) if match else 'issue-${ISSUE_NUMBER}')")
+          python3 - <<'PY' > "$RUNNER_TEMP/branch-parts.txt"
+          import os
+          import pathlib
+          import sys
+
+          sys.path.insert(0, "scripts/agentic")
+          from common import extract_linear_key, slugify
+
+          title = pathlib.Path(os.environ["RUNNER_TEMP"], "issue-title.txt").read_text(encoding="utf-8").strip()
+          body = pathlib.Path(os.environ["RUNNER_TEMP"], "issue.md").read_text(encoding="utf-8")
+          ref = extract_linear_key(title, body) or f"issue-{os.environ['ISSUE_NUMBER']}"
+          print(ref)
+          print(slugify(title))
+          PY
+          REF=$(sed -n '1p' "$RUNNER_TEMP/branch-parts.txt")
+          SLUG=$(sed -n '2p' "$RUNNER_TEMP/branch-parts.txt")
           BRANCH="codex/${REF}-${SLUG}"
           git switch -c "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
@@ -68,6 +83,11 @@ jobs:
         run: |
           gh issue edit "$ISSUE_NUMBER" --add-label "in-progress"
           gh issue comment "$ISSUE_NUMBER" --body "Agentic dev loop started on branch \`${{ steps.branch.outputs.branch }}\` with provider \`${AGENTIC_PROVIDER}\`."
+          python3 scripts/agentic/linear_sync.py \
+            --event issue-in-progress \
+            --issue-title "$ISSUE_TITLE" \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --json-output "$RUNNER_TEMP/linear-sync.json" || true
 
       - name: Run provider and verification
         id: loop
@@ -95,13 +115,23 @@ jobs:
           git diff --cached --quiet && exit 1
           git commit -m "fix: ${ISSUE_TITLE}"
           git push --set-upstream origin "${{ steps.branch.outputs.branch }}"
+          PR_TITLE=$(python3 -c "import json; print(json.load(open('$RUNNER_TEMP/agentic-dev-loop-result.json'))['pr_title'])")
           PR_URL=$(gh pr create \
-            --title "$ISSUE_TITLE" \
+            --title "$PR_TITLE" \
             --body-file "$RUNNER_TEMP/agentic-pr-body.md" \
             --base main \
             --head "${{ steps.branch.outputs.branch }}")
           echo "$PR_URL" > "$RUNNER_TEMP/pr-url.txt"
           gh issue comment "$ISSUE_NUMBER" --body "Agentic dev loop opened PR: ${PR_URL}"
+          python3 scripts/agentic/linear_sync.py \
+            --event pr-open \
+            --issue-title "$ISSUE_TITLE" \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --pr-title "$PR_TITLE" \
+            --pr-body-file "$RUNNER_TEMP/agentic-pr-body.md" \
+            --head-ref "${{ steps.branch.outputs.branch }}" \
+            --pr-url "$PR_URL" \
+            --json-output "$RUNNER_TEMP/linear-sync.json" || true
 
       - name: Comment dry-run or no-change result
         if: steps.loop.outputs.exit_code == '0' && steps.loop.outputs.action != 'open-pr'

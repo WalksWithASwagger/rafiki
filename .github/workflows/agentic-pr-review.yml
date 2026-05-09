@@ -2,7 +2,7 @@ name: Agentic PR Review
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       pr_number:
@@ -38,7 +38,7 @@ jobs:
           gh pr view "$PR_NUMBER" --json additions --jq '.additions' > "$RUNNER_TEMP/additions.txt"
           gh pr view "$PR_NUMBER" --json deletions --jq '.deletions' > "$RUNNER_TEMP/deletions.txt"
           gh pr view "$PR_NUMBER" --json changedFiles --jq '.changedFiles' > "$RUNNER_TEMP/changed-files.txt"
-          ISSUE_NUMBER=$(python3 -c "import pathlib, re; match=re.search(r'\bCloses\s+#(\d+)', pathlib.Path('$RUNNER_TEMP/pr-body.md').read_text(), re.I); print(match.group(1) if match else '')")
+          ISSUE_NUMBER=$(python3 -c "import pathlib, re; match=re.search(r'\b(?:Closes|Refs)\s+#(\d+)', pathlib.Path('$RUNNER_TEMP/pr-body.md').read_text(), re.I); print(match.group(1) if match else '')")
           echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
           if [ -n "$ISSUE_NUMBER" ]; then
             gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/issue.md"

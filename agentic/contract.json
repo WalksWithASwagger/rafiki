@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "repo": {
     "owner": "WalksWithASwagger",
     "name": "rafiki",
@@ -26,6 +26,41 @@
     "max_changed_lines": 500
   },
   "branch_template": "codex/{linear_key_or_issue}-{slug}",
+  "mirror_policy": "active_delivery_only",
+  "pr_requirements": {
+    "require_issue_link": true,
+    "issue_link_verbs": [
+      "Closes",
+      "Refs"
+    ],
+    "require_linear_key_when_present": true,
+    "branch_prefix": "codex/",
+    "github_only_issue_prefix": "issue-",
+    "body_linear_prefix": "Linear:"
+  },
+  "linear_sync": {
+    "enabled": true,
+    "api_token_env": "LINEAR_API_KEY",
+    "comment_backfill": true,
+    "active_project_policy": "active_delivery_only",
+    "status_mapping": {
+      "issue-in-progress": "In Progress",
+      "pr-open": "In Review",
+      "pr-merged": "Done"
+    }
+  },
+  "default_triage": {
+    "baseline_labels": [
+      "agent:ready",
+      "in-progress",
+      "review-ready",
+      "needs-human",
+      "blocked"
+    ],
+    "assignee_policy": "leave-unassigned",
+    "project_policy": "repo-default",
+    "milestone_policy": "project-default"
+  },
   "provider": {
     "default": "noop",
     "allowed": [
