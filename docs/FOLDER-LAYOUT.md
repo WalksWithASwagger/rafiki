@@ -17,7 +17,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── meta/
 │   ├── audits/                  # Agent loop audit logs
 │   └── routines/                # Repeatable agent workflow prompts
-├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, upgrade, zine, gni)
+├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, futureproof-mythic, bcai-ecosystem, upgrade, zine, gni, femme, indigenomics, cmvan)
 ├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/, kk-kb/
 ├── examples/
 ├── lib/

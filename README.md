@@ -250,11 +250,14 @@ Examples:
 - `kk`
 - `hopecode`
 - `bcai`
+- `futureproof-mythic`
+- `bcai-ecosystem`
 - `upgrade`
 - `zine`
 - `gni`
 - `femme`
 - `indigenomics`
+- `cmvan`
 
 Useful commands:
 
