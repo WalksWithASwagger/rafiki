@@ -35,7 +35,7 @@ jobs:
       AGENTIC_PROVIDER_COMMAND: ${{ secrets.AGENTIC_PROVIDER_COMMAND }}
       LOOP_PAUSED: ${{ vars.LOOP_PAUSED || 'false' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 

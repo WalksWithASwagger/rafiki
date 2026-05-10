@@ -22,7 +22,7 @@ jobs:
     if: ${{ github.event_name != 'issues' || github.event.action != 'labeled' || github.event.label.name != 'in-progress' }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Ensure standard labels
         env:

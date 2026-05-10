@@ -24,7 +24,7 @@ jobs:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Fetch issue
         run: |
@@ -63,7 +63,7 @@ jobs:
       LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
       PR_NUMBER: ${{ github.event.pull_request.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Ensure standard labels
         run: python3 scripts/agentic/ensure_labels.py
