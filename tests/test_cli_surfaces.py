@@ -47,6 +47,8 @@ def _batch_options(output_dir: Path) -> list[str]:
         "none",
         "--reference-images",
         "/tmp/ref-a.png,/tmp/ref-b.png",
+        "--global-reference-images",
+        "/tmp/global-a.png,/tmp/global-b.png",
         "--reference-role",
         "mockup",
         "--composition-references",
@@ -72,6 +74,8 @@ def _single_options(output_path: Path) -> list[str]:
         "--no-style",
         "--reference-image",
         "/tmp/ref-single.png",
+        "--global-reference-images",
+        "/tmp/global-single-a.png,/tmp/global-single-b.png",
         "--reference-role",
         "mockup",
         "--composition-references",
@@ -105,12 +109,27 @@ def _assert_batch_json_contract(payload: dict, output_dir: Path) -> None:
     assert payload["model"] == "gpt-image-2"
     assert payload["aspect_ratio"] == "1:1"
     assert payload["style"] == "none"
+    assert payload["global_reference_images"] == ["/tmp/global-a.png", "/tmp/global-b.png"]
     assert len(payload["images"]) == 2
     assert all(image["ok"] is True for image in payload["images"])
 
     run_dir = Path(payload["run_dir"])
     assert run_dir.exists()
     assert (run_dir / "run.json").exists()
+    manifest = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    assert manifest["reference_images"] == [
+        "/tmp/ref-a.png",
+        "/tmp/ref-b.png",
+        "/tmp/global-a.png",
+        "/tmp/global-b.png",
+        "/tmp/print-art.png",
+    ]
+    assert manifest["images"][0]["reference_images"] == [
+        "/tmp/ref-a.png",
+        "/tmp/global-a.png",
+        "/tmp/global-b.png",
+        "/tmp/print-art.png",
+    ]
     assert list(run_dir.glob("*.png")) == []
 
 
@@ -122,6 +141,12 @@ def _assert_single_json_contract(payload: dict, output_path: Path) -> None:
     assert payload["model"] == "gpt-image-2"
     assert payload["aspect_ratio"] == "4:5"
     assert payload["style"] == "none"
+    assert payload["reference_images"] == [
+        "/tmp/ref-single.png",
+        "/tmp/global-single-a.png",
+        "/tmp/global-single-b.png",
+        "/tmp/print-single.png",
+    ]
     assert payload["prompt_preview"].startswith("A compact studio poster")
     assert not output_path.exists()
 

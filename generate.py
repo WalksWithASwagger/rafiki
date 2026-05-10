@@ -66,6 +66,16 @@ __all__ = [
 ]
 
 
+def _split_csv_paths(value: str | None, *, flag: str) -> list[str]:
+    if not value:
+        return []
+    paths = [p.strip() for p in value.split(",") if p.strip()]
+    if not paths:
+        print(f"Error: {flag} has no paths")
+        sys.exit(1)
+    return paths
+
+
 def _cmd_library(argv: list[str]) -> None:
     """Build (or rebuild) the master library.html from all runs in output/."""
     p = argparse.ArgumentParser(
@@ -664,8 +674,15 @@ def main() -> None:
             "One path per prompt (in order), or a single path to reuse for all."
         ),
     )
-    parser.add_argument("--reference-role", choices=["style", "mockup"], default="style",
-                        help="'style' (look-and-feel) or 'mockup' (preserve garment + add print)")
+    parser.add_argument(
+        "--global-reference-images", metavar="PATHS",
+        help=(
+            "Comma-separated reference image paths reused for every prompt. "
+            "Combinable with --reference-image or --reference-images."
+        ),
+    )
+    parser.add_argument("--reference-role", choices=["style", "brand", "mockup"], default="style",
+                        help="'style' (look-and-feel), 'brand' (preserve referenced marks when prompted), or 'mockup' (preserve garment + add print)")
     parser.add_argument("--composition-references", metavar="PATHS",
                         help="Extra comma-separated ref images for mockup mode")
     parser.add_argument("--workers", "-w", type=int, default=1, metavar="N",
@@ -695,10 +712,15 @@ def main() -> None:
 
     composition_refs: list[str] | None = None
     if args.composition_references:
-        composition_refs = [p.strip() for p in args.composition_references.split(",") if p.strip()]
-        if not composition_refs:
-            print("Error: --composition-references has no paths")
-            sys.exit(1)
+        composition_refs = _split_csv_paths(
+            args.composition_references,
+            flag="--composition-references",
+        )
+
+    global_reference_images = _split_csv_paths(
+        args.global_reference_images,
+        flag="--global-reference-images",
+    )
 
     # ── Informational flags ──────────────────────────────────────────────────
 
@@ -762,10 +784,14 @@ def main() -> None:
             quality=args.quality,
             style=style,
             reference_image=args.reference_image,
+            reference_images=global_reference_images,
             reference_role=args.reference_role,
             composition_references=composition_refs,
             dry_run=args.dry_run,
         )
+        reference_images = [
+            ref for ref in [args.reference_image, *global_reference_images, *(composition_refs or [])] if ref
+        ]
         if args.json_output:
             _real_stdout.write(json.dumps({
                 "success": success,
@@ -775,6 +801,8 @@ def main() -> None:
                 "model": args.model,
                 "aspect_ratio": args.aspect_ratio,
                 "style": style or "none",
+                "reference_images": reference_images,
+                "reference_role": args.reference_role if reference_images else None,
                 "prompt_preview": args.prompt[:120],
             }, indent=2) + "\n")
         sys.exit(0 if success else 1)
@@ -797,6 +825,7 @@ def main() -> None:
             quality=args.quality,
             style=style,
             ref_paths=ref_paths,
+            global_reference_images=global_reference_images,
             reference_role=args.reference_role,
             composition_references=composition_refs,
             dry_run=args.dry_run,
@@ -820,6 +849,7 @@ def main() -> None:
                 "model": args.model,
                 "aspect_ratio": args.aspect_ratio,
                 "style": style or "none",
+                "global_reference_images": global_reference_images,
                 "images": result.images,
             }, indent=2) + "\n")
 

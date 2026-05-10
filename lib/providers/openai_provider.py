@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import os
 from pathlib import Path
+from contextlib import ExitStack
 
 # Maps Rafiki aspect-ratio strings → OpenAI size strings.
 # OpenAI gpt-image-* supports: 1024x1024, 1536x1024, 1024x1536, and "auto".
@@ -36,6 +37,7 @@ class OpenAIProvider:
         resolution: str = "1K",
         quality: str = "high",
         reference_image: str | None = None,
+        reference_images: list[str] | None = None,
         reference_role: str = "style",         # unused for now
         composition_references: list[str] | None = None,  # unused for now
     ) -> bool:
@@ -56,18 +58,27 @@ class OpenAIProvider:
                 return self._generate_dalle(client, prompt, output_path, model, size, quality)
 
             # Reference image via images.edit() (gpt-image-* only)
-            if reference_image:
-                ref_path = Path(reference_image)
-                if not ref_path.exists():
-                    print(f"Error: Reference image not found: {reference_image}")
-                    return False
+            ref_paths = [Path(ref) for ref in [reference_image, *(reference_images or [])] if ref]
+            if ref_paths:
+                for ref_path in ref_paths:
+                    if not ref_path.exists():
+                        print(f"Error: Reference image not found: {ref_path}")
+                        return False
                 if reference_role == "style":
                     print(
                         "Note: OpenAI edit() uses the reference as the base canvas. "
                         "For pure style transfer, consider Gemini with --reference-role style."
                     )
-                print(f"  Reference image: {reference_image} (via images.edit)")
-                return self._generate_edit(client, prompt, output_path, model, size, quality, ref_path)
+                elif reference_role == "brand":
+                    prompt = (
+                        "Use the attached images as high-fidelity brand references. "
+                        "When the prompt requests official marks, preserve their letterforms, "
+                        "colors, proportions, and lockup as faithfully as possible; do not invent "
+                        "alternate logos or extra typography.\n\n"
+                        f"{prompt}"
+                    )
+                print(f"  Reference images: {len(ref_paths)} (via images.edit)")
+                return self._generate_edit(client, prompt, output_path, model, size, quality, ref_paths)
 
             # Text-to-image: images.generate()
             response = client.images.generate(
@@ -92,17 +103,22 @@ class OpenAIProvider:
         model: str,
         size: str,
         quality: str,
-        ref_path: Path,
+        ref_paths: list[Path],
     ) -> bool:
         try:
-            with open(ref_path, "rb") as img_file:
-                response = client.images.edit(
-                    model=model,
-                    image=img_file,
-                    prompt=prompt,
-                    size=size,
-                    n=1,
-                )
+            with ExitStack() as stack:
+                img_files = [stack.enter_context(open(ref_path, "rb")) for ref_path in ref_paths]
+                image_arg = img_files[0] if len(img_files) == 1 else img_files
+                edit_kwargs = {
+                    "model": model,
+                    "image": image_arg,
+                    "prompt": prompt,
+                    "size": size,
+                    "n": 1,
+                }
+                if model == "gpt-image-1":
+                    edit_kwargs["input_fidelity"] = "high"
+                response = client.images.edit(**edit_kwargs)
             return self._save_response(response.data[0], output_path)
         except Exception as e:
             print(f"Error in images.edit: {e}")

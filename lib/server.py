@@ -218,9 +218,13 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
     quality = _coerce_str(payload.get("quality"), field="quality") or "high"
     style = _coerce_str(payload.get("style"), field="style") or None
     reference_image = _coerce_str(payload.get("reference_image"), field="reference_image")
+    global_reference_images = _coerce_list_of_paths(
+        payload.get("global_reference_images"),
+        field="global_reference_images",
+    )
     reference_role = _coerce_str(payload.get("reference_role"), field="reference_role") or "style"
-    if reference_role not in {"style", "mockup"}:
-        raise ValueError("reference_role must be 'style' or 'mockup'")
+    if reference_role not in {"style", "brand", "mockup"}:
+        raise ValueError("reference_role must be 'style', 'brand', or 'mockup'")
     composition_references = _coerce_list_of_paths(
         payload.get("composition_references"),
         field="composition_references",
@@ -240,6 +244,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
             quality=quality,
             style=style,
             ref_paths=[reference_image or None],
+            global_reference_images=global_reference_images,
             reference_role=reference_role,
             composition_references=composition_references,
             dry_run=dry_run,
@@ -268,6 +273,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         quality=quality,
         style=style,
         ref_paths=ref_paths,
+        global_reference_images=global_reference_images,
         reference_role=reference_role,
         composition_references=composition_references,
         dry_run=dry_run,

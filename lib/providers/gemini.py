@@ -16,6 +16,13 @@ except ImportError:
     PILImage = None
 
 
+def _reference_paths(
+    reference_image: str | None,
+    reference_images: list[str] | None,
+) -> list[str]:
+    return [ref for ref in [reference_image, *(reference_images or [])] if ref]
+
+
 class GeminiProvider:
     def generate(
         self,
@@ -26,6 +33,7 @@ class GeminiProvider:
         resolution: str = "1K",
         quality: str = "high",          # unused by Gemini, accepted for interface parity
         reference_image: str | None = None,
+        reference_images: list[str] | None = None,
         reference_role: str = "style",
         composition_references: list[str] | None = None,
     ) -> bool:
@@ -56,6 +64,7 @@ class GeminiProvider:
             contents = self._build_contents(
                 prompt=prompt,
                 reference_image=reference_image,
+                reference_images=reference_images,
                 reference_role=reference_role,
                 composition_references=composition_references,
             )
@@ -89,10 +98,12 @@ class GeminiProvider:
         self,
         prompt: str,
         reference_image: str | None,
+        reference_images: list[str] | None,
         reference_role: str,
         composition_references: list[str] | None,
     ) -> list | None:
-        if not reference_image:
+        primary_refs = _reference_paths(reference_image, reference_images)
+        if not primary_refs:
             return [prompt]
 
         if PILImage is None:
@@ -103,12 +114,13 @@ class GeminiProvider:
             print("Error: --composition-references only works with --reference-role mockup")
             return None
 
-        ref_path = Path(reference_image)
-        if not ref_path.exists():
-            print(f"Error: Reference image not found: {reference_image}")
-            return None
-
-        contents = [PILImage.open(reference_image)]
+        contents = []
+        for ref in primary_refs:
+            ref_path = Path(ref)
+            if not ref_path.exists():
+                print(f"Error: Reference image not found: {ref}")
+                return None
+            contents.append(PILImage.open(ref))
 
         comp_imgs: list = []
         if composition_references:
@@ -120,7 +132,7 @@ class GeminiProvider:
                 comp_imgs.append(PILImage.open(p))
                 contents.append(comp_imgs[-1])
 
-        print(f"  Reference image: {reference_image}")
+        print(f"  Reference images: {len(primary_refs)}")
         if comp_imgs:
             print(f"  Composition references: {len(comp_imgs)} image(s)")
 
@@ -150,9 +162,22 @@ class GeminiProvider:
                 f"{comp_note}\n\n"
                 f"{prompt}"
             )
+        elif reference_role == "brand":
+            contents.append(
+                "IMPORTANT: Use the provided image(s) as visual style AND brand references. "
+                "When the prompt explicitly asks for an official wordmark, logo, or brand mark, "
+                "preserve the referenced mark's letterforms, proportions, colors, and lockup as "
+                "faithfully as the model allows. Integrate requested marks into the scene as "
+                "designed artifacts (printed banners, badges, credentials, stage signage, plaques, "
+                "projection screens, or poster mastheads) so they feel native to the composition. "
+                "Do not invent alternate Futureproof or BC+AI marks. Do not add dates, venue claims, "
+                "ticket claims, sponsor names, or any readable typography beyond marks or words "
+                "explicitly requested in the prompt.\n\n"
+                f"{prompt}"
+            )
         else:
             contents.append(
-                "IMPORTANT: Use the provided image ONLY as a visual style reference "
+                "IMPORTANT: Use the provided image(s) ONLY as visual style and brand references "
                 "(textures, grain, collage technique, color palette, layout energy). "
                 "Do NOT copy any text, words, band names, slogans, or written content from the reference image. "
                 "The actual text and content for the image MUST come from the prompt below.\n\n"

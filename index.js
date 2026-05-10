@@ -381,8 +381,12 @@ program
     'Batch: comma-separated ref paths (one per prompt, or one path for all)'
   )
   .option(
+    '--global-reference-images <csv>',
+    'Comma-separated ref paths reused for every prompt; combines with per-prompt refs'
+  )
+  .option(
     '--reference-role <mode>',
-    'style (default) or mockup — mockup keeps garment photos and adds the print',
+    'style (default), brand, or mockup — brand preserves referenced marks when prompted',
     'style'
   )
   .option(
@@ -511,6 +515,10 @@ function buildPythonArgs(promptsFile, options) {
     args.push('--reference-images', options.referenceImages);
   } else if (options.referenceImage || options.ref) {
     args.push('--reference-image', options.referenceImage || options.ref);
+  }
+
+  if (options.globalReferenceImages) {
+    args.push('--global-reference-images', options.globalReferenceImages);
   }
 
   if (options.referenceRole && options.referenceRole !== 'style') {

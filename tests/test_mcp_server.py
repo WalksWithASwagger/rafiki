@@ -83,6 +83,7 @@ def test_generate_style_none_stays_unstyled(monkeypatch, tmp_path):
             aspect_ratio="linkedin",
             style="none",
             reference_image="/tmp/ref.png",
+            global_reference_images=["/tmp/global.png"],
             dry_run=True,
         )
     )
@@ -91,6 +92,7 @@ def test_generate_style_none_stays_unstyled(monkeypatch, tmp_path):
     assert payload["aspect_ratio"] == "16:9"
     assert captured["style"] == "none"
     assert captured["reference_image"] == "/tmp/ref.png"
+    assert captured["reference_images"] == ["/tmp/global.png"]
 
 
 def test_batch_passes_reference_images_and_unstyled(monkeypatch, tmp_path):
@@ -122,6 +124,7 @@ def test_batch_passes_reference_images_and_unstyled(monkeypatch, tmp_path):
             aspect_ratio="instagram",
             style="none",
             reference_images=["/tmp/a.png", "/tmp/b.png"],
+            global_reference_images=["/tmp/global-a.png", "/tmp/global-b.png"],
             no_viewer=True,
             dry_run=True,
         )
@@ -131,6 +134,7 @@ def test_batch_passes_reference_images_and_unstyled(monkeypatch, tmp_path):
     assert payload["aspect_ratio"] == "1:1"
     assert captured["style"] == "none"
     assert captured["ref_paths"] == ["/tmp/a.png", "/tmp/b.png"]
+    assert captured["global_reference_images"] == ["/tmp/global-a.png", "/tmp/global-b.png"]
     assert captured["generate_viewer_html"] is False
 
 

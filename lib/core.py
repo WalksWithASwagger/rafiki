@@ -23,6 +23,7 @@ def generate_image(
     quality: str = "high",
     style: str | None = None,
     reference_image: str | None = None,
+    reference_images: list[str] | None = None,
     reference_role: str = "style",
     composition_references: list[str] | None = None,
     dry_run: bool = False,
@@ -38,7 +39,8 @@ def generate_image(
         quality: low/medium/high — OpenAI only.
         style: Style preset name, composed spec (e.g. "kk+bcai"), "none", or None.
         reference_image: Path to a reference image.
-        reference_role: "style" (look-and-feel) or "mockup" (preserve garment).
+        reference_images: Additional reference image paths.
+        reference_role: "style" (look-and-feel), "brand" (preserve referenced marks when prompted), or "mockup" (preserve garment).
         composition_references: Extra ref image paths (mockup mode).
         dry_run: Log intent without calling any API.
 
@@ -52,11 +54,14 @@ def generate_image(
 
     if dry_run:
         provider_name = "OpenAI" if model.startswith(("gpt-image", "dall-e")) else "Gemini"
+        refs = [ref for ref in [reference_image, *(reference_images or [])] if ref]
         print("[DRY RUN] Would generate image:")
         print(f"  Provider: {provider_name}")
         print(f"  Model:    {model}")
         print(f"  Ratio:    {aspect_ratio}  Resolution: {resolution}  Quality: {quality}")
         print(f"  Style:    {style}")
+        if refs:
+            print(f"  Refs:     {', '.join(refs)}")
         print(f"  Output:   {output_path}")
         print(f"  Prompt:   {prompt[:200]}...")
         return True
@@ -87,6 +92,7 @@ def generate_image(
         resolution=resolution,
         quality=quality,
         reference_image=reference_image,
+        reference_images=reference_images,
         reference_role=reference_role,
         composition_references=composition_references,
     )

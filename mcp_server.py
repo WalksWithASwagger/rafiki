@@ -454,6 +454,7 @@ def rafiki_generate(
     quality: str = "high",
     style: str = "kk",
     reference_image: str = "",
+    global_reference_images: list[str] | None = None,
     reference_role: str = "style",
     composition_references: list[str] | None = None,
     dry_run: bool = False,
@@ -469,7 +470,8 @@ def rafiki_generate(
         quality: low | medium | high — OpenAI only.
         style: kk | hopecode | bcai | upgrade | none | composed (e.g. kk+bcai).
         reference_image: Optional path to a reference image.
-        reference_role: style | mockup.
+        global_reference_images: Additional reference image paths reused for this generation.
+        reference_role: style | brand | mockup.
         composition_references: Extra reference paths for mockup composition.
         dry_run: Preview without calling any API.
 
@@ -490,6 +492,7 @@ def rafiki_generate(
         quality=quality,
         style=resolved_style,
         reference_image=reference_image or None,
+        reference_images=global_reference_images,
         reference_role=reference_role,
         composition_references=composition_references,
         dry_run=dry_run,
@@ -502,6 +505,7 @@ def rafiki_generate(
         "resolution": resolution,
         "style": style,
         "reference_image": reference_image,
+        "global_reference_images": global_reference_images or [],
         "reference_role": reference_role,
         "dry_run": dry_run,
         "prompt_preview": prompt[:120],
@@ -526,6 +530,7 @@ def rafiki_batch(
     style: str = "kk",
     reference_image: str = "",
     reference_images: list[str] | None = None,
+    global_reference_images: list[str] | None = None,
     reference_role: str = "style",
     composition_references: list[str] | None = None,
     workers: int = 1,
@@ -547,7 +552,8 @@ def rafiki_batch(
         style: Style preset or composed spec (e.g. kk+bcai). 'none' = no style.
         reference_image: Optional reference image reused for every prompt.
         reference_images: Optional per-prompt reference image paths.
-        reference_role: style | mockup.
+        global_reference_images: Additional reference image paths reused for every prompt.
+        reference_role: style | brand | mockup.
         composition_references: Extra reference paths for mockup composition.
         workers: Parallel generation workers (1 = sequential, 4 = fast).
         dry_run: Preview without generating any images.
@@ -585,6 +591,7 @@ def rafiki_batch(
         quality=quality,
         style=resolved_style,
         ref_paths=ref_paths,
+        global_reference_images=global_reference_images,
         reference_role=reference_role,
         composition_references=composition_references,
         workers=workers,
@@ -608,6 +615,7 @@ def rafiki_batch(
         "aspect_ratio": resolved_aspect_ratio,
         "resolution": resolution,
         "style": style,
+        "global_reference_images": global_reference_images or [],
         "images": result.images,
     })
 

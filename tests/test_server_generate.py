@@ -49,6 +49,7 @@ def test_run_portal_job_single_prompt_uses_run_batch(tmp_path, monkeypatch):
             "quality": "high",
             "resolution": "1K",
             "reference_image": "/tmp/reference.png",
+            "global_reference_images": ["/tmp/global-a.png", "/tmp/global-b.png"],
             "dry_run": True,
         },
         output_root=output_root,
@@ -60,6 +61,7 @@ def test_run_portal_job_single_prompt_uses_run_batch(tmp_path, monkeypatch):
     assert captured["aspect_ratio"] == "16:9"
     assert captured["style"] == "none"
     assert captured["ref_paths"] == ["/tmp/reference.png"]
+    assert captured["global_reference_images"] == ["/tmp/global-a.png", "/tmp/global-b.png"]
     assert captured["dry_run"] is True
     assert captured["prompts"] == [
         {"name": "Hero Shot", "prompt": "A cinematic portrait in warm light"}
@@ -94,6 +96,7 @@ def test_run_portal_job_batch_uses_prompt_file_and_derived_project(tmp_path, mon
             "prompt_file": "prompts/launch-images.md",
             "workers": 3,
             "reference_image": "/tmp/reference.png",
+            "global_reference_images": "/tmp/global.png",
         },
         output_root=output_root,
     )
@@ -103,6 +106,7 @@ def test_run_portal_job_batch_uses_prompt_file_and_derived_project(tmp_path, mon
     assert captured["prompt_file"] == str(prompt_file.resolve())
     assert len(captured["prompts"]) == 2
     assert captured["ref_paths"] == ["/tmp/reference.png", "/tmp/reference.png"]
+    assert captured["global_reference_images"] == ["/tmp/global.png"]
     assert result["ok"] is True
     assert result["all_ok"] is False
     assert result["project"] == "launch-images"
@@ -135,3 +139,28 @@ def test_run_portal_job_requires_prompt_for_single(tmp_path):
             {"mode": "single", "project": "studio"},
             output_root=tmp_path / "output",
         )
+
+
+def test_run_portal_job_accepts_brand_reference_role(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    captured: dict = {}
+
+    def fake_run_batch(**kwargs):
+        captured.update(kwargs)
+        return _fake_batch_result(kwargs["project_dir"])
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    result = server._run_portal_job(
+        {
+            "mode": "single",
+            "project": "Brand",
+            "prompt": "logo-aware hero art",
+            "reference_role": "brand",
+            "dry_run": True,
+        },
+        output_root=output_root,
+    )
+
+    assert result["ok"] is True
+    assert captured["reference_role"] == "brand"

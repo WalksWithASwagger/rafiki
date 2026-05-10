@@ -325,7 +325,7 @@ python generate.py -f batch.md -d output/ --reference-images ref1.png,ref2.png,r
 python generate.py -p "..." --reference-image garment.png --reference-role mockup
 ```
 
-`--reference-role` choices: `style` (default — look and feel guidance) or `mockup` (preserve the reference image structure, apply design element).
+`--reference-role` choices: `style` (default — look and feel guidance), `brand` (preserve referenced marks/logos when the prompt explicitly asks for them), or `mockup` (preserve the reference image structure, apply design element).
 
 ### Documenting references in prompt files
 

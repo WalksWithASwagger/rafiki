@@ -25,6 +25,7 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
         aspect_ratio="1:1",
         style="bcai",
         ref_paths=["/tmp/ref-a.png", "/tmp/ref-b.png"],
+        global_reference_images=["/tmp/global-a.png", "/tmp/global-b.png"],
         reference_role="mockup",
         composition_references=["/tmp/composition.png"],
         dry_run=True,
@@ -44,6 +45,8 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["reference_images"] == [
         "/tmp/ref-a.png",
         "/tmp/ref-b.png",
+        "/tmp/global-a.png",
+        "/tmp/global-b.png",
         "/tmp/composition.png",
     ]
     assert data["reference_role"] == "mockup"
@@ -63,7 +66,12 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["images"][0]["style"] == "bcai"
     assert data["images"][0]["cost_estimate"]["model"] == "gpt-image-2"
     assert data["images"][0]["cost_estimate"]["provider"] == "OpenAI"
-    assert data["images"][0]["reference_images"] == ["/tmp/ref-a.png", "/tmp/composition.png"]
+    assert data["images"][0]["reference_images"] == [
+        "/tmp/ref-a.png",
+        "/tmp/global-a.png",
+        "/tmp/global-b.png",
+        "/tmp/composition.png",
+    ]
     assert data["images"][1]["model"] == "dall-e-3"
     assert data["images"][1]["provider"] == "OpenAI"
     assert data["images"][1]["style"] == "kk"

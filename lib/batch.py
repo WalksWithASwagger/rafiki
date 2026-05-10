@@ -65,6 +65,7 @@ def run_batch(
     quality: str = "high",
     style: str | None = None,
     ref_paths: list[str | None] | None = None,
+    global_reference_images: list[str] | None = None,
     reference_role: str = "style",
     composition_references: list[str] | None = None,
     dry_run: bool = False,
@@ -91,7 +92,8 @@ def run_batch(
         quality: Default quality (OpenAI only).
         style: Default style preset or composed spec (e.g. "kk+bcai").
         ref_paths: Per-prompt reference image paths (aligned with prompts).
-        reference_role: "style" or "mockup".
+        global_reference_images: Reference images reused for every prompt.
+        reference_role: "style", "brand", or "mockup".
         composition_references: Extra ref paths for mockup mode.
         dry_run: Preview without calling any API.
         workers: Parallel generation workers (1 = sequential).
@@ -112,10 +114,12 @@ def run_batch(
 
     if ref_paths is None:
         ref_paths = [None] * len(prompts)
+    global_reference_images = [ref for ref in (global_reference_images or []) if ref]
 
     run_reference_images = [
-        ref for ref in [*(ref_paths or []), *(composition_references or [])] if ref
+        ref for ref in [*(ref_paths or []), *global_reference_images, *(composition_references or [])] if ref
     ]
+    run_reference_images = list(dict.fromkeys(run_reference_images))
     run_meta = {
         "model": model,
         "aspect_ratio": aspect_ratio,
@@ -151,6 +155,7 @@ def run_batch(
             "style":       task_style,
             "provider":    _provider_for_model(task_model),
             "reference_image": ref_paths[i] if i < len(ref_paths) else None,
+            "reference_images": global_reference_images,
             "reference_role": reference_role,
             "composition_references": composition_references,
             "dry_run":    dry_run,
@@ -191,6 +196,7 @@ def run_batch(
                 quality=task["quality"],
                 style=task["style"],
                 reference_image=task["reference_image"],
+                reference_images=task["reference_images"],
                 reference_role=task["reference_role"],
                 composition_references=task["composition_references"],
                 dry_run=task["dry_run"],
@@ -262,8 +268,13 @@ def run_batch(
     # Save run.json manifest
     def _img_record(r: dict) -> dict:
         reference_images = [
-            ref for ref in [r.get("reference_image"), *(r.get("composition_references") or [])] if ref
+            ref for ref in [
+                r.get("reference_image"),
+                *(r.get("reference_images") or []),
+                *(r.get("composition_references") or []),
+            ] if ref
         ]
+        reference_images = list(dict.fromkeys(reference_images))
         rec: dict = {
             "name":             r["name"],
             "prompt":           r["prompt"],
