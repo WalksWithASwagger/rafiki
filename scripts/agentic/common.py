@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT_MARKERS = ("agentic/contract.json", ".git")
+LINEAR_KEY_PATTERN = re.compile(r"\b([A-Z]{2,}-\d+)\b", re.IGNORECASE)
+ISSUE_LINK_PATTERN = re.compile(r"\b(Closes|Refs)\s+#(\d+)\b", re.IGNORECASE)
 
 
 def repo_root(start: Path | None = None) -> Path:
@@ -32,6 +34,46 @@ def slugify(value: str, max_length: int = 48) -> str:
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", value.lower()).strip("-")
     slug = re.sub(r"-+", "-", slug)
     return (slug or "agentic-work")[:max_length].rstrip("-")
+
+
+def normalize_linear_key(value: str) -> str:
+    return value.upper()
+
+
+def extract_linear_keys(*texts: str | None) -> list[str]:
+    keys: list[str] = []
+    seen: set[str] = set()
+    for text in texts:
+        if not text:
+            continue
+        for match in LINEAR_KEY_PATTERN.finditer(text):
+            key = normalize_linear_key(match.group(1))
+            if key in seen:
+                continue
+            seen.add(key)
+            keys.append(key)
+    return keys
+
+
+def extract_linear_key(*texts: str | None) -> str | None:
+    keys = extract_linear_keys(*texts)
+    return keys[0] if keys else None
+
+
+def extract_issue_reference(
+    *texts: str | None,
+    verbs: tuple[str, ...] = ("Closes", "Refs"),
+) -> dict[str, str] | None:
+    allowed = {verb.lower(): verb for verb in verbs}
+    for text in texts:
+        if not text:
+            continue
+        for match in ISSUE_LINK_PATTERN.finditer(text):
+            verb = match.group(1).capitalize()
+            if verb.lower() not in allowed:
+                continue
+            return {"verb": allowed[verb.lower()], "issue_number": match.group(2)}
+    return None
 
 
 def run(

@@ -13,7 +13,7 @@ from typing import Any
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
-from common import read_text_arg, write_json  # noqa: E402
+from common import extract_issue_reference, read_text_arg, write_json  # noqa: E402
 
 
 def extract_checkboxes(markdown: str) -> list[str]:
@@ -24,8 +24,8 @@ def extract_checkboxes(markdown: str) -> list[str]:
 
 
 def linked_issue_number(pr_body: str) -> str | None:
-    match = re.search(r"\bCloses\s+#(\d+)", pr_body, flags=re.IGNORECASE)
-    return match.group(1) if match else None
+    reference = extract_issue_reference(pr_body)
+    return reference["issue_number"] if reference else None
 
 
 def review_pr(
@@ -74,7 +74,7 @@ def build_comment(
         f"Verdict: {'review-ready' if ok else 'needs-human'}",
         "",
         "Checks:",
-        f"- Linked issue via `Closes #...`: {'yes' if has_link else 'no'}",
+        f"- Linked issue via `Closes #...` or `Refs #...`: {'yes' if has_link else 'no'}",
         f"- Issue acceptance criteria found: {len(issue_checks)}",
         f"- PR verification section present: {'yes' if has_verification else 'no'}",
         f"- PR acceptance self-check present: {'yes' if has_self_check else 'no'}",

@@ -40,8 +40,8 @@ def test_pr_review_marks_complete_agent_pr_review_ready():
 def test_pr_review_does_not_merge_or_pass_without_link():
     result = review_pr(ISSUE_BODY, GOOD_PR_BODY.replace("Closes #42", "Refs #42"), 10, 5, 2)
 
-    assert not result["ok"]
-    assert result["verdict"] == "needs-human"
+    assert result["ok"]
+    assert result["verdict"] == "review-ready"
 
 
 def test_pr_review_blocks_large_diff_for_human_attention():

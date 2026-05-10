@@ -1,0 +1,143 @@
+name: Agentic Traceability Sync
+
+on:
+  issues:
+    types: [labeled]
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review, converted_to_draft, closed]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: agentic-traceability-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  issue-sync:
+    if: ${{ github.event_name == 'issues' && github.event.label.name == 'in-progress' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch issue
+        run: |
+          gh issue view "$ISSUE_NUMBER" --json title --jq '.title' > "$RUNNER_TEMP/issue-title.txt"
+          gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/issue.md"
+          {
+            echo "ISSUE_TITLE<<EOF"
+            cat "$RUNNER_TEMP/issue-title.txt"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Sync Linear status
+        id: sync
+        run: |
+          set +e
+          python3 scripts/agentic/linear_sync.py \
+            --event issue-in-progress \
+            --issue-title "$ISSUE_TITLE" \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --json-output "$RUNNER_TEMP/linear-sync.json"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Comment unresolved sync handoff
+        if: steps.sync.outputs.exit_code != '0'
+        run: |
+          python3 -c "import json; print(json.load(open('$RUNNER_TEMP/linear-sync.json'))['comment'])" > "$RUNNER_TEMP/linear-sync-comment.md"
+          gh issue edit "$ISSUE_NUMBER" --add-label "needs-human"
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/linear-sync-comment.md"
+
+  pr-sync:
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure standard labels
+        run: python3 scripts/agentic/ensure_labels.py
+
+      - name: Fetch PR and linked issue
+        run: |
+          gh pr view "$PR_NUMBER" --json title --jq '.title' > "$RUNNER_TEMP/pr-title.txt"
+          gh pr view "$PR_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
+          gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName' > "$RUNNER_TEMP/head-ref.txt"
+          gh pr view "$PR_NUMBER" --json url --jq '.url' > "$RUNNER_TEMP/pr-url.txt"
+          ISSUE_NUMBER=$(python3 -c "import pathlib, re; match=re.search(r'\b(?:Closes|Refs)\s+#(\d+)', pathlib.Path('$RUNNER_TEMP/pr-body.md').read_text(), re.I); print(match.group(1) if match else '')")
+          echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
+          {
+            echo "PR_TITLE<<EOF"
+            cat "$RUNNER_TEMP/pr-title.txt"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          {
+            echo "HEAD_REF<<EOF"
+            cat "$RUNNER_TEMP/head-ref.txt"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          {
+            echo "PR_URL<<EOF"
+            cat "$RUNNER_TEMP/pr-url.txt"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          if [ -n "$ISSUE_NUMBER" ]; then
+            gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/issue.md"
+          else
+            : > "$RUNNER_TEMP/issue.md"
+          fi
+
+      - name: Check traceability
+        id: traceability
+        run: |
+          set +e
+          python3 scripts/agentic/pr_traceability.py \
+            --pr-title "$PR_TITLE" \
+            --pr-body-file "$RUNNER_TEMP/pr-body.md" \
+            --head-ref "$HEAD_REF" \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --json-output "$RUNNER_TEMP/pr-traceability.json"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Comment traceability drift
+        if: steps.traceability.outputs.exit_code != '0'
+        run: |
+          python3 -c "import json; print(json.load(open('$RUNNER_TEMP/pr-traceability.json'))['comment'])" > "$RUNNER_TEMP/pr-traceability-comment.md"
+          gh pr edit "$PR_NUMBER" --add-label "needs-human"
+          gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/pr-traceability-comment.md"
+
+      - name: Sync Linear status
+        id: sync
+        if: ${{ github.event.action != 'closed' || github.event.pull_request.merged == true }}
+        env:
+          SYNC_EVENT: ${{ github.event.pull_request.merged && 'pr-merged' || 'pr-open' }}
+        run: |
+          set +e
+          python3 scripts/agentic/linear_sync.py \
+            --event "$SYNC_EVENT" \
+            --pr-title "$PR_TITLE" \
+            --pr-body-file "$RUNNER_TEMP/pr-body.md" \
+            --head-ref "$HEAD_REF" \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --pr-url "$PR_URL" \
+            --json-output "$RUNNER_TEMP/linear-sync.json"
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Comment unresolved sync handoff
+        if: steps.sync.outputs.exit_code != '0'
+        run: |
+          python3 -c "import json; print(json.load(open('$RUNNER_TEMP/linear-sync.json'))['comment'])" > "$RUNNER_TEMP/linear-sync-comment.md"
+          gh pr edit "$PR_NUMBER" --add-label "needs-human"
+          gh pr comment "$PR_NUMBER" --body-file "$RUNNER_TEMP/linear-sync-comment.md"

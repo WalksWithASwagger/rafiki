@@ -1,131 +1,85 @@
 # Rafiki Delivery Pipeline
 
-Rafiki uses the same operating loop as the kk-kb delivery pipeline: write
-agent-ready GitHub issues, mirror the roadmap in Linear, let agents work from
-bounded issue contracts, and review pull requests against the issue acceptance
-criteria before merge.
+Rafiki uses GitHub for concrete execution and Linear for cross-repo planning. The pipeline is intentionally conservative: it automates the boring bookkeeping and traceability work, but it does not auto-merge or override human gates.
 
-Linear project: https://linear.app/bc-ai/project/rafiki-roadmap-delivery-faf493aca4ce
+Linear project: <https://linear.app/bc-ai/project/rafiki-roadmap-delivery-faf493aca4ce>
 
-## Surfaces
+## Operating Model
 
 | Surface | Purpose |
 |---|---|
-| GitHub issues | Source of truth for implementation scope, acceptance criteria, and PR closure. |
-| Linear project | Prioritization, milestones, project status, and cross-repo planning. |
-| `.claude/skills/github-issue-writer/` | Local issue-writing contract for agent-ready GitHub issues. |
-| `.claude/skills/github-pr-reviewer/` | Local PR-review contract for checking implementation against the linked issue. |
-| `meta/routines/dev-loop-runner.prompt.md` | Repeatable prompt for the issue-to-PR implementation loop. |
-| `meta/routines/auto-merge-gate.prompt.md` | Legacy prompt for guarded PR review decisions. |
-| `meta/audits/dev-loop-log.csv` | Lightweight audit trail for autonomous PR attempts. |
+| GitHub issues | Acceptance criteria, execution scope, and closure semantics |
+| GitHub PRs | Review, CI, diff discussion, and merge history |
+| Linear project | Priority, sequencing, milestone status, and cross-repo planning |
+| `agentic/contract.json` | Repo-local automation contract |
+| `docs/AGENTIC-DELIVERY.md` | Ready-issue, PR, and sync rules |
 
-## GitHub Label Contract
+## Active-Delivery Rule
 
-These labels drive the agent loop:
+Mirror only active delivery work into the `Rafiki Roadmap Delivery` project. If a GitHub issue is backlog-only, exploratory, or intentionally local, keep it GitHub-only and use the `codex/issue-<number>-<slug>` fallback branch shape.
 
-| Label | Meaning |
+## Required PR Metadata
+
+If a Linear issue exists:
+
+- Branch: `codex/BC-<number>-<slug>`
+- Title: `BC-<number>: ...`
+- Body: `Closes #<github-issue>` or `Refs #<github-issue>`
+- Body: `Linear: BC-<number>`
+
+If the work stays GitHub-only:
+
+- Branch: `codex/issue-<github-issue>-<slug>`
+- Body still includes `Closes #...` or `Refs #...`
+
+## Status Mapping
+
+| GitHub event | Linear result |
 |---|---|
-| `agent:ready` | Issue has enough context, acceptance criteria, and test expectations for an agent to attempt. |
-| `in-progress` | An agent or maintainer is actively working the issue. |
-| `review-ready` | A PR exists and needs CI, review, or acceptance-criteria verification. |
-| `needs-human` | The next step requires maintainer judgment, credentials, content policy, or merge approval. |
-| `blocked` | Work cannot continue until an external blocker clears. |
+| Issue labeled `in-progress` | `In Progress` |
+| Draft or open PR linked to the work | `In Review` |
+| Linked PR merged | `Done` |
 
-Existing labels such as `phase-1`, `phase-2`, `phase-3`, `pipeline`,
-`documentation`, `enhancement`, `bug`, and `tech-debt` still describe roadmap
-area and work type.
+If Linear does not auto-attach the PR, the sync helper adds a comment with the PR URL so the breadcrumb is still durable.
 
-## Linear Contract
+## Labels
 
-Every roadmap issue should live in the `Rafiki Roadmap Delivery` Linear project
-when it is part of the active plan.
+- `agent:ready`
+- `in-progress`
+- `review-ready`
+- `needs-human`
+- `blocked`
 
-Use these milestones:
+Legacy ready aliases `auto-implement` and `autonomous` are accepted only for migration and are normalized back to `agent:ready`.
 
-- `Phase 0: Pipeline + Stabilization`
-- `Phase 1: Public Release Hygiene`
-- `Phase 2: Workflow Reliability`
-- `Phase 3: Registry + Portal + Automation`
+## Human Gates
 
-Linear issues should link to the corresponding GitHub issue. GitHub issues may
-link back to Linear when useful, but GitHub remains the merge-closing source of
-truth.
+Automation must stop and leave `needs-human` when the next step depends on:
 
-## Issue Intake
+- credentials or private services
+- production writes or destructive cleanup
+- policy-sensitive prompt or content decisions
+- billing or paid-service configuration
+- merge approval
+- proof that cannot be produced locally
 
-Use `.github/ISSUE_TEMPLATE/agent-task.md` or the
-`github-issue-writer` skill. A ready issue includes:
+The current repo-level blocker model is the same one used elsewhere: `blocked` is for external dependencies, `needs-human` is for judgment or access.
 
-- user-facing problem or opportunity
-- current repo context with exact files when known
-- non-goals and boundaries
-- implementation phases small enough for one PR
-- acceptance criteria
-- required tests or smoke checks
-- docs/package impact
-- human checkpoints
+## Verification Gates
 
-Do not apply `agent:ready` until the issue is specific enough for a worker to
-act without rereading the whole repo.
-
-## Agent Implementation Loop
-
-The implementation loop is:
-
-1. Select one open issue labeled `agent:ready` and not labeled `in-progress`,
-   `needs-human`, or `blocked`.
-2. Re-read the issue, `docs/ROADMAP.md`, this pipeline doc, and relevant code.
-3. Create a branch named `codex/<linear-key-or-issue>-<slug>`.
-4. Make the smallest change that satisfies the issue.
-5. Run the gates listed in the issue. Default gates are `npm test`,
-   `npm run pack:check`, and `npm run doctor` when the change can affect runtime
-   behavior, packaging, or docs.
-6. Open a PR with `Closes #<issue>`, a criteria checklist, test output, and any
-   Linear issue identifier.
-7. Replace `in-progress` with `review-ready`.
-
-The loop must stop and add `needs-human` when it touches credentials, public vs
-private content boundaries, destructive cleanup, model-default policy, or any
-change that cannot be verified locally.
-
-## Review And Merge Loop
-
-The PR gate checks:
-
-- linked GitHub issue exists and is open
-- PR scope matches the issue, or the PR uses `Refs` plus a clear follow-up
-- acceptance criteria are satisfied
-- tests and smoke checks are credible
-- docs/package impacts are handled
-- private paths, generated assets, and local-only config are not leaked
-- diff is small enough to review safely
-
-For the first 10 agent-created Rafiki PRs, keep a human spot check before merge
-and record the result in `meta/audits/dev-loop-log.csv`. Real provider execution
-should stay disabled until the prior PRs show clean scope control, passing CI,
-and useful self-checks. v1 does not auto-merge.
-
-## Pause Controls
-
-Any maintainer can pause the loop by adding either:
-
-- a root `.dev-loop-pause` file
-- a GitHub Actions variable named `LOOP_PAUSED` with value `true`
-
-Agents must check for pause signals before starting new work and before PR review.
-
-## Default Verification Gates
-
-Run the smallest meaningful set for the change:
+Default repo gates:
 
 - `npm test`
 - `npm run pack:check`
 - `npm run doctor`
-- MCP smoke: list tools and call `rafiki_status`
-- CLI dry run: `python generate.py --prompt "..." --dry-run --json`
-- docs check: search for stale local paths or broken links when touching docs
-- scheduled regen docs: `python generate.py regen --config config/scheduled-regen.json.example --dry-run`
 
-If a gate cannot run locally, the PR must say why and mark the missing proof.
+Use the smallest meaningful subset for a manual PR, but agent-created PRs are expected to report all configured checks or clearly explain what could not run.
 
-For local automation recipes, see [SCHEDULED-REGEN.md](SCHEDULED-REGEN.md).
+## Workflow Files
+
+- `.github/workflows/agentic-issue-quality.yml`
+- `.github/workflows/agentic-dev-loop.yml`
+- `.github/workflows/agentic-traceability-sync.yml`
+- `.github/workflows/agentic-pr-review.yml`
+
+`LINEAR_API_KEY` should be configured in GitHub Actions before expecting live status sync.
