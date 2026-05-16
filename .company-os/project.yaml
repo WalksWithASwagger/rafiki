@@ -4,7 +4,7 @@ project:
   type: "repo"
   owner: "kk"
   production_surface: "local-first creative operations CLI, portal, and MCP surfaces"
-  primary_repo: "/Users/kk/Code/notion-local/rafiki"
+  primary_repo: "/Users/kk/Code/rafiki"
 
 source_systems:
   github: "WalksWithASwagger/rafiki"
