@@ -41,6 +41,8 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["invocation"] == {"surface": "mcp"}
     assert data["model"] == "gpt-image-2"
     assert data["provider"] == "OpenAI"
+    assert data["resolution"] == "1K"
+    assert data["quality"] == "high"
     assert data["style"] == "bcai"
     assert data["reference_images"] == [
         "/tmp/ref-a.png",
@@ -55,6 +57,7 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["cost_estimate"]["amount"] is None
     assert data["cost_estimate"]["currency"] == "USD"
     assert data["cost_estimate"]["image_count"] == 2
+    assert data["cost_estimate"]["basis"] == "not_estimated"
     assert data["duration_seconds"] >= 0
     assert data["started_at"]
     assert data["finished_at"]
@@ -66,6 +69,10 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["images"][0]["style"] == "bcai"
     assert data["images"][0]["cost_estimate"]["model"] == "gpt-image-2"
     assert data["images"][0]["cost_estimate"]["provider"] == "OpenAI"
+    assert data["images"][0]["cost_estimate"]["basis"] == "not_estimated"
+    assert data["images"][0]["dry_run"] is True
+    assert data["images"][0]["resolution"] == "1K"
+    assert data["images"][0]["quality"] == "high"
     assert data["images"][0]["reference_images"] == [
         "/tmp/ref-a.png",
         "/tmp/global-a.png",
@@ -108,9 +115,28 @@ def test_run_manifest_records_item_failure_state_and_error(tmp_path, monkeypatch
     assert data["error"] == "1 of 2 image failed"
     assert data["images"][0]["state"] == "failed"
     assert data["images"][0]["error"] == "generation failed"
+    assert data["images"][0]["cost_estimate"]["basis"] == "failed_no_output_image_estimate"
     assert data["images"][0]["duration_seconds"] >= 0
     assert data["images"][1]["state"] == "succeeded"
     assert "error" not in data["images"][1]
+
+
+def test_run_manifest_records_pricing_profile_for_gemini_dry_run(tmp_path):
+    result = batch_module.run_batch(
+        prompts=[{"name": "Hero", "prompt": "hero prompt"}],
+        project_dir=tmp_path / "images",
+        model="gemini-2.5-flash-image",
+        dry_run=True,
+        generate_viewer_html=False,
+    )
+
+    data = _manifest(result.run_dir)
+
+    assert data["cost_estimate"]["amount"] == 0
+    assert data["cost_estimate"]["estimated"] is True
+    assert data["cost_estimate"]["estimated_images"] == 1
+    assert data["images"][0]["cost_estimate"]["basis"] == "dry_run_no_provider_spend"
+    assert data["images"][0]["cost_estimate"]["potential_amount"] == 0.039
 
 
 def test_run_manifest_verifies_success_wrote_file(tmp_path, monkeypatch):

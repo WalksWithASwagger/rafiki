@@ -31,6 +31,7 @@
     "lib/**/*.py",
     "styles/**/*.md",
     "styles/styles.yaml",
+    "config/pricing.json",
     "config/extra-outputs.json",
     "config/extra-outputs.json.example",
     "config/scheduled-regen.json.example",

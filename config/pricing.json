@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "currency": "USD",
+  "updated_at": "2026-05-18",
+  "source_note": "Public image pricing snapshot. Provider billing exports remain the source of truth.",
+  "models": {
+    "gemini-2.5-flash-image": {
+      "provider": "Gemini",
+      "default_tier": "standard",
+      "per_image_usd": {
+        "standard": 0.039,
+        "batch": 0.0195,
+        "flex": 0.0195,
+        "priority": 0.0702
+      },
+      "basis": "official_output_image_price",
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "source_detail": "Google lists Gemini 2.5 Flash Image output at $0.039/image standard, $0.0195/image batch/flex, and $0.0702/image priority."
+    },
+    "gemini-3-pro-image-preview": {
+      "provider": "Gemini",
+      "default_tier": "standard",
+      "default_resolution": "1K",
+      "per_image_usd_by_resolution": {
+        "1K": 0.134,
+        "2K": 0.134,
+        "4K": 0.24
+      },
+      "basis": "official_output_image_price",
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+      "source_detail": "Google lists Gemini 3 Pro Image Preview output at $0.134 per 1K/2K image and $0.24 per 4K image."
+    },
+    "gpt-image-2": {
+      "provider": "OpenAI",
+      "basis": "official_token_price_requires_usage_tokens",
+      "output_usd_per_1m_tokens": 30.0,
+      "input_image_usd_per_1m_tokens": 8.0,
+      "input_text_usd_per_1m_tokens": 5.0,
+      "source_url": "https://developers.openai.com/api/docs/pricing",
+      "source_detail": "OpenAI lists GPT Image 2 token prices. Rafiki only estimates this model when token usage is present in a manifest."
+    },
+    "gpt-image-1": {
+      "provider": "OpenAI",
+      "basis": "legacy_model_needs_manifest_amount",
+      "source_url": "https://developers.openai.com/api/docs/pricing",
+      "source_detail": "Legacy OpenAI image model. Use manifest amounts or provider billing exports for exact spend."
+    },
+    "dall-e-3": {
+      "provider": "OpenAI",
+      "basis": "legacy_model_needs_manifest_amount",
+      "source_url": "https://developers.openai.com/api/docs/pricing",
+      "source_detail": "Legacy OpenAI image model. Use manifest amounts or provider billing exports for exact spend."
+    },
+    "dall-e-2": {
+      "provider": "OpenAI",
+      "basis": "legacy_model_needs_manifest_amount",
+      "source_url": "https://developers.openai.com/api/docs/pricing",
+      "source_detail": "Legacy OpenAI image model. Use manifest amounts or provider billing exports for exact spend."
+    }
+  }
+}

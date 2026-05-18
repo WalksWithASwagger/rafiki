@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from lib.pricing import estimate_image_cost, load_pricing_profile, provider_for_model
+
 USAGE_LOG_PATH = Path(__file__).parent.parent / "data" / "usage-log.json"
 
 # Serializes the read-modify-write cycle in log_generation() so concurrent
@@ -99,6 +101,10 @@ def _cost_amount(cost_estimate: object) -> float | None:
     return amount
 
 
+def _is_successful_image(image: dict[str, Any]) -> bool:
+    return image.get("ok", True) is not False and image.get("state") != "failed"
+
+
 def _safe_manifest(path: Path) -> dict[str, Any] | None:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -159,8 +165,12 @@ def summarize_usage(
     unestimated_images = 0
     known_cost = 0.0
     estimated_images = 0
+    profile_cost = 0.0
+    profile_estimated_images = 0
+    profile_unpriced_images = 0
     duration_seconds = 0.0
     recent_runs: list[dict[str, Any]] = []
+    pricing_profile = load_pricing_profile()
 
     if output_root is not None:
         for project, run_id, manifest_path, manifest in _iter_run_manifests(Path(output_root), extra_roots):
@@ -173,6 +183,8 @@ def summarize_usage(
             duration_seconds += run_duration
             run_cost = 0.0
             run_estimated_images = 0
+            run_profile_cost = 0.0
+            run_profile_estimated_images = 0
             run_failed = 0
 
             for image in images:
@@ -191,6 +203,24 @@ def summarize_usage(
                 amount = _cost_amount(image.get("cost_estimate"))
                 if amount is None:
                     unestimated_images += 1
+                    if _is_successful_image(image):
+                        image_model = str(image.get("model") or manifest.get("model") or "unknown")
+                        estimate = estimate_image_cost(
+                            model=image_model,
+                            provider=str(image.get("provider") or manifest.get("provider") or "")
+                            or provider_for_model(image_model),
+                            resolution=str(image.get("resolution") or manifest.get("resolution") or ""),
+                            dry_run=bool(image.get("dry_run") or manifest.get("dry_run")),
+                            pricing_profile=pricing_profile,
+                        )
+                        estimated_amount = _cost_amount(estimate)
+                        if estimated_amount is None:
+                            profile_unpriced_images += 1
+                        else:
+                            profile_cost += estimated_amount
+                            run_profile_cost += estimated_amount
+                            profile_estimated_images += 1
+                            run_profile_estimated_images += 1
                 else:
                     known_cost += amount
                     run_cost += amount
@@ -209,6 +239,8 @@ def summarize_usage(
                 "failed_images": run_failed,
                 "known_cost": round(run_cost, 4),
                 "estimated_images": run_estimated_images,
+                "profile_estimated_cost": round(run_profile_cost, 4),
+                "profile_estimated_images": run_profile_estimated_images,
                 "manifest": str(manifest_path),
             })
 
@@ -238,6 +270,18 @@ def summarize_usage(
                 "unestimated_images": unestimated_images,
                 "basis": "local_manifest_amounts",
             },
+            "estimated_cost": {
+                "currency": "USD",
+                "amount": round(known_cost + profile_cost, 4),
+                "known_amount": round(known_cost, 4),
+                "profile_amount": round(profile_cost, 4),
+                "manifest_amount_images": estimated_images,
+                "profile_estimated_images": profile_estimated_images,
+                "unpriced_images": profile_unpriced_images,
+                "basis": "local_manifest_amounts_plus_pricing_profile",
+                "pricing_profile": pricing_profile.get("path", ""),
+                "pricing_updated_at": pricing_profile.get("updated_at", ""),
+            },
             "by_model": [
                 {"model": model, "images": count}
                 for model, count in by_model.most_common()
@@ -248,5 +292,5 @@ def summarize_usage(
             ],
         },
         "recent_runs": recent_runs[:12],
-        "pricing_note": "Only local manifest amounts are totaled; provider billing exports remain the source of truth.",
+        "pricing_note": "Estimated spend combines local manifest amounts with the pricing profile when possible; provider billing exports remain the source of truth.",
     }

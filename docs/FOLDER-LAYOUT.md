@@ -41,6 +41,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── prompts.py               # parse_image_prompts_md()
 │   ├── styles.py                # Style suffix resolution + composition
 │   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
+│   ├── pricing.py               # Public pricing-profile loader + local cost estimates
 │   ├── feedback.py              # Local archive feedback notes + change requests
 │   ├── archive.py               # approved/ curation + clean
 │   ├── registry.py              # Asset registry index/search/export
@@ -52,7 +53,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── providers/               # Gemini + OpenAI image providers
 │   ├── renderers/               # Per-run viewer, comparison viewer, library viewer
 │   ├── exporters/               # Canva bundle + Notion gallery exporters
-│   └── deploy/                  # Vercel static viewer deploy helper
+│   └── deploy/                  # Vercel static viewer deploy helper + readiness checks
 ├── scripts/
 │   ├── check-doc-links.py       # `npm run docs:check`
 │   ├── run-pytest.js            # `npm test` wrapper
@@ -75,6 +76,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── assets/                      # Reference images, KB-import mirrors (private — not packaged)
 ├── config/
 │   ├── extra-outputs.json.example
+│   ├── pricing.json             # Public model pricing profile for local estimates
 │   └── scheduled-regen.json.example  # Local config templates (real files are gitignored)
 ├── data/                        # usage-log.json + asset-registry.* (gitignored)
 ├── output/                      # Generated images + viewers (gitignored)

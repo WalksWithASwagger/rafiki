@@ -7,12 +7,14 @@ archive, and uses the same generation path as the CLI.
 ## Surfaces
 
 - **Spend & Review Ops** summarizes local usage and run manifests:
-  - known spend from `cost_estimate.amount` values already written to run
-    manifests
-  - unestimated image count when manifests do not contain local amounts
+  - estimated spend from local manifest amounts plus `config/pricing.json`
+  - unpriced image count when manifests and the pricing profile cannot estimate
+    a local amount
   - archive image, run, project, model, provider, failed-image, and duration
     totals
-  - recent runs with project, run id, state, image count, and local cost amount
+  - recent runs with project, run id, state, image count, and local/profile cost
+    amounts
+  - deployment readiness for local public sharing and static Vercel deploys
 - **Prompt Studio** launches single-prompt or Markdown batch runs through
   `/api/regen`.
 - **Curation & Export** exposes local action helpers such as approve starred,
@@ -27,6 +29,7 @@ archive, and uses the same generation path as the CLI.
 | `output/ratings.json` | `/api/ratings` | Star/reject review state keyed by `project/run/file`. |
 | `output/feedback.json` | `/api/feedback` | Per-card notes, change requests, and review statuses. |
 | `data/usage-log.json` | `lib.usage.log_generation` | Local generation event log. |
+| `config/pricing.json` | Maintainers | Public pricing profile used for local spend estimates. |
 | `output/<project>/run-*/run.json` | `lib.batch.run_batch` | Run metadata, prompt details, timings, state, and local cost estimates. |
 
 `output/` and `data/usage-log.json` are gitignored. Feedback and ratings stay
@@ -34,10 +37,26 @@ local unless an operator intentionally exports or deploys them.
 
 ## Spend Semantics
 
-The portal does not bundle provider pricing. The spend tile only totals local
-manifest amounts when `cost_estimate.amount` is present. Images without a local
-amount remain counted as unestimated. Provider billing exports remain the
-source of truth for invoices and account-level spend.
+The spend tile combines two local signals:
+
+- exact local manifest amounts when `cost_estimate.amount` is present
+- pricing-profile estimates from `config/pricing.json` when Rafiki can estimate
+  the image output price
+
+Images that cannot be estimated locally remain counted as unpriced. Provider
+billing exports remain the source of truth for invoices and account-level
+spend. See [Spend Accounting](SPEND-ACCOUNTING.md).
+
+## Online Readiness
+
+The portal readiness panel is read-only. It checks:
+
+- whether a static viewer exists when a project/viewer is selected
+- whether the Vercel CLI is on `$PATH`
+- whether `PORTAL_USERNAME` and `PORTAL_PASSWORD` are set before public binding
+- whether Gemini/OpenAI provider keys are present, without echoing secrets
+
+It does not deploy, call provider APIs, or expose secret values.
 
 ## Feedback To Rerun Flow
 
@@ -54,6 +73,7 @@ source of truth for invoices and account-level spend.
 | Endpoint | Method | Behavior |
 |---|---|---|
 | `/api/usage` | `GET` | Read-only local usage and manifest summary. |
+| `/api/deploy-readiness` | `GET` | Secret-safe readiness checks for static deploy and public portal sharing. |
 | `/api/feedback` | `GET` | Return `output/feedback.json` as `{version, items}`. |
 | `/api/feedback` | `POST` | Upsert one feedback item using `key`, `status`, `note`, and `change_request`. |
 | `/api/regen` | `POST` | Run Prompt Studio generation or dry run through `lib.batch.run_batch`. |
