@@ -1,14 +1,11 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-08
+Last reviewed: 2026-05-17
 
-This roadmap is the maintainers' working plan for Rafiki after reviewing the
-current project structure, docs, tests, and code. It replaces the older backlog
-items that were already shipped and separates public-release hygiene from
-product expansion.
-
-For the public-facing release checklist, see
-[PUBLIC-RELEASE-PLAN.md](PUBLIC-RELEASE-PLAN.md).
+This roadmap is the maintainers' working plan for Rafiki. It is intentionally
+forward-looking: current product surface lives in `README.md` and the per-area
+docs under `docs/`. The roadmap covers themes, phased work, verification gates,
+and non-goals.
 
 ## Product Direction
 
@@ -37,77 +34,7 @@ image generation platform.
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 88 Python tests plus CI for Python tests and `npm pack --dry-run`. |
-
-## What Is Already Shipped
-
-- Batch generation from Markdown prompt files
-- Single-prompt generation
-- Gemini and OpenAI provider support
-- Model aliases and style composition
-- Reference image and mockup support
-- Run isolation with `run-*` directories and `latest` symlink
-- Per-run and comparison viewers
-- Master library viewer
-- Local portal with ratings and prompt studio
-- Basic auth for intentionally public portal binding
-- Usage log with thread-level write protection and atomic writes
-- Archive approval and cleanup flows
-- Reusable presentation viewer
-- Self-contained presentation viewer mode
-- Social post export from presentation viewer data
-- Asset registry with search and CSV/JSON export
-- Canva export bundle
-- Notion export with dry-run and idempotency log
-- Vercel static viewer deploy helper
-- Scheduled regeneration config and runner
-- MCP server for local agent/tool access
-- NPM package allowlist and package smoke check
-- Contributor, security, scope, and release docs
-
-## Review Findings
-
-### Structure
-
-- The repository has a useful split between CLI, Python library modules, docs,
-  prompts, and tests.
-- `generate.py` is now the central command dispatcher. That is practical, but
-  it is large enough that future subcommands should move toward thin command
-  modules instead of continuing to grow the file indefinitely.
-- Prompt collections are valuable working material, but the public release
-  boundary is explicit: private prompt libraries and local media stay outside
-  the npm package, while `examples/quickstart-image-prompts.md` is the public
-  onboarding fixture.
-- Generated output, usage logs, registries, local config, and worktrees are
-  correctly ignored.
-
-### Documentation
-
-- The top-level README now tells a coherent v1 story: local CLI, portal,
-  review flow, exports, and MCP.
-- The old roadmap was stale. It listed several shipped features as gaps.
-- `docs/PUBLIC-RELEASE-PLAN.md`, `docs/SCOPE.md`, `SECURITY.md`, and
-  `CONTRIBUTING.md` agree on the local-first boundary.
-- `docs/MCP.md` and the README now use portable MCP install placeholders.
-  `rafiki_status` is the source for machine-specific commands in a local
-  checkout.
-- The docs set is broad enough that it needs an index or "start here" map.
-  Important workflow docs are discoverable only if you already know their names.
-
-### Code
-
-- Test coverage is now meaningful across usage logging, providers, portal
-  generation, auth, registry, Canva export, Notion export, scheduled regen,
-  archive cleanup, social expansion, deployment, self-contained viewers, and
-  MCP wrappers.
-- The core risk is not missing tests anymore; it is end-to-end drift between
-  the Node CLI, Python CLI, portal, MCP bridge, and docs.
-- Defaults are now consistent at the product level: CLI, portal, MCP, and
-  public docs default to `gemini-2.5-flash-image`; OpenAI models are selected
-  explicitly for OpenAI-specific workflows.
-- The MCP server is useful now, but its `rafiki_run` bridge should keep getting
-  stricter typed wrappers for high-value workflows as they stabilize.
-- Cost, provenance, and asset lifecycle metadata exist only partially.
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | ~157 Python test functions across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 

@@ -16,11 +16,8 @@ local. There is no hosted Rafiki service.
 
 ## Status
 
-Rafiki is ready for real work and is being cleaned up for broader public use.
-The recommended install path today is still: clone the repo, install
-dependencies, run locally.
-
-Public release plan: [docs/PUBLIC-RELEASE-PLAN.md](docs/PUBLIC-RELEASE-PLAN.md)
+Rafiki is ready for real work. The recommended install path is: clone the repo,
+install dependencies, run locally. Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## What Rafiki Does
 

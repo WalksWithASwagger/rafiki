@@ -4,45 +4,107 @@
 
 ```
 rafiki/                          ← this repo (clone anywhere; name the folder rafiki/)
-├── index.js                     # Node CLI entry (AI + Puppeteer)
-├── generate.py                  # Python CLI: generate / view / library subcommands
-├── mcp_server.py                # MCP server (generation tools + CLI bridge)
-├── package.json                 # npm package "rafiki", bins rafiki + image-gen
+├── index.js                     # Node CLI entry (delegates generation, runs Puppeteer)
+├── generate.py                  # Python CLI dispatcher: generation, viewers, archive,
+│                                #   registry, deploy, exports, regen, serve, link-projects
+├── generate-presentation-viewer.py  # JSON-driven deck viewer builder
+├── generate-rap-viewer.py       # thin wrapper for the RAP viewer data
+├── mcp_server.py                # MCP server (typed tools + constrained CLI bridge)
+├── package.json                 # npm package "rafiki"; bins: rafiki, image-gen
+├── pytest.ini
 ├── requirements.txt
+├── requirements-dev.txt
+├── .env.example                 # provider key template (copy to .env)
 ├── .github/
-│   ├── ISSUE_TEMPLATE/          # Agent-ready issue template
+│   ├── ISSUE_TEMPLATE/          # Agent-ready issue templates
+│   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── branch-protection.md     # Recommended GitHub protection settings
-│   └── workflows/ci.yml         # Python tests + npm package smoke
-├── .claude/skills/              # Local skills for Rafiki, issue writing, and PR review
+│   └── workflows/               # ci.yml + agentic-* (issue-quality, dev-loop,
+│                                #   traceability-sync, pr-review)
+├── .claude/
+│   ├── commands/                # Slash commands (e.g. /agentic-intake)
+│   └── skills/                  # Local skills: rafiki, github-issue-writer/,
+│                                #   github-pr-reviewer/
+├── .company-os/
+│   └── project.yaml             # Company-OS project manifest (loops, memory, validation)
+├── agentic/
+│   └── contract.json            # Repo-local agentic delivery contract (labels, limits,
+│                                #   linear_sync, verification commands)
 ├── meta/
-│   ├── audits/                  # Agent loop audit logs
-│   └── routines/                # Repeatable agent workflow prompts
-├── styles/                      # styles.yaml + per-style markdown guides (kk, hopecode, bcai, futureproof-mythic, bcai-ecosystem, upgrade, zine, gni, femme, indigenomics, cmvan)
-├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/, kk-kb/
-├── examples/
-├── lib/
-│   ├── batch.py                 # Parallel batch runner, run isolation, viewer generation
+│   ├── audits/                  # Agent loop audit logs (dev-loop-log.csv)
+│   └── routines/                # Repeatable agent prompts (SETUP, dev-loop-runner,
+│                                #   auto-merge-gate)
+├── lib/                         # Python library modules
 │   ├── core.py                  # generate_image() — unified provider dispatch
+│   ├── batch.py                 # Parallel batch runner, run isolation, viewer generation
 │   ├── models.py                # Alias resolution + resolution config
 │   ├── prompts.py               # parse_image_prompts_md()
 │   ├── styles.py                # Style suffix resolution + composition
 │   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
-│   └── renderers/
-│       ├── __init__.py
-│       ├── viewer.py            # Single-run viewer + comparison viewer HTML
-│       └── library.py          # Master library viewer (all projects, project/model filter chips)
-├── data/                        # usage-log.json (gitignored)
+│   ├── archive.py               # approved/ curation + clean
+│   ├── registry.py              # Asset registry index/search/export
+│   ├── regen.py                 # Scheduled regeneration runner
+│   ├── server.py                # Local portal (serve, ratings API, prompt studio)
+│   ├── portal_actions.py        # Portal curation/export endpoints
+│   ├── social.py                # social-expand (LLM social-post expansion)
+│   ├── extra_outputs.py         # Loader for config/extra-outputs(.local).json
+│   ├── providers/               # Gemini + OpenAI image providers
+│   ├── renderers/               # Per-run viewer, comparison viewer, library viewer
+│   ├── exporters/               # Canva bundle + Notion gallery exporters
+│   └── deploy/                  # Vercel static viewer deploy helper
+├── scripts/
+│   ├── check-doc-links.py       # `npm run docs:check`
+│   ├── run-pytest.js            # `npm test` wrapper
+│   ├── sync-kb-image-prompt-mirror.sh
+│   └── agentic/                 # Agentic pipeline scripts (issue_lint, dev_loop,
+│                                #   pr_traceability, linear_sync, ensure_labels,
+│                                #   pr_review, repo_doctor, status_report,
+│                                #   provider_adapter, common)
+├── styles/                      # styles.yaml + per-style markdown guides:
+│                                #   kk, hopecode, bcai, futureproof-mythic,
+│                                #   bcai-ecosystem, upgrade, zine, gni, femme,
+│                                #   indigenomics, cmvan
+├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/,
+│                                #   kk-kb/, kb-ecosystem-mirror/,
+│                                #   creative-mornings-vancouver-may-2026/, etc.
+│                                #   Excluded from the npm package allowlist.
+├── examples/
+│   └── quickstart-image-prompts.md  # Public onboarding fixture (the only prompt
+│                                #   shipped in the npm package)
+├── assets/                      # Reference images, KB-import mirrors (private — not packaged)
+├── config/
+│   ├── extra-outputs.json.example
+│   └── scheduled-regen.json.example  # Local config templates (real files are gitignored)
+├── data/                        # usage-log.json + asset-registry.* (gitignored)
 ├── output/                      # Generated images + viewers (gitignored)
+│   ├── ratings.json             # star/reject map, written by the portal
 │   ├── <project>/run-*/         # Per-project run trees with run.json + viewer.html
+│   ├── <project>/approved/      # Curated keepers + index.json + viewer.html
 │   └── library.html             # Master library — built by `generate.py library`
-└── docs/
+├── tools/
+│   └── gpt-image-batch-ui/      # Streamlit batch UI for gpt-image-1 workflows
+├── tests/                       # Python test suite (incl. tests/agentic/)
+└── docs/                        # See docs/INDEX.md for the full map
+    ├── INDEX.md
     ├── SCOPE.md
+    ├── ROADMAP.md
+    ├── PROMPT-MEDIA-POLICY.md
+    ├── MODEL-POLICY.md
     ├── MCP.md
-    ├── DELIVERY-PIPELINE.md     # Linear/GitHub issue-to-PR workflow
+    ├── DOCTOR.md
     ├── CHROME-PUPPETEER.md
-    ├── FOLDER-LAYOUT.md         # this file
-    ├── image-pipeline-analysis.md
-    └── image-pipeline-operator.md
+    ├── PRESENTATION-VIEWER.md
+    ├── ASSET-REGISTRY.md
+    ├── ARCHIVE.md
+    ├── kb-mirror-policy.md
+    ├── CANVA-EXPORT.md
+    ├── NOTION-EXPORT.md
+    ├── SOCIAL-EXPANSION.md
+    ├── DEPLOYMENT.md
+    ├── DELIVERY-PIPELINE.md
+    ├── SCHEDULED-REGEN.md
+    ├── image-pipeline-operator.md
+    └── FOLDER-LAYOUT.md         # this file
 ```
 
 ## Optional sibling repos

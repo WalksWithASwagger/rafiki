@@ -40,7 +40,7 @@ Run `find . -name '*.md' | sort` from this directory for the exact list.
 
 ## Rerun (with Rafiki) — read this first
 
-See **[RERUN-PIPELINE-PLAN.md](../../docs/RERUN-PIPELINE-PLAN.md)** for phased batches, model/style defaults, and example commands. This folder is the **raw prompt library**; [`kk-kb/`](../kk-kb/README.md) is the **curated diagram + zine** archive. Run batches when you’re ready — no need to delete anything here if you add `v2` prompts next to `v1`.
+See **[image-pipeline-operator.md](../../docs/image-pipeline-operator.md)** for the scenario decision table, prompt-file inventory, style guidance, reference-image flow, and CLI recipes. This folder is the **raw prompt library**; [`kk-kb/`](../kk-kb/README.md) is the **curated diagram + zine** archive. Run batches when you’re ready — no need to delete anything here if you add `v2` prompts next to `v1`.
 
 ## Visual system
 
@@ -58,4 +58,4 @@ python generate.py \
   --style kk -m gpt-image-2 -w 2
 ```
 
-For the punk-zine and HOPECODE overlays, swap `--style kk` for `zine` / `hopecode` — match what the file's frontmatter declares. For phased multi-file runs, follow [RERUN-PIPELINE-PLAN.md](../../docs/RERUN-PIPELINE-PLAN.md) instead of invoking files one at a time.
+For the punk-zine and HOPECODE overlays, swap `--style kk` for `zine` / `hopecode` — match what the file's frontmatter declares. For phased multi-file runs, follow the recipes in [image-pipeline-operator.md](../../docs/image-pipeline-operator.md) instead of invoking files one at a time.

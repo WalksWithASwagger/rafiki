@@ -30,7 +30,9 @@ blocker and add `needs-human` when appropriate.
 Prefer a user-specified issue. Otherwise select the oldest open GitHub issue
 with:
 
-- label `autonomous`
+- label `agent:ready` (legacy aliases `autonomous` and `auto-implement` are
+  also accepted and are normalized to `agent:ready` by the issue-quality
+  workflow)
 - no label `in-progress`
 - no label `review-ready`
 - no label `needs-human`
@@ -41,14 +43,19 @@ editing.
 
 ## Branch
 
-Use:
+Per `agentic/contract.json`, use:
 
 ```bash
-claude/issue-<number>-<slug>
+codex/{linear_key_or_issue}-{slug}
 ```
 
-For local Codex work, `codex/issue-<number>-<slug>` is also acceptable, but PR
-bodies and labels must follow the same contract.
+In practice:
+
+- With a Linear mirror: `codex/BC-<number>-<slug>`
+- GitHub-only fallback: `codex/issue-<github-issue>-<slug>`
+
+PR bodies and labels must follow the same contract regardless of which form
+the branch uses.
 
 ## Context To Load
 

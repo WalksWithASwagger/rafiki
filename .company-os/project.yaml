@@ -51,7 +51,7 @@ memory:
     - "docs/DELIVERY-PIPELINE.md"
     - "meta/routines/"
   durable_artifacts:
-    - "docs/PUBLIC-RELEASE-PLAN.md"
+    - "docs/ROADMAP.md"
     - "meta/audits/dev-loop-log.csv"
     - "automation memory: ai-native-company-os-weekly-sweep"
   lessons_path: ".company-os/lessons.md"

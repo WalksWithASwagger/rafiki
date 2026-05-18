@@ -5,15 +5,22 @@ files live in the repo so future agents can restart from the same rules.
 
 ## Required GitHub Labels
 
-Create or update these labels:
+Create or update these labels. The canonical ready label is `agent:ready`;
+`autonomous` and `auto-implement` are accepted aliases for migration only and
+are normalized back to `agent:ready` by the issue-quality workflow.
 
 ```bash
-gh label create autonomous --color 0E8A16 --description "Issue is ready for an autonomous agent attempt." --force
+gh label create agent:ready --color 0E8A16 --description "Issue is ready for an autonomous agent attempt." --force
+gh label create autonomous --color 0E8A16 --description "Legacy alias for agent:ready (kept for migration)." --force
+gh label create auto-implement --color 0E8A16 --description "Legacy alias for agent:ready (kept for migration)." --force
 gh label create in-progress --color FBCA04 --description "An agent or maintainer is actively working this issue." --force
 gh label create review-ready --color 1D76DB --description "A PR exists and needs CI or acceptance-criteria review." --force
 gh label create needs-human --color D93F0B --description "Maintainer judgment, credentials, policy, or merge approval is needed." --force
 gh label create blocked --color 000000 --description "Work is blocked by an external dependency." --force
 ```
+
+`scripts/agentic/ensure_labels.py --dry-run` mirrors this list and is the
+canonical source if these commands drift.
 
 Keep the existing roadmap labels for phase and work type.
 

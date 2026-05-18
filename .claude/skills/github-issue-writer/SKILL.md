@@ -58,7 +58,7 @@ Use these repo references when relevant:
 - `docs/DELIVERY-PIPELINE.md`
 - `docs/MCP.md`
 - `docs/SCOPE.md`
-- `docs/PUBLIC-RELEASE-PLAN.md`
+- `agentic/contract.json`
 - `generate.py`
 - `index.js`
 - `mcp_server.py`
@@ -74,7 +74,11 @@ Default verification choices:
 
 ## Label Guidance
 
-Add `autonomous` only when scope, files, criteria, and verification are clear.
+Add `agent:ready` only when scope, files, criteria, and verification are clear.
+`autonomous` and `auto-implement` are accepted as legacy aliases and are
+normalized back to `agent:ready` by the issue-quality workflow — prefer
+`agent:ready` on new issues.
+
 Add `needs-human` when the issue depends on release policy, credentials,
 private content, destructive cleanup, or the default model decision.
 

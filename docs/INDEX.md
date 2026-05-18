@@ -9,10 +9,8 @@ deeper operating docs by surface area.
   the boundaries for portal auth, Prompt Studio, MCP, and future extensions.
 - [Folder Layout](FOLDER-LAYOUT.md) - where generated runs, registered assets,
   config, docs, prompts, and optional sibling repos live.
-- [Roadmap](ROADMAP.md) - shipped surfaces, review findings, roadmap phases,
-  verification gates, and near-term execution order.
-- [Public Release Plan](PUBLIC-RELEASE-PLAN.md) - release hygiene, product
-  positioning, onboarding, and public launch checklist.
+- [Roadmap](ROADMAP.md) - themes, phased work, verification gates, near-term
+  execution order, and non-goals.
 - [Model Policy](MODEL-POLICY.md) - default model, provider choices, and
   Gemini versus OpenAI guidance.
 - [Prompt And Media Release Policy](PROMPT-MEDIA-POLICY.md) - public package
@@ -22,6 +20,8 @@ deeper operating docs by surface area.
 
 - [MCP](MCP.md) - local MCP installation, tool surface, CLI bridge examples,
   and safety notes.
+- [Doctor](DOCTOR.md) - what `npm run doctor` / `npx rafiki --doctor` checks,
+  exit codes, and common fixes.
 - [Chrome / Puppeteer](CHROME-PUPPETEER.md) - browser resolution and sandbox
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
@@ -33,10 +33,8 @@ deeper operating docs by surface area.
   re-indexing guidance for external or generated assets.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,
   `index.json` schema, and storage location.
-- [Image Prompt Archive](IMAGE-PROMPT-ARCHIVE.md) - prompt bundle locations,
-  style references, and rerun/archive pointers.
-- [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rules for KB
-  prompt mirrors and stale copy handling.
+- [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rule for
+  `prompts/kk-kb/` vs the legacy `kk-ai-ecosystem` copies.
 
 ## Export, Deployment, And Delivery
 
@@ -48,16 +46,14 @@ deeper operating docs by surface area.
   preference, environment requirements, and output format.
 - [Deployment](DEPLOYMENT.md) - static hosting setup, deploy commands, and
   caveats.
-- [Delivery Pipeline](DELIVERY-PIPELINE.md) - GitHub labels, Linear contract,
-  issue intake, agent loop, review loop, and verification gates.
+- [Delivery Pipeline](DELIVERY-PIPELINE.md) - canonical agentic delivery
+  contract: labels, required issue shape, branch/PR traceability, Linear sync,
+  pause controls, verification gates, and local commands.
 
 ## Regeneration And Operator Workflows
 
 - [Scheduled Regeneration](SCHEDULED-REGEN.md) - scheduled job config, schema,
   run behavior, and Claude Code automation notes.
-- [Rerun Pipeline Plan](RERUN-PIPELINE-PLAN.md) - prompt rerun phases,
-  command cheatsheet, and housekeeping.
-- [Image Pipeline Operator Guide](image-pipeline-operator.md) - prompt
-  inventory, styles, reference image flow, viewer commands, and CLI recipes.
-- [Image Pipeline Analysis](image-pipeline-analysis.md) - scenario matrix,
-  style-system notes, dedupe assessment, and phase status.
+- [Image Pipeline Operator Guide](image-pipeline-operator.md) - scenario
+  decision table, prompt inventory, styles, reference image flow, Streamlit UI
+  workflow, viewer commands, and CLI recipes.
