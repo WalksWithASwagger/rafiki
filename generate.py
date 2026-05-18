@@ -94,25 +94,10 @@ def _cmd_library(argv: list[str]) -> None:
         print(f"Error: output dir not found: {output_root}")
         sys.exit(1)
 
-    from lib.renderers.library import generate_library_viewer, load_extra_outputs, _scan_root
+    from lib.renderers.library import generate_library_viewer, _records_from_registry
     lp = generate_library_viewer(output_root, open_browser=args.open)
 
-    # Count across output_root + extra_roots (mirrors library generator logic)
-    seen: set[str] = set()
-    all_records: list[dict] = []
-    extra_roots = load_extra_outputs()
-    for project_name, extra_root in extra_roots.items():
-        if extra_root.exists():
-            for rec in _scan_root(extra_root, project_name, project_name):
-                seen.add(rec["file"])
-                all_records.append(rec)
-    for proj_dir in sorted(output_root.iterdir()):
-        if not proj_dir.is_dir():
-            continue
-        for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
-            if rec["file"] not in seen:
-                seen.add(rec["file"])
-                all_records.append(rec)
+    all_records = _records_from_registry(output_root)
 
     total = len(all_records)
     ok = sum(1 for r in all_records if r["ok"])
@@ -353,7 +338,12 @@ def _cmd_registry(argv: list[str]) -> None:
     )
     sub = p.add_subparsers(dest="action", required=True)
 
-    sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
+    sp_index = sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
+    sp_index.add_argument(
+        "--all-runs",
+        action="store_true",
+        help="Index every run-* image instead of the curated approved/latest-run scope",
+    )
 
     sp_search = sub.add_parser("search", help="Search registry by title/caption/tags")
     sp_search.add_argument("query", help="Substring to match (case-insensitive)")
@@ -368,7 +358,7 @@ def _cmd_registry(argv: list[str]) -> None:
     from lib.registry import index as registry_index, search as registry_search, export as registry_export
 
     if args.action == "index":
-        entries = registry_index()
+        entries = registry_index(scope="all-runs" if args.all_runs else "curated")
         projects = sorted({e.project for e in entries})
         print(f"Indexed {len(entries)} assets across {len(projects)} project(s).")
         return

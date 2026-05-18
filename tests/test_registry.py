@@ -108,6 +108,99 @@ def test_index_falls_back_to_latest_run_when_no_approved(isolated_registry):
     assert entries[0].id == "fallback-project-new"
 
 
+def test_all_runs_scope_indexes_every_run(isolated_registry):
+    project = isolated_registry / "output" / "archive-project"
+    older = project / "run-20260101-000000"
+    newer = project / "run-20260201-000000"
+    older.mkdir(parents=True)
+    newer.mkdir(parents=True)
+
+    _make_png(older / "old.png")
+    _write_run_json(older, [{"name": "Old", "prompt": "old prompt", "file": "old.png"}])
+
+    _make_png(newer / "new.png")
+    _write_run_json(newer, [{"name": "New", "prompt": "new prompt", "file": "new.png"}])
+
+    entries = registry.collect(scope="all-runs")
+
+    assert {e.id for e in entries} == {
+        "archive-project-20260101-000000-old",
+        "archive-project-20260201-000000-new",
+    }
+    assert {e.source for e in entries} == {"run"}
+    assert {e.source_run for e in entries} == {
+        "run-20260101-000000",
+        "run-20260201-000000",
+    }
+
+
+def test_all_runs_scope_marks_approved_source_images(isolated_registry):
+    project = isolated_registry / "output" / "approval-project"
+    run = project / "run-20260201-000000"
+    approved = project / "approved"
+    run.mkdir(parents=True)
+    approved.mkdir(parents=True)
+
+    _make_png(run / "keeper.png")
+    _write_run_json(run, [{"name": "Keeper", "prompt": "run prompt", "file": "keeper.png"}])
+    (approved / "index.json").write_text(
+        json.dumps({
+            "images": [{
+                "slug": "keeper.png",
+                "source_run": "run-20260201-000000",
+                "original_file": "keeper.png",
+                "prompt": "approved prompt",
+                "model": "gemini-2.5-flash-image",
+                "style": "bcai",
+                "aspect_ratio": "16:9",
+            }]
+        }),
+        encoding="utf-8",
+    )
+
+    entries = registry.collect(scope="all-runs")
+
+    assert len(entries) == 1
+    assert entries[0].approval_status == "approved"
+    assert entries[0].source == "run"
+    assert entries[0].source_prompt == "approved prompt"
+
+
+def test_all_runs_scope_keeps_approved_copy_when_source_run_was_cleaned(isolated_registry):
+    project = isolated_registry / "output" / "cleaned-project"
+    current_run = project / "run-20260301-000000"
+    approved = project / "approved"
+    current_run.mkdir(parents=True)
+    approved.mkdir(parents=True)
+
+    _make_png(current_run / "current.png")
+    _write_run_json(
+        current_run,
+        [{"name": "Current", "prompt": "current prompt", "file": "current.png"}],
+    )
+
+    _make_png(approved / "keeper.png")
+    (approved / "index.json").write_text(
+        json.dumps({
+            "images": [{
+                "slug": "keeper.png",
+                "source_run": "run-20260201-000000",
+                "original_file": "keeper.png",
+                "prompt": "keeper prompt",
+                "model": "gemini-2.5-flash-image",
+                "style": "bcai",
+                "aspect_ratio": "16:9",
+            }]
+        }),
+        encoding="utf-8",
+    )
+
+    entries = registry.collect(scope="all-runs")
+
+    assert {e.source for e in entries} == {"run", "approved"}
+    assert {e.source_prompt for e in entries} == {"current prompt", "keeper prompt"}
+
+
 def test_search_case_insensitive_substring(isolated_registry):
     project = isolated_registry / "output" / "search-project"
     approved = project / "approved"

@@ -65,7 +65,7 @@ def _entry_file_src(entry: registry.AssetEntry, output_root: Path) -> str:
 
 def _records_from_registry(output_root: Path) -> list[dict]:
     records: list[dict] = []
-    for entry in registry.collect(output_root):
+    for entry in registry.collect(output_root, scope="all-runs"):
         file_src = _entry_file_src(entry, output_root)
         title = entry.title or entry.caption or Path(entry.path).stem
         source_prompt = entry.source_prompt or entry.caption
@@ -81,6 +81,7 @@ def _records_from_registry(output_root: Path) -> list[dict]:
             "caption": entry.caption,
             "tags": entry.tags,
             "approval_status": entry.approval_status,
+            "source": entry.source,
             "source_prompt": source_prompt,
             "prompt": source_prompt,
             "file": file_src,
