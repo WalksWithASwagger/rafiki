@@ -34,7 +34,7 @@ image generation platform.
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 168 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 169 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -160,11 +160,10 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Add duplicate/similar filename warnings to the archive library.
-2. Move review notes, title overrides, tags, and export/publish state into durable metadata.
-3. Add archive health and cleanup reports.
-4. Add MCP and CLI dry-run smoke tests.
-5. Expand doctor remediation for package and browser setup.
+1. Move review notes, title overrides, tags, and export/publish state into durable metadata.
+2. Add archive health and cleanup reports.
+3. Add MCP and CLI dry-run smoke tests.
+4. Expand doctor remediation for package and browser setup.
 
 ## Non-Goals For Now
 

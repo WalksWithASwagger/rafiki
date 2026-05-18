@@ -55,8 +55,8 @@ Success criteria:
 
 ## Phase 2: Make Review Fast
 
-Status: in progress. Source/run/approval filters, keyboard card review, and
-the run detail panel are implemented; duplicate warnings remain.
+Status: complete. Source/run/approval filters, keyboard card review, the run
+detail panel, and filename warnings are implemented.
 
 Build on the current library UI.
 
@@ -69,6 +69,7 @@ Success criteria:
   generation source, and direct links to the run viewer. Done.
 - Add keyboard shortcuts for star/reject/next/previous. Done.
 - Add duplicate/similar filename warnings so reruns do not hide prior work.
+  Done.
 
 ## Phase 3: Make Curation Durable
 
@@ -118,7 +119,7 @@ Success criteria:
 
 1. Ship the all-runs archive scope in registry and library. Done.
 2. Add archive filters/detail panels to the portal. Done.
-3. Add duplicate/similar filename warnings.
+3. Add duplicate/similar filename warnings. Done.
 4. Move review notes/title/tags into durable metadata.
 5. Add archive health and cleanup reports.
 6. Add MCP wrappers once the local contracts are stable.
