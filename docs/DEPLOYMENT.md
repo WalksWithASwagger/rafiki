@@ -43,6 +43,23 @@ Custom viewer directory:
 python generate.py deploy rap-all-weeks --viewer-dir output/rap-all-weeks/approved
 ```
 
+## Readiness Checks
+
+The local portal exposes a read-only deploy readiness endpoint:
+
+```bash
+curl http://127.0.0.1:7433/api/deploy-readiness
+```
+
+It reports whether the Vercel CLI is installed, whether portal Basic auth is
+configured before public binding, whether provider keys are present, and whether
+a selected static viewer has `viewer.html`. It never prints secret values and
+does not deploy anything.
+
+For static review deploys, a provider key is optional: the viewer is already
+generated. For an interactive public portal, set `PORTAL_USERNAME` and
+`PORTAL_PASSWORD` before using `--public`.
+
 ## What it deploys
 
 - Default target: `output/<project>/` (or `output/<project>/approved/` if it

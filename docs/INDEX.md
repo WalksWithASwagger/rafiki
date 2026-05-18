@@ -28,6 +28,8 @@ deeper operating docs by surface area.
   portable single-file mode, wrappers, schema, and content-series workflow.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, feedback state, revision staging, and API endpoints.
+- [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
+  estimate rules, and source-of-truth boundaries.
 
 ## Registries, Archives, And Libraries
 
@@ -48,8 +50,8 @@ deeper operating docs by surface area.
   idempotency, and database targeting.
 - [Social-Post Expansion](SOCIAL-EXPANSION.md) - platform constraints, source
   preference, environment requirements, and output format.
-- [Deployment](DEPLOYMENT.md) - static hosting setup, deploy commands, and
-  caveats.
+- [Deployment](DEPLOYMENT.md) - static hosting setup, readiness checks, deploy
+  commands, and caveats.
 - [Delivery Pipeline](DELIVERY-PIPELINE.md) - canonical agentic delivery
   contract: labels, required issue shape, branch/PR traceability, Linear sync,
   pause controls, verification gates, and local commands.

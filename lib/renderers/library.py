@@ -463,14 +463,14 @@ def _ops_panel_html() -> str:
   </div>
   <div class="ops-grid">
     <div class="ops-tile">
-      <span>Known Spend</span>
+      <span>Estimated Spend</span>
       <strong id="usage-known-cost">$0.00</strong>
-      <small id="usage-cost-note">local manifests</small>
+      <small id="usage-cost-note">pricing profile</small>
     </div>
     <div class="ops-tile">
       <span>Archive Images</span>
       <strong id="usage-image-count">0</strong>
-      <small id="usage-image-note">0 unestimated</small>
+      <small id="usage-image-note">0 unpriced</small>
     </div>
     <div class="ops-tile">
       <span>Runs</span>
@@ -492,6 +492,13 @@ def _ops_panel_html() -> str:
       <h3>Recent Runs</h3>
       <div class="ops-list" id="usage-recent-runs"></div>
     </div>
+  </div>
+  <div class="ops-readiness">
+    <div>
+      <h3>Online Readiness</h3>
+      <p id="deploy-readiness-status" class="ops-note">Checking deploy readiness...</p>
+    </div>
+    <div class="ops-list" id="deploy-readiness-checks"></div>
   </div>
 </section>
 """
@@ -712,6 +719,11 @@ function formatDuration(seconds) {{
   if (total >= 60) return Math.round(total / 60) + 'm';
   return Math.round(total) + 's';
 }}
+function resolveAssetSrc(path) {{
+  const raw = String(path || '');
+  if (!raw || /^(https?:|data:|file:|\\/)/.test(raw)) return raw;
+  return SERVER_MODE ? '/output/' + raw.replace(/^\\/+/, '') : raw;
+}}
 function detailForItem(item) {{
   if (!item) return null;
   const key = item.run_key || [item.project, item.run_id].filter(Boolean).join('/');
@@ -871,13 +883,14 @@ function stageRevisionFromDetail(event, autoSubmit) {{
 }}
 function renderUsageSummary(data) {{
   const archive = data.archive || {{}};
-  const cost = archive.known_cost || {{}};
+  const cost = archive.estimated_cost || archive.known_cost || {{}};
   const set = (id, text) => {{ const el = document.getElementById(id); if (el) el.textContent = text; }};
   set('usage-status', data.pricing_note || 'Usage loaded');
   set('usage-known-cost', formatUsd(cost.amount || 0));
-  set('usage-cost-note', (cost.estimated_images || 0) + ' image(s) with local amounts');
+  set('usage-cost-note', (cost.profile_estimated_images || 0) + ' profile + ' + (cost.manifest_amount_images || 0) + ' manifest');
   set('usage-image-count', String(archive.images || 0));
-  set('usage-image-note', (cost.unestimated_images || 0) + ' unestimated');
+  const fallbackUnpriced = ((archive.known_cost || {{}}).unestimated_images || 0);
+  set('usage-image-note', ((cost.unpriced_images ?? fallbackUnpriced) || 0) + ' unpriced');
   set('usage-run-count', String(archive.runs || 0));
   set('usage-project-count', (archive.projects || 0) + ' project(s)');
   set('usage-duration', formatDuration(archive.duration_seconds || 0));
@@ -898,10 +911,27 @@ function renderUsageSummary(data) {{
     recent.innerHTML = rows.join('') || '<div class="ops-empty">No runs yet</div>';
   }}
 }}
+function renderDeployReadiness(data) {{
+  const status = document.getElementById('deploy-readiness-status');
+  if (status) status.textContent = data.ok ? 'Ready for required deploy checks' : 'Missing required deploy checks';
+  const checks = document.getElementById('deploy-readiness-checks');
+  if (!checks) return;
+  const rows = (data.checks || []).map(check => {{
+    const state = check.ok ? 'ready' : (check.required ? 'missing' : 'optional');
+    return '<div class="ops-row readiness-row readiness-' + state + '"><span>' +
+      studioEscapeHtml(check.label || check.key || 'check') +
+      '<small>' + studioEscapeHtml(check.detail || '') + '</small></span><strong>' +
+      (check.ok ? 'OK' : (check.required ? 'Missing' : 'Optional')) +
+      '</strong></div>';
+  }});
+  checks.innerHTML = rows.join('') || '<div class="ops-empty">No readiness checks</div>';
+}}
 async function loadUsageSummary() {{
   if (!SERVER_MODE) {{
     const status = document.getElementById('usage-status');
     if (status) status.textContent = 'Start the portal server for usage';
+    const deployStatus = document.getElementById('deploy-readiness-status');
+    if (deployStatus) deployStatus.textContent = 'Start the portal server for deploy readiness';
     return;
   }}
   try {{
@@ -911,6 +941,14 @@ async function loadUsageSummary() {{
   }} catch (err) {{
     const status = document.getElementById('usage-status');
     if (status) status.textContent = 'Usage unavailable';
+  }}
+  try {{
+    const resp = await fetch('/api/deploy-readiness');
+    const data = await resp.json();
+    renderDeployReadiness(data);
+  }} catch (err) {{
+    const status = document.getElementById('deploy-readiness-status');
+    if (status) status.textContent = 'Deploy readiness unavailable';
   }}
 }}
 function renderDetailFields(detail, item) {{
@@ -1436,7 +1474,7 @@ LIBRARY.forEach((item, i) => {{
     <div class="img-wrap" style="aspect-ratio:${{arCss}}">
       <span class="img-num">${{String(i + 1).padStart(2, '0')}}</span>
       ${{item.ok
-        ? '<img src="' + item.file + '" alt="" loading="lazy">'
+        ? '<img src="' + resolveAssetSrc(item.file) + '" alt="" loading="lazy">'
         : '<div class="missing-img">not generated</div>'}}
     </div>
     <div class="card-meta-row">
@@ -2145,13 +2183,15 @@ def _library_extra_css() -> str:
   line-height: 1.2;
   margin: 0.2rem 0;
 }
-.ops-columns {
+.ops-columns,
+.ops-readiness {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 0.85rem;
   margin-top: 0.9rem;
 }
-.ops-columns h3 {
+.ops-columns h3,
+.ops-readiness h3 {
   margin: 0 0 0.45rem;
   color: var(--dim);
   font-size: 0.72rem;
@@ -2184,6 +2224,15 @@ def _library_extra_css() -> str:
   color: var(--dim);
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.readiness-ready strong {
+  color: #9ee7bf;
+}
+.readiness-missing strong {
+  color: #ffb4a8;
+}
+.readiness-optional strong {
+  color: #ffd78f;
 }
 .ops-empty {
   color: var(--dim);

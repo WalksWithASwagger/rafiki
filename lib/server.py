@@ -11,7 +11,7 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from lib.batch import run_batch
 from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
@@ -328,7 +328,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._check_auth():
             return
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in ("/", ""):
             self._serve_library()
         elif path.startswith("/output/"):
@@ -341,6 +342,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_feedback()
         elif path == "/api/usage":
             self._serve_usage()
+        elif path == "/api/deploy-readiness":
+            self._serve_deploy_readiness(parsed.query)
         elif path == "/api/runs":
             self._serve_runs()
         else:
@@ -411,6 +414,22 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         from lib.usage import summarize_usage
 
         summary = summarize_usage(self.output_root, extra_roots=self.extra_roots)
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
+    def _serve_deploy_readiness(self, query: str = ""):
+        from lib.deploy.readiness import check_deploy_readiness
+
+        params = parse_qs(query)
+        project = (params.get("project") or [""])[0].strip()
+        viewer_raw = (params.get("viewer_dir") or [""])[0].strip()
+        viewer_dir = Path(viewer_raw).expanduser() if viewer_raw else None
+        public = (params.get("public") or [""])[0].strip().lower() in _TRUE_VALUES
+        summary = check_deploy_readiness(
+            output_root=self.output_root,
+            project=project,
+            viewer_dir=viewer_dir,
+            public=public,
+        )
         self._respond(200, "application/json", json.dumps(summary).encode())
 
     def _serve_actions(self):

@@ -118,6 +118,23 @@ def test_usage_endpoint_returns_local_summary(server):
     assert payload["usage_log"]["entries"] == 0
     assert payload["archive"]["projects"] == 0
     assert payload["archive"]["known_cost"]["currency"] == "USD"
+    assert payload["archive"]["estimated_cost"]["currency"] == "USD"
+
+
+def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):
+    monkeypatch.setenv("PORTAL_USERNAME", "team")
+    monkeypatch.setenv("PORTAL_PASSWORD", "s3cret")
+    monkeypatch.setenv("GEMINI_API_KEY", "secret-gemini")
+
+    payload = json.loads(
+        _get(f"{server}/api/deploy-readiness?public=true", auth=("team", "s3cret")).read().decode("utf-8")
+    )
+
+    assert payload["public"] is True
+    checks = {check["key"]: check for check in payload["checks"]}
+    assert checks["portal_auth"]["ok"] is True
+    assert checks["gemini_key"]["ok"] is True
+    assert "secret" not in json.dumps(payload)
 
 
 def test_credentials_set_unauth_returns_401(server, monkeypatch):

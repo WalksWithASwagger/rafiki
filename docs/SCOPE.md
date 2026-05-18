@@ -57,9 +57,10 @@ path as the CLI and writes into the same output tree.
 ## Spend and feedback
 
 The portal includes a local Spend & Review Ops panel. It summarizes run counts,
-image counts, failed images, known local manifest cost amounts, unestimated
-images, model mix, and recent runs. Provider pricing is not bundled; billing
-exports from Gemini/OpenAI remain the source of truth for exact spend.
+image counts, failed images, known local manifest cost amounts, pricing-profile
+estimates, unpriced images, model mix, and recent runs. `config/pricing.json`
+contains public pricing metadata only; billing exports from Gemini/OpenAI remain
+the source of truth for exact spend.
 
 Card-level notes and change requests are stored in `output/feedback.json`
 through `/api/feedback`, beside `output/ratings.json`. Both are local review

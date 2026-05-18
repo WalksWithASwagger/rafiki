@@ -867,7 +867,10 @@ function lbOpen(i, runIdx) {
   const item = lbItems[lbIdx];
   const prefix = (lbRunIdx >= 0 && typeof RUNS !== 'undefined')
     ? RUNS[lbRunIdx].dir + '/' : '';
-  const imgSrc = prefix + item.file;
+  const rawImgSrc = prefix + item.file;
+  const imgSrc = typeof resolveAssetSrc === 'function'
+    ? resolveAssetSrc(rawImgSrc)
+    : rawImgSrc;
   lbImg.src = imgSrc;
   lbImg.alt = item.name || '';
   lbName.textContent = item.name || '';

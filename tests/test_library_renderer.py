@@ -288,8 +288,11 @@ def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monk
 
     assert 'id="ops-panel"' in html
     assert 'id="usage-known-cost"' in html
+    assert 'id="deploy-readiness-checks"' in html
     assert "async function loadUsageSummary()" in html
+    assert "function resolveAssetSrc(path)" in html
     assert "fetch('/api/usage')" in html
+    assert "fetch('/api/deploy-readiness')" in html
     assert 'id="run-detail-feedback"' in html
     assert 'id="feedback-change-request"' in html
     assert "async function saveFeedbackForDetail(event)" in html
