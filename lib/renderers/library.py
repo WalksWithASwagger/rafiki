@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import webbrowser
 from datetime import datetime
 from pathlib import Path
@@ -131,6 +132,88 @@ def _run_detail_for_entry(entry: registry.AssetEntry, file_src: str, output_root
         if len(src_parts) >= 2:
             return _run_detail_from_dir(entry.project, output_root.joinpath(*src_parts[:-1]), output_root)
     return {}
+
+
+def _filename_basename(record: dict) -> str:
+    return Path(str(record.get("file") or "")).name
+
+
+def _normalized_filename_stem(filename: str) -> str:
+    stem = Path(filename).stem.casefold()
+    stem = re.sub(r"^\d+[\s._-]*", "", stem)
+    stem = re.sub(r"[\s._-]+", "-", stem)
+    stem = re.sub(r"[^a-z0-9-]", "", stem)
+    return re.sub(r"-+", "-", stem).strip("-")
+
+
+def _filename_warning_related(record: dict) -> dict:
+    return {
+        "basename": _filename_basename(record),
+        "file": record.get("file", ""),
+        "run_id": record.get("run_id", ""),
+        "title": record.get("title") or record.get("name") or "",
+    }
+
+
+def _annotate_filename_warnings(records: list[dict]) -> None:
+    exact_groups: dict[tuple[str, str], list[dict]] = {}
+    similar_groups: dict[tuple[str, str], list[dict]] = {}
+
+    for record in records:
+        basename = _filename_basename(record)
+        if not basename:
+            continue
+        project = str(record.get("project") or "")
+        exact_groups.setdefault((project, basename.casefold()), []).append(record)
+        normalized = _normalized_filename_stem(basename)
+        if len(normalized) >= 3:
+            similar_groups.setdefault((project, normalized), []).append(record)
+
+    for group in exact_groups.values():
+        if len(group) < 2:
+            continue
+        basenames = sorted({_filename_basename(record) for record in group})
+        for record in group:
+            related = [_filename_warning_related(other) for other in group if other is not record]
+            if not related:
+                continue
+            basename = _filename_basename(record)
+            record["filename_warning"] = {
+                "level": "exact",
+                "label": "Duplicate filename",
+                "basename": basename,
+                "message": (
+                    f"Another image in this project also uses {basename}. "
+                    "Check the related runs before approving or cleaning."
+                ),
+                "related_count": len(related),
+                "related": related[:8],
+                "group_basenames": basenames,
+            }
+
+    for (_, normalized), group in similar_groups.items():
+        distinct_basenames = sorted({_filename_basename(record) for record in group})
+        if len(distinct_basenames) < 2:
+            continue
+        for record in group:
+            if record.get("filename_warning"):
+                continue
+            related = [_filename_warning_related(other) for other in group if other is not record]
+            if not related:
+                continue
+            record["filename_warning"] = {
+                "level": "similar",
+                "label": "Similar filename",
+                "basename": _filename_basename(record),
+                "normalized_stem": normalized,
+                "message": (
+                    f"Other files in this project share the normalized stem {normalized}. "
+                    "Check whether this is a rerun or intentional variation."
+                ),
+                "related_count": len(related),
+                "related": related[:8],
+                "group_basenames": distinct_basenames,
+            }
 
 
 def _records_from_registry(output_root: Path) -> list[dict]:
@@ -372,6 +455,8 @@ def _actions_panel_html(projects: list[str]) -> str:
 
 
 def _render_library(records: list[dict]) -> str:
+    _annotate_filename_warnings(records)
+
     run_details: dict[str, dict] = {}
     library_records: list[dict] = []
     for record in records:
@@ -505,6 +590,7 @@ def _render_library(records: list[dict]) -> str:
     <button class="run-detail-close" type="button" onclick="closeRunDetail()" title="Close detail panel">&#x2715;</button>
   </div>
   <div class="run-detail-body">
+    <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
     <pre class="run-detail-json" id="run-detail-json"></pre>
@@ -585,6 +671,28 @@ function renderDetailFields(detail, item) {{
     fields.appendChild(dd);
   }});
 }}
+function renderFilenameWarning(item) {{
+  const box = document.getElementById('run-detail-warning');
+  if (!box) return;
+  const warning = item?.filename_warning;
+  if (!warning) {{
+    box.className = 'run-detail-warning';
+    box.innerHTML = '';
+    return;
+  }}
+  box.className = 'run-detail-warning run-detail-warning-' + (warning.level || 'similar');
+  const related = Array.isArray(warning.related) ? warning.related : [];
+  const relatedHtml = related.slice(0, 8).map(entry => {{
+    const run = entry.run_id ? '<span>' + studioEscapeHtml(entry.run_id) + '</span>' : '';
+    const title = entry.title ? '<span>' + studioEscapeHtml(entry.title) + '</span>' : '';
+    return '<li><strong>' + studioEscapeHtml(entry.basename || entry.file || '') + '</strong>' + run + title + '</li>';
+  }}).join('');
+  box.innerHTML = `
+    <div class="run-detail-warning-title">${{studioEscapeHtml(warning.label || 'Filename warning')}}</div>
+    <p>${{studioEscapeHtml(warning.message || '')}}</p>
+    ${{relatedHtml ? '<ul class="run-detail-warning-list">' + relatedHtml + '</ul>' : ''}}
+  `;
+}}
 function openRunDetail(event, idx) {{
   if (event) event.stopPropagation();
   const item = LIBRARY[idx];
@@ -609,6 +717,7 @@ function showRunDetail(item) {{
     appendDetailLink(links, 'run.json', detail.run_json);
   }}
 
+  renderFilenameWarning(item);
   renderDetailFields(detail, item);
   const jsonEl = document.getElementById('run-detail-json');
   if (jsonEl) jsonEl.textContent = JSON.stringify(detail.manifest || {{}}, null, 2);
@@ -1030,9 +1139,19 @@ LIBRARY.forEach((item, i) => {{
   card.dataset.run = item.run_id || '';
   card.dataset.runKey = item.run_key || '';
   card.dataset.approval = item.approval_status || 'unapproved';
+  card.dataset.warning = item.filename_warning?.level || '';
   card.dataset.ts = item.timestamp || '';
   card.dataset.name = item.name || '';
-  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '') + ' ' + (item.run_id || '') + ' ' + (item.source || '') + ' ' + (item.approval_status || '')).toLowerCase();
+  const warningText = item.filename_warning
+    ? [
+        item.filename_warning.label,
+        item.filename_warning.level,
+        item.filename_warning.basename,
+        item.filename_warning.normalized_stem,
+        ...(item.filename_warning.group_basenames || []),
+      ].filter(Boolean).join(' ')
+    : '';
+  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '') + ' ' + (item.run_id || '') + ' ' + (item.source || '') + ' ' + (item.approval_status || '') + ' ' + warningText).toLowerCase();
   card.onclick = () => {{
     setActiveCard(card, {{scroll: false}});
     lbOpen(i);
@@ -1046,6 +1165,7 @@ LIBRARY.forEach((item, i) => {{
     </div>
     <div class="card-meta-row">
       <span class="approval-badge"></span>
+      <span class="filename-warning-badge"></span>
       <span class="model-badge"></span>
     </div>
     <div class="card-title"></div>
@@ -1066,6 +1186,12 @@ LIBRARY.forEach((item, i) => {{
   if (approval) {{
     approval.textContent = item.approval_status || 'run';
     approval.classList.toggle('approval-approved', item.approval_status === 'approved');
+  }}
+  const filenameWarning = card.querySelector('.filename-warning-badge');
+  if (filenameWarning && item.filename_warning) {{
+    filenameWarning.textContent = item.filename_warning.label || 'Filename warning';
+    filenameWarning.title = item.filename_warning.message || '';
+    filenameWarning.classList.add('filename-warning-' + (item.filename_warning.level || 'similar'));
   }}
   const modelBadge = card.querySelector('.model-badge');
   if (modelBadge) {{
@@ -1126,6 +1252,7 @@ def _library_extra_css() -> str:
   min-height: 1.35rem;
 }
 .approval-badge,
+.filename-warning-badge,
 .model-badge,
 .tag {
   border: 1px solid var(--border);
@@ -1135,6 +1262,20 @@ def _library_extra_css() -> str:
   line-height: 1.1;
   padding: 0.14rem 0.3rem;
   white-space: nowrap;
+}
+.filename-warning-badge:empty {
+  display: none;
+}
+.filename-warning-exact,
+.filename-warning-similar {
+  color: #ffd78f;
+  border-color: rgba(255,193,94,0.34);
+  background: rgba(255,193,94,0.10);
+}
+.filename-warning-similar {
+  color: #d7c7ff;
+  border-color: rgba(124,106,247,0.34);
+  background: rgba(124,106,247,0.12);
 }
 .approval-approved {
   border-color: rgba(0,200,180,0.32);
@@ -1294,6 +1435,47 @@ def _library_extra_css() -> str:
 }
 .run-detail-links a:hover {
   border-color: var(--teal);
+}
+.run-detail-warning {
+  display: none;
+  border: 1px solid rgba(255,193,94,0.26);
+  background: rgba(255,193,94,0.08);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  color: var(--ink);
+}
+.run-detail-warning-exact,
+.run-detail-warning-similar {
+  display: block;
+}
+.run-detail-warning-similar {
+  border-color: rgba(124,106,247,0.28);
+  background: rgba(124,106,247,0.10);
+}
+.run-detail-warning-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+.run-detail-warning p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
+.run-detail-warning-list {
+  margin: 0.55rem 0 0;
+  padding-left: 1rem;
+  color: var(--dim);
+  font-size: 0.7rem;
+}
+.run-detail-warning-list li {
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+.run-detail-warning-list span {
+  margin-left: 0.35rem;
 }
 .run-detail-fields {
   display: grid;

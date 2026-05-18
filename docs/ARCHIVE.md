@@ -48,6 +48,9 @@ the rest.
    The Info button opens the same run detail panel with links to the run
    viewer, project viewer, `run.json`, prompt file/source metadata, invocation
    surface, provider, state, timestamps, and the manifest JSON.
+   Filename warnings are informational: the library flags exact filename
+   repeats and simple normalized-stem matches within the same project so you
+   can compare reruns before approving or cleaning anything.
 
 ## Layout
 
@@ -95,6 +98,9 @@ or trace it later:
   `01-foo.png`, the second is renamed `<run-id>__01-foo.png` in
   `approved/`. The original filename is preserved in
   `index.json.original_file`.
+- **Library filename warnings do not mutate files.** Exact and similar
+  filename warnings only appear in the master library cards and run detail
+  panel. They do not approve, dedupe, rename, or delete anything.
 - **`clean --keep-approved` is conservative.** A `run-*/` dir is only
   eligible for deletion when *every* image listed in its `run.json` has a
   matching `approved/index.json` entry for that same `source_run`. If

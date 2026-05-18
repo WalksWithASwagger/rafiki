@@ -223,3 +223,50 @@ def test_library_viewer_renders_run_detail_panel_metadata_and_links(tmp_path, mo
     assert "function showRunDetail(item)" in html
     assert "openRunDetail(event," in html
     assert "I details" in html
+
+
+def test_library_viewer_warns_about_duplicate_and_similar_filenames(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    duplicate_project = output_root / "duplicate-project"
+    _write_run(
+        duplicate_project / "run-20260504-120000",
+        "01-hero.png",
+        "Hero One",
+        "first hero prompt",
+    )
+    _write_run(
+        duplicate_project / "run-20260505-120000",
+        "01-hero.png",
+        "Hero Two",
+        "second hero prompt",
+    )
+    similar_project = output_root / "similar-project"
+    _write_run(
+        similar_project / "run-20260506-120000",
+        "01-poster.png",
+        "Poster One",
+        "first poster prompt",
+    )
+    _write_run(
+        similar_project / "run-20260507-120000",
+        "02-poster.png",
+        "Poster Two",
+        "second poster prompt",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert '"filename_warning": {' in html
+    assert '"label": "Duplicate filename"' in html
+    assert '"level": "exact"' in html
+    assert '"basename": "01-hero.png"' in html
+    assert '"run_id": "run-20260504-120000"' in html
+    assert '"run_id": "run-20260505-120000"' in html
+    assert '"label": "Similar filename"' in html
+    assert '"level": "similar"' in html
+    assert '"normalized_stem": "poster"' in html
+    assert '"group_basenames": ["01-poster.png", "02-poster.png"]' in html
+    assert 'id="run-detail-warning"' in html
+    assert "function renderFilenameWarning(item)" in html
+    assert "card.dataset.warning = item.filename_warning?.level || ''" in html
+    assert 'class="filename-warning-badge"' in html
