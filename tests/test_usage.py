@@ -82,3 +82,55 @@ def test_save_creates_parent_directory(tmp_path, monkeypatch):
         "entries": [],
         "total_images": 0,
     }
+
+
+def test_summarize_usage_combines_log_and_run_manifests(isolated_log, tmp_path):
+    usage.save_usage_log({
+        "entries": [
+            {"ok": True, "model": "gpt-image-2"},
+            {"ok": False, "model": "gpt-image-2"},
+        ],
+        "total_images": 1,
+    })
+    run_dir = tmp_path / "output" / "demo" / "run-20260518-101010"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run.json").write_text(
+        json.dumps({
+            "model": "gpt-image-2",
+            "provider": "OpenAI",
+            "timestamp": "2026-05-18 10:10",
+            "duration_seconds": 12.5,
+            "state": "partial",
+            "images": [
+                {
+                    "file": "01-hero.png",
+                    "ok": True,
+                    "model": "gpt-image-2",
+                    "provider": "OpenAI",
+                    "cost_estimate": {"amount": 0.04, "currency": "USD", "estimated": True},
+                },
+                {
+                    "file": "02-miss.png",
+                    "ok": False,
+                    "model": "gpt-image-2",
+                    "provider": "OpenAI",
+                    "cost_estimate": {"amount": None, "currency": "USD", "estimated": False},
+                },
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    summary = usage.summarize_usage(tmp_path / "output")
+
+    assert summary["usage_log"]["entries"] == 2
+    assert summary["usage_log"]["successful_entries"] == 1
+    assert summary["archive"]["projects"] == 1
+    assert summary["archive"]["runs"] == 1
+    assert summary["archive"]["images"] == 2
+    assert summary["archive"]["failed_images"] == 1
+    assert summary["archive"]["known_cost"]["amount"] == 0.04
+    assert summary["archive"]["known_cost"]["estimated_images"] == 1
+    assert summary["archive"]["known_cost"]["unestimated_images"] == 1
+    assert summary["archive"]["by_model"] == [{"model": "gpt-image-2", "images": 2}]
+    assert summary["recent_runs"][0]["project"] == "demo"

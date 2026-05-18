@@ -26,6 +26,8 @@ deeper operating docs by surface area.
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
+- [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
+  summary, feedback state, revision staging, and API endpoints.
 
 ## Registries, Archives, And Libraries
 

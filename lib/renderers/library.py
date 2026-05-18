@@ -454,6 +454,49 @@ def _actions_panel_html(projects: list[str]) -> str:
 """
 
 
+def _ops_panel_html() -> str:
+    return """
+<section class="ops-panel" id="ops-panel">
+  <div class="ops-heading">
+    <h2>Spend & Review Ops</h2>
+    <span id="usage-status" class="ops-note">Loading usage...</span>
+  </div>
+  <div class="ops-grid">
+    <div class="ops-tile">
+      <span>Known Spend</span>
+      <strong id="usage-known-cost">$0.00</strong>
+      <small id="usage-cost-note">local manifests</small>
+    </div>
+    <div class="ops-tile">
+      <span>Archive Images</span>
+      <strong id="usage-image-count">0</strong>
+      <small id="usage-image-note">0 unestimated</small>
+    </div>
+    <div class="ops-tile">
+      <span>Runs</span>
+      <strong id="usage-run-count">0</strong>
+      <small id="usage-project-count">0 projects</small>
+    </div>
+    <div class="ops-tile">
+      <span>Run Time</span>
+      <strong id="usage-duration">0m</strong>
+      <small id="usage-failed-count">0 failed</small>
+    </div>
+  </div>
+  <div class="ops-columns">
+    <div>
+      <h3>Model Mix</h3>
+      <div class="ops-list" id="usage-models"></div>
+    </div>
+    <div>
+      <h3>Recent Runs</h3>
+      <div class="ops-list" id="usage-recent-runs"></div>
+    </div>
+  </div>
+</section>
+"""
+
+
 def _render_library(records: list[dict]) -> str:
     _annotate_filename_warnings(records)
 
@@ -528,6 +571,7 @@ def _render_library(records: list[dict]) -> str:
 
 {_studio_panel_html(all_style_names, default_style, model_options)}
 {_actions_panel_html(projects)}
+{_ops_panel_html()}
 
 <div class="filter-bar" id="filter-bar">
   <button class="filter-btn active" id="fb-all"        onclick="setRatingFilter('all')">All <span id="fc-all"></span></button>
@@ -593,6 +637,34 @@ def _render_library(records: list[dict]) -> str:
     <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
+    <div class="run-detail-feedback" id="run-detail-feedback">
+      <h3>Feedback</h3>
+      <label>
+        <span>Status</span>
+        <select id="feedback-status">
+          <option value="">None</option>
+          <option value="needs-change">Needs Change</option>
+          <option value="keep">Keep</option>
+          <option value="maybe">Maybe</option>
+          <option value="blocked">Blocked</option>
+          <option value="done">Done</option>
+        </select>
+      </label>
+      <label>
+        <span>Notes</span>
+        <textarea id="feedback-note" rows="3"></textarea>
+      </label>
+      <label>
+        <span>Change Request</span>
+        <textarea id="feedback-change-request" rows="4"></textarea>
+      </label>
+      <div class="feedback-actions">
+        <button type="button" onclick="saveFeedbackForDetail(event)">Save</button>
+        <button type="button" onclick="stageRevisionFromDetail(event, false)">Stage Rerun</button>
+        <button type="button" onclick="stageRevisionFromDetail(event, true)">Dry Run</button>
+      </div>
+      <div class="feedback-status" id="feedback-status-message" aria-live="polite"></div>
+    </div>
     <pre class="run-detail-json" id="run-detail-json"></pre>
   </div>
 </aside>
@@ -604,7 +676,9 @@ const LIBRARY = {library_json};
 const ITEMS = LIBRARY;
 const RUN_DETAILS = {run_details_json};
 const RATINGS_KEY = 'rafiki:ratings';
+const FEEDBACK_KEY = 'rafiki:feedback';
 const SERVER_MODE = location.protocol !== 'file:';
+let FEEDBACK = {{}};
 let _ratingFilter = 'all';
 let _projFilter = null;
 let _modelFilter = null;
@@ -615,13 +689,28 @@ let _runFilter = null;
 let _approvalFilter = null;
 let _searchQuery = '';
 let _activeCard = null;
+let _detailItem = null;
 
 function _loadRatings() {{
   try {{ return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
 }}
 function _saveRatings(r) {{ localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); }}
+function _loadLocalFeedback() {{
+  try {{ return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
+}}
+function _saveLocalFeedback(items) {{ localStorage.setItem(FEEDBACK_KEY, JSON.stringify(items || {{}})); }}
 function studioEscapeHtml(value) {{
   return String(value || '').replace(/[&<>"]/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[ch]));
+}}
+function formatUsd(amount) {{
+  const value = Number(amount || 0);
+  return '$' + value.toFixed(value >= 10 ? 2 : 4).replace(/0+$/, '').replace(/\\.$/, '.00');
+}}
+function formatDuration(seconds) {{
+  const total = Math.max(0, Number(seconds || 0));
+  if (total >= 3600) return (total / 3600).toFixed(1) + 'h';
+  if (total >= 60) return Math.round(total / 60) + 'm';
+  return Math.round(total) + 's';
 }}
 function detailForItem(item) {{
   if (!item) return null;
@@ -640,6 +729,189 @@ function appendDetailLink(target, label, href) {{
   link.target = '_blank';
   link.rel = 'noopener';
   target.appendChild(link);
+}}
+function feedbackKeyForItem(item) {{
+  return item?.file || '';
+}}
+function feedbackForItem(item) {{
+  const key = feedbackKeyForItem(item);
+  return key ? (FEEDBACK[key] || null) : null;
+}}
+function feedbackLabel(entry) {{
+  if (!entry) return '';
+  return (entry.status || 'feedback').replace(/-/g, ' ');
+}}
+function applyFeedbackToCard(card, item) {{
+  const badge = card.querySelector('.feedback-badge');
+  if (!badge) return;
+  const entry = feedbackForItem(item);
+  if (!entry) {{
+    badge.textContent = '';
+    badge.title = '';
+    badge.className = 'feedback-badge';
+    return;
+  }}
+  badge.textContent = feedbackLabel(entry);
+  badge.title = [entry.note, entry.change_request].filter(Boolean).join(' | ');
+  badge.className = 'feedback-badge feedback-on';
+}}
+function applyFeedbackToCards() {{
+  document.querySelectorAll('.card').forEach(card => {{
+    const idx = parseInt(card.dataset.idx || '0', 10);
+    applyFeedbackToCard(card, LIBRARY[idx]);
+  }});
+}}
+function renderFeedback(item) {{
+  const entry = feedbackForItem(item) || {{}};
+  const status = document.getElementById('feedback-status');
+  const note = document.getElementById('feedback-note');
+  const change = document.getElementById('feedback-change-request');
+  const msg = document.getElementById('feedback-status-message');
+  if (status) status.value = entry.status || '';
+  if (note) note.value = entry.note || '';
+  if (change) change.value = entry.change_request || '';
+  if (msg) msg.textContent = entry.updated_at ? 'Saved ' + entry.updated_at : '';
+}}
+function setFeedbackStatus(kind, message) {{
+  const msg = document.getElementById('feedback-status-message');
+  if (!msg) return;
+  msg.className = 'feedback-status feedback-status-' + kind;
+  msg.textContent = message || '';
+}}
+async function loadFeedback() {{
+  FEEDBACK = _loadLocalFeedback();
+  applyFeedbackToCards();
+  if (!SERVER_MODE) return;
+  try {{
+    const resp = await fetch('/api/feedback');
+    const data = await resp.json();
+    FEEDBACK = data.items || {{}};
+    _saveLocalFeedback(FEEDBACK);
+    applyFeedbackToCards();
+    if (_detailItem) renderFeedback(_detailItem);
+  }} catch (err) {{}}
+}}
+async function saveFeedbackForDetail(event) {{
+  if (event) {{
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  if (!_detailItem) return;
+  const key = feedbackKeyForItem(_detailItem);
+  const payload = {{
+    key,
+    status: document.getElementById('feedback-status')?.value || '',
+    note: document.getElementById('feedback-note')?.value || '',
+    change_request: document.getElementById('feedback-change-request')?.value || '',
+  }};
+  setFeedbackStatus('busy', 'Saving...');
+  if (!SERVER_MODE) {{
+    const localEntry = {{}};
+    if (payload.status) localEntry.status = payload.status;
+    if (payload.note.trim()) localEntry.note = payload.note.trim();
+    if (payload.change_request.trim()) localEntry.change_request = payload.change_request.trim();
+    if (Object.keys(localEntry).length) {{
+      localEntry.updated_at = new Date().toISOString();
+      FEEDBACK[key] = localEntry;
+    }} else {{
+      delete FEEDBACK[key];
+    }}
+    _saveLocalFeedback(FEEDBACK);
+    applyFeedbackToCards();
+    setFeedbackStatus('success', 'Saved locally');
+    return;
+  }}
+  try {{
+    const resp = await fetch('/api/feedback', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(payload),
+    }});
+    const data = await resp.json().catch(() => ({{error: 'Invalid server response'}}));
+    if (!resp.ok || !data.ok) {{
+      setFeedbackStatus('error', data.error || 'Save failed');
+      return;
+    }}
+    if (data.feedback) FEEDBACK[key] = data.feedback;
+    else delete FEEDBACK[key];
+    _saveLocalFeedback(FEEDBACK);
+    applyFeedbackToCards();
+    renderFeedback(_detailItem);
+    setFeedbackStatus('success', 'Saved');
+  }} catch (err) {{
+    setFeedbackStatus('error', err?.message || 'Save failed');
+  }}
+}}
+function revisionPromptForItem(item) {{
+  const base = item?.source_prompt || item?.prompt || item?.caption || '';
+  const change = document.getElementById('feedback-change-request')?.value.trim() || feedbackForItem(item)?.change_request || '';
+  return change ? base + '\\n\\nRevision request:\\n' + change : base;
+}}
+function stageRevisionFromDetail(event, autoSubmit) {{
+  if (event) {{
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  if (!_detailItem) return;
+  const mode = document.getElementById('studio-mode');
+  if (mode) mode.value = 'single';
+  syncStudioMode();
+  const set = (id, value) => {{ const el = document.getElementById(id); if (el) el.value = value || ''; }};
+  set('studio-project', _detailItem.project || 'studio');
+  set('studio-name', ((_detailItem.title || _detailItem.name || 'Image') + ' Revision').trim());
+  set('studio-model', _detailItem.model || 'gemini-2.5-flash-image');
+  set('studio-style', _detailItem.style === 'none' ? '' : _detailItem.style || '');
+  set('studio-ar', _detailItem.aspect_ratio || '16:9');
+  set('studio-prompt', revisionPromptForItem(_detailItem));
+  const dryRun = document.getElementById('studio-dry-run');
+  if (dryRun && autoSubmit) dryRun.checked = true;
+  document.getElementById('studio-panel')?.scrollIntoView({{block: 'start'}});
+  setStudioStatus('info', autoSubmit ? 'Starting dry run revision...' : 'Revision staged from selected card.');
+  if (autoSubmit) document.getElementById('studio-form')?.requestSubmit();
+}}
+function renderUsageSummary(data) {{
+  const archive = data.archive || {{}};
+  const cost = archive.known_cost || {{}};
+  const set = (id, text) => {{ const el = document.getElementById(id); if (el) el.textContent = text; }};
+  set('usage-status', data.pricing_note || 'Usage loaded');
+  set('usage-known-cost', formatUsd(cost.amount || 0));
+  set('usage-cost-note', (cost.estimated_images || 0) + ' image(s) with local amounts');
+  set('usage-image-count', String(archive.images || 0));
+  set('usage-image-note', (cost.unestimated_images || 0) + ' unestimated');
+  set('usage-run-count', String(archive.runs || 0));
+  set('usage-project-count', (archive.projects || 0) + ' project(s)');
+  set('usage-duration', formatDuration(archive.duration_seconds || 0));
+  set('usage-failed-count', (archive.failed_images || 0) + ' failed image(s)');
+
+  const models = document.getElementById('usage-models');
+  if (models) {{
+    const rows = (archive.by_model || []).slice(0, 6).map(row => (
+      '<div class="ops-row"><span>' + studioEscapeHtml(row.model || 'unknown') + '</span><strong>' + studioEscapeHtml(row.images || 0) + '</strong></div>'
+    ));
+    models.innerHTML = rows.join('') || '<div class="ops-empty">No model data</div>';
+  }}
+  const recent = document.getElementById('usage-recent-runs');
+  if (recent) {{
+    const rows = (data.recent_runs || []).slice(0, 5).map(run => (
+      '<div class="ops-row ops-run"><span>' + studioEscapeHtml(run.project || '') + '<small>' + studioEscapeHtml(run.run_id || '') + '</small></span><strong>' + studioEscapeHtml(run.image_count || 0) + '</strong></div>'
+    ));
+    recent.innerHTML = rows.join('') || '<div class="ops-empty">No runs yet</div>';
+  }}
+}}
+async function loadUsageSummary() {{
+  if (!SERVER_MODE) {{
+    const status = document.getElementById('usage-status');
+    if (status) status.textContent = 'Start the portal server for usage';
+    return;
+  }}
+  try {{
+    const resp = await fetch('/api/usage');
+    const data = await resp.json();
+    renderUsageSummary(data);
+  }} catch (err) {{
+    const status = document.getElementById('usage-status');
+    if (status) status.textContent = 'Usage unavailable';
+  }}
 }}
 function renderDetailFields(detail, item) {{
   const fields = document.getElementById('run-detail-fields');
@@ -705,6 +977,7 @@ function showRunDetail(item) {{
   const panel = document.getElementById('run-detail-panel');
   const detail = detailForItem(item);
   if (!panel || !detail) return;
+  _detailItem = item;
   panel.classList.add('open');
   panel.setAttribute('aria-hidden', 'false');
   setDetailText('run-detail-subtitle', [detail.project || item.project, detail.run_id || item.run_id].filter(Boolean).join(' / '));
@@ -719,6 +992,7 @@ function showRunDetail(item) {{
 
   renderFilenameWarning(item);
   renderDetailFields(detail, item);
+  renderFeedback(item);
   const jsonEl = document.getElementById('run-detail-json');
   if (jsonEl) jsonEl.textContent = JSON.stringify(detail.manifest || {{}}, null, 2);
 }}
@@ -1100,6 +1374,8 @@ async function submitStudio(event) {{
   syncStudioMode();
   syncPortalAction();
   loadPortalActions();
+  loadUsageSummary();
+  loadFeedback();
   if (!SERVER_MODE) {{
     document.getElementById('studio-panel')?.classList.add('studio-disabled');
     document.getElementById('portal-actions-panel')?.classList.add('studio-disabled');
@@ -1166,6 +1442,7 @@ LIBRARY.forEach((item, i) => {{
     <div class="card-meta-row">
       <span class="approval-badge"></span>
       <span class="filename-warning-badge"></span>
+      <span class="feedback-badge"></span>
       <span class="model-badge"></span>
     </div>
     <div class="card-title"></div>
@@ -1197,6 +1474,7 @@ LIBRARY.forEach((item, i) => {{
   if (modelBadge) {{
     modelBadge.textContent = [item.model, item.style, item.aspect_ratio].filter(Boolean).join(' · ');
   }}
+  applyFeedbackToCard(card, item);
   const tagRow = card.querySelector('.tag-row');
   (item.tags || []).slice(0, 5).forEach(tag => {{
     const el = document.createElement('span');
@@ -1253,6 +1531,7 @@ def _library_extra_css() -> str:
 }
 .approval-badge,
 .filename-warning-badge,
+.feedback-badge,
 .model-badge,
 .tag {
   border: 1px solid var(--border);
@@ -1265,6 +1544,15 @@ def _library_extra_css() -> str:
 }
 .filename-warning-badge:empty {
   display: none;
+}
+.feedback-badge:empty {
+  display: none;
+}
+.feedback-on {
+  color: #9ee7bf;
+  border-color: rgba(67,210,126,0.34);
+  background: rgba(67,210,126,0.10);
+  text-transform: capitalize;
 }
 .filename-warning-exact,
 .filename-warning-similar {
@@ -1491,6 +1779,72 @@ def _library_extra_css() -> str:
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+.run-detail-feedback {
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.025);
+  border-radius: 8px;
+  padding: 0.8rem;
+  margin: 0 0 1rem;
+}
+.run-detail-feedback h3 {
+  margin: 0 0 0.65rem;
+  font-size: 0.85rem;
+}
+.run-detail-feedback label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.65rem;
+}
+.run-detail-feedback label span {
+  color: var(--dim);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.run-detail-feedback select,
+.run-detail-feedback textarea {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 0.76rem;
+}
+.run-detail-feedback textarea {
+  resize: vertical;
+}
+.feedback-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.feedback-actions button {
+  border: 1px solid rgba(0,200,180,0.24);
+  background: rgba(0,200,180,0.09);
+  color: var(--teal);
+  border-radius: 8px;
+  padding: 0.42rem 0.62rem;
+  font: inherit;
+  font-size: 0.73rem;
+  cursor: pointer;
+}
+.feedback-actions button:hover {
+  border-color: var(--teal);
+}
+.feedback-status {
+  min-height: 1rem;
+  margin-top: 0.55rem;
+  color: var(--dim);
+  font-size: 0.72rem;
+}
+.feedback-status-error { color: #ff8f8f; }
+.feedback-status-busy { color: var(--teal); }
+.feedback-status-success { color: #9ee7bf; }
 .run-detail-json {
   border: 1px solid var(--border);
   background: rgba(0,0,0,0.22);
@@ -1743,6 +2097,98 @@ def _library_extra_css() -> str:
 .portal-action-status-busy { color: var(--teal); }
 .portal-action-status-success { color: var(--ink); }
 .portal-action-hidden { display: none !important; }
+.ops-panel {
+  margin: 0.8rem 1.5rem 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.025);
+}
+.ops-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+}
+.ops-heading h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+.ops-note {
+  color: var(--dim);
+  font-size: 0.74rem;
+  text-align: right;
+}
+.ops-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 0.7rem;
+}
+.ops-tile {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.12);
+  padding: 0.75rem;
+  min-width: 0;
+}
+.ops-tile span,
+.ops-tile small {
+  display: block;
+  color: var(--dim);
+  font-size: 0.68rem;
+}
+.ops-tile strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  margin: 0.2rem 0;
+}
+.ops-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.9rem;
+}
+.ops-columns h3 {
+  margin: 0 0 0.45rem;
+  color: var(--dim);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ops-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ops-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.45rem 0.55rem;
+  color: var(--ink);
+  font-size: 0.76rem;
+}
+.ops-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-row small {
+  display: block;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-empty {
+  color: var(--dim);
+  font-size: 0.76rem;
+}
 @media (max-width: 820px) {
   .studio-heading {
     flex-direction: column;
@@ -1750,6 +2196,13 @@ def _library_extra_css() -> str:
   .portal-actions-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .ops-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .ops-note {
+    text-align: left;
   }
   .studio-note {
     white-space: normal;
