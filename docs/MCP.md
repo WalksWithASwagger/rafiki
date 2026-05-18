@@ -154,6 +154,7 @@ Notion workflows.
 {"args": ["library"]}
 {"args": ["approve", "rap-all-weeks", "--run", "20260507-100000"]}
 {"args": ["clean", "rap-all-weeks", "--dry-run"]}
+{"args": ["billing", "summary", "--json"]}
 {"args": ["social-expand", "rap-all-weeks", "--dry-run"]}
 {"args": ["regen", "--dry-run"]}
 ```
@@ -185,6 +186,7 @@ when `dry_run` is false; Notion export is external and only mutates remote
 Notion state plus the local export log when `dry_run` is false.
 
 Some fallback CLI workflows still mutate local state or external systems:
-`approve`, `clean`, `deploy`, `regen`, and `social-expand`. The returned JSON
-includes `mutating: true` for those calls so MCP clients can surface approvals
-or logs clearly. Use each workflow's own `--dry-run` flag where available.
+`approve`, `billing import`, `clean`, `deploy`, `regen`, and `social-expand`.
+The returned JSON includes `mutating: true` for those calls so MCP clients can
+surface approvals or logs clearly. Use each workflow's own `--dry-run` flag
+where available.

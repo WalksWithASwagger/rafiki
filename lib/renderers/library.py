@@ -468,6 +468,11 @@ def _ops_panel_html() -> str:
       <small id="usage-cost-note">pricing profile</small>
     </div>
     <div class="ops-tile">
+      <span>Provider Billing</span>
+      <strong id="usage-billing-amount">$0.00</strong>
+      <small id="usage-billing-note">0 imported rows</small>
+    </div>
+    <div class="ops-tile">
       <span>Archive Images</span>
       <strong id="usage-image-count">0</strong>
       <small id="usage-image-note">0 unpriced</small>
@@ -493,6 +498,27 @@ def _ops_panel_html() -> str:
       <div class="ops-list" id="usage-recent-runs"></div>
     </div>
   </div>
+  <form class="ops-billing-form" id="billing-import-form" onsubmit="saveBillingEntry(event)">
+    <h3>Add Billing Entry</h3>
+    <label>
+      <span>Provider</span>
+      <input id="billing-provider" type="text" placeholder="OpenAI">
+    </label>
+    <label>
+      <span>Amount</span>
+      <input id="billing-amount" type="number" step="0.0001" min="0" placeholder="0.00">
+    </label>
+    <label>
+      <span>Model</span>
+      <input id="billing-model" type="text" placeholder="gpt-image-2">
+    </label>
+    <label>
+      <span>Note</span>
+      <input id="billing-note" type="text" placeholder="Invoice or export note">
+    </label>
+    <button type="submit">Add</button>
+    <span id="billing-import-status" class="ops-note" aria-live="polite"></span>
+  </form>
   <div class="ops-readiness">
     <div>
       <h3>Online Readiness</h3>
@@ -884,10 +910,14 @@ function stageRevisionFromDetail(event, autoSubmit) {{
 function renderUsageSummary(data) {{
   const archive = data.archive || {{}};
   const cost = archive.estimated_cost || archive.known_cost || {{}};
+  const spend = archive.spend || cost;
+  const billing = data.provider_billing || {{}};
   const set = (id, text) => {{ const el = document.getElementById(id); if (el) el.textContent = text; }};
   set('usage-status', data.pricing_note || 'Usage loaded');
-  set('usage-known-cost', formatUsd(cost.amount || 0));
-  set('usage-cost-note', (cost.profile_estimated_images || 0) + ' profile + ' + (cost.manifest_amount_images || 0) + ' manifest');
+  set('usage-known-cost', formatUsd(spend.amount || cost.amount || 0));
+  set('usage-cost-note', spend.basis === 'provider_billing_imports' ? 'provider billing import' : (cost.profile_estimated_images || 0) + ' profile + ' + (cost.manifest_amount_images || 0) + ' manifest');
+  set('usage-billing-amount', formatUsd(billing.amount || 0));
+  set('usage-billing-note', (billing.entries || 0) + ' imported row(s)');
   set('usage-image-count', String(archive.images || 0));
   const fallbackUnpriced = ((archive.known_cost || {{}}).unestimated_images || 0);
   set('usage-image-note', ((cost.unpriced_images ?? fallbackUnpriced) || 0) + ' unpriced');
@@ -909,6 +939,41 @@ function renderUsageSummary(data) {{
       '<div class="ops-row ops-run"><span>' + studioEscapeHtml(run.project || '') + '<small>' + studioEscapeHtml(run.run_id || '') + '</small></span><strong>' + studioEscapeHtml(run.image_count || 0) + '</strong></div>'
     ));
     recent.innerHTML = rows.join('') || '<div class="ops-empty">No runs yet</div>';
+  }}
+}}
+async function saveBillingEntry(event) {{
+  event.preventDefault();
+  const status = document.getElementById('billing-import-status');
+  if (!SERVER_MODE) {{
+    if (status) status.textContent = 'Start the portal server first';
+    return;
+  }}
+  const amount = Number(document.getElementById('billing-amount')?.value || 0);
+  if (!amount) {{
+    if (status) status.textContent = 'Enter an amount';
+    return;
+  }}
+  if (status) status.textContent = 'Saving...';
+  const payload = {{
+    provider: document.getElementById('billing-provider')?.value || '',
+    amount,
+    model: document.getElementById('billing-model')?.value || '',
+    note: document.getElementById('billing-note')?.value || '',
+    label: 'portal manual entry',
+  }};
+  try {{
+    const resp = await fetch('/api/billing-imports', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(payload),
+    }});
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'billing save failed');
+    if (status) status.textContent = data.imported ? 'Saved' : 'Already imported';
+    document.getElementById('billing-amount').value = '';
+    await loadUsageSummary();
+  }} catch (err) {{
+    if (status) status.textContent = err.message || 'Save failed';
   }}
 }}
 function renderDeployReadiness(data) {{
@@ -2191,12 +2256,45 @@ def _library_extra_css() -> str:
   margin-top: 0.9rem;
 }
 .ops-columns h3,
-.ops-readiness h3 {
+.ops-readiness h3,
+.ops-billing-form h3 {
   margin: 0 0 0.45rem;
   color: var(--dim);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+}
+.ops-billing-form {
+  display: grid;
+  grid-template-columns: 1fr repeat(3, minmax(110px, 0.6fr)) auto auto;
+  gap: 0.55rem;
+  align-items: end;
+  margin-top: 0.9rem;
+}
+.ops-billing-form label,
+.ops-billing-form label span {
+  display: block;
+}
+.ops-billing-form label span {
+  color: var(--dim);
+  font-size: 0.65rem;
+  margin-bottom: 0.22rem;
+}
+.ops-billing-form input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.18);
+  color: var(--ink);
+  padding: 0.48rem 0.55rem;
+}
+.ops-billing-form button {
+  border: 1px solid rgba(0,200,180,0.35);
+  border-radius: 8px;
+  background: rgba(0,200,180,0.12);
+  color: var(--teal);
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
 }
 .ops-list {
   display: flex;
@@ -2252,6 +2350,9 @@ def _library_extra_css() -> str:
   }
   .ops-note {
     text-align: left;
+  }
+  .ops-billing-form {
+    grid-template-columns: 1fr;
   }
   .studio-note {
     white-space: normal;

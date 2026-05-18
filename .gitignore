@@ -24,6 +24,7 @@ node_modules/
 
 # Usage tracking (local data)
 data/usage-log.json
+data/billing-imports.json
 
 # Asset registry — local cache, regenerable via `generate.py registry index`
 data/asset-registry.json

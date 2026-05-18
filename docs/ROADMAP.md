@@ -25,16 +25,16 @@ image generation platform.
 | Area | Primary files | Current state |
 |---|---|---|
 | Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
-| Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, deploy, exports, scheduled regen, and portal startup. |
+| Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, billing imports, deploy, exports, scheduled regen, and portal startup. |
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
-| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library with all-runs archive browsing, filters, keyboard review, run detail panel, ratings and feedback APIs, pricing-profile spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, and run browsing. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library with all-runs archive browsing, filters, keyboard review, run detail panel, ratings, feedback and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
 | Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 181 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 188 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -110,6 +110,7 @@ Goal: make the local portal the best default interface for review and curation.
 | P0 | Surface run status and errors better in the portal. | A failed generation shows useful error state and next action, not just missing images. |
 | Shipped | Add local spend and feedback surfaces. | The portal shows local spend/run summaries, persists per-card feedback to `output/feedback.json`, and can stage feedback-driven reruns into Prompt Studio. |
 | Shipped | Add pricing-profile spend estimates. | `config/pricing.json` estimates fixed-price image outputs locally while leaving token-priced or unknown models unpriced until manifests include usage. |
+| Shipped | Add local provider billing imports. | CSV/JSON/manual billing rows land in `data/billing-imports.json`, appear in the portal, and take precedence as the spend display total when present. |
 | P1 | Expand curation actions from the UI. | Starred assets can already be promoted from the portal action panel; next, per-card state should make approved/exported/superseded status obvious while reviewing. |
 | P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, make export status visible on archive cards. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |

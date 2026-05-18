@@ -172,6 +172,17 @@ def test_run_usage_smoke():
     assert "Total images generated:" in payload["stdout"]
 
 
+def test_run_billing_summary_bridge(tmp_path):
+    state = tmp_path / "billing-imports.json"
+
+    payload = json.loads(mcp_server.rafiki_run(["billing", "summary", "--state", str(state), "--json"]))
+
+    assert payload["success"] is True
+    assert payload["mutating"] is False
+    summary = json.loads(payload["stdout"])
+    assert summary["entries"] == 0
+
+
 def test_registry_search_wrapper_returns_structured_matches(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     approved = output_root / "search-project" / "approved"

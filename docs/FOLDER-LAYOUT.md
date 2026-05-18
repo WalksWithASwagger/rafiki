@@ -41,6 +41,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── prompts.py               # parse_image_prompts_md()
 │   ├── styles.py                # Style suffix resolution + composition
 │   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
+│   ├── billing.py               # Local provider billing imports (CSV/JSON/manual)
 │   ├── pricing.py               # Public pricing-profile loader + local cost estimates
 │   ├── feedback.py              # Local archive feedback notes + change requests
 │   ├── archive.py               # approved/ curation + clean
@@ -78,7 +79,8 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── extra-outputs.json.example
 │   ├── pricing.json             # Public model pricing profile for local estimates
 │   └── scheduled-regen.json.example  # Local config templates (real files are gitignored)
-├── data/                        # usage-log.json + asset-registry.* (gitignored)
+├── data/                        # usage-log.json, billing-imports.json,
+│                                #   asset-registry.* (gitignored)
 ├── output/                      # Generated images + viewers (gitignored)
 │   ├── ratings.json             # star/reject map, written by the portal
 │   ├── feedback.json            # local card notes/change requests, written by the portal

@@ -7,6 +7,7 @@ archive, and uses the same generation path as the CLI.
 ## Surfaces
 
 - **Spend & Review Ops** summarizes local usage and run manifests:
+  - provider-billing imports from `data/billing-imports.json`
   - estimated spend from local manifest amounts plus `config/pricing.json`
   - unpriced image count when manifests and the pricing profile cannot estimate
     a local amount
@@ -14,6 +15,7 @@ archive, and uses the same generation path as the CLI.
     totals
   - recent runs with project, run id, state, image count, and local/profile cost
     amounts
+  - manual one-off billing entry form for exact charges
   - deployment readiness for local public sharing and static Vercel deploys
 - **Prompt Studio** launches single-prompt or Markdown batch runs through
   `/api/regen`.
@@ -29,16 +31,19 @@ archive, and uses the same generation path as the CLI.
 | `output/ratings.json` | `/api/ratings` | Star/reject review state keyed by `project/run/file`. |
 | `output/feedback.json` | `/api/feedback` | Per-card notes, change requests, and review statuses. |
 | `data/usage-log.json` | `lib.usage.log_generation` | Local generation event log. |
+| `data/billing-imports.json` | `generate.py billing` and `/api/billing-imports` | Local provider billing ledger. |
 | `config/pricing.json` | Maintainers | Public pricing profile used for local spend estimates. |
 | `output/<project>/run-*/run.json` | `lib.batch.run_batch` | Run metadata, prompt details, timings, state, and local cost estimates. |
 
-`output/` and `data/usage-log.json` are gitignored. Feedback and ratings stay
-local unless an operator intentionally exports or deploys them.
+`output/`, `data/usage-log.json`, and `data/billing-imports.json` are
+gitignored. Feedback, ratings, and imported billing stay local unless an
+operator intentionally exports or deploys them.
 
 ## Spend Semantics
 
 The spend tile combines two local signals:
 
+- provider-billing imports when available
 - exact local manifest amounts when `cost_estimate.amount` is present
 - pricing-profile estimates from `config/pricing.json` when Rafiki can estimate
   the image output price
@@ -73,6 +78,8 @@ It does not deploy, call provider APIs, or expose secret values.
 | Endpoint | Method | Behavior |
 |---|---|---|
 | `/api/usage` | `GET` | Read-only local usage and manifest summary. |
+| `/api/billing-imports` | `GET` | Read-only imported provider billing summary. |
+| `/api/billing-imports` | `POST` | Add one or more local billing rows with `provider`, `model`, `amount`, `currency`, and `note`. |
 | `/api/deploy-readiness` | `GET` | Secret-safe readiness checks for static deploy and public portal sharing. |
 | `/api/feedback` | `GET` | Return `output/feedback.json` as `{version, items}`. |
 | `/api/feedback` | `POST` | Upsert one feedback item using `key`, `status`, `note`, and `change_request`. |
