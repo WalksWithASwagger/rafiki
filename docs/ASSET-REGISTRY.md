@@ -5,6 +5,10 @@ walking every project in `output/` (plus any extras from
 `config/extra-outputs.json` and `config/extra-outputs.local.json`), preferring
 an `approved/` subdir and falling back to the latest `run-*` dir.
 
+The registry also has an archive scope for the master library: `all-runs`
+indexes every historical `run-*` image so Rafiki can show the full local
+generation history without exporting every draft by default.
+
 The registry is a **local cache** — `data/asset-registry.json` and
 `data/asset-registry.csv` are gitignored. Regenerate any time.
 
@@ -12,7 +16,7 @@ The registry is a **local cache** — `data/asset-registry.json` and
 
 | field | type | source |
 |---|---|---|
-| `id` | str | `<project>-<png-stem>` |
+| `id` | str | `<project>-<png-stem>` in curated scope; `<project>-<run-id>-<png-stem>` in all-runs scope |
 | `project` | str | dir name under `output/` or key in the extra-output config |
 | `title` | str | `viewer-data.json` → `run.json` `name` → derived from filename |
 | `caption` | str | `viewer-data.json` → `run.json` `prompt` |
@@ -22,7 +26,7 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | `style` | str | `run.json` |
 | `model` | str | `run.json` |
 | `aspect_ratio` | str | `run.json` |
-| `source` | str | `approved` or `latest-run` |
+| `source` | str | `approved`, `latest-run`, or `run` |
 | `source_run` | str | source run id when known |
 | `indexed_at` | str (ISO) | timestamp of `index()` call |
 | `path` | str | image path, repo-root-relative when possible |
@@ -30,7 +34,8 @@ The registry is a **local cache** — `data/asset-registry.json` and
 ## CLI
 
 ```bash
-generate.py registry index                  # rebuild data/asset-registry.json
+generate.py registry index                  # rebuild curated data/asset-registry.json
+generate.py registry index --all-runs       # persist the complete local archive
 generate.py registry search "hallucination" # case-insensitive, title+caption+tags
 generate.py registry search "bias" --json   # JSON output
 generate.py registry export --format csv    # → data/asset-registry.csv
@@ -45,11 +50,12 @@ generate.py registry export --format json   # → data/asset-registry.json
 
 ## Library viewer
 
-The master library viewer (`generate.py library`) uses the same registry
-metadata loader as `generate.py registry index`. It does not require a prebuilt
-`data/asset-registry.json`: when you build the library, Rafiki reads
-`approved/` first and falls back to the latest `run-*` directory for output-only
-projects.
+The master library viewer (`generate.py library`) uses the registry's all-runs
+metadata loader. It does not require a prebuilt `data/asset-registry.json`: when
+you build the library, Rafiki scans every `run-*` directory under `output/` and
+configured extra-output roots. The default `registry index` command stays
+curated because CSV, Notion, and Canva exports usually want keepers, not every
+draft.
 
 Library cards show registry-grade title, caption, tags, approval status, source
 prompt, model, style, and aspect ratio when those fields are available.

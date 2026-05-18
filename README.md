@@ -182,6 +182,10 @@ python generate.py library
 python generate.py library --open
 ```
 
+`library` builds the full local archive: every `run-*` image under `output/`
+and any configured extra-output roots, with approval state overlaid from
+`approved/index.json` when available.
+
 ## Prompt File Format
 
 Rafiki batch runs parse numbered Markdown sections with blockquote prompts:

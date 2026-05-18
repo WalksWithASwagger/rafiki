@@ -33,6 +33,8 @@ deeper operating docs by surface area.
   re-indexing guidance for external or generated assets.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,
   `index.json` schema, and storage location.
+- [Library And Archive Roadmap](LIBRARY-ARCHIVE-ROADMAP.md) - build plan for
+  the all-runs image archive, portal curation, cleanup, and agent access.
 - [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rule for
   `prompts/kk-kb/` vs the legacy `kk-ai-ecosystem` copies.
 

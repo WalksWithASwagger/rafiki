@@ -43,7 +43,7 @@ def _write_run(directory: Path, image_name: str, title: str, prompt: str, **meta
     (directory / "run.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def test_library_prefers_approved_registry_metadata(tmp_path, monkeypatch):
+def test_library_uses_all_run_archive_scope_and_marks_approved(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     project = output_root / "curated-project"
     _write_run(
@@ -55,11 +55,11 @@ def test_library_prefers_approved_registry_metadata(tmp_path, monkeypatch):
 
     approved = project / "approved"
     approved.mkdir(parents=True)
-    _write_image(approved / "approved.png")
     (approved / "index.json").write_text(
         json.dumps({
             "images": [{
-                "slug": "approved.png",
+                "slug": "draft.png",
+                "original_file": "draft.png",
                 "name": "Registry Title",
                 "prompt": "source prompt from approval index",
                 "model": "gemini-2.5-flash-image",
@@ -70,31 +70,21 @@ def test_library_prefers_approved_registry_metadata(tmp_path, monkeypatch):
         }),
         encoding="utf-8",
     )
-    (approved / "viewer-data.json").write_text(
-        json.dumps({"images": [{
-            "file": "approved.png",
-            "title": "Viewer Title",
-            "caption": "registry-grade caption",
-            "tags": ["launch", "keeper"],
-        }]}),
-        encoding="utf-8",
-    )
 
     records = library._records_from_registry(output_root)
 
     assert len(records) == 1
-    assert records[0]["file"] == "curated-project/approved/approved.png"
-    assert records[0]["title"] == "Viewer Title"
-    assert records[0]["caption"] == "registry-grade caption"
+    assert records[0]["file"] == "curated-project/run-20260501-120000/draft.png"
+    assert records[0]["title"] == "Registry Title"
     assert records[0]["source_prompt"] == "source prompt from approval index"
     assert records[0]["approval_status"] == "approved"
     assert records[0]["model"] == "gemini-2.5-flash-image"
     assert records[0]["style"] == "editorial"
     assert records[0]["aspect_ratio"] == "9:16"
-    assert records[0]["tags"] == ["launch", "keeper"]
+    assert records[0]["source"] == "run"
 
 
-def test_library_registry_uses_latest_run_when_no_approved(tmp_path, monkeypatch):
+def test_library_registry_uses_every_run_when_no_approved(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     project = output_root / "output-only-project"
     _write_run(
@@ -117,14 +107,17 @@ def test_library_registry_uses_latest_run_when_no_approved(tmp_path, monkeypatch
 
     records = library._records_from_registry(output_root)
 
-    assert len(records) == 1
-    assert records[0]["file"] == "output-only-project/run-20260501-120000/new.png"
-    assert records[0]["title"] == "New Title"
-    assert records[0]["source_prompt"] == "new prompt"
-    assert records[0]["approval_status"] == "unapproved"
-    assert records[0]["model"] == "gpt-image-2"
-    assert records[0]["style"] == "product"
-    assert records[0]["aspect_ratio"] == "1:1"
+    assert [r["file"] for r in records] == [
+        "output-only-project/run-20260401-120000/old.png",
+        "output-only-project/run-20260501-120000/new.png",
+    ]
+    newest = records[1]
+    assert newest["title"] == "New Title"
+    assert newest["source_prompt"] == "new prompt"
+    assert newest["approval_status"] == "unapproved"
+    assert newest["model"] == "gpt-image-2"
+    assert newest["style"] == "product"
+    assert newest["aspect_ratio"] == "1:1"
 
 
 def test_library_viewer_renders_output_only_project_without_prebuilt_registry(tmp_path, monkeypatch):

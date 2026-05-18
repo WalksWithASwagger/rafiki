@@ -1,10 +1,12 @@
 """Cross-project image asset registry — index, search, export.
 
 Walks every project under output/ and any roots configured in
-config/extra-outputs.json plus config/extra-outputs.local.json, preferring an
-approved/ subdir and falling back to the latest run-* dir. Pulls metadata from
-run.json (canonical) and merges optional title/caption/tags from a sibling
-viewer-data.json when present.
+config/extra-outputs.json plus config/extra-outputs.local.json. The default
+curated scope prefers an approved/ subdir and falls back to the latest run-*
+dir. The all-runs scope indexes every run-* dir so the master library can act
+as a complete local archive. Pulls metadata from run.json (canonical) and
+merges optional title/caption/tags from a sibling viewer-data.json when
+present.
 
 The on-disk registry is a local cache (gitignored) — regenerate with
 `generate.py registry index` after a batch run or curation.
@@ -167,6 +169,9 @@ def _entries_from_dir(
     directory: Path,
     indexed_at: str,
     source: str = "",
+    *,
+    approved_by_source: dict[tuple[str, str], dict] | None = None,
+    include_run_id_in_id: bool = False,
 ) -> list[AssetEntry]:
     """Build AssetEntry list from PNGs in directory + adjacent metadata."""
     if not directory.exists():
@@ -175,12 +180,12 @@ def _entries_from_dir(
     run_meta, per_file = _load_run_meta(directory)
     viewer_meta = _load_viewer_data(directory)
     approved_meta = _load_approved_index(directory) if source == "approved" else {}
+    approved_by_source = approved_by_source or {}
 
     style = run_meta.get("style", "") or ""
     model = run_meta.get("model", "") or ""
     aspect_ratio = run_meta.get("aspect_ratio", "") or ""
     run_id = directory.name if directory.name.startswith("run-") else ""
-    approval_status = "approved" if source == "approved" else "unapproved"
 
     entries: list[AssetEntry] = []
     image_paths = sorted(
@@ -192,6 +197,9 @@ def _entries_from_dir(
         approved = approved_meta.get(fname, {})
         img_meta = per_file.get(fname, {})
         view = viewer_meta.get(fname, {})
+        source_approval = approved_by_source.get((run_id, fname), {}) if run_id else {}
+        if source_approval:
+            approved = {**approved, **source_approval}
         source_prompt = approved.get("prompt") or img_meta.get("prompt") or view.get("caption") or ""
 
         title = (
@@ -213,15 +221,21 @@ def _entries_from_dir(
         image_model = approved.get("model") or img_meta.get("model") or model
         image_aspect_ratio = approved.get("aspect_ratio") or img_meta.get("aspect_ratio") or aspect_ratio
         image_source_run = approved.get("source_run") or run_id
+        approval_status = "approved" if source == "approved" or source_approval else "unapproved"
 
         try:
             rel_path = image_path.resolve().relative_to(REPO_ROOT).as_posix()
         except ValueError:
             rel_path = image_path.resolve().as_posix()
 
+        id_parts = [project]
+        if include_run_id_in_id and image_source_run:
+            id_parts.append(str(image_source_run).removeprefix("run-"))
+        id_parts.append(image_path.stem)
+
         entries.append(
             AssetEntry(
-                id=f"{project}-{image_path.stem}",
+                id="-".join(id_parts),
                 project=project,
                 title=str(title),
                 caption=str(caption),
@@ -238,6 +252,20 @@ def _entries_from_dir(
             )
         )
     return entries
+
+
+def _approved_by_source(project_dir: Path) -> dict[tuple[str, str], dict]:
+    approved_dir = project_dir / "approved"
+    if not approved_dir.is_dir():
+        return {}
+
+    out: dict[tuple[str, str], dict] = {}
+    for item in _load_approved_index(approved_dir).values():
+        source_run = item.get("source_run")
+        original_file = item.get("original_file")
+        if source_run and original_file:
+            out[(str(source_run), str(original_file))] = item
+    return out
 
 
 def _project_roots(output_root: Path | None = None) -> dict[str, Path]:
@@ -259,8 +287,11 @@ def _project_roots(output_root: Path | None = None) -> dict[str, Path]:
     return roots
 
 
-def collect(output_root: Path | None = None) -> list[AssetEntry]:
+def collect(output_root: Path | None = None, *, scope: str = "curated") -> list[AssetEntry]:
     """Walk projects and build registry entries without writing the local cache."""
+    if scope not in {"curated", "all-runs"}:
+        raise ValueError("scope must be 'curated' or 'all-runs'")
+
     indexed_at = datetime.now().isoformat(timespec="seconds")
     roots = _project_roots(output_root)
 
@@ -268,15 +299,49 @@ def collect(output_root: Path | None = None) -> list[AssetEntry]:
     for project, project_dir in roots.items():
         try:
             approved = project_dir / "approved"
-            if approved.is_dir():
+            if scope == "all-runs":
+                approved_lookup = _approved_by_source(project_dir)
+                run_dirs = sorted(project_dir.glob("run-*"))
+                seen_sources: set[tuple[str, str]] = set()
+                for run_dir in run_dirs:
+                    if not run_dir.is_dir():
+                        continue
+                    entries = _entries_from_dir(
+                        project,
+                        run_dir,
+                        indexed_at,
+                        source="run",
+                        approved_by_source=approved_lookup,
+                        include_run_id_in_id=True,
+                    )
+                    for entry in entries:
+                        seen_sources.add((entry.source_run, Path(entry.path).name))
+                    all_entries.extend(entries)
+                if approved.is_dir():
+                    approved_index = _load_approved_index(approved)
+                    for entry in _entries_from_dir(
+                        project,
+                        approved,
+                        indexed_at,
+                        source="approved",
+                        include_run_id_in_id=True,
+                    ):
+                        approved_meta = approved_index.get(Path(entry.path).name, {})
+                        original = approved_meta.get("original_file")
+                        source_run = approved_meta.get("source_run") or entry.source_run
+                        if original and source_run and (str(source_run), str(original)) in seen_sources:
+                            continue
+                        all_entries.append(entry)
+            elif approved.is_dir():
                 entries = _entries_from_dir(project, approved, indexed_at, source="approved")
+                all_entries.extend(entries)
             else:
                 latest = _latest_run_dir(project_dir)
                 if latest is None:
                     logger.info("No approved/ or run-* in %s — skipping", project_dir)
                     continue
                 entries = _entries_from_dir(project, latest, indexed_at, source="latest-run")
-            all_entries.extend(entries)
+                all_entries.extend(entries)
         except Exception as e:
             logger.warning("Skipping project %s due to error: %s", project, e)
             continue
@@ -284,9 +349,9 @@ def collect(output_root: Path | None = None) -> list[AssetEntry]:
     return all_entries
 
 
-def index(output_root: Path | None = None) -> list[AssetEntry]:
+def index(output_root: Path | None = None, *, scope: str = "curated") -> list[AssetEntry]:
     """Walk projects, build registry entries, persist to data/asset-registry.json."""
-    all_entries = collect(output_root)
+    all_entries = collect(output_root, scope=scope)
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     REGISTRY_JSON.write_text(

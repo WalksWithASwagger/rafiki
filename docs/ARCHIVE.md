@@ -33,6 +33,14 @@ the rest.
    python generate.py view rap-week-1 --approved
    open output/rap-week-1/approved/viewer.html
    ```
+5. **Browse the full local archive**:
+   ```bash
+   python generate.py library
+   python generate.py serve --open
+   ```
+   The master library scans every `run-*` image across `output/` and configured
+   extra-output roots. Approved images are marked from `approved/index.json`,
+   but draft runs remain visible until you clean them intentionally.
 
 ## Layout
 
@@ -95,5 +103,6 @@ or trace it later:
 ## Where this lives
 
 - CLI dispatch — `generate.py` (`approve`, `clean`, `view --approved`)
+- Full archive viewer — `generate.py library`, `generate.py serve`
 - All logic — `lib/archive.py`
 - Tests — `tests/test_archive.py`

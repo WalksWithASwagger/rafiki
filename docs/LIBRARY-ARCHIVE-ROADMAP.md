@@ -1,0 +1,129 @@
+# Rafiki Library And Archive Roadmap
+
+Last reviewed: 2026-05-18
+
+## Goal
+
+Build one local-first place to see, search, review, approve, and reuse every
+image Rafiki has generated.
+
+The library should answer four practical questions fast:
+
+- What did Rafiki make?
+- Where did it come from?
+- Which versions are keepers?
+- What can be safely exported, deployed, or deleted?
+
+This is not a hosted gallery or shared cloud asset manager. Generated images,
+ratings, registry caches, and approvals stay on the operator's machine unless a
+separate export/deploy action is explicitly run.
+
+## Current Foundation
+
+Rafiki already has most of the pieces:
+
+| Area | Files | State |
+|---|---|---|
+| Run manifests | `output/<project>/run-*/run.json` | Canonical source for generated image file, prompt, model, style, aspect ratio, and run metadata. |
+| Project viewers | `lib/renderers/viewer.py`, `generate.py view` | Per-project and per-run review pages. |
+| Master library | `lib/renderers/library.py`, `generate.py library`, `generate.py serve` | Cross-project portal with search, filters, ratings, Prompt Studio, and curation/export actions. |
+| Ratings | `output/ratings.json`, `lib/server.py` | Star/reject state keyed by `project/run-id/file`. |
+| Approved archive | `lib/archive.py`, `generate.py approve`, `generate.py clean` | Promotes starred assets into `approved/` and supports conservative cleanup. |
+| Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache. |
+| External roots | `config/extra-outputs*.json` | Lets the portal include generated outputs outside the repo. |
+
+The missing product-level behavior was archive completeness: the registry and
+library leaned toward curated/latest assets, not every historical `run-*`.
+
+## Phase 1: Complete Local Archive View
+
+Status: implemented in this branch.
+
+Success criteria:
+
+- `generate.py library` indexes every `run-*` image, not just approved/latest.
+- `generate.py serve` shows the same all-runs archive on the portal home page.
+- Cards still show prompt, model, style, aspect ratio, project, source run, and
+  approval state when available.
+- Approved images are recognized from `approved/index.json` by
+  `(source_run, original_file)` while keeping the original run image as the
+  archive card.
+- `generate.py registry index --all-runs` can persist the complete archive
+  metadata to `data/asset-registry.json`.
+- The default `generate.py registry index` remains curated for downstream CSV,
+  Notion, and Canva workflows that should not export every draft.
+
+## Phase 2: Make Review Fast
+
+Build on the current library UI.
+
+Success criteria:
+
+- Add source/run filters alongside project/model/style/aspect filters.
+- Add approval-state filters for `approved`, `unapproved`, `starred`,
+  `rejected`, and `unreviewed`.
+- Add a run drawer or detail panel with full `run.json` metadata, prompt file,
+  generation source, and direct links to the run viewer.
+- Add keyboard shortcuts for star/reject/next/previous.
+- Add duplicate/similar filename warnings so reruns do not hide prior work.
+
+## Phase 3: Make Curation Durable
+
+Turn review decisions into durable archive state.
+
+Success criteria:
+
+- Promote starred images from any historical run into `approved/` from the
+  portal, not only the CLI.
+- Record human notes, title overrides, tags, and publish/export status in a
+  stable sidecar, not only browser local storage.
+- Show whether each archive card has been approved, exported to Canva, exported
+  to Notion, deployed, or superseded.
+- Add a "needs decision" queue for high-value projects where many images remain
+  unreviewed.
+
+## Phase 4: Make Cleanup Safe
+
+Let Rafiki manage disk growth without losing source-of-truth assets.
+
+Success criteria:
+
+- Add a dry-run cleanup report with image counts, total size, approved coverage,
+  and risky deletions.
+- Keep cleanup conservative: never delete `approved/`, never delete runs with
+  unapproved-only images unless explicitly requested.
+- Add an archive health command that reports missing files, malformed
+  `run.json`, orphaned ratings, and approved entries whose source run is gone.
+- Add optional thumbnail/cache generation so huge archives stay fast without
+  mutating originals.
+
+## Phase 5: Make The Archive Useful To Agents
+
+Expose stable, machine-readable archive contracts.
+
+Success criteria:
+
+- Add direct MCP wrappers for archive search, image lookup, approval-state
+  updates, and export prep.
+- Return stable JSON with absolute image paths, source prompts, run metadata,
+  approval state, and safe mutation flags.
+- Add recipe prompts for common agent jobs: "find unused good assets",
+  "compare these runs", "prepare a web gallery shortlist", and "audit stale
+  generated assets".
+
+## Build Order
+
+1. Ship the all-runs archive scope in registry and library.
+2. Add archive filters/detail panels to the portal.
+3. Move review notes/title/tags into durable metadata.
+4. Add archive health and cleanup reports.
+5. Add MCP wrappers once the local contracts are stable.
+
+## Non-Goals
+
+- No automatic deletion of generated work.
+- No publishing images to a remote service without an explicit export/deploy
+  action.
+- No committing generated `output/` images to the repo by default.
+- No replacing project-specific viewers; the master library should link into
+  them.

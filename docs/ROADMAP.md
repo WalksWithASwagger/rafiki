@@ -92,6 +92,7 @@ exports.
 | Priority | Work | Success criteria |
 |---|---|---|
 | P0 | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
+| P0 | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
 | P1 | Add approval/export state to registry entries. | Registry can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
 | P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
@@ -156,7 +157,7 @@ Before declaring a roadmap phase done:
 ## Near-Term Execution Order
 
 1. Add MCP and CLI dry-run smoke tests.
-2. Make registry metadata feed the library viewer.
+2. Make registry metadata feed the all-runs library viewer.
 3. Add portal curation/export actions.
 4. Expand doctor remediation for package and browser setup.
 
