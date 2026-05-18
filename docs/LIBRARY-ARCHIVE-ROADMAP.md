@@ -37,7 +37,7 @@ library leaned toward curated/latest assets, not every historical `run-*`.
 
 ## Phase 1: Complete Local Archive View
 
-Status: implemented in this branch.
+Status: shipped on `main`.
 
 Success criteria:
 
@@ -116,11 +116,12 @@ Success criteria:
 
 ## Build Order
 
-1. Ship the all-runs archive scope in registry and library.
-2. Add archive filters/detail panels to the portal.
-3. Move review notes/title/tags into durable metadata.
-4. Add archive health and cleanup reports.
-5. Add MCP wrappers once the local contracts are stable.
+1. Ship the all-runs archive scope in registry and library. Done.
+2. Add archive filters/detail panels to the portal. Done.
+3. Add duplicate/similar filename warnings.
+4. Move review notes/title/tags into durable metadata.
+5. Add archive health and cleanup reports.
+6. Add MCP wrappers once the local contracts are stable.
 
 ## Non-Goals
 
