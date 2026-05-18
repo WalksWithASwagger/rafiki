@@ -48,9 +48,22 @@ studio that can:
 
 - generate a single prompt into `output/<project>/run-*`
 - run a Markdown prompt file batch into `output/<project>/run-*`
+- stage a revision from archive-card feedback back into the single-prompt form
+- dry-run a staged revision before spending provider credits
 
 This is intentionally local-first. The server runs the same Python generation
 path as the CLI and writes into the same output tree.
+
+## Spend and feedback
+
+The portal includes a local Spend & Review Ops panel. It summarizes run counts,
+image counts, failed images, known local manifest cost amounts, unestimated
+images, model mix, and recent runs. Provider pricing is not bundled; billing
+exports from Gemini/OpenAI remain the source of truth for exact spend.
+
+Card-level notes and change requests are stored in `output/feedback.json`
+through `/api/feedback`, beside `output/ratings.json`. Both are local review
+state and are ignored by git with the rest of `output/`.
 
 ## MCP server (`mcp_server.py`)
 

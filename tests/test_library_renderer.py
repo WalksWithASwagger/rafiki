@@ -270,3 +270,29 @@ def test_library_viewer_warns_about_duplicate_and_similar_filenames(tmp_path, mo
     assert "function renderFilenameWarning(item)" in html
     assert "card.dataset.warning = item.filename_warning?.level || ''" in html
     assert 'class="filename-warning-badge"' in html
+
+
+def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "ops-project" / "run-20260508-120000",
+        "ops.png",
+        "Ops Title",
+        "ops prompt",
+        model="gpt-image-2",
+        style="bcai",
+        aspect_ratio="1:1",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="ops-panel"' in html
+    assert 'id="usage-known-cost"' in html
+    assert "async function loadUsageSummary()" in html
+    assert "fetch('/api/usage')" in html
+    assert 'id="run-detail-feedback"' in html
+    assert 'id="feedback-change-request"' in html
+    assert "async function saveFeedbackForDetail(event)" in html
+    assert "fetch('/api/feedback'" in html
+    assert "function stageRevisionFromDetail(event, autoSubmit)" in html
+    assert 'class="feedback-badge"' in html

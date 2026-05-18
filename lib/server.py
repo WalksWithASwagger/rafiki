@@ -288,6 +288,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
 class _RafikiHandler(BaseHTTPRequestHandler):
     output_root: Path
     ratings_file: Path
+    feedback_file: Path
     extra_roots: dict[str, Path]  # project_name → real dir
 
     def log_message(self, fmt, *args):  # suppress noisy access log
@@ -336,6 +337,10 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_actions()
         elif path == "/api/ratings":
             self._serve_ratings()
+        elif path == "/api/feedback":
+            self._serve_feedback()
+        elif path == "/api/usage":
+            self._serve_usage()
         elif path == "/api/runs":
             self._serve_runs()
         else:
@@ -347,6 +352,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/ratings":
             self._update_ratings()
+        elif path == "/api/feedback":
+            self._update_feedback()
         elif path == "/api/regen":
             self._regen()
         elif path == "/api/actions":
@@ -395,6 +402,17 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         ratings = _load_ratings(self.ratings_file)
         self._respond(200, "application/json", json.dumps(ratings).encode())
 
+    def _serve_feedback(self):
+        from lib.feedback import load_feedback
+
+        self._respond(200, "application/json", json.dumps(load_feedback(self.feedback_file)).encode())
+
+    def _serve_usage(self):
+        from lib.usage import summarize_usage
+
+        summary = summarize_usage(self.output_root, extra_roots=self.extra_roots)
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
     def _serve_actions(self):
         from lib.portal_actions import discover_actions
 
@@ -417,6 +435,26 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             ratings[key] = value
         self.ratings_file.write_text(json.dumps(ratings, indent=2), encoding="utf-8")
         self._respond(200, "application/json", b'{"ok":true}')
+
+    def _update_feedback(self):
+        from lib.feedback import update_feedback
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = update_feedback(self.feedback_file, payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "feedback update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     def _serve_runs(self):
         from lib.renderers.library import load_extra_outputs, _scan_root
@@ -560,6 +598,7 @@ def serve(
     from lib.renderers.library import load_extra_outputs
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
+    feedback_file = output_root / "feedback.json"
     extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
 
     class Handler(_RafikiHandler):
@@ -567,6 +606,7 @@ def serve(
 
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
+    Handler.feedback_file = feedback_file
     Handler.extra_roots = extra_roots
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"

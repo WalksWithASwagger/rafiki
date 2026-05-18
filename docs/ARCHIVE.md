@@ -51,6 +51,8 @@ the rest.
    Filename warnings are informational: the library flags exact filename
    repeats and simple normalized-stem matches within the same project so you
    can compare reruns before approving or cleaning anything.
+   The same detail panel can save feedback notes/change requests to
+   `output/feedback.json` and stage a revision back into Prompt Studio.
 
 ## Layout
 

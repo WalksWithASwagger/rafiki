@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import inspect
+import json
 import sys
 import threading
 import urllib.error
@@ -31,6 +32,7 @@ def _make_handler_class(tmp_path: Path) -> type:
 
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
+    Handler.feedback_file = output_root / "feedback.json"
     Handler.extra_roots = {}
     return Handler
 
@@ -69,6 +71,19 @@ def _get(url: str, auth: tuple[str, str] | None = None):
         return e
 
 
+def _post_json(url: str, payload: dict):
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        return urllib.request.urlopen(req, timeout=5)
+    except urllib.error.HTTPError as e:
+        return e
+
+
 def test_no_credentials_serves_freely(server, monkeypatch):
     monkeypatch.delenv("PORTAL_USERNAME", raising=False)
     monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
@@ -76,6 +91,33 @@ def test_no_credentials_serves_freely(server, monkeypatch):
     # state beyond what the fixture provides.
     resp = _get(f"{server}/api/ratings")
     assert resp.status == 200
+
+
+def test_feedback_endpoint_persists_review_notes(server):
+    resp = _post_json(
+        f"{server}/api/feedback",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "status": "needs-change",
+            "note": "Too dark",
+            "change_request": "Add warmer light",
+        },
+    )
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["feedback"]["status"] == "needs-change"
+
+    saved = json.loads(_get(f"{server}/api/feedback").read().decode("utf-8"))
+    assert saved["items"]["demo/run-1/01-hero.png"]["note"] == "Too dark"
+
+
+def test_usage_endpoint_returns_local_summary(server):
+    payload = json.loads(_get(f"{server}/api/usage").read().decode("utf-8"))
+
+    assert payload["usage_log"]["entries"] == 0
+    assert payload["archive"]["projects"] == 0
+    assert payload["archive"]["known_cost"]["currency"] == "USD"
 
 
 def test_credentials_set_unauth_returns_401(server, monkeypatch):

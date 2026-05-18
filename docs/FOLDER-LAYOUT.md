@@ -41,6 +41,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── prompts.py               # parse_image_prompts_md()
 │   ├── styles.py                # Style suffix resolution + composition
 │   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
+│   ├── feedback.py              # Local archive feedback notes + change requests
 │   ├── archive.py               # approved/ curation + clean
 │   ├── registry.py              # Asset registry index/search/export
 │   ├── regen.py                 # Scheduled regeneration runner
@@ -78,6 +79,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── data/                        # usage-log.json + asset-registry.* (gitignored)
 ├── output/                      # Generated images + viewers (gitignored)
 │   ├── ratings.json             # star/reject map, written by the portal
+│   ├── feedback.json            # local card notes/change requests, written by the portal
 │   ├── <project>/run-*/         # Per-project run trees with run.json + viewer.html
 │   ├── <project>/approved/      # Curated keepers + index.json + viewer.html
 │   └── library.html             # Master library — built by `generate.py library`
@@ -94,6 +96,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
     ├── DOCTOR.md
     ├── CHROME-PUPPETEER.md
     ├── PRESENTATION-VIEWER.md
+    ├── PORTAL-COMMAND-CENTER.md
     ├── ASSET-REGISTRY.md
     ├── ARCHIVE.md
     ├── kb-mirror-policy.md
