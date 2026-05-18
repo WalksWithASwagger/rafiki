@@ -40,6 +40,9 @@ def _write_run(directory: Path, image_name: str, title: str, prompt: str, **meta
         "timestamp": meta.get("timestamp", "2026-05-01 12:00"),
         "images": [{"file": image_name, "name": title, "prompt": prompt}],
     }
+    for key in ("prompt_file", "prompt_source", "provider", "state", "started_at", "finished_at", "invocation"):
+        if key in meta:
+            payload[key] = meta[key]
     (directory / "run.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
@@ -188,3 +191,35 @@ def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_pa
     assert "rateActiveCard('star')" in html
     assert "rateActiveCard('reject')" in html
     assert "card.active-card" in html
+
+
+def test_library_viewer_renders_run_detail_panel_metadata_and_links(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "detail-project" / "run-20260503-120000",
+        "detail.png",
+        "Detail Title",
+        "detail prompt",
+        prompt_file="prompts/detail.md",
+        prompt_source="prompts/detail.md",
+        provider="OpenAI",
+        state="succeeded",
+        started_at="2026-05-03T12:00:00-07:00",
+        finished_at="2026-05-03T12:00:05-07:00",
+        invocation={"surface": "portal"},
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="run-detail-panel"' in html
+    assert "const RUN_DETAILS =" in html
+    assert '"detail-project/run-20260503-120000"' in html
+    assert '"prompt_file": "prompts/detail.md"' in html
+    assert '"prompt_source": "prompts/detail.md"' in html
+    assert '"invocation_surface": "portal"' in html
+    assert '"run_json": "detail-project/run-20260503-120000/run.json"' in html
+    assert '"run_viewer": "detail-project/run-20260503-120000/viewer.html"' in html
+    assert '"project_viewer": "detail-project/viewer.html"' in html
+    assert "function showRunDetail(item)" in html
+    assert "openRunDetail(event," in html
+    assert "I details" in html
