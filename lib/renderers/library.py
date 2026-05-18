@@ -8,6 +8,7 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
+from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
 from lib import registry
 from lib.extra_outputs import load_extra_outputs
 from lib.styles import get_default_style, load_styles
@@ -216,6 +217,47 @@ def _annotate_filename_warnings(records: list[dict]) -> None:
             }
 
 
+def _dedupe_text(values: list[object]) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        text = str(value or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+    return out
+
+
+def _apply_archive_metadata(records: list[dict], output_root: Path) -> None:
+    metadata = load_archive_metadata(archive_metadata_path(output_root))
+    for record in records:
+        base_tags = record.get("tags") if isinstance(record.get("tags"), list) else []
+        record.setdefault("base_title", record.get("title") or record.get("name") or "")
+        record.setdefault("base_name", record.get("name") or "")
+        record.setdefault("base_tags", _dedupe_text(base_tags))
+        key = str(record.get("file") or "")
+        entry = metadata_for_key(metadata, key)
+        if not entry:
+            record.setdefault("metadata_states", [])
+            continue
+
+        title = str(entry.get("title") or "").strip()
+        if title:
+            record["title"] = title
+            record["name"] = title
+
+        entry_tags = entry.get("tags") if isinstance(entry.get("tags"), list) else []
+        record["tags"] = _dedupe_text([*base_tags, *entry_tags])
+
+        states = entry.get("states") if isinstance(entry.get("states"), list) else []
+        record["metadata_states"] = _dedupe_text(states)
+        superseded_by = str(entry.get("superseded_by") or "").strip()
+        if superseded_by:
+            record["superseded_by"] = superseded_by
+        record["metadata"] = entry
+
+
 def _records_from_registry(output_root: Path) -> list[dict]:
     records: list[dict] = []
     for entry in registry.collect(output_root, scope="all-runs"):
@@ -273,6 +315,7 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
                     seen.add(rec["file"])
                     records.append(rec)
 
+    _apply_archive_metadata(records, output_root)
     records.sort(key=lambda r: r["timestamp"], reverse=True)
 
     html = _render_library(records)
@@ -670,6 +713,32 @@ def _render_library(records: list[dict]) -> str:
     <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
+    <div class="run-detail-metadata" id="run-detail-metadata">
+      <h3>Card Metadata</h3>
+      <label>
+        <span>Title Override</span>
+        <input id="metadata-title" type="text">
+      </label>
+      <label>
+        <span>Tags</span>
+        <input id="metadata-tags" type="text" placeholder="campaign, keeper, web">
+      </label>
+      <div class="metadata-state-grid" id="metadata-state-grid">
+        <label><input type="checkbox" value="canva"> Canva</label>
+        <label><input type="checkbox" value="notion"> Notion</label>
+        <label><input type="checkbox" value="deployed"> Deployed</label>
+        <label><input type="checkbox" value="published"> Published</label>
+        <label><input type="checkbox" value="superseded"> Superseded</label>
+      </div>
+      <label>
+        <span>Superseded By</span>
+        <input id="metadata-superseded-by" type="text" placeholder="project/run/file">
+      </label>
+      <div class="metadata-actions">
+        <button type="button" onclick="saveMetadataForDetail(event)">Save Metadata</button>
+      </div>
+      <div class="metadata-status" id="metadata-status-message" aria-live="polite"></div>
+    </div>
     <div class="run-detail-feedback" id="run-detail-feedback">
       <h3>Feedback</h3>
       <label>
@@ -710,8 +779,10 @@ const ITEMS = LIBRARY;
 const RUN_DETAILS = {run_details_json};
 const RATINGS_KEY = 'rafiki:ratings';
 const FEEDBACK_KEY = 'rafiki:feedback';
+const METADATA_KEY = 'rafiki:archiveMetadata';
 const SERVER_MODE = location.protocol !== 'file:';
 let FEEDBACK = {{}};
+let ARCHIVE_METADATA = {{}};
 let _ratingFilter = 'all';
 let _projFilter = null;
 let _modelFilter = null;
@@ -732,6 +803,10 @@ function _loadLocalFeedback() {{
   try {{ return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
 }}
 function _saveLocalFeedback(items) {{ localStorage.setItem(FEEDBACK_KEY, JSON.stringify(items || {{}})); }}
+function _loadLocalMetadata() {{
+  try {{ return JSON.parse(localStorage.getItem(METADATA_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
+}}
+function _saveLocalMetadata(items) {{ localStorage.setItem(METADATA_KEY, JSON.stringify(items || {{}})); }}
 function studioEscapeHtml(value) {{
   return String(value || '').replace(/[&<>"]/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[ch]));
 }}
@@ -771,6 +846,48 @@ function appendDetailLink(target, label, href) {{
 function feedbackKeyForItem(item) {{
   return item?.file || '';
 }}
+function metadataKeyForItem(item) {{
+  return item?.file || '';
+}}
+function metadataForItem(item) {{
+  const key = metadataKeyForItem(item);
+  return key ? (ARCHIVE_METADATA[key] || item.metadata || null) : null;
+}}
+function cleanList(value) {{
+  if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
+  return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
+}}
+function metadataStateLabel(item) {{
+  const entry = metadataForItem(item) || {{}};
+  const states = cleanList(item?.metadata_states || entry.states || []);
+  return states.map(state => state.replace(/-/g, ' ')).join(', ');
+}}
+function warningTextForItem(item) {{
+  const warning = item?.filename_warning;
+  if (!warning) return '';
+  return [
+    warning.label,
+    warning.level,
+    warning.basename,
+    warning.normalized_stem,
+    ...(warning.group_basenames || []),
+  ].filter(Boolean).join(' ');
+}}
+function searchTextForItem(item) {{
+  return (
+    (item.title || item.name || '') + ' ' +
+    (item.caption || '') + ' ' +
+    (item.source_prompt || item.prompt || '') + ' ' +
+    cleanList(item.tags || []).join(' ') + ' ' +
+    (item.project || '') + ' ' +
+    (item.run_id || '') + ' ' +
+    (item.source || '') + ' ' +
+    (item.approval_status || '') + ' ' +
+    metadataStateLabel(item) + ' ' +
+    (item.superseded_by || '') + ' ' +
+    warningTextForItem(item)
+  ).toLowerCase();
+}}
 function feedbackForItem(item) {{
   const key = feedbackKeyForItem(item);
   return key ? (FEEDBACK[key] || null) : null;
@@ -797,6 +914,63 @@ function applyFeedbackToCards() {{
   document.querySelectorAll('.card').forEach(card => {{
     const idx = parseInt(card.dataset.idx || '0', 10);
     applyFeedbackToCard(card, LIBRARY[idx]);
+  }});
+}}
+function applyMetadataToItem(item, entry) {{
+  if (!item) return;
+  const metadata = entry || null;
+  if (metadata) {{
+    item.metadata = metadata;
+    item.title = metadata.title || item.base_title || item.title || item.name || '';
+    item.name = item.title;
+    item.metadata_states = cleanList(metadata.states || []);
+    item.superseded_by = metadata.superseded_by || '';
+    item.tags = [...cleanList(item.base_tags || []), ...cleanList(metadata.tags || [])]
+      .filter((tag, index, all) => tag && all.indexOf(tag) === index);
+  }} else {{
+    item.metadata = null;
+    item.title = item.base_title || item.title || item.name || '';
+    item.name = item.base_name || item.title || '';
+    item.metadata_states = [];
+    item.superseded_by = '';
+    item.tags = cleanList(item.base_tags || item.tags || []);
+  }}
+}}
+function renderTagsForCard(card, item) {{
+  const tagRow = card.querySelector('.tag-row');
+  if (!tagRow) return;
+  tagRow.innerHTML = '';
+  cleanList(item.tags || []).slice(0, 5).forEach(tag => {{
+    const el = document.createElement('span');
+    el.className = 'tag';
+    el.textContent = tag;
+    tagRow.appendChild(el);
+  }});
+}}
+function syncCardContent(card, item) {{
+  if (!card || !item) return;
+  card.dataset.name = item.name || item.title || '';
+  card.dataset.metadataStates = cleanList(item.metadata_states || []).join(',');
+  card.dataset.search = searchTextForItem(item);
+  const title = card.querySelector('.card-title');
+  const prompt = card.querySelector('.card-prompt');
+  const name = card.querySelector('.card-name');
+  if (title) title.textContent = item.title || item.name || '';
+  if (prompt) prompt.textContent = item.caption || item.source_prompt || item.prompt || '';
+  if (name) name.textContent = item.name || '';
+  const metadataBadge = card.querySelector('.metadata-state-badge');
+  if (metadataBadge) {{
+    const label = metadataStateLabel(item);
+    metadataBadge.textContent = label;
+    metadataBadge.title = item.superseded_by ? 'Superseded by ' + item.superseded_by : label;
+    metadataBadge.className = label ? 'metadata-state-badge metadata-state-on' : 'metadata-state-badge';
+  }}
+  renderTagsForCard(card, item);
+}}
+function applyMetadataToCards() {{
+  document.querySelectorAll('.card').forEach(card => {{
+    const idx = parseInt(card.dataset.idx || '0', 10);
+    syncCardContent(card, LIBRARY[idx]);
   }});
 }}
 function renderFeedback(item) {{
@@ -878,6 +1052,106 @@ async function saveFeedbackForDetail(event) {{
     setFeedbackStatus('success', 'Saved');
   }} catch (err) {{
     setFeedbackStatus('error', err?.message || 'Save failed');
+  }}
+}}
+function renderMetadata(item) {{
+  const entry = metadataForItem(item) || {{}};
+  const title = document.getElementById('metadata-title');
+  const tags = document.getElementById('metadata-tags');
+  const supersededBy = document.getElementById('metadata-superseded-by');
+  const msg = document.getElementById('metadata-status-message');
+  if (title) title.value = entry.title || '';
+  if (tags) tags.value = cleanList(entry.tags || []).join(', ');
+  if (supersededBy) supersededBy.value = entry.superseded_by || '';
+  const states = new Set(cleanList(entry.states || []));
+  document.querySelectorAll('#metadata-state-grid input[type="checkbox"]').forEach(input => {{
+    input.checked = states.has(input.value);
+  }});
+  if (msg) msg.textContent = entry.updated_at ? 'Saved ' + entry.updated_at : '';
+}}
+function setMetadataStatus(kind, message) {{
+  const msg = document.getElementById('metadata-status-message');
+  if (!msg) return;
+  msg.className = 'metadata-status metadata-status-' + kind;
+  msg.textContent = message || '';
+}}
+async function loadArchiveMetadata() {{
+  ARCHIVE_METADATA = _loadLocalMetadata();
+  for (const item of LIBRARY) {{
+    const key = metadataKeyForItem(item);
+    if (key && ARCHIVE_METADATA[key]) applyMetadataToItem(item, ARCHIVE_METADATA[key]);
+  }}
+  applyMetadataToCards();
+  if (!SERVER_MODE) return;
+  try {{
+    const resp = await fetch('/api/archive-metadata');
+    const data = await resp.json();
+    ARCHIVE_METADATA = data.items || {{}};
+    _saveLocalMetadata(ARCHIVE_METADATA);
+    for (const item of LIBRARY) {{
+      const key = metadataKeyForItem(item);
+      applyMetadataToItem(item, key ? ARCHIVE_METADATA[key] || null : null);
+    }}
+    applyMetadataToCards();
+    if (_detailItem) renderMetadata(_detailItem);
+  }} catch (err) {{}}
+}}
+async function saveMetadataForDetail(event) {{
+  if (event) {{
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  if (!_detailItem) return;
+  const key = metadataKeyForItem(_detailItem);
+  const states = Array.from(document.querySelectorAll('#metadata-state-grid input[type="checkbox"]:checked')).map(input => input.value);
+  const payload = {{
+    key,
+    title: document.getElementById('metadata-title')?.value || '',
+    tags: document.getElementById('metadata-tags')?.value || '',
+    states,
+    superseded_by: document.getElementById('metadata-superseded-by')?.value || '',
+  }};
+  setMetadataStatus('busy', 'Saving...');
+  if (!SERVER_MODE) {{
+    const localEntry = {{}};
+    if (payload.title.trim()) localEntry.title = payload.title.trim();
+    const tags = cleanList(payload.tags);
+    if (tags.length) localEntry.tags = tags;
+    if (states.length) localEntry.states = states;
+    if (payload.superseded_by.trim()) localEntry.superseded_by = payload.superseded_by.trim();
+    if (Object.keys(localEntry).length) {{
+      localEntry.updated_at = new Date().toISOString();
+      ARCHIVE_METADATA[key] = localEntry;
+    }} else {{
+      delete ARCHIVE_METADATA[key];
+    }}
+    _saveLocalMetadata(ARCHIVE_METADATA);
+    applyMetadataToItem(_detailItem, ARCHIVE_METADATA[key] || null);
+    applyMetadataToCards();
+    renderMetadata(_detailItem);
+    setMetadataStatus('success', 'Saved locally');
+    return;
+  }}
+  try {{
+    const resp = await fetch('/api/archive-metadata', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(payload),
+    }});
+    const data = await resp.json().catch(() => ({{error: 'Invalid server response'}}));
+    if (!resp.ok || !data.ok) {{
+      setMetadataStatus('error', data.error || 'Save failed');
+      return;
+    }}
+    if (data.metadata) ARCHIVE_METADATA[key] = data.metadata;
+    else delete ARCHIVE_METADATA[key];
+    _saveLocalMetadata(ARCHIVE_METADATA);
+    applyMetadataToItem(_detailItem, data.metadata || null);
+    applyMetadataToCards();
+    renderMetadata(_detailItem);
+    setMetadataStatus('success', 'Saved');
+  }} catch (err) {{
+    setMetadataStatus('error', err?.message || 'Save failed');
   }}
 }}
 function revisionPromptForItem(item) {{
@@ -1095,6 +1369,7 @@ function showRunDetail(item) {{
 
   renderFilenameWarning(item);
   renderDetailFields(detail, item);
+  renderMetadata(item);
   renderFeedback(item);
   const jsonEl = document.getElementById('run-detail-json');
   if (jsonEl) jsonEl.textContent = JSON.stringify(detail.manifest || {{}}, null, 2);
@@ -1478,6 +1753,7 @@ async function submitStudio(event) {{
   syncPortalAction();
   loadPortalActions();
   loadUsageSummary();
+  loadArchiveMetadata();
   loadFeedback();
   if (!SERVER_MODE) {{
     document.getElementById('studio-panel')?.classList.add('studio-disabled');
@@ -1521,16 +1797,7 @@ LIBRARY.forEach((item, i) => {{
   card.dataset.warning = item.filename_warning?.level || '';
   card.dataset.ts = item.timestamp || '';
   card.dataset.name = item.name || '';
-  const warningText = item.filename_warning
-    ? [
-        item.filename_warning.label,
-        item.filename_warning.level,
-        item.filename_warning.basename,
-        item.filename_warning.normalized_stem,
-        ...(item.filename_warning.group_basenames || []),
-      ].filter(Boolean).join(' ')
-    : '';
-  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '') + ' ' + (item.run_id || '') + ' ' + (item.source || '') + ' ' + (item.approval_status || '') + ' ' + warningText).toLowerCase();
+  card.dataset.search = searchTextForItem(item);
   card.onclick = () => {{
     setActiveCard(card, {{scroll: false}});
     lbOpen(i);
@@ -1545,6 +1812,7 @@ LIBRARY.forEach((item, i) => {{
     <div class="card-meta-row">
       <span class="approval-badge"></span>
       <span class="filename-warning-badge"></span>
+      <span class="metadata-state-badge"></span>
       <span class="feedback-badge"></span>
       <span class="model-badge"></span>
     </div>
@@ -1559,9 +1827,6 @@ LIBRARY.forEach((item, i) => {{
       <button class="btn-rate reject" onclick="rateCard(event,'${{item.file}}','reject',this.closest('.card'))">&#x2715;</button>
     </div>
   `;
-  card.querySelector('.card-title').textContent = item.title || item.name || '';
-  card.querySelector('.card-prompt').textContent = item.caption || item.source_prompt || item.prompt || '';
-  card.querySelector('.card-name').textContent = item.name || '';
   const approval = card.querySelector('.approval-badge');
   if (approval) {{
     approval.textContent = item.approval_status || 'run';
@@ -1577,14 +1842,8 @@ LIBRARY.forEach((item, i) => {{
   if (modelBadge) {{
     modelBadge.textContent = [item.model, item.style, item.aspect_ratio].filter(Boolean).join(' · ');
   }}
+  syncCardContent(card, item);
   applyFeedbackToCard(card, item);
-  const tagRow = card.querySelector('.tag-row');
-  (item.tags || []).slice(0, 5).forEach(tag => {{
-    const el = document.createElement('span');
-    el.className = 'tag';
-    el.textContent = tag;
-    tagRow.appendChild(el);
-  }});
   const img = card.querySelector('img');
   if (img) img.addEventListener('error', () => {{
     img.closest('.img-wrap').innerHTML = '<div class="missing-img">file missing</div>';
@@ -1634,6 +1893,7 @@ def _library_extra_css() -> str:
 }
 .approval-badge,
 .filename-warning-badge,
+.metadata-state-badge,
 .feedback-badge,
 .model-badge,
 .tag {
@@ -1648,8 +1908,17 @@ def _library_extra_css() -> str:
 .filename-warning-badge:empty {
   display: none;
 }
+.metadata-state-badge:empty {
+  display: none;
+}
 .feedback-badge:empty {
   display: none;
+}
+.metadata-state-on {
+  color: #d7c7ff;
+  border-color: rgba(124,106,247,0.34);
+  background: rgba(124,106,247,0.12);
+  text-transform: capitalize;
 }
 .feedback-on {
   color: #9ee7bf;
@@ -1882,6 +2151,7 @@ def _library_extra_css() -> str:
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+.run-detail-metadata,
 .run-detail-feedback {
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.025);
@@ -1889,22 +2159,26 @@ def _library_extra_css() -> str:
   padding: 0.8rem;
   margin: 0 0 1rem;
 }
+.run-detail-metadata h3,
 .run-detail-feedback h3 {
   margin: 0 0 0.65rem;
   font-size: 0.85rem;
 }
+.run-detail-metadata label,
 .run-detail-feedback label {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.65rem;
 }
+.run-detail-metadata label span,
 .run-detail-feedback label span {
   color: var(--dim);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+.run-detail-metadata input[type="text"],
 .run-detail-feedback select,
 .run-detail-feedback textarea {
   width: 100%;
@@ -1921,11 +2195,26 @@ def _library_extra_css() -> str:
 .run-detail-feedback textarea {
   resize: vertical;
 }
+.metadata-state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 0.35rem 0.65rem;
+  margin-bottom: 0.65rem;
+  color: var(--dim);
+  font-size: 0.74rem;
+}
+.metadata-state-grid label {
+  flex-direction: row;
+  align-items: center;
+  margin: 0;
+}
+.metadata-actions,
 .feedback-actions {
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
 }
+.metadata-actions button,
 .feedback-actions button {
   border: 1px solid rgba(0,200,180,0.24);
   background: rgba(0,200,180,0.09);
@@ -1936,17 +2225,22 @@ def _library_extra_css() -> str:
   font-size: 0.73rem;
   cursor: pointer;
 }
+.metadata-actions button:hover,
 .feedback-actions button:hover {
   border-color: var(--teal);
 }
+.metadata-status,
 .feedback-status {
   min-height: 1rem;
   margin-top: 0.55rem;
   color: var(--dim);
   font-size: 0.72rem;
 }
+.metadata-status-error,
 .feedback-status-error { color: #ff8f8f; }
+.metadata-status-busy,
 .feedback-status-busy { color: var(--teal); }
+.metadata-status-success,
 .feedback-status-success { color: #9ee7bf; }
 .run-detail-json {
   border: 1px solid var(--border);

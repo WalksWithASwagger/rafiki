@@ -27,14 +27,14 @@ image generation platform.
 | Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
 | Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, billing imports, deploy, exports, scheduled regen, and portal startup. |
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
-| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library with all-runs archive browsing, filters, keyboard review, run detail panel, ratings, feedback and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, and run browsing. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library with all-runs archive browsing, filters, keyboard review, run detail panel, ratings, feedback, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
 | Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 188 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 193 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -97,7 +97,8 @@ historical `run-*` image while keeping curated registry/export scopes available.
 |---|---|---|
 | Shipped | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
 | Shipped | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
-| P1 | Add approval/export state to registry entries. | Registry can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
+| Shipped | Add durable archive metadata state. | `output/archive-metadata.json` stores title overrides, tags, export/publish markers, and superseded links; library cards merge that state into badges and search. |
+| P1 | Add approval/export state to registry exports. | Registry exports can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
 | P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
 
@@ -111,8 +112,8 @@ Goal: make the local portal the best default interface for review and curation.
 | Shipped | Add local spend and feedback surfaces. | The portal shows local spend/run summaries, persists per-card feedback to `output/feedback.json`, and can stage feedback-driven reruns into Prompt Studio. |
 | Shipped | Add pricing-profile spend estimates. | `config/pricing.json` estimates fixed-price image outputs locally while leaving token-priced or unknown models unpriced until manifests include usage. |
 | Shipped | Add local provider billing imports. | CSV/JSON/manual billing rows land in `data/billing-imports.json`, appear in the portal, and take precedence as the spend display total when present. |
-| P1 | Expand curation actions from the UI. | Starred assets can already be promoted from the portal action panel; next, per-card state should make approved/exported/superseded status obvious while reviewing. |
-| P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, make export status visible on archive cards. |
+| Shipped | Expand curation state from the UI. | Per-card metadata now makes title overrides, tags, exported/published state, and superseded links durable and visible while reviewing. |
+| P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, stamp export actions back into archive metadata automatically. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
 
@@ -163,7 +164,7 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Move title overrides, tags, and export/publish state into durable metadata.
+1. Stamp portal export actions back into archive metadata automatically.
 2. Add archive health and cleanup reports.
 3. Add MCP and CLI dry-run smoke tests.
 4. Expand doctor remediation for package and browser setup.

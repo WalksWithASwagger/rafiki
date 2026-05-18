@@ -54,7 +54,7 @@ studio that can:
 This is intentionally local-first. The server runs the same Python generation
 path as the CLI and writes into the same output tree.
 
-## Spend and feedback
+## Spend and review state
 
 The portal includes a local Spend & Review Ops panel. It summarizes run counts,
 image counts, failed images, known local manifest cost amounts, pricing-profile
@@ -65,8 +65,10 @@ by git. Billing exports from Gemini/OpenAI remain the source of truth for exact
 spend.
 
 Card-level notes and change requests are stored in `output/feedback.json`
-through `/api/feedback`, beside `output/ratings.json`. Both are local review
-state and are ignored by git with the rest of `output/`.
+through `/api/feedback`, beside `output/ratings.json`. Title overrides, tags,
+export markers, publish markers, and superseded links are stored in
+`output/archive-metadata.json` through `/api/archive-metadata`. These files are
+local review state and are ignored by git with the rest of `output/`.
 
 ## MCP server (`mcp_server.py`)
 

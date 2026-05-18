@@ -58,4 +58,7 @@ curated because CSV, Notion, and Canva exports usually want keepers, not every
 draft.
 
 Library cards show registry-grade title, caption, tags, approval status, source
-prompt, model, style, and aspect ratio when those fields are available.
+prompt, model, style, and aspect ratio when those fields are available. The
+library also merges local card metadata from `output/archive-metadata.json`,
+which can override display titles, add review tags, and show export/publish
+states without changing the generated run manifests.

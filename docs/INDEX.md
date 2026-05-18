@@ -27,7 +27,8 @@ deeper operating docs by surface area.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
-  summary, feedback state, revision staging, and API endpoints.
+  summary, feedback and archive metadata state, revision staging, and API
+  endpoints.
 - [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
   estimate rules, and source-of-truth boundaries.
 
