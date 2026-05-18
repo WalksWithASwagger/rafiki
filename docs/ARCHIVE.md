@@ -41,6 +41,10 @@ the rest.
    The master library scans every `run-*` image across `output/` and configured
    extra-output roots. Approved images are marked from `approved/index.json`,
    but draft runs remain visible until you clean them intentionally.
+   Use the library filters to narrow by rating, source, run, approval state,
+   project, model, aspect ratio, style, or prompt text. Keyboard review works
+   on the active visible card: arrow keys move, `S` stars, `X` rejects, `0`
+   clears the rating, and Enter opens the lightbox.
 
 ## Layout
 

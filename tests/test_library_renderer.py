@@ -136,3 +136,55 @@ def test_library_viewer_renders_output_only_project_without_prebuilt_registry(tm
     assert "Plain Title" in html
     assert "plain source prompt" in html
     assert not registry.REGISTRY_JSON.exists()
+
+
+def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    project = output_root / "review-project"
+    _write_run(
+        project / "run-20260501-120000",
+        "approved.png",
+        "Approved Title",
+        "approved prompt",
+        timestamp="2026-05-01 12:00",
+    )
+    _write_run(
+        project / "run-20260502-120000",
+        "draft.png",
+        "Draft Title",
+        "draft prompt",
+        timestamp="2026-05-02 12:00",
+    )
+    approved = project / "approved"
+    approved.mkdir(parents=True)
+    (approved / "index.json").write_text(
+        json.dumps({
+            "images": [{
+                "slug": "approved.png",
+                "original_file": "approved.png",
+                "source_run": "run-20260501-120000",
+                "name": "Approved Title",
+                "prompt": "approved prompt",
+            }]
+        }),
+        encoding="utf-8",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="source-filter"' in html
+    assert 'id="run-filter"' in html
+    assert 'id="approval-filter"' in html
+    assert '<option value="run">run</option>' in html
+    assert '<option value="run-20260502-120000">run-20260502-120000</option>' in html
+    assert '<option value="run-20260501-120000">run-20260501-120000</option>' in html
+    assert '<option value="approved">approved</option>' in html
+    assert '<option value="unapproved">unapproved</option>' in html
+    assert "card.dataset.source = item.source || ''" in html
+    assert "card.dataset.run = item.run_id || ''" in html
+    assert "card.dataset.approval = item.approval_status || 'unapproved'" in html
+    assert "function handleLibraryKeydown(event)" in html
+    assert "isLibraryTypingTarget(event.target)" in html
+    assert "rateActiveCard('star')" in html
+    assert "rateActiveCard('reject')" in html
+    assert "card.active-card" in html

@@ -55,16 +55,19 @@ Success criteria:
 
 ## Phase 2: Make Review Fast
 
+Status: in progress. Source/run/approval filters and keyboard card review are
+implemented; the detail panel and duplicate warnings remain.
+
 Build on the current library UI.
 
 Success criteria:
 
-- Add source/run filters alongside project/model/style/aspect filters.
+- Add source/run filters alongside project/model/style/aspect filters. Done.
 - Add approval-state filters for `approved`, `unapproved`, `starred`,
-  `rejected`, and `unreviewed`.
+  `rejected`, and `unreviewed`. Done.
 - Add a run drawer or detail panel with full `run.json` metadata, prompt file,
   generation source, and direct links to the run viewer.
-- Add keyboard shortcuts for star/reject/next/previous.
+- Add keyboard shortcuts for star/reject/next/previous. Done.
 - Add duplicate/similar filename warnings so reruns do not hide prior work.
 
 ## Phase 3: Make Curation Durable

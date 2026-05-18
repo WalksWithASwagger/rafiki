@@ -305,6 +305,9 @@ def _render_library(records: list[dict]) -> str:
     models = sorted({r["model"] for r in records if r["model"] not in ("unknown", "")})
     aspect_ratios = sorted({r["aspect_ratio"] for r in records if r.get("aspect_ratio")})
     styles = sorted({r["style"] for r in records if r.get("style") and r["style"] not in ("none", "")})
+    sources = sorted({r["source"] for r in records if r.get("source")})
+    runs = sorted({r["run_id"] for r in records if r.get("run_id")}, reverse=True)
+    approval_states = ["approved", "unapproved"]
     all_style_names = sorted(load_styles().keys())
     default_style = get_default_style()
     model_options = _portal_model_options()
@@ -330,6 +333,9 @@ def _render_library(records: list[dict]) -> str:
         f"onclick=\"filterLib('style','{s}')\">{s}</button>"
         for s in styles
     )
+    source_opts = "".join(f'<option value="{source}">{source}</option>' for source in sources)
+    run_opts = "".join(f'<option value="{run}">{run}</option>' for run in runs)
+    approval_opts = "".join(f'<option value="{state}">{state}</option>' for state in approval_states)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -360,6 +366,27 @@ def _render_library(records: list[dict]) -> str:
   <button class="filter-btn"        id="fb-unreviewed" onclick="setRatingFilter('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
   <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
          oninput="_searchQuery=this.value.toLowerCase().trim();applyFilters()">
+  <label class="filter-select-label">
+    Source
+    <select id="source-filter" onchange="setLibrarySelectFilter('source', this.value)">
+      <option value="">All sources</option>
+      {source_opts}
+    </select>
+  </label>
+  <label class="filter-select-label">
+    Run
+    <select id="run-filter" onchange="setLibrarySelectFilter('run', this.value)">
+      <option value="">All runs</option>
+      {run_opts}
+    </select>
+  </label>
+  <label class="filter-select-label">
+    Approval
+    <select id="approval-filter" onchange="setLibrarySelectFilter('approval', this.value)">
+      <option value="">All approval</option>
+      {approval_opts}
+    </select>
+  </label>
   <span class="chip-sep">|</span>
   {project_chips}
   <span class="chip-sep">|</span>
@@ -379,6 +406,7 @@ def _render_library(records: list[dict]) -> str:
     </select>
     Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
   </label>
+  <span class="keyboard-hint">Keys: ←/→ move · S star · X reject · 0 clear</span>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -395,7 +423,11 @@ let _projFilter = null;
 let _modelFilter = null;
 let _arFilter = null;
 let _styleFilter = null;
+let _sourceFilter = null;
+let _runFilter = null;
+let _approvalFilter = null;
 let _searchQuery = '';
+let _activeCard = null;
 
 function _loadRatings() {{
   try {{ return JSON.parse(localStorage.getItem(RATINGS_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
@@ -407,7 +439,9 @@ function studioEscapeHtml(value) {{
 function getRating(key) {{ return _loadRatings()[key] || null; }}
 function setRating(key, val) {{
   const r = _loadRatings();
-  if (r[key] === val) delete r[key]; else r[key] = val;
+  if (!val) delete r[key];
+  else if (r[key] === val) delete r[key];
+  else r[key] = val;
   _saveRatings(r);
   if (SERVER_MODE) {{
     fetch('/api/ratings', {{
@@ -429,6 +463,7 @@ function applyRating(card, key) {{
 }}
 function rateCard(e, key, val, card) {{
   e.stopPropagation();
+  setActiveCard(card, {{scroll: false}});
   setRating(key, val);
   applyRating(card, key);
   updateFilterCounts();
@@ -439,6 +474,13 @@ function setRatingFilter(mode) {{
   document.querySelectorAll('#fb-all,#fb-star,#fb-reject,#fb-unreviewed').forEach(b => b.classList.remove('active'));
   const a = document.getElementById('fb-' + mode);
   if (a) a.classList.add('active');
+  applyFilters();
+}}
+function setLibrarySelectFilter(field, val) {{
+  const selected = val || null;
+  if (field === 'source') _sourceFilter = selected;
+  else if (field === 'run') _runFilter = selected;
+  else if (field === 'approval') _approvalFilter = selected;
   applyFilters();
 }}
 function filterLib(dim, val) {{
@@ -478,9 +520,13 @@ function applyFilters() {{
     if (show && _modelFilter)  show = card.dataset.model === _modelFilter;
     if (show && _arFilter)     show = card.dataset.ar === _arFilter;
     if (show && _styleFilter)  show = card.dataset.style === _styleFilter;
+    if (show && _sourceFilter) show = card.dataset.source === _sourceFilter;
+    if (show && _runFilter)    show = card.dataset.run === _runFilter;
+    if (show && _approvalFilter) show = card.dataset.approval === _approvalFilter;
     if (show && _searchQuery)  show = (card.dataset.search || '').includes(_searchQuery);
     card.classList.toggle('hidden-filter', !show);
   }});
+  syncActiveCardAfterFilter();
 }}
 function updateFilterCounts() {{
   const ratings = _loadRatings();
@@ -516,6 +562,71 @@ function applySort(mode) {{
     cards.sort((a, b) => (a.dataset.name || '').localeCompare(b.dataset.name || ''));
   }}
   cards.forEach(c => grid.appendChild(c));
+  syncActiveCardAfterFilter();
+}}
+function visibleCards() {{
+  return Array.from(document.querySelectorAll('.card:not(.hidden-filter)'));
+}}
+function setActiveCard(card, options = {{}}) {{
+  document.querySelectorAll('.card.active-card').forEach(el => el.classList.remove('active-card'));
+  _activeCard = card || null;
+  if (!_activeCard) return;
+  _activeCard.classList.add('active-card');
+  if (options.scroll !== false) {{
+    _activeCard.scrollIntoView({{block: 'nearest', inline: 'nearest'}});
+  }}
+}}
+function syncActiveCardAfterFilter() {{
+  if (_activeCard && document.body.contains(_activeCard) && !_activeCard.classList.contains('hidden-filter')) return;
+  setActiveCard(visibleCards()[0] || null, {{scroll: false}});
+}}
+function moveActiveCard(dir) {{
+  const cards = visibleCards();
+  if (!cards.length) {{
+    setActiveCard(null);
+    return;
+  }}
+  let idx = cards.indexOf(_activeCard);
+  if (idx < 0) idx = dir > 0 ? -1 : 0;
+  setActiveCard(cards[(idx + dir + cards.length) % cards.length]);
+}}
+function rateActiveCard(val) {{
+  const card = _activeCard || visibleCards()[0];
+  if (!card) return;
+  setActiveCard(card, {{scroll: false}});
+  setRating(card.dataset.ratingKey, val);
+  applyRating(card, card.dataset.ratingKey);
+  updateFilterCounts();
+  applyFilters();
+}}
+function isLibraryTypingTarget(target) {{
+  if (!target) return false;
+  const tag = (target.tagName || '').toLowerCase();
+  return target.isContentEditable || ['input', 'select', 'textarea', 'button'].includes(tag);
+}}
+function handleLibraryKeydown(event) {{
+  if (lb?.classList.contains('open')) return;
+  if (isLibraryTypingTarget(event.target)) return;
+  const key = event.key.toLowerCase();
+  if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || key === 'j' || key === 'n') {{
+    event.preventDefault();
+    moveActiveCard(1);
+  }} else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp' || key === 'k' || key === 'p') {{
+    event.preventDefault();
+    moveActiveCard(-1);
+  }} else if (key === 's') {{
+    event.preventDefault();
+    rateActiveCard('star');
+  }} else if (key === 'x') {{
+    event.preventDefault();
+    rateActiveCard('reject');
+  }} else if (event.key === '0' || event.key === 'Backspace') {{
+    event.preventDefault();
+    rateActiveCard(null);
+  }} else if (event.key === 'Enter' && _activeCard) {{
+    event.preventDefault();
+    lbOpen(parseInt(_activeCard.dataset.idx || '0', 10));
+  }}
 }}
 function syncStudioMode() {{
   const mode = document.getElementById('studio-mode')?.value || 'single';
@@ -725,10 +836,16 @@ LIBRARY.forEach((item, i) => {{
   card.dataset.model = item.model;
   card.dataset.ar = item.aspect_ratio || '';
   card.dataset.style = item.style || '';
+  card.dataset.source = item.source || '';
+  card.dataset.run = item.run_id || '';
+  card.dataset.approval = item.approval_status || 'unapproved';
   card.dataset.ts = item.timestamp || '';
   card.dataset.name = item.name || '';
-  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '')).toLowerCase();
-  card.onclick = () => lbOpen(i);
+  card.dataset.search = ((item.title || item.name || '') + ' ' + (item.caption || '') + ' ' + (item.source_prompt || item.prompt || '') + ' ' + (item.tags || []).join(' ') + ' ' + (item.project || '') + ' ' + (item.run_id || '') + ' ' + (item.source || '') + ' ' + (item.approval_status || '')).toLowerCase();
+  card.onclick = () => {{
+    setActiveCard(card, {{scroll: false}});
+    lbOpen(i);
+  }};
   card.innerHTML = `
     <div class="img-wrap" style="aspect-ratio:${{arCss}}">
       <span class="img-num">${{String(i + 1).padStart(2, '0')}}</span>
@@ -777,6 +894,8 @@ LIBRARY.forEach((item, i) => {{
   applyRating(card, item.file);
 }});
 updateFilterCounts();
+syncActiveCardAfterFilter();
+document.addEventListener('keydown', handleLibraryKeydown);
 
 {_lightbox_js()}
 </script>
@@ -865,6 +984,37 @@ def _library_extra_css() -> str:
 }
 #search:focus, #search:hover { border-color: var(--accent); }
 #search::placeholder { color: var(--dim); opacity: 0.6; }
+.filter-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--dim);
+  font-size: 0.72rem;
+  user-select: none;
+}
+.filter-select-label select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 0.22rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  font-family: inherit;
+  outline: none;
+  max-width: 170px;
+}
+.filter-select-label select:focus,
+.filter-select-label select:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.keyboard-hint {
+  color: var(--dim);
+  font-size: 0.68rem;
+  white-space: nowrap;
+  opacity: 0.78;
+}
 .sort-select {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -877,6 +1027,10 @@ def _library_extra_css() -> str:
   outline: none;
 }
 .sort-select:focus, .sort-select:hover { border-color: var(--accent); color: var(--ink); }
+.card.active-card {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 2px rgba(0,200,180,0.22), 0 8px 32px rgba(0,200,180,0.12);
+}
 .studio-panel {
   margin: 1rem 1.5rem 0.9rem;
   padding: 1rem 1rem 0.9rem;
