@@ -289,6 +289,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     output_root: Path
     ratings_file: Path
     feedback_file: Path
+    billing_imports_file: Path
     extra_roots: dict[str, Path]  # project_name → real dir
 
     def log_message(self, fmt, *args):  # suppress noisy access log
@@ -344,6 +345,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_usage()
         elif path == "/api/deploy-readiness":
             self._serve_deploy_readiness(parsed.query)
+        elif path == "/api/billing-imports":
+            self._serve_billing_imports()
         elif path == "/api/runs":
             self._serve_runs()
         else:
@@ -357,6 +360,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._update_ratings()
         elif path == "/api/feedback":
             self._update_feedback()
+        elif path == "/api/billing-imports":
+            self._update_billing_imports()
         elif path == "/api/regen":
             self._regen()
         elif path == "/api/actions":
@@ -413,7 +418,17 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def _serve_usage(self):
         from lib.usage import summarize_usage
 
-        summary = summarize_usage(self.output_root, extra_roots=self.extra_roots)
+        summary = summarize_usage(
+            self.output_root,
+            extra_roots=self.extra_roots,
+            billing_import_path=self.billing_imports_file,
+        )
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
+    def _serve_billing_imports(self):
+        from lib.billing import summarize_billing_imports
+
+        summary = summarize_billing_imports(self.billing_imports_file)
         self._respond(200, "application/json", json.dumps(summary).encode())
 
     def _serve_deploy_readiness(self, query: str = ""):
@@ -471,6 +486,39 @@ class _RafikiHandler(BaseHTTPRequestHandler):
                 500,
                 "application/json",
                 json.dumps({"error": "feedback update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _update_billing_imports(self):
+        from lib.billing import append_billing_entries
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            if not isinstance(payload, dict):
+                raise ValueError("request body must be a JSON object")
+            rows = payload.get("entries")
+            if rows is None:
+                rows = [payload]
+            if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+                raise ValueError("entries must be an array of objects")
+            result = append_billing_entries(
+                self.billing_imports_file,
+                rows,
+                provider=_coerce_str(payload.get("provider"), field="provider"),
+                label=_coerce_str(payload.get("label"), field="label"),
+                source="portal",
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "billing import failed", "detail": str(e)}).encode("utf-8"),
             )
             return
         self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
@@ -618,6 +666,7 @@ def serve(
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
     feedback_file = output_root / "feedback.json"
+    billing_imports_file = REPO_ROOT / "data" / "billing-imports.json"
     extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
 
     class Handler(_RafikiHandler):
@@ -626,6 +675,7 @@ def serve(
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
     Handler.feedback_file = feedback_file
+    Handler.billing_imports_file = billing_imports_file
     Handler.extra_roots = extra_roots
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"

@@ -68,6 +68,7 @@ _CLI_SUBCOMMANDS = {
     "library",
     "link-projects",
     "approve",
+    "billing",
     "canva-export",
     "clean",
     "deploy",
@@ -90,6 +91,7 @@ _CLI_TOP_LEVEL_FLAGS = {
 _CLI_BLOCKED_SUBCOMMANDS = {"serve"}
 _CLI_MUTATING_SUBCOMMANDS = {
     "approve",
+    "billing",
     "canva-export",
     "clean",
     "deploy",
@@ -267,10 +269,13 @@ def _run_generate_py(args: list[str], timeout_seconds: int) -> dict:
 
     command = [sys.executable, str(_ROOT / "generate.py"), *args]
     action = args[0]
+    mutating = action in _CLI_MUTATING_SUBCOMMANDS
+    if action == "billing" and len(args) > 1 and args[1] == "summary":
+        mutating = False
     return _run_command(
         command,
         timeout_seconds,
-        mutating=action in _CLI_MUTATING_SUBCOMMANDS,
+        mutating=mutating,
     )
 
 
@@ -942,8 +947,9 @@ def rafiki_run(args: list[str], timeout_seconds: int = 900) -> str:
     """Run a supported Rafiki CLI workflow through generate.py.
 
     Use this for workflows not covered by the direct tools, such as:
-    ['library'], ['approve', 'project'], ['clean', 'project', '--dry-run'],
-    ['social-expand', 'project', '--dry-run'], or ['regen', '--dry-run'].
+    ['library'], ['approve', 'project'], ['billing', 'summary', '--json'],
+    ['clean', 'project', '--dry-run'], ['social-expand', 'project', '--dry-run'],
+    or ['regen', '--dry-run'].
     Prefer the typed wrappers for registry, viewer rebuild, render, Canva export,
     and Notion export workflows.
 

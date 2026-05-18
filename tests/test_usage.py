@@ -168,3 +168,29 @@ def test_summarize_usage_applies_pricing_profile_to_successful_images(isolated_l
     assert summary["archive"]["estimated_cost"]["amount"] == 0.039
     assert summary["archive"]["estimated_cost"]["profile_estimated_images"] == 1
     assert summary["archive"]["estimated_cost"]["unpriced_images"] == 0
+
+
+def test_summarize_usage_prefers_imported_billing_for_spend(isolated_log, tmp_path):
+    usage.save_usage_log({"entries": [], "total_images": 0})
+    billing_path = tmp_path / "billing-imports.json"
+    billing_path.write_text(
+        json.dumps({
+            "version": 1,
+            "imports": [
+                {
+                    "id": "one",
+                    "provider": "OpenAI",
+                    "model": "gpt-image-2",
+                    "amount": 22.0,
+                    "currency": "USD",
+                }
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    summary = usage.summarize_usage(tmp_path / "output", billing_import_path=billing_path)
+
+    assert summary["provider_billing"]["amount"] == 22.0
+    assert summary["archive"]["spend"]["amount"] == 22.0
+    assert summary["archive"]["spend"]["basis"] == "provider_billing_imports"

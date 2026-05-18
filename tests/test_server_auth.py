@@ -33,6 +33,7 @@ def _make_handler_class(tmp_path: Path) -> type:
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
     Handler.feedback_file = output_root / "feedback.json"
+    Handler.billing_imports_file = tmp_path / "billing-imports.json"
     Handler.extra_roots = {}
     return Handler
 
@@ -119,6 +120,32 @@ def test_usage_endpoint_returns_local_summary(server):
     assert payload["archive"]["projects"] == 0
     assert payload["archive"]["known_cost"]["currency"] == "USD"
     assert payload["archive"]["estimated_cost"]["currency"] == "USD"
+    assert payload["provider_billing"]["entries"] == 0
+
+
+def test_billing_import_endpoint_persists_manual_entry(server):
+    resp = _post_json(
+        f"{server}/api/billing-imports",
+        {
+            "provider": "OpenAI",
+            "model": "gpt-image-2",
+            "amount": 12.34,
+            "note": "May image billing",
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["imported"] == 1
+
+    saved = json.loads(_get(f"{server}/api/billing-imports").read().decode("utf-8"))
+    assert saved["entries"] == 1
+    assert saved["amount"] == 12.34
+    assert saved["by_provider"] == [{"provider": "OpenAI", "amount": 12.34, "entries": 1}]
+
+    usage = json.loads(_get(f"{server}/api/usage").read().decode("utf-8"))
+    assert usage["archive"]["spend"]["basis"] == "provider_billing_imports"
+    assert usage["archive"]["spend"]["amount"] == 12.34
 
 
 def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):

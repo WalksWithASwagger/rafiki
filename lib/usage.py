@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from lib.billing import BILLING_IMPORT_PATH, summarize_billing_imports
 from lib.pricing import estimate_image_cost, load_pricing_profile, provider_for_model
 
 USAGE_LOG_PATH = Path(__file__).parent.parent / "data" / "usage-log.json"
@@ -145,12 +146,9 @@ def summarize_usage(
     output_root: Path | None = None,
     *,
     extra_roots: dict[str, Path] | None = None,
+    billing_import_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Return local usage and manifest cost summary for the portal.
-
-    Provider prices are intentionally not bundled here; the summary only totals
-    amounts already present in local manifests or usage logs.
-    """
+    """Return local usage, pricing-profile, and billing-import summary."""
     data = load_usage_log()
     entries = [entry for entry in data.get("entries", []) if isinstance(entry, dict)]
     successful_entries = [entry for entry in entries if entry.get("ok", True)]
@@ -171,6 +169,7 @@ def summarize_usage(
     duration_seconds = 0.0
     recent_runs: list[dict[str, Any]] = []
     pricing_profile = load_pricing_profile()
+    billing_summary = summarize_billing_imports(billing_import_path or BILLING_IMPORT_PATH)
 
     if output_root is not None:
         for project, run_id, manifest_path, manifest in _iter_run_manifests(Path(output_root), extra_roots):
@@ -282,6 +281,15 @@ def summarize_usage(
                 "pricing_profile": pricing_profile.get("path", ""),
                 "pricing_updated_at": pricing_profile.get("updated_at", ""),
             },
+            "spend": {
+                "currency": "USD",
+                "amount": billing_summary["amount"] or round(known_cost + profile_cost, 4),
+                "basis": "provider_billing_imports"
+                if billing_summary["amount"]
+                else "local_manifest_amounts_plus_pricing_profile",
+                "provider_billing_amount": billing_summary["amount"],
+                "estimated_amount": round(known_cost + profile_cost, 4),
+            },
             "by_model": [
                 {"model": model, "images": count}
                 for model, count in by_model.most_common()
@@ -291,6 +299,7 @@ def summarize_usage(
                 for provider, count in by_provider.most_common()
             ],
         },
+        "provider_billing": billing_summary,
         "recent_runs": recent_runs[:12],
-        "pricing_note": "Estimated spend combines local manifest amounts with the pricing profile when possible; provider billing exports remain the source of truth.",
+        "pricing_note": "Provider billing imports are shown when present; otherwise estimated spend combines local manifest amounts with the pricing profile.",
     }
