@@ -13,9 +13,10 @@ from lib.styles import get_default_style, load_styles
 from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
 
 
-def _scan_root(root: Path, project_name: str, virtual_prefix: str) -> list[dict]:
+def _scan_root(root: Path, project_name: str, virtual_prefix: str, output_root: Path | None = None) -> list[dict]:
     """Yield image records from all run-*/run.json files under root."""
     records: list[dict] = []
+    output_root = Path(output_root) if output_root else root.parent
     for rjp in sorted(root.glob("run-*/run.json")):
         try:
             data = json.loads(rjp.read_text(encoding="utf-8"))
@@ -26,11 +27,13 @@ def _scan_root(root: Path, project_name: str, virtual_prefix: str) -> list[dict]
         timestamp = data.get("timestamp", "")
         aspect_ratio = data.get("aspect_ratio", "16:9")
         style = data.get("style", "")
+        detail = _run_detail(project_name, run_id, rjp.parent, output_root, data)
         for img in data.get("images", []):
             img_path = rjp.parent / img["file"]
             records.append({
                 "project": project_name,
                 "run_id": run_id,
+                "run_key": detail["key"],
                 "model": model,
                 "timestamp": timestamp,
                 "aspect_ratio": aspect_ratio,
@@ -39,6 +42,9 @@ def _scan_root(root: Path, project_name: str, virtual_prefix: str) -> list[dict]
                 "prompt": img.get("prompt", ""),
                 # virtual path used as img src — routed by server or via symlink
                 "file": f"{virtual_prefix}/{run_id}/{img['file']}",
+                "source": "run",
+                "approval_status": "unapproved",
+                "run_detail": detail,
                 "ok": img_path.exists(),
             })
     return records
@@ -63,15 +69,81 @@ def _entry_file_src(entry: registry.AssetEntry, output_root: Path) -> str:
     return path.as_posix()
 
 
+def _library_href(path: Path, output_root: Path) -> str:
+    try:
+        return path.resolve().relative_to(output_root.resolve()).as_posix()
+    except ValueError:
+        return path.resolve().as_uri()
+
+
+def _run_detail(project: str, run_id: str, run_dir: Path, output_root: Path, manifest: dict) -> dict:
+    invocation = manifest.get("invocation", {})
+    if not isinstance(invocation, dict):
+        invocation = {}
+
+    images = manifest.get("images", [])
+    image_count = len(images) if isinstance(images, list) else 0
+    return {
+        "key": f"{project}/{run_id}" if run_id else project,
+        "project": project,
+        "run_id": run_id,
+        "model": manifest.get("model", ""),
+        "style": manifest.get("style", ""),
+        "aspect_ratio": manifest.get("aspect_ratio", ""),
+        "timestamp": manifest.get("timestamp", ""),
+        "started_at": manifest.get("started_at", ""),
+        "finished_at": manifest.get("finished_at", ""),
+        "state": manifest.get("state", ""),
+        "provider": manifest.get("provider", ""),
+        "prompt_file": manifest.get("prompt_file", ""),
+        "prompt_source": manifest.get("prompt_source", ""),
+        "invocation_surface": invocation.get("surface", ""),
+        "image_count": image_count,
+        "run_json": _library_href(run_dir / "run.json", output_root),
+        "run_viewer": _library_href(run_dir / "viewer.html", output_root),
+        "project_viewer": _library_href(run_dir.parent / "viewer.html", output_root),
+        "manifest": manifest,
+    }
+
+
+def _run_detail_from_dir(project: str, run_dir: Path, output_root: Path) -> dict:
+    run_id = run_dir.name if run_dir.name.startswith("run-") else ""
+    run_meta, _ = registry._load_run_meta(run_dir)
+    if not run_meta:
+        return {}
+    return _run_detail(project, run_id, run_dir, output_root, run_meta)
+
+
+def _run_detail_for_entry(entry: registry.AssetEntry, file_src: str, output_root: Path) -> dict:
+    if not entry.source_run:
+        return {}
+
+    path = Path(entry.path)
+    resolved = path if path.is_absolute() else registry.REPO_ROOT / path
+    run_dir = resolved.parent if resolved.parent.name == entry.source_run else output_root / entry.project / entry.source_run
+
+    detail = _run_detail_from_dir(entry.project, run_dir, output_root)
+    if detail:
+        return detail
+
+    if file_src:
+        src_parts = Path(file_src).parts
+        if len(src_parts) >= 2:
+            return _run_detail_from_dir(entry.project, output_root.joinpath(*src_parts[:-1]), output_root)
+    return {}
+
+
 def _records_from_registry(output_root: Path) -> list[dict]:
     records: list[dict] = []
     for entry in registry.collect(output_root, scope="all-runs"):
         file_src = _entry_file_src(entry, output_root)
         title = entry.title or entry.caption or Path(entry.path).stem
         source_prompt = entry.source_prompt or entry.caption
+        run_detail = _run_detail_for_entry(entry, file_src, output_root)
         records.append({
             "project": entry.project,
             "run_id": entry.source_run,
+            "run_key": run_detail.get("key", f"{entry.project}/{entry.source_run}" if entry.source_run else entry.project),
             "model": entry.model or "unknown",
             "timestamp": entry.indexed_at,
             "aspect_ratio": entry.aspect_ratio or "16:9",
@@ -85,6 +157,7 @@ def _records_from_registry(output_root: Path) -> list[dict]:
             "source_prompt": source_prompt,
             "prompt": source_prompt,
             "file": file_src,
+            "run_detail": run_detail,
             "ok": Path(entry.path).exists() if Path(entry.path).is_absolute() else (registry.REPO_ROOT / entry.path).exists(),
         })
     return records
@@ -105,14 +178,14 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
         for project_name, extra_root in extra_roots.items():
             if not extra_root.exists():
                 continue
-            for rec in _scan_root(extra_root, project_name, project_name):
+            for rec in _scan_root(extra_root, project_name, project_name, output_root):
                 seen.add(rec["file"])
                 records.append(rec)
 
         for proj_dir in sorted(output_root.iterdir()):
             if not proj_dir.is_dir():
                 continue
-            for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
+            for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name, output_root):
                 if rec["file"] not in seen:
                     seen.add(rec["file"])
                     records.append(rec)
@@ -299,7 +372,19 @@ def _actions_panel_html(projects: list[str]) -> str:
 
 
 def _render_library(records: list[dict]) -> str:
+    run_details: dict[str, dict] = {}
+    library_records: list[dict] = []
+    for record in records:
+        detail = record.get("run_detail")
+        if isinstance(detail, dict) and detail.get("key"):
+            run_details.setdefault(str(detail["key"]), detail)
+        item = dict(record)
+        item.pop("run_detail", None)
+        library_records.append(item)
+
+    records = library_records
     library_json = json.dumps(records, ensure_ascii=False)
+    run_details_json = json.dumps(run_details, ensure_ascii=False)
     ok_count = sum(1 for r in records if r["ok"])
     projects = sorted({r["project"] for r in records})
     models = sorted({r["model"] for r in records if r["model"] not in ("unknown", "")})
@@ -406,16 +491,32 @@ def _render_library(records: list[dict]) -> str:
     </select>
     Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
   </label>
-  <span class="keyboard-hint">Keys: ←/→ move · S star · X reject · 0 clear</span>
+  <span class="keyboard-hint">Keys: ←/→ move · S star · X reject · 0 clear · I details</span>
 </div>
 
 <div class="grid" id="grid"></div>
+
+<aside class="run-detail-panel" id="run-detail-panel" aria-live="polite" aria-hidden="true">
+  <div class="run-detail-head">
+    <div>
+      <h2>Run Detail</h2>
+      <p id="run-detail-subtitle">Select a card to inspect its source run.</p>
+    </div>
+    <button class="run-detail-close" type="button" onclick="closeRunDetail()" title="Close detail panel">&#x2715;</button>
+  </div>
+  <div class="run-detail-body">
+    <div class="run-detail-links" id="run-detail-links"></div>
+    <dl class="run-detail-fields" id="run-detail-fields"></dl>
+    <pre class="run-detail-json" id="run-detail-json"></pre>
+  </div>
+</aside>
 
 {_lightbox_html()}
 
 <script>
 const LIBRARY = {library_json};
 const ITEMS = LIBRARY;
+const RUN_DETAILS = {run_details_json};
 const RATINGS_KEY = 'rafiki:ratings';
 const SERVER_MODE = location.protocol !== 'file:';
 let _ratingFilter = 'all';
@@ -435,6 +536,88 @@ function _loadRatings() {{
 function _saveRatings(r) {{ localStorage.setItem(RATINGS_KEY, JSON.stringify(r)); }}
 function studioEscapeHtml(value) {{
   return String(value || '').replace(/[&<>"]/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[ch]));
+}}
+function detailForItem(item) {{
+  if (!item) return null;
+  const key = item.run_key || [item.project, item.run_id].filter(Boolean).join('/');
+  return RUN_DETAILS[key] || null;
+}}
+function setDetailText(id, value) {{
+  const el = document.getElementById(id);
+  if (el) el.textContent = value || '';
+}}
+function appendDetailLink(target, label, href) {{
+  if (!href) return;
+  const link = document.createElement('a');
+  link.href = href;
+  link.textContent = label;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  target.appendChild(link);
+}}
+function renderDetailFields(detail, item) {{
+  const fields = document.getElementById('run-detail-fields');
+  if (!fields) return;
+  fields.innerHTML = '';
+  const rows = [
+    ['Project', detail.project || item?.project || ''],
+    ['Run', detail.run_id || item?.run_id || ''],
+    ['Model', detail.model || item?.model || ''],
+    ['Style', detail.style || item?.style || ''],
+    ['Aspect', detail.aspect_ratio || item?.aspect_ratio || ''],
+    ['State', detail.state || ''],
+    ['Provider', detail.provider || ''],
+    ['Timestamp', detail.timestamp || item?.timestamp || ''],
+    ['Started', detail.started_at || ''],
+    ['Finished', detail.finished_at || ''],
+    ['Images', detail.image_count === 0 ? '0' : detail.image_count || ''],
+    ['Prompt file', detail.prompt_file || ''],
+    ['Prompt source', detail.prompt_source || ''],
+    ['Invocation', detail.invocation_surface || ''],
+  ];
+  rows.forEach(([label, value]) => {{
+    if (value === null || value === undefined || value === '') return;
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = label;
+    dd.textContent = String(value);
+    fields.appendChild(dt);
+    fields.appendChild(dd);
+  }});
+}}
+function openRunDetail(event, idx) {{
+  if (event) event.stopPropagation();
+  const item = LIBRARY[idx];
+  if (!item) return;
+  const card = document.querySelector('.card[data-idx="' + idx + '"]');
+  if (card) setActiveCard(card, {{scroll: false}});
+  showRunDetail(item);
+}}
+function showRunDetail(item) {{
+  const panel = document.getElementById('run-detail-panel');
+  const detail = detailForItem(item);
+  if (!panel || !detail) return;
+  panel.classList.add('open');
+  panel.setAttribute('aria-hidden', 'false');
+  setDetailText('run-detail-subtitle', [detail.project || item.project, detail.run_id || item.run_id].filter(Boolean).join(' / '));
+
+  const links = document.getElementById('run-detail-links');
+  if (links) {{
+    links.innerHTML = '';
+    appendDetailLink(links, 'Run viewer', detail.run_viewer);
+    appendDetailLink(links, 'Project viewer', detail.project_viewer);
+    appendDetailLink(links, 'run.json', detail.run_json);
+  }}
+
+  renderDetailFields(detail, item);
+  const jsonEl = document.getElementById('run-detail-json');
+  if (jsonEl) jsonEl.textContent = JSON.stringify(detail.manifest || {{}}, null, 2);
+}}
+function closeRunDetail() {{
+  const panel = document.getElementById('run-detail-panel');
+  if (!panel) return;
+  panel.classList.remove('open');
+  panel.setAttribute('aria-hidden', 'true');
 }}
 function getRating(key) {{ return _loadRatings()[key] || null; }}
 function setRating(key, val) {{
@@ -606,6 +789,10 @@ function isLibraryTypingTarget(target) {{
 }}
 function handleLibraryKeydown(event) {{
   if (lb?.classList.contains('open')) return;
+  if (event.key === 'Escape') {{
+    closeRunDetail();
+    return;
+  }}
   if (isLibraryTypingTarget(event.target)) return;
   const key = event.key.toLowerCase();
   if (event.key === 'ArrowRight' || event.key === 'ArrowDown' || key === 'j' || key === 'n') {{
@@ -623,6 +810,9 @@ function handleLibraryKeydown(event) {{
   }} else if (event.key === '0' || event.key === 'Backspace') {{
     event.preventDefault();
     rateActiveCard(null);
+  }} else if (key === 'i' && _activeCard) {{
+    event.preventDefault();
+    showRunDetail(LIBRARY[parseInt(_activeCard.dataset.idx || '0', 10)]);
   }} else if (event.key === 'Enter' && _activeCard) {{
     event.preventDefault();
     lbOpen(parseInt(_activeCard.dataset.idx || '0', 10));
@@ -838,6 +1028,7 @@ LIBRARY.forEach((item, i) => {{
   card.dataset.style = item.style || '';
   card.dataset.source = item.source || '';
   card.dataset.run = item.run_id || '';
+  card.dataset.runKey = item.run_key || '';
   card.dataset.approval = item.approval_status || 'unapproved';
   card.dataset.ts = item.timestamp || '';
   card.dataset.name = item.name || '';
@@ -863,6 +1054,7 @@ LIBRARY.forEach((item, i) => {{
     <div class="card-foot">
       <span class="card-name"></span>
       <span class="proj-badge">${{item.project.replace(/-/g, ' ')}}</span>
+      <button class="btn-rate detail" onclick="openRunDetail(event, ${{i}})">Info</button>
       <button class="btn-rate star"   onclick="rateCard(event,'${{item.file}}','star',  this.closest('.card'))">&#9733;</button>
       <button class="btn-rate reject" onclick="rateCard(event,'${{item.file}}','reject',this.closest('.card'))">&#x2715;</button>
     </div>
@@ -1030,6 +1222,103 @@ def _library_extra_css() -> str:
 .card.active-card {
   border-color: var(--teal);
   box-shadow: 0 0 0 2px rgba(0,200,180,0.22), 0 8px 32px rgba(0,200,180,0.12);
+}
+.btn-rate.detail {
+  color: var(--teal);
+  border-color: rgba(0,200,180,0.24);
+}
+.run-detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(480px, 92vw);
+  background: #12101f;
+  border-left: 1px solid var(--border);
+  box-shadow: -18px 0 48px rgba(0,0,0,0.35);
+  transform: translateX(105%);
+  transition: transform 0.18s ease;
+  z-index: 8500;
+  display: flex;
+  flex-direction: column;
+}
+.run-detail-panel.open {
+  transform: translateX(0);
+}
+.run-detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+.run-detail-head h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+}
+.run-detail-head p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+.run-detail-close {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.run-detail-body {
+  padding: 1rem;
+  overflow: auto;
+}
+.run-detail-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+.run-detail-links a {
+  color: var(--teal);
+  border: 1px solid rgba(0,200,180,0.22);
+  background: rgba(0,200,180,0.08);
+  border-radius: 8px;
+  padding: 0.32rem 0.55rem;
+  text-decoration: none;
+  font-size: 0.75rem;
+}
+.run-detail-links a:hover {
+  border-color: var(--teal);
+}
+.run-detail-fields {
+  display: grid;
+  grid-template-columns: minmax(6rem, 0.38fr) 1fr;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 1rem;
+  font-size: 0.76rem;
+}
+.run-detail-fields dt {
+  color: var(--dim);
+}
+.run-detail-fields dd {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.run-detail-json {
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,0.22);
+  border-radius: 8px;
+  padding: 0.75rem;
+  color: var(--dim);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  overflow: auto;
+  max-height: 42vh;
 }
 .studio-panel {
   margin: 1rem 1.5rem 0.9rem;

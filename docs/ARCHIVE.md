@@ -44,7 +44,10 @@ the rest.
    Use the library filters to narrow by rating, source, run, approval state,
    project, model, aspect ratio, style, or prompt text. Keyboard review works
    on the active visible card: arrow keys move, `S` stars, `X` rejects, `0`
-   clears the rating, and Enter opens the lightbox.
+   clears the rating, `I` opens run details, and Enter opens the lightbox.
+   The Info button opens the same run detail panel with links to the run
+   viewer, project viewer, `run.json`, prompt file/source metadata, invocation
+   surface, provider, state, timestamps, and the manifest JSON.
 
 ## Layout
 
