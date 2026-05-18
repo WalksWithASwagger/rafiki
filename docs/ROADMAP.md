@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-17
+Last reviewed: 2026-05-18
 
 This roadmap is the maintainers' working plan for Rafiki. It is intentionally
 forward-looking: current product surface lives in `README.md` and the per-area
@@ -27,14 +27,14 @@ image generation platform.
 | Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
 | Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, deploy, exports, scheduled regen, and portal startup. |
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
-| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library, ratings API, prompt studio, auth for public binding, and run browsing. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library with all-runs archive browsing, filters, keyboard review, run detail panel, ratings API, prompt studio, auth for public binding, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
 | Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, and Vercel deploy helper. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | ~157 Python test functions across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 168 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -89,10 +89,14 @@ Goal: make common creative workflows hard to break.
 Goal: make the asset registry the source of truth for browsing, search, and
 exports.
 
+Status: the P0 library/archive foundation is shipped. The registry now feeds
+the master library, and `generate.py library` / `generate.py serve` show every
+historical `run-*` image while keeping curated registry/export scopes available.
+
 | Priority | Work | Success criteria |
 |---|---|---|
-| P0 | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
-| P0 | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
+| Shipped | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
+| Shipped | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
 | P1 | Add approval/export state to registry entries. | Registry can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
 | P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
@@ -104,8 +108,8 @@ Goal: make the local portal the best default interface for review and curation.
 | Priority | Work | Success criteria |
 |---|---|---|
 | P0 | Surface run status and errors better in the portal. | A failed generation shows useful error state and next action, not just missing images. |
-| P1 | Add curation actions from the UI. | Starred assets can be promoted to `approved/` without leaving the portal. |
-| P1 | Add export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable where assets are reviewed. |
+| P1 | Expand curation actions from the UI. | Starred assets can already be promoted from the portal action panel; next, per-card state should make approved/exported/superseded status obvious while reviewing. |
+| P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, make export status visible on archive cards. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
 
@@ -156,10 +160,11 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Add MCP and CLI dry-run smoke tests.
-2. Make registry metadata feed the all-runs library viewer.
-3. Add portal curation/export actions.
-4. Expand doctor remediation for package and browser setup.
+1. Add duplicate/similar filename warnings to the archive library.
+2. Move review notes, title overrides, tags, and export/publish state into durable metadata.
+3. Add archive health and cleanup reports.
+4. Add MCP and CLI dry-run smoke tests.
+5. Expand doctor remediation for package and browser setup.
 
 ## Non-Goals For Now
 
