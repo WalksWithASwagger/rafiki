@@ -141,6 +141,41 @@ def test_library_viewer_renders_output_only_project_without_prebuilt_registry(tm
     assert not registry.REGISTRY_JSON.exists()
 
 
+def test_library_viewer_merges_local_archive_metadata(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "metadata-project" / "run-20260501-120000",
+        "metadata.png",
+        "Original Title",
+        "metadata source prompt",
+    )
+    (output_root / "archive-metadata.json").write_text(
+        json.dumps({
+            "version": 1,
+            "items": {
+                "metadata-project/run-20260501-120000/metadata.png": {
+                    "title": "Homepage Hero",
+                    "tags": ["homepage", "keeper"],
+                    "states": ["canva", "published"],
+                    "superseded_by": "metadata-project/run-20260502-120000/metadata.png",
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert "Homepage Hero" in html
+    assert '"metadata_states": ["canva", "published"]' in html
+    assert '"superseded_by": "metadata-project/run-20260502-120000/metadata.png"' in html
+    assert 'id="run-detail-metadata"' in html
+    assert 'id="metadata-title"' in html
+    assert "async function saveMetadataForDetail(event)" in html
+    assert "fetch('/api/archive-metadata'" in html
+    assert 'class="metadata-state-badge"' in html
+
+
 def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     project = output_root / "review-project"
@@ -298,8 +333,13 @@ def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monk
     assert "fetch('/api/billing-imports'" in html
     assert "fetch('/api/deploy-readiness')" in html
     assert 'id="run-detail-feedback"' in html
+    assert 'id="run-detail-metadata"' in html
     assert 'id="feedback-change-request"' in html
+    assert 'id="metadata-state-grid"' in html
     assert "async function saveFeedbackForDetail(event)" in html
+    assert "async function saveMetadataForDetail(event)" in html
     assert "fetch('/api/feedback'" in html
+    assert "fetch('/api/archive-metadata'" in html
     assert "function stageRevisionFromDetail(event, autoSubmit)" in html
     assert 'class="feedback-badge"' in html
+    assert 'class="metadata-state-badge"' in html

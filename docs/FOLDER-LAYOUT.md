@@ -44,6 +44,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── billing.py               # Local provider billing imports (CSV/JSON/manual)
 │   ├── pricing.py               # Public pricing-profile loader + local cost estimates
 │   ├── feedback.py              # Local archive feedback notes + change requests
+│   ├── archive_metadata.py      # Local title/tag/export-state sidecar
 │   ├── archive.py               # approved/ curation + clean
 │   ├── registry.py              # Asset registry index/search/export
 │   ├── regen.py                 # Scheduled regeneration runner
@@ -84,6 +85,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── output/                      # Generated images + viewers (gitignored)
 │   ├── ratings.json             # star/reject map, written by the portal
 │   ├── feedback.json            # local card notes/change requests, written by the portal
+│   ├── archive-metadata.json    # local title overrides, tags, export/publish state
 │   ├── <project>/run-*/         # Per-project run trees with run.json + viewer.html
 │   ├── <project>/approved/      # Curated keepers + index.json + viewer.html
 │   └── library.html             # Master library — built by `generate.py library`

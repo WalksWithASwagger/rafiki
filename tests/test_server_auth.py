@@ -33,6 +33,7 @@ def _make_handler_class(tmp_path: Path) -> type:
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
     Handler.feedback_file = output_root / "feedback.json"
+    Handler.archive_metadata_file = output_root / "archive-metadata.json"
     Handler.billing_imports_file = tmp_path / "billing-imports.json"
     Handler.extra_roots = {}
     return Handler
@@ -111,6 +112,30 @@ def test_feedback_endpoint_persists_review_notes(server):
 
     saved = json.loads(_get(f"{server}/api/feedback").read().decode("utf-8"))
     assert saved["items"]["demo/run-1/01-hero.png"]["note"] == "Too dark"
+
+
+def test_archive_metadata_endpoint_persists_card_state(server):
+    resp = _post_json(
+        f"{server}/api/archive-metadata",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "title": "Homepage Hero",
+            "tags": "homepage, keeper",
+            "states": ["canva", "published"],
+            "superseded_by": "demo/run-2/01-hero.png",
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["metadata"]["title"] == "Homepage Hero"
+
+    saved = json.loads(_get(f"{server}/api/archive-metadata").read().decode("utf-8"))
+    entry = saved["items"]["demo/run-1/01-hero.png"]
+    assert entry["tags"] == ["homepage", "keeper"]
+    assert entry["states"] == ["canva", "published"]
+    assert entry["superseded_by"] == "demo/run-2/01-hero.png"
 
 
 def test_usage_endpoint_returns_local_summary(server):

@@ -80,9 +80,13 @@ Success criteria:
 - Promote starred images from any historical run into `approved/` from the
   portal, not only the CLI.
 - Record human notes, title overrides, tags, and publish/export status in a
-  stable sidecar, not only browser local storage.
+  stable sidecar, not only browser local storage. Title overrides, tags,
+  export/publish states, and superseded links are now in
+  `output/archive-metadata.json`; notes and change requests remain in
+  `output/feedback.json`.
 - Show whether each archive card has been approved, exported to Canva, exported
-  to Notion, deployed, or superseded.
+  to Notion, deployed, or superseded. Export/publish/superseded badges are now
+  visible from archive metadata; automatic export stamping is still next.
 - Add a "needs decision" queue for high-value projects where many images remain
   unreviewed.
 
@@ -120,7 +124,9 @@ Success criteria:
 1. Ship the all-runs archive scope in registry and library. Done.
 2. Add archive filters/detail panels to the portal. Done.
 3. Add duplicate/similar filename warnings. Done.
-4. Move review notes/title/tags into durable metadata.
+4. Move review notes/title/tags into durable metadata. Partly done:
+   feedback notes live in `output/feedback.json`, and card metadata lives in
+   `output/archive-metadata.json`.
 5. Add archive health and cleanup reports.
 6. Add MCP wrappers once the local contracts are stable.
 
