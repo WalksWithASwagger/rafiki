@@ -1,6 +1,6 @@
 ---
 name: rafiki
-description: Generate images using Rafiki — Gemini Nano Banana or OpenAI gpt-image-2. Use when asked to generate, create, or make images for content, social posts, articles, or brand assets. Also triggered when a batch prompt file (image-prompts.md) needs processing.
+description: Generate images using Rafiki with Gemini or OpenAI image models. Use when asked to generate, create, or make images for content, social posts, articles, or brand assets. Also triggered when a batch prompt file (image-prompts.md) needs processing.
 ---
 
 # Rafiki Image Generator
@@ -47,7 +47,7 @@ rafiki --list-styles
 | Flag | Default | Notes |
 |------|---------|-------|
 | `--model` | `gemini-2.5-flash-image` | Also: `gpt-image-2`, `gemini-3-pro-image-preview`, `dall-e-3` |
-| `--style` | `kk` | kk / hopecode / bcai / upgrade / none |
+| `--style` | `kk` | Run `rafiki --list-styles`; compose styles with `+`, or use `none` |
 | `--aspect-ratio` | `16:9` | Also: `1:1`, `9:16`, `linkedin`, `instagram`, `story` |
 | `--quality` | `high` | OpenAI only: `low` / `medium` / `high` |
 | `--resolution` | `1K` | Gemini Pro only: `2K` / `4K` |
@@ -83,7 +83,8 @@ or use the `RAFIKI_HOME` env var:
 ```bash
 cd /path/to/rafiki && npx rafiki --prompt "..." --style kk
 # or
-RAFIKI_HOME=/path/to/rafiki node tools/image-gen/launch.js --prompt "..."
+RAFIKI_HOME=/path/to/rafiki
+(cd "$RAFIKI_HOME" && npx rafiki --prompt "..." --style kk)
 ```
 
 ## After a batch run
