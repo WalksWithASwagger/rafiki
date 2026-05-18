@@ -3,6 +3,7 @@
 
 # macOS / local scratch
 .DS_Store
+/rafiki/
 
 # One-off local renders (regenerable)
 output.png

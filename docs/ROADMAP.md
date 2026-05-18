@@ -2,6 +2,8 @@
 
 Last reviewed: 2026-05-18
 
+Latest audit: [Rafiki Product Audit (2026-05-18)](../meta/audits/2026-05-18-rafiki-product-audit.md)
+
 This roadmap is the maintainers' working plan for Rafiki. It is intentionally
 forward-looking: current product surface lives in `README.md` and the per-area
 docs under `docs/`. The roadmap covers themes, phased work, verification gates,
