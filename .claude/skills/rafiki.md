@@ -81,9 +81,9 @@ Rafiki lives at `../rafiki/` relative to kk-ai-ecosystem. Run from that director
 or use the `RAFIKI_HOME` env var:
 
 ```bash
-cd /path/to/rafiki && npx rafiki --prompt "..." --style kk
+cd /Users/kk/Code/rafiki && npx rafiki --prompt "..." --style kk
 # or
-RAFIKI_HOME=/path/to/rafiki node tools/image-gen/launch.js --prompt "..."
+RAFIKI_HOME=/Users/kk/Code/rafiki node tools/image-gen/launch.js --prompt "..."
 ```
 
 ## After a batch run
