@@ -25,6 +25,8 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── commands/                # Slash commands (e.g. /agentic-intake)
 │   └── skills/                  # Local skills: rafiki, github-issue-writer/,
 │                                #   github-pr-reviewer/
+├── .agents/
+│   └── skills/                  # Codex skill mirrors for Rafiki issue and PR work
 ├── .company-os/
 │   └── project.yaml             # Company-OS project manifest (loops, memory, validation)
 ├── agentic/

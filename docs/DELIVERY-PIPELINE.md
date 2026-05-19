@@ -156,4 +156,10 @@ For agents running the loop end to end:
 - `meta/routines/auto-merge-gate.prompt.md` — guarded review/repair/merge
 - `.claude/skills/github-issue-writer/SKILL.md`
 - `.claude/skills/github-pr-reviewer/SKILL.md`
+- `.agents/skills/github-issue-writer/SKILL.md`
+- `.agents/skills/github-pr-reviewer/SKILL.md`
 - `.claude/commands/agentic-intake.md`
+
+Keep `.claude/skills/` as the Claude Code surface and `.agents/skills/` as the
+Codex surface. The issue-writer and PR-reviewer routines should stay equivalent
+across both directories so agents do not receive different delivery guidance.

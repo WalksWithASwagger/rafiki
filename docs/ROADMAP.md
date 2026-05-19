@@ -2,7 +2,7 @@
 
 Last reviewed: 2026-05-18
 
-Latest audit: [Rafiki Product Audit (2026-05-18)](../meta/audits/2026-05-18-rafiki-product-audit.md)
+Latest audit: [Rafiki Docs Cleanup Audit (2026-05-18)](../meta/audits/2026-05-18-rafiki-docs-cleanup.md)
 
 This roadmap is the maintainers' working plan for Rafiki. It is intentionally
 forward-looking: current product surface lives in `README.md` and the per-area
@@ -34,7 +34,7 @@ image generation platform.
 | Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
-| Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
+| Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 193 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
