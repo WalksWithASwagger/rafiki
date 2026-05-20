@@ -6,9 +6,11 @@ import json
 import re
 import webbrowser
 from datetime import datetime
+from html import escape
 from pathlib import Path
 
 from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
+from lib.curriculum import build_curriculum_atlas
 from lib import registry
 from lib.extra_outputs import load_extra_outputs
 from lib.styles import get_default_style, load_styles
@@ -573,6 +575,104 @@ def _ops_panel_html() -> str:
 """
 
 
+def _atlas_panel_html(atlas: dict) -> str:
+    summary = atlas.get("summary", {})
+    programs = atlas.get("programs", [])
+    program_cards = []
+    for program in programs:
+        modules = []
+        for module in program.get("modules", []):
+            program_id = json.dumps(program.get("id") or "")
+            module_id = json.dumps(module.get("id") or "")
+            competencies = ", ".join(module.get("competencies") or [])
+            asset_count = int(module.get("asset_count") or 0)
+            modules.append(
+                """
+                <div class="atlas-module">
+                  <div>
+                    <h4>{title}</h4>
+                    <p>{objective}</p>
+                    <span>{level}{competencies}</span>
+                  </div>
+                  <button type="button" onclick='focusAtlasModule({program_id}, {module_id})'{disabled}>{asset_count} asset{asset_plural}</button>
+                </div>
+                """.format(
+                    title=escape(str(module.get("title") or "Untitled module")),
+                    objective=escape(str(module.get("objective") or "")),
+                    level=escape(str(module.get("level") or "module")),
+                    competencies=escape(f" · {competencies}" if competencies else ""),
+                    program_id=program_id,
+                    module_id=module_id,
+                    disabled=" disabled" if asset_count == 0 else "",
+                    asset_count=asset_count,
+                    asset_plural="" if asset_count == 1 else "s",
+                )
+            )
+        competencies = ", ".join(program.get("competencies") or [])
+        program_cards.append(
+            """
+            <article class="atlas-program" data-program="{program_id}">
+              <div class="atlas-program-head">
+                <div>
+                  <h3>{title}</h3>
+                  <p>{summary}</p>
+                </div>
+                <div class="atlas-program-count">
+                  <strong>{asset_count}</strong>
+                  <span>linked asset{asset_plural}</span>
+                </div>
+              </div>
+              <div class="atlas-competencies">{competencies}</div>
+              <div class="atlas-modules">{modules}</div>
+            </article>
+            """.format(
+                program_id=escape(str(program.get("id") or "")),
+                title=escape(str(program.get("title") or "Untitled program")),
+                summary=escape(str(program.get("summary") or "")),
+                asset_count=int(program.get("asset_count") or 0),
+                asset_plural="" if int(program.get("asset_count") or 0) == 1 else "s",
+                competencies=escape(competencies),
+                modules="".join(modules),
+            )
+        )
+
+    unmapped_assets = int(summary.get("unmapped_assets") or 0)
+    return """
+<section class="atlas-panel" id="curriculum-atlas-panel">
+  <div class="atlas-heading">
+    <div>
+      <h2>Curriculum Atlas</h2>
+      <p>Programs, modules, competencies, and archive links from <code>config/curriculum-atlas.json</code>.</p>
+    </div>
+    <div class="atlas-summary">
+      <span><strong>{program_count}</strong> programs</span>
+      <span><strong>{module_count}</strong> modules</span>
+      <span><strong>{linked_assets}</strong> linked assets</span>
+      <span><strong>{unmapped_assets}</strong> unmapped</span>
+    </div>
+  </div>
+  <div class="atlas-unmapped">
+    <div>
+      <h3>Mapping Queue</h3>
+      <p>Archive cards that do not match the current curriculum scaffold yet.</p>
+    </div>
+    <button type="button" onclick="focusAtlasUnmapped()"{unmapped_disabled}>{unmapped_assets} unmapped asset{unmapped_plural}</button>
+  </div>
+  <div class="atlas-grid">
+    {program_cards}
+  </div>
+</section>
+""".format(
+        program_count=int(summary.get("programs") or 0),
+        module_count=int(summary.get("modules") or 0),
+        linked_assets=int(summary.get("linked_assets") or 0),
+        unmapped_assets=unmapped_assets,
+        unmapped_disabled=" disabled" if unmapped_assets == 0 else "",
+        unmapped_plural="" if unmapped_assets == 1 else "s",
+        program_cards="".join(program_cards) or '<div class="atlas-empty">No curriculum programs configured yet.</div>',
+    )
+
+
 def _render_library(records: list[dict]) -> str:
     _annotate_filename_warnings(records)
 
@@ -589,6 +689,8 @@ def _render_library(records: list[dict]) -> str:
     records = library_records
     library_json = json.dumps(records, ensure_ascii=False)
     run_details_json = json.dumps(run_details, ensure_ascii=False)
+    curriculum_atlas = build_curriculum_atlas(records)
+    atlas_json = json.dumps(curriculum_atlas, ensure_ascii=False)
     ok_count = sum(1 for r in records if r["ok"])
     projects = sorted({r["project"] for r in records})
     models = sorted({r["model"] for r in records if r["model"] not in ("unknown", "")})
@@ -645,61 +747,95 @@ def _render_library(records: list[dict]) -> str:
   </div>
 </header>
 
-{_studio_panel_html(all_style_names, default_style, model_options)}
-{_actions_panel_html(projects)}
-{_ops_panel_html()}
+<nav class="portal-mode-nav" aria-label="Portal modes">
+  <button type="button" class="portal-mode-btn active" data-mode-target="review" onclick="setPortalMode('review')">Review</button>
+  <button type="button" class="portal-mode-btn" data-mode-target="generate" onclick="setPortalMode('generate')">Generate</button>
+  <button type="button" class="portal-mode-btn" data-mode-target="curate" onclick="setPortalMode('curate')">Curate</button>
+  <button type="button" class="portal-mode-btn" data-mode-target="spend" onclick="setPortalMode('spend')">Spend</button>
+  <button type="button" class="portal-mode-btn" data-mode-target="teach" onclick="setPortalMode('teach')">Teach</button>
+</nav>
 
-<div class="filter-bar" id="filter-bar">
-  <button class="filter-btn active" id="fb-all"        onclick="setRatingFilter('all')">All <span id="fc-all"></span></button>
-  <button class="filter-btn"        id="fb-star"       onclick="setRatingFilter('star')">&#9733; Starred <span id="fc-star"></span></button>
-  <button class="filter-btn"        id="fb-reject"     onclick="setRatingFilter('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
-  <button class="filter-btn"        id="fb-unreviewed" onclick="setRatingFilter('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
-  <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
-         oninput="_searchQuery=this.value.toLowerCase().trim();applyFilters()">
-  <label class="filter-select-label">
-    Source
-    <select id="source-filter" onchange="setLibrarySelectFilter('source', this.value)">
-      <option value="">All sources</option>
-      {source_opts}
-    </select>
-  </label>
-  <label class="filter-select-label">
-    Run
-    <select id="run-filter" onchange="setLibrarySelectFilter('run', this.value)">
-      <option value="">All runs</option>
-      {run_opts}
-    </select>
-  </label>
-  <label class="filter-select-label">
-    Approval
-    <select id="approval-filter" onchange="setLibrarySelectFilter('approval', this.value)">
-      <option value="">All approval</option>
-      {approval_opts}
-    </select>
-  </label>
-  <span class="chip-sep">|</span>
-  {project_chips}
-  <span class="chip-sep">|</span>
-  {model_chips}
-  <span class="chip-sep">|</span>
-  {ar_chips}
-  <span class="chip-sep">|</span>
-  {style_chips}
-  <label class="grid-size-label">
-    <select class="sort-select" onchange="applySort(this.value)">
-      <option value="default">⇅ Order</option>
-      <option value="newest">Newest</option>
-      <option value="oldest">Oldest</option>
-      <option value="project">Project</option>
-      <option value="model">Model</option>
-      <option value="name">A → Z</option>
-    </select>
-    Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
-  </label>
-  <span class="keyboard-hint">Keys: ←/→ move · S star · X reject · 0 clear · I details</span>
-</div>
+<main class="portal-modes">
+  <section class="portal-mode-panel review-mode is-active" id="portal-mode-review" data-portal-mode="review">
+    <div class="mode-heading review-heading">
+      <div>
+        <h2>Review</h2>
+        <p>Image-first archive review with filters, ratings, feedback, and run detail.</p>
+      </div>
+      <span class="mode-note">{ok_count} visible archive image{'s' if ok_count != 1 else ''}</span>
+    </div>
+    <div class="filter-bar" id="filter-bar">
+      <button class="filter-btn active" id="fb-all"        onclick="setRatingFilter('all')">All <span id="fc-all"></span></button>
+      <button class="filter-btn"        id="fb-star"       onclick="setRatingFilter('star')">&#9733; Starred <span id="fc-star"></span></button>
+      <button class="filter-btn"        id="fb-reject"     onclick="setRatingFilter('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
+      <button class="filter-btn"        id="fb-unreviewed" onclick="setRatingFilter('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+      <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
+             oninput="_searchQuery=this.value.toLowerCase().trim();clearAtlasAssetFilter(false);applyFilters()">
+      <label class="filter-select-label">
+        Source
+        <select id="source-filter" onchange="setLibrarySelectFilter('source', this.value)">
+          <option value="">All sources</option>
+          {source_opts}
+        </select>
+      </label>
+      <label class="filter-select-label">
+        Run
+        <select id="run-filter" onchange="setLibrarySelectFilter('run', this.value)">
+          <option value="">All runs</option>
+          {run_opts}
+        </select>
+      </label>
+      <label class="filter-select-label">
+        Approval
+        <select id="approval-filter" onchange="setLibrarySelectFilter('approval', this.value)">
+          <option value="">All approval</option>
+          {approval_opts}
+        </select>
+      </label>
+      <span class="chip-sep">|</span>
+      {project_chips}
+      <span class="chip-sep">|</span>
+      {model_chips}
+      <span class="chip-sep">|</span>
+      {ar_chips}
+      <span class="chip-sep">|</span>
+      {style_chips}
+      <label class="grid-size-label">
+        <select class="sort-select" onchange="applySort(this.value)">
+          <option value="default">⇅ Order</option>
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="project">Project</option>
+          <option value="model">Model</option>
+          <option value="name">A → Z</option>
+        </select>
+        Grid <input type="range" min="160" max="560" value="280" id="grid-sizer" oninput="resizeGrid(this.value)">
+      </label>
+      <span class="keyboard-hint">Keys: ←/→ move · S star · X reject · 0 clear · I details</span>
+    </div>
+    <div class="atlas-filter-banner" id="atlas-filter-banner" hidden>
+      <span id="atlas-filter-label"></span>
+      <button type="button" onclick="clearAtlasAssetFilter()">Clear atlas filter</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </section>
 
-<div class="grid" id="grid"></div>
+  <section class="portal-mode-panel" id="portal-mode-generate" data-portal-mode="generate" hidden>
+    {_studio_panel_html(all_style_names, default_style, model_options)}
+  </section>
+
+  <section class="portal-mode-panel" id="portal-mode-curate" data-portal-mode="curate" hidden>
+    {_actions_panel_html(projects)}
+  </section>
+
+  <section class="portal-mode-panel" id="portal-mode-spend" data-portal-mode="spend" hidden>
+    {_ops_panel_html()}
+  </section>
+
+  <section class="portal-mode-panel" id="portal-mode-teach" data-portal-mode="teach" hidden>
+    {_atlas_panel_html(curriculum_atlas)}
+  </section>
+</main>
 
 <aside class="run-detail-panel" id="run-detail-panel" aria-live="polite" aria-hidden="true">
   <div class="run-detail-head">
@@ -777,6 +913,7 @@ def _render_library(records: list[dict]) -> str:
 const LIBRARY = {library_json};
 const ITEMS = LIBRARY;
 const RUN_DETAILS = {run_details_json};
+const CURRICULUM_ATLAS = {atlas_json};
 const RATINGS_KEY = 'rafiki:ratings';
 const FEEDBACK_KEY = 'rafiki:feedback';
 const METADATA_KEY = 'rafiki:archiveMetadata';
@@ -792,6 +929,7 @@ let _sourceFilter = null;
 let _runFilter = null;
 let _approvalFilter = null;
 let _searchQuery = '';
+let _atlasAssetFilter = null;
 let _activeCard = null;
 let _detailItem = null;
 
@@ -824,6 +962,76 @@ function resolveAssetSrc(path) {{
   const raw = String(path || '');
   if (!raw || /^(https?:|data:|file:|\\/)/.test(raw)) return raw;
   return SERVER_MODE ? '/output/' + raw.replace(/^\\/+/, '') : raw;
+}}
+function setPortalMode(mode) {{
+  const targetMode = ['review', 'generate', 'curate', 'spend', 'teach'].includes(mode) ? mode : 'review';
+  document.querySelectorAll('.portal-mode-panel').forEach(panel => {{
+    const active = panel.dataset.portalMode === targetMode;
+    panel.hidden = !active;
+    panel.classList.toggle('is-active', active);
+  }});
+  document.querySelectorAll('.portal-mode-btn').forEach(button => {{
+    const active = button.dataset.modeTarget === targetMode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  }});
+  try {{ localStorage.setItem('rafiki:portalMode', targetMode); }} catch (err) {{}}
+  if (targetMode === 'review') syncActiveCardAfterFilter();
+}}
+function initPortalMode() {{
+  let requested = '';
+  try {{
+    const hashMode = (location.hash || '').replace(/^#/, '');
+    const mobileDefault = window.matchMedia && window.matchMedia('(max-width: 700px)').matches;
+    const savedMode = mobileDefault ? '' : localStorage.getItem('rafiki:portalMode') || '';
+    requested = hashMode || savedMode;
+  }} catch (err) {{}}
+  setPortalMode(requested || 'review');
+}}
+function atlasProgramById(programId) {{
+  return (CURRICULUM_ATLAS.programs || []).find(program => program.id === programId) || null;
+}}
+function atlasModuleById(programId, moduleId) {{
+  const program = atlasProgramById(programId);
+  if (!program) return null;
+  return (program.modules || []).find(module => module.id === moduleId) || null;
+}}
+function updateAtlasFilterBanner(label, count) {{
+  const banner = document.getElementById('atlas-filter-banner');
+  const text = document.getElementById('atlas-filter-label');
+  if (!banner || !text) return;
+  if (!label) {{
+    banner.hidden = true;
+    text.textContent = '';
+    return;
+  }}
+  banner.hidden = false;
+  text.textContent = label + ' · ' + count + ' asset' + (count === 1 ? '' : 's');
+}}
+function clearAtlasAssetFilter(shouldApply = true) {{
+  _atlasAssetFilter = null;
+  updateAtlasFilterBanner('', 0);
+  if (shouldApply) applyFilters();
+}}
+function focusAtlasAssets(indices, label) {{
+  const assetIndices = Array.isArray(indices) ? indices.map(String) : [];
+  _atlasAssetFilter = new Set(assetIndices);
+  const search = document.getElementById('search');
+  if (search) search.value = '';
+  _searchQuery = '';
+  updateAtlasFilterBanner(label || 'Curriculum Atlas', assetIndices.length);
+  setPortalMode('review');
+  applyFilters();
+  document.getElementById('grid')?.scrollIntoView({{block: 'start'}});
+}}
+function focusAtlasModule(programId, moduleId) {{
+  const program = atlasProgramById(programId);
+  const module = atlasModuleById(programId, moduleId);
+  if (!program || !module) return;
+  focusAtlasAssets(module.asset_indices || [], program.title + ' / ' + module.title);
+}}
+function focusAtlasUnmapped() {{
+  focusAtlasAssets(CURRICULUM_ATLAS.unmapped_asset_indices || [], 'Unmapped curriculum queue');
 }}
 function detailForItem(item) {{
   if (!item) return null;
@@ -1177,6 +1385,7 @@ function stageRevisionFromDetail(event, autoSubmit) {{
   set('studio-prompt', revisionPromptForItem(_detailItem));
   const dryRun = document.getElementById('studio-dry-run');
   if (dryRun && autoSubmit) dryRun.checked = true;
+  setPortalMode('generate');
   document.getElementById('studio-panel')?.scrollIntoView({{block: 'start'}});
   setStudioStatus('info', autoSubmit ? 'Starting dry run revision...' : 'Revision staged from selected card.');
   if (autoSubmit) document.getElementById('studio-form')?.requestSubmit();
@@ -1467,6 +1676,7 @@ function applyFilters() {{
     if (show && _sourceFilter) show = card.dataset.source === _sourceFilter;
     if (show && _runFilter)    show = card.dataset.run === _runFilter;
     if (show && _approvalFilter) show = card.dataset.approval === _approvalFilter;
+    if (show && _atlasAssetFilter) show = _atlasAssetFilter.has(card.dataset.idx || '');
     if (show && _searchQuery)  show = (card.dataset.search || '').includes(_searchQuery);
     card.classList.toggle('hidden-filter', !show);
   }});
@@ -1751,6 +1961,7 @@ async function submitStudio(event) {{
   if (saved) {{ resizeGrid(saved); const sl = document.getElementById('grid-sizer'); if (sl) sl.value = saved; }}
   syncStudioMode();
   syncPortalAction();
+  initPortalMode();
   loadPortalActions();
   loadUsageSummary();
   loadArchiveMetadata();
@@ -1863,6 +2074,216 @@ document.addEventListener('keydown', handleLibraryKeydown);
 
 def _library_extra_css() -> str:
     return """<style>
+.portal-mode-nav {
+  display: flex;
+  gap: 0.45rem;
+  padding: 0.65rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(0,0,0,0.14);
+  overflow-x: auto;
+}
+.portal-mode-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  border-radius: 8px;
+  padding: 0.42rem 0.75rem;
+  font: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.portal-mode-btn:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.portal-mode-btn.active {
+  background: rgba(0,200,180,0.12);
+  border-color: rgba(0,200,180,0.38);
+  color: var(--teal);
+  font-weight: 700;
+}
+.portal-mode-panel[hidden] {
+  display: none !important;
+}
+.mode-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin: 1rem 1.5rem 0.35rem;
+}
+.mode-heading h2 {
+  margin: 0 0 0.2rem;
+  font-size: 1rem;
+}
+.mode-heading p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.82rem;
+}
+.mode-note {
+  border: 1px solid rgba(0,200,180,0.24);
+  background: rgba(0,200,180,0.08);
+  border-radius: 8px;
+  color: var(--teal);
+  padding: 0.35rem 0.55rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.atlas-filter-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.75rem 1.5rem 0;
+  border: 1px solid rgba(0,200,180,0.28);
+  background: rgba(0,200,180,0.08);
+  border-radius: 8px;
+  color: var(--ink);
+  padding: 0.55rem 0.65rem;
+  font-size: 0.78rem;
+}
+.atlas-filter-banner[hidden] {
+  display: none !important;
+}
+.atlas-filter-banner button,
+.atlas-module button,
+.atlas-unmapped button {
+  border: 1px solid rgba(0,200,180,0.28);
+  background: rgba(0,200,180,0.10);
+  color: var(--teal);
+  border-radius: 8px;
+  padding: 0.4rem 0.6rem;
+  font: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.atlas-filter-banner button:hover,
+.atlas-module button:hover,
+.atlas-unmapped button:hover {
+  border-color: var(--teal);
+}
+.atlas-module button:disabled,
+.atlas-unmapped button:disabled {
+  cursor: default;
+  opacity: 0.48;
+  border-color: var(--border);
+  color: var(--dim);
+}
+.atlas-panel {
+  margin: 1rem 1.5rem 4rem;
+}
+.atlas-heading,
+.atlas-unmapped,
+.atlas-program {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+}
+.atlas-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+}
+.atlas-heading h2,
+.atlas-unmapped h3,
+.atlas-program h3,
+.atlas-module h4 {
+  margin: 0;
+}
+.atlas-heading p,
+.atlas-unmapped p,
+.atlas-program p,
+.atlas-module p {
+  margin: 0.25rem 0 0;
+  color: var(--dim);
+  font-size: 0.82rem;
+}
+.atlas-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(95px, 1fr));
+  gap: 0.45rem;
+  min-width: min(310px, 100%);
+}
+.atlas-summary span,
+.atlas-program-count {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.12);
+  padding: 0.55rem;
+  color: var(--dim);
+  font-size: 0.68rem;
+}
+.atlas-summary strong,
+.atlas-program-count strong {
+  color: var(--ink);
+  display: block;
+  font-size: 1.05rem;
+}
+.atlas-unmapped {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.85rem;
+  padding: 0.8rem 1rem;
+}
+.atlas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+.atlas-program {
+  padding: 1rem;
+}
+.atlas-program-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.atlas-program-count {
+  min-width: 82px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.atlas-competencies {
+  color: var(--teal);
+  font-size: 0.72rem;
+  margin-top: 0.55rem;
+}
+.atlas-modules {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+.atlas-module {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.7rem;
+  background: rgba(0,0,0,0.10);
+}
+.atlas-module span {
+  display: block;
+  color: var(--dim);
+  font-size: 0.68rem;
+  margin-top: 0.3rem;
+}
+.atlas-empty {
+  color: var(--dim);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+}
 .teal-pill {
   background: rgba(0,200,180,0.12);
   border: 1px solid rgba(0,200,180,0.3);
@@ -2631,11 +3052,30 @@ def _library_extra_css() -> str:
   font-size: 0.76rem;
 }
 @media (max-width: 820px) {
+  .portal-mode-nav {
+    padding: 0.55rem 1rem;
+  }
+  .mode-heading,
   .studio-heading {
     flex-direction: column;
   }
+  .mode-heading,
+  .atlas-panel {
+    margin-left: 1rem;
+    margin-right: 1rem;
+  }
+  .atlas-heading,
+  .atlas-unmapped,
+  .atlas-program-head,
   .portal-actions-heading {
     align-items: flex-start;
+    flex-direction: column;
+  }
+  .atlas-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+  .atlas-module {
     flex-direction: column;
   }
   .ops-heading {

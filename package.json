@@ -33,6 +33,7 @@
     "lib/**/*.py",
     "styles/**/*.md",
     "styles/styles.yaml",
+    "config/curriculum-atlas.json",
     "config/pricing.json",
     "config/extra-outputs.json",
     "config/extra-outputs.json.example",

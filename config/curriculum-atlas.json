@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "programs": [
+    {
+      "id": "rap",
+      "title": "Responsible AI Program",
+      "summary": "Four-week Responsible AI learning arc for foundations, ethics, societal impact, human agency, and capstone practice.",
+      "project_patterns": ["rap", "responsible-ai", "responsible ai"],
+      "asset_query": ["ai", "ethics", "responsible"],
+      "competencies": ["AI foundations", "AI ethics", "human agency", "output evaluation"],
+      "modules": [
+        {
+          "id": "rap-foundations",
+          "title": "Foundations",
+          "level": "foundation",
+          "objective": "Explain what AI systems are, where they show up, and how to evaluate their limits.",
+          "competencies": ["AI foundations", "critical evaluation"],
+          "asset_query": ["foundation", "responsible ai", "ai literacy", "systems"]
+        },
+        {
+          "id": "rap-ethics",
+          "title": "Ethics And Impact",
+          "level": "core",
+          "objective": "Connect generated examples to bias, privacy, transparency, and community impact decisions.",
+          "competencies": ["AI ethics", "community impact"],
+          "asset_query": ["ethics", "bias", "privacy", "impact", "community"]
+        },
+        {
+          "id": "rap-capstone",
+          "title": "Capstone Practice",
+          "level": "applied",
+          "objective": "Use a visual artifact to defend a responsible AI decision and identify the next human checkpoint.",
+          "competencies": ["decision making", "facilitation", "output evaluation"],
+          "asset_query": ["capstone", "rubric", "evaluation", "checkpoint", "facilitator"]
+        }
+      ]
+    },
+    {
+      "id": "upgrade-ai",
+      "title": "Upgrade AI",
+      "summary": "Marketing, newsletter, podcast, and training visuals that turn AI practice into teachable public formats.",
+      "project_patterns": ["upgrade", "upgrade-ai", "newsletter", "podcast"],
+      "asset_query": ["training", "newsletter", "podcast", "marketing"],
+      "competencies": ["practical prompting", "content systems", "workflow design"],
+      "modules": [
+        {
+          "id": "upgrade-practical-prompting",
+          "title": "Practical Prompting",
+          "level": "foundation",
+          "objective": "Translate a work goal into useful prompt inputs, constraints, and review criteria.",
+          "competencies": ["prompt direction", "workflow design"],
+          "asset_query": ["prompt", "workflow", "training", "hands-on"]
+        },
+        {
+          "id": "upgrade-publishing-system",
+          "title": "Publishing System",
+          "level": "applied",
+          "objective": "Turn generated assets into a repeatable newsletter, podcast, or campaign package.",
+          "competencies": ["content systems", "publishing"],
+          "asset_query": ["newsletter", "podcast", "campaign", "publishing"]
+        }
+      ]
+    },
+    {
+      "id": "hopecode",
+      "title": "HOPECODE",
+      "summary": "Knowledge gardens, power maps, relationship maps, values, skill trees, and anti-corporate systems thinking.",
+      "project_patterns": ["hopecode", "hope-code"],
+      "asset_query": ["garden", "map", "values", "power", "relationship"],
+      "competencies": ["systems thinking", "values mapping", "community practice"],
+      "modules": [
+        {
+          "id": "hopecode-knowledge-garden",
+          "title": "Knowledge Garden",
+          "level": "core",
+          "objective": "Map concepts, people, values, and artifacts as a living learning system.",
+          "competencies": ["systems thinking", "concept mapping"],
+          "asset_query": ["garden", "knowledge", "concept", "atlas"]
+        },
+        {
+          "id": "hopecode-power-map",
+          "title": "Power And Relationship Maps",
+          "level": "applied",
+          "objective": "Use visual mapping to reason about influence, trust, dependency, and care.",
+          "competencies": ["power mapping", "relationship mapping"],
+          "asset_query": ["power", "relationship", "network", "trust", "care"]
+        }
+      ]
+    },
+    {
+      "id": "bcai-ecosystem",
+      "title": "BC AI Ecosystem",
+      "summary": "Community, subgroup, event, and ecosystem diagrams for explaining the regional AI field.",
+      "project_patterns": ["bcai", "bc-ai", "bc ai", "ecosystem", "community"],
+      "asset_query": ["ecosystem", "community", "subgroup", "event"],
+      "competencies": ["ecosystem literacy", "community building", "stakeholder mapping"],
+      "modules": [
+        {
+          "id": "bcai-community-map",
+          "title": "Community Map",
+          "level": "foundation",
+          "objective": "Identify communities, subgroups, and stakeholder relationships in the BC AI ecosystem.",
+          "competencies": ["stakeholder mapping", "ecosystem literacy"],
+          "asset_query": ["community", "subgroup", "ecosystem", "network"]
+        },
+        {
+          "id": "bcai-event-story",
+          "title": "Event Story",
+          "level": "applied",
+          "objective": "Turn event visuals into a coherent learning or public recap sequence.",
+          "competencies": ["event synthesis", "public communication"],
+          "asset_query": ["event", "recap", "meetup", "workshop", "story"]
+        }
+      ]
+    }
+  ]
+}

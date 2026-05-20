@@ -225,6 +225,24 @@ async function main() {
       const feedbackStatus = document.querySelector('#feedback-status');
       const feedbackNote = document.querySelector('#feedback-note');
 
+      const initialMode = document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '';
+      const reviewVisible = !document.querySelector('#portal-mode-review').hidden;
+      setPortalMode('teach');
+      const teachVisible = !document.querySelector('#portal-mode-teach').hidden;
+      const atlasPrograms = document.querySelectorAll('.atlas-program').length;
+      const atlasModules = document.querySelectorAll('.atlas-module').length;
+      focusAtlasUnmapped();
+      const atlasFilterVisible = countVisible();
+      const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
+      clearAtlasAssetFilter();
+      setPortalMode('generate');
+      const generateVisible = !document.querySelector('#portal-mode-generate').hidden;
+      setPortalMode('curate');
+      const curateVisible = !document.querySelector('#portal-mode-curate').hidden;
+      setPortalMode('spend');
+      const spendVisible = !document.querySelector('#portal-mode-spend').hidden;
+      setPortalMode('review');
+
       document.querySelector('#search').value = 'review portal';
       document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
       const searchVisible = countVisible();
@@ -251,6 +269,20 @@ async function main() {
 
       return {
         title: document.title,
+        initialMode,
+        reviewVisible,
+        modeChecks: {
+          teachVisible,
+          generateVisible,
+          curateVisible,
+          spendVisible,
+        },
+        atlas: {
+          programs: atlasPrograms,
+          modules: atlasModules,
+          filterVisible: atlasFilterVisible,
+          bannerVisible: atlasBannerVisible,
+        },
         cards: document.querySelectorAll('.card').length,
         visibleCards: countVisible(),
         imageNaturalWidths: Array.from(document.querySelectorAll('.card img')).map((img) => img.naturalWidth),
@@ -272,6 +304,16 @@ async function main() {
     });
 
     assert(desktopState.title === 'Rafiki Library', `unexpected title: ${desktopState.title}`);
+    assert(desktopState.initialMode === 'review', `expected review mode by default, got ${desktopState.initialMode}`);
+    assert(desktopState.reviewVisible, 'review mode was hidden by default');
+    assert(desktopState.modeChecks.teachVisible, 'teach mode did not become visible');
+    assert(desktopState.modeChecks.generateVisible, 'generate mode did not become visible');
+    assert(desktopState.modeChecks.curateVisible, 'curate mode did not become visible');
+    assert(desktopState.modeChecks.spendVisible, 'spend mode did not become visible');
+    assert(desktopState.atlas.programs >= 1, 'curriculum atlas did not render programs');
+    assert(desktopState.atlas.modules >= 1, 'curriculum atlas did not render modules');
+    assert(desktopState.atlas.filterVisible === 2, `unmapped atlas filter should show two cards, got ${desktopState.atlas.filterVisible}`);
+    assert(desktopState.atlas.bannerVisible, 'atlas filter banner did not appear');
     assert(desktopState.cards === 2, `expected two cards, got ${desktopState.cards}`);
     assert(desktopState.visibleCards === 2, `expected two visible cards, got ${desktopState.visibleCards}`);
     assert(desktopState.imageNaturalWidths.every((width) => width > 0), 'desktop images did not load');
@@ -298,6 +340,7 @@ async function main() {
 
     const mobileState = await mobile.evaluate(async () => {
       const firstCard = document.querySelector('.card');
+      const initialRect = firstCard.getBoundingClientRect();
       firstCard.scrollIntoView({ block: 'center' });
       await new Promise((resolve, reject) => {
         const started = Date.now();
@@ -312,9 +355,11 @@ async function main() {
       });
       const rect = firstCard.getBoundingClientRect();
       return {
+        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
         cards: document.querySelectorAll('.card').length,
         loadedImages: Array.from(document.querySelectorAll('.card img')).filter((img) => img.naturalWidth > 0).length,
         imageNaturalWidths: Array.from(document.querySelectorAll('.card img')).map((img) => img.naturalWidth),
+        firstCardInitialY: Math.round(initialRect.y),
         firstCardRect: {
           x: Math.round(rect.x),
           y: Math.round(rect.y),
@@ -329,6 +374,8 @@ async function main() {
       };
     });
 
+    assert(mobileState.activeMode === 'review', `expected mobile review mode by default, got ${mobileState.activeMode}`);
+    assert(mobileState.firstCardInitialY < 900, `mobile review cards start too low: ${mobileState.firstCardInitialY}`);
     assert(mobileState.cards === 2, `expected two mobile cards, got ${mobileState.cards}`);
     assert(mobileState.loadedImages === 2, `expected two loaded mobile images, got ${mobileState.loadedImages}`);
     assert(mobileState.overflow.scrollWidth <= mobileState.overflow.clientWidth, 'mobile has horizontal overflow');
