@@ -1,0 +1,127 @@
+"""Curriculum Atlas helpers for connecting archive assets to teaching maps."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_ATLAS_PATH = REPO_ROOT / "config" / "curriculum-atlas.json"
+
+
+def load_curriculum_atlas(path: Path | None = None) -> dict:
+    atlas_path = Path(path) if path else DEFAULT_ATLAS_PATH
+    if not atlas_path.exists():
+        return {"version": 1, "programs": []}
+
+    data = json.loads(atlas_path.read_text(encoding="utf-8"))
+    programs = data.get("programs") if isinstance(data, dict) else []
+    if not isinstance(programs, list):
+        programs = []
+
+    return {"version": data.get("version", 1), "programs": [p for p in programs if isinstance(p, dict)]}
+
+
+def build_curriculum_atlas(records: list[dict], config: dict | None = None) -> dict:
+    atlas_config = config or load_curriculum_atlas()
+    programs = []
+    matched_indices: set[int] = set()
+
+    for program in atlas_config.get("programs", []):
+        modules = []
+        program_indices: set[int] = set()
+        program_patterns = _patterns_for(program, "project_patterns", "asset_query")
+
+        for module in program.get("modules", []) or []:
+            if not isinstance(module, dict):
+                continue
+            module_patterns = _patterns_for(module, "asset_query")
+            asset_indices = [
+                idx for idx, record in enumerate(records)
+                if _record_matches(record, program_patterns, module_patterns)
+            ]
+            program_indices.update(asset_indices)
+            matched_indices.update(asset_indices)
+            modules.append({
+                "id": str(module.get("id") or ""),
+                "title": str(module.get("title") or "Untitled module"),
+                "objective": str(module.get("objective") or ""),
+                "level": str(module.get("level") or ""),
+                "competencies": _clean_list(module.get("competencies")),
+                "asset_query": _clean_list(module.get("asset_query")),
+                "asset_indices": asset_indices,
+                "asset_count": len(asset_indices),
+            })
+
+        programs.append({
+            "id": str(program.get("id") or ""),
+            "title": str(program.get("title") or "Untitled program"),
+            "summary": str(program.get("summary") or ""),
+            "competencies": _clean_list(program.get("competencies")),
+            "modules": modules,
+            "asset_indices": sorted(program_indices),
+            "asset_count": len(program_indices),
+        })
+
+    unmapped_indices = [idx for idx in range(len(records)) if idx not in matched_indices]
+    module_count = sum(len(program["modules"]) for program in programs)
+    linked_assets = len(matched_indices)
+    return {
+        "version": atlas_config.get("version", 1),
+        "summary": {
+            "programs": len(programs),
+            "modules": module_count,
+            "linked_assets": linked_assets,
+            "unmapped_assets": len(unmapped_indices),
+        },
+        "programs": programs,
+        "unmapped_asset_indices": unmapped_indices,
+    }
+
+
+def _clean_list(value: object) -> list[str]:
+    if isinstance(value, list):
+        values = value
+    elif isinstance(value, str):
+        values = value.split(",")
+    else:
+        return []
+    out = []
+    seen = set()
+    for item in values:
+        text = str(item or "").strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        out.append(text)
+    return out
+
+
+def _patterns_for(source: dict, *keys: str) -> list[str]:
+    patterns: list[str] = []
+    for key in keys:
+        patterns.extend(_clean_list(source.get(key)))
+    return [pattern.casefold() for pattern in patterns if pattern]
+
+
+def _record_matches(record: dict, program_patterns: list[str], module_patterns: list[str]) -> bool:
+    text = _record_search_text(record)
+    program_match = not program_patterns or any(pattern in text for pattern in program_patterns)
+    module_match = not module_patterns or any(pattern in text for pattern in module_patterns)
+    return program_match and module_match
+
+
+def _record_search_text(record: dict) -> str:
+    tags = record.get("tags") if isinstance(record.get("tags"), list) else []
+    parts = [
+        record.get("project"),
+        record.get("title"),
+        record.get("name"),
+        record.get("caption"),
+        record.get("source_prompt"),
+        record.get("prompt"),
+        record.get("style"),
+        record.get("model"),
+        " ".join(str(tag) for tag in tags),
+    ]
+    return " ".join(str(part or "") for part in parts).casefold()

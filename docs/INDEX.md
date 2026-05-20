@@ -27,8 +27,8 @@ deeper operating docs by surface area.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
-  summary, feedback and archive metadata state, revision staging, and API
-  endpoints.
+  summary, mode navigation, feedback and archive metadata state, revision
+  staging, Curriculum Atlas surface, and API endpoints.
 - [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
   estimate rules, and source-of-truth boundaries.
 
@@ -40,6 +40,8 @@ deeper operating docs by surface area.
   `index.json` schema, and storage location.
 - [Library And Archive Roadmap](LIBRARY-ARCHIVE-ROADMAP.md) - build plan for
   the all-runs image archive, portal curation, cleanup, and agent access.
+- [Curriculum Atlas](CURRICULUM-ATLAS.md) - local program/module/objective
+  scaffold that links generated archive images to teaching surfaces.
 - [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rule for
   `prompts/kk-kb/` vs the legacy `kk-ai-ecosystem` copies.
 

@@ -115,6 +115,7 @@ Goal: make the local portal the best default interface for review and curation.
 | Shipped | Add pricing-profile spend estimates. | `config/pricing.json` estimates fixed-price image outputs locally while leaving token-priced or unknown models unpriced until manifests include usage. |
 | Shipped | Add local provider billing imports. | CSV/JSON/manual billing rows land in `data/billing-imports.json`, appear in the portal, and take precedence as the spend display total when present. |
 | Shipped | Expand curation state from the UI. | Per-card metadata now makes title overrides, tags, exported/published state, and superseded links durable and visible while reviewing. |
+| Shipped | Split portal into modes and seed Curriculum Atlas. | Review is the image-first default; Generate, Curate, Spend, and Teach are distinct modes; Teach reads `config/curriculum-atlas.json` and can filter matching archive cards back in Review. |
 | P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, stamp export actions back into archive metadata automatically. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
@@ -146,6 +147,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, and asset-matching terms into the portal's Teach mode. | Expand schema with facilitator notes, assessment/rubric criteria, and concept-graph relationships after real review sessions. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -168,10 +170,11 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Stamp portal export actions back into archive metadata automatically.
-2. Add archive health and cleanup reports.
-3. Add MCP and CLI dry-run smoke tests.
-4. Expand doctor remediation for package and browser setup.
+1. Expand Curriculum Atlas with facilitator notes, critique rubrics, and concept graph relationships.
+2. Stamp portal export actions back into archive metadata automatically.
+3. Add archive health and cleanup reports.
+4. Add MCP and CLI dry-run smoke tests.
+5. Expand doctor remediation for package and browser setup.
 
 ## Non-Goals For Now
 

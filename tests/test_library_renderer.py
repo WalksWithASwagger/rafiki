@@ -343,3 +343,34 @@ def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monk
     assert "function stageRevisionFromDetail(event, autoSubmit)" in html
     assert 'class="feedback-badge"' in html
     assert 'class="metadata-state-badge"' in html
+
+
+def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "rap-week-2" / "run-20260509-120000",
+        "bias-map.png",
+        "Bias Map",
+        "Map bias, ethics, and accountability in responsible AI systems.",
+        model="gemini-2.5-flash-image",
+        style="bcai",
+        aspect_ratio="16:9",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'class="portal-mode-nav"' in html
+    assert 'data-mode-target="review"' in html
+    assert 'id="portal-mode-review"' in html
+    assert 'id="portal-mode-generate"' in html
+    assert 'id="portal-mode-curate"' in html
+    assert 'id="portal-mode-spend"' in html
+    assert 'id="portal-mode-teach"' in html
+    assert 'id="curriculum-atlas-panel"' in html
+    assert "Responsible AI Program" in html
+    assert '"linked_assets": 1' in html
+    assert "const CURRICULUM_ATLAS =" in html
+    assert "function setPortalMode(mode)" in html
+    assert "function focusAtlasModule(programId, moduleId)" in html
+    assert "function focusAtlasUnmapped()" in html
+    assert "clearAtlasAssetFilter(false)" in html

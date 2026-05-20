@@ -6,6 +6,16 @@ archive, and uses the same generation path as the CLI.
 
 ## Surfaces
 
+- **Review** is the image-first default mode. It contains archive filters,
+  search, ratings, metadata badges, feedback badges, keyboard review, and the
+  run detail panel.
+- **Generate** contains Prompt Studio and launches single-prompt or Markdown
+  batch runs through `/api/regen`.
+- **Curate** exposes local action helpers such as approve starred, Canva export,
+  Notion dry run, registry export, and static deploy helper.
+- **Spend** contains local spend, billing imports, usage, and deploy readiness.
+- **Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json` and
+  links programs/modules back to matching archive cards.
 - **Spend & Review Ops** summarizes local usage and run manifests:
   - provider-billing imports from `data/billing-imports.json`
   - estimated spend from local manifest amounts plus `config/pricing.json`
@@ -17,10 +27,6 @@ archive, and uses the same generation path as the CLI.
     amounts
   - manual one-off billing entry form for exact charges
   - deployment readiness for local public sharing and static Vercel deploys
-- **Prompt Studio** launches single-prompt or Markdown batch runs through
-  `/api/regen`.
-- **Curation & Export** exposes local action helpers such as approve starred,
-  Canva export, Notion dry run, registry export, and static deploy helper.
 - **Run Detail** shows manifest metadata, direct viewer links, filename
   warnings, durable card metadata, and per-card feedback.
 
@@ -33,6 +39,7 @@ archive, and uses the same generation path as the CLI.
 | `output/archive-metadata.json` | `/api/archive-metadata` | Title overrides, tags, export/publish markers, and superseded links. |
 | `data/usage-log.json` | `lib.usage.log_generation` | Local generation event log. |
 | `data/billing-imports.json` | `generate.py billing` and `/api/billing-imports` | Local provider billing ledger. |
+| `config/curriculum-atlas.json` | Maintainers | Local program/module/objective/competency scaffold for Teach mode. |
 | `config/pricing.json` | Maintainers | Public pricing profile used for local spend estimates. |
 | `output/<project>/run-*/run.json` | `lib.batch.run_batch` | Run metadata, prompt details, timings, state, and local cost estimates. |
 
@@ -83,6 +90,13 @@ review tags, mark local export/publish states (`canva`, `notion`, `deployed`,
 library merges that sidecar when it renders, so the state is visible as card
 badges and searchable tags instead of being trapped in browser-local storage.
 
+## Curriculum Atlas
+
+The **Teach** mode reads `config/curriculum-atlas.json`, matches archive cards
+against program and module patterns, and shows linked asset counts plus an
+unmapped queue. Selecting an atlas module switches back to **Review** mode with
+the matching image cards filtered. See [Curriculum Atlas](CURRICULUM-ATLAS.md).
+
 ## HTTP Endpoints
 
 | Endpoint | Method | Behavior |
@@ -114,6 +128,7 @@ npm run e2e:portal
 The smoke uses a temporary output root, creates a dry-run archive from
 `examples/quickstart-image-prompts.md`, writes local fixture images without
 calling a provider, starts `generate.py serve` on a random localhost port, then
-checks the portal in Chromium. It verifies the home page, usage and readiness
-APIs, search, run detail, metadata save, feedback save, rating filters, desktop
-and mobile overflow, and mobile lazy image loading after scroll.
+checks the portal in Chromium. It verifies the home page, mode navigation,
+Teach/Curriculum Atlas rendering, usage and readiness APIs, search, run detail,
+metadata save, feedback save, rating filters, desktop and mobile overflow, and
+mobile lazy image loading after scroll.
