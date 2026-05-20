@@ -118,6 +118,7 @@ Goal: make the local portal the best default interface for review and curation.
 | P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, stamp export actions back into archive metadata automatically. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
+| Shipped | Add portal browser E2E smoke. | `npm run e2e:portal` creates a disposable dry-run archive, starts the portal, and verifies desktop/mobile review flows in Chromium. |
 
 ## Phase 5: Agent And Automation Layer
 
@@ -159,6 +160,7 @@ Before declaring a roadmap phase done:
 - `npm test`
 - `npm run pack:check`
 - `npm run doctor`
+- `npm run e2e:portal`
 - MCP smoke: list tools and call `rafiki_status`
 - At least one dry-run generation path through CLI or MCP
 - Docs checked for stale "known gap" claims
