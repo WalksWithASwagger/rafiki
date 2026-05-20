@@ -102,3 +102,18 @@ Supported feedback statuses are `needs-change`, `keep`, `maybe`, `blocked`, and
 
 Supported archive metadata states are `canva`, `notion`, `deployed`,
 `published`, and `superseded`.
+
+## Browser Smoke
+
+Run the committed portal smoke before declaring portal/library UX changes done:
+
+```bash
+npm run e2e:portal
+```
+
+The smoke uses a temporary output root, creates a dry-run archive from
+`examples/quickstart-image-prompts.md`, writes local fixture images without
+calling a provider, starts `generate.py serve` on a random localhost port, then
+checks the portal in Chromium. It verifies the home page, usage and readiness
+APIs, search, run detail, metadata save, feedback save, rating filters, desktop
+and mobile overflow, and mobile lazy image loading after scroll.

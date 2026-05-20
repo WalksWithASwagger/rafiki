@@ -334,6 +334,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path in ("/", ""):
             self._serve_library()
+        elif path == "/favicon.ico":
+            self._respond(204, "image/x-icon", b"")
         elif path.startswith("/output/"):
             self._serve_static(path[len("/output/"):])
         elif path == "/api/actions":

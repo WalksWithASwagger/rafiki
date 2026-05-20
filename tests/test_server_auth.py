@@ -95,6 +95,13 @@ def test_no_credentials_serves_freely(server, monkeypatch):
     assert resp.status == 200
 
 
+def test_favicon_request_is_quiet_no_content(server):
+    resp = _get(f"{server}/favicon.ico")
+
+    assert resp.status == 204
+    assert resp.read() == b""
+
+
 def test_feedback_endpoint_persists_review_notes(server):
     resp = _post_json(
         f"{server}/api/feedback",
