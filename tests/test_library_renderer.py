@@ -213,6 +213,8 @@ def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_pa
     assert 'id="source-filter"' in html
     assert 'id="run-filter"' in html
     assert 'id="approval-filter"' in html
+    assert 'id="fb-review-queue"' in html
+    assert 'id="fc-review-queue"' in html
     assert '<option value="run">run</option>' in html
     assert '<option value="run-20260502-120000">run-20260502-120000</option>' in html
     assert '<option value="run-20260501-120000">run-20260501-120000</option>' in html
@@ -222,6 +224,7 @@ def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_pa
     assert "card.dataset.run = item.run_id || ''" in html
     assert "card.dataset.approval = item.approval_status || 'unapproved'" in html
     assert "function handleLibraryKeydown(event)" in html
+    assert "function isReviewQueueCard(card, ratingValue)" in html
     assert "isLibraryTypingTarget(event.target)" in html
     assert "rateActiveCard('star')" in html
     assert "rateActiveCard('reject')" in html
@@ -341,8 +344,11 @@ def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monk
     assert "fetch('/api/feedback'" in html
     assert "fetch('/api/archive-metadata'" in html
     assert "function stageRevisionFromDetail(event, autoSubmit)" in html
+    assert "async function copyPromptForCard(event, idx)" in html
     assert 'class="feedback-badge"' in html
     assert 'class="metadata-state-badge"' in html
+    assert 'class="lineage-chip lineage-run"' in html
+    assert 'class="lineage-copy"' in html
 
 
 def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch):
@@ -376,9 +382,15 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
     assert "AI literacy" in html
     assert 'class="atlas-rubric-item"' in html
     assert 'class="atlas-concept-link"' in html
+    assert 'class="atlas-concept-graph"' in html
+    assert 'class="atlas-graph-nodes"' in html
+    assert 'aria-label="Curriculum concept relationships"' in html
     assert '"linked_assets": 1' in html
     assert "const CURRICULUM_ATLAS =" in html
     assert "function setPortalMode(mode)" in html
     assert "function focusAtlasModule(programId, moduleId)" in html
     assert "function focusAtlasUnmapped()" in html
     assert "clearAtlasAssetFilter(false)" in html
+    assert ":focus-visible" in html
+    assert "prefers-reduced-motion" in html
+    assert "transition: all" not in html

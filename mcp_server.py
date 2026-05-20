@@ -64,6 +64,7 @@ from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.usage import load_usage_log
 
 _CLI_SUBCOMMANDS = {
+    "archive-health",
     "view",
     "library",
     "link-projects",
@@ -947,9 +948,9 @@ def rafiki_run(args: list[str], timeout_seconds: int = 900) -> str:
     """Run a supported Rafiki CLI workflow through generate.py.
 
     Use this for workflows not covered by the direct tools, such as:
-    ['library'], ['approve', 'project'], ['billing', 'summary', '--json'],
-    ['clean', 'project', '--dry-run'], ['social-expand', 'project', '--dry-run'],
-    or ['regen', '--dry-run'].
+    ['library'], ['archive-health', '--json'], ['approve', 'project'],
+    ['billing', 'summary', '--json'], ['clean', 'project', '--dry-run'],
+    ['social-expand', 'project', '--dry-run'], or ['regen', '--dry-run'].
     Prefer the typed wrappers for registry, viewer rebuild, render, Canva export,
     and Notion export workflows.
 

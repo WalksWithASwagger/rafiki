@@ -53,6 +53,14 @@ the rest.
    can compare reruns before approving or cleaning anything.
    The same detail panel can save feedback notes/change requests to
    `output/feedback.json` and stage a revision back into Prompt Studio.
+6. **Check archive health before cleanup**:
+   ```bash
+   python generate.py archive-health
+   python generate.py archive-health --json
+   ```
+   This is read-only. It reports missing images, malformed `run.json` files,
+   duplicate filenames, orphaned ratings/feedback/metadata keys, image disk
+   usage, and cleanup-risk counts before anyone deletes generated work.
 
 ## Layout
 
@@ -114,10 +122,13 @@ or trace it later:
 - **`--older-than 30d` and `--keep-approved` compose.** When both are
   passed, both conditions must hold before a run is deleted.
 - **`approved/` is never touched by `clean`.**
+- **`archive-health` is a report, not a cleanup command.** It does not mutate
+  images, ratings, feedback, archive metadata, manifests, or approved sets.
 
 ## Where this lives
 
 - CLI dispatch — `generate.py` (`approve`, `clean`, `view --approved`)
 - Full archive viewer — `generate.py library`, `generate.py serve`
-- All logic — `lib/archive.py`
-- Tests — `tests/test_archive.py`
+- Archive curation logic — `lib/archive.py`
+- Archive health report — `lib/archive_health.py`
+- Tests — `tests/test_archive.py`, `tests/test_archive_health.py`

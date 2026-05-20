@@ -185,7 +185,7 @@ def _render_comparison(title: str, runs: list[dict], project: str = "") -> str:
   border-radius: 20px;
   font-size: 0.78rem;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   user-select: none;
 }}
 .run-tab:hover {{ border-color: var(--accent); color: var(--ink); }}
@@ -360,7 +360,7 @@ header h1 {{
   border-radius: 20px;
   font-size: 0.75rem;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   user-select: none;
 }}
 .filter-btn:hover {{ border-color: var(--accent); color: var(--ink); }}
@@ -488,7 +488,7 @@ header h1 {{
   padding: 0.15rem 0.45rem;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   white-space: nowrap;
   flex-shrink: 0;
 }}
@@ -552,7 +552,7 @@ header h1 {{
   padding: 0.25rem 0.7rem;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -687,7 +687,7 @@ header h1 {{
   border-radius: 12px;
   font-size: 0.7rem;
   cursor: pointer;
-  transition: all 0.12s;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
 }}
 .lb-run-dot:hover {{ border-color: var(--teal); color: var(--teal); }}
 .lb-run-dot.active {{ background: rgba(0,200,180,0.18); border-color: var(--teal); color: var(--teal); font-weight: 600; }}

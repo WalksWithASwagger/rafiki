@@ -6,13 +6,13 @@ import json
 import re
 import webbrowser
 from datetime import datetime
-from html import escape
 from pathlib import Path
 
 from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
 from lib.curriculum import build_curriculum_atlas
 from lib import registry
 from lib.extra_outputs import load_extra_outputs
+from lib.renderers.library_atlas import _atlas_panel_html
 from lib.styles import get_default_style, load_styles
 from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
 
@@ -575,183 +575,6 @@ def _ops_panel_html() -> str:
 """
 
 
-def _atlas_list_html(title: str, items: list[str], class_name: str) -> str:
-    if not items:
-        return ""
-    rows = "".join(f"<li>{escape(str(item))}</li>" for item in items)
-    return f"""
-    <div class="atlas-teaching-block {class_name}">
-      <h5>{escape(title)}</h5>
-      <ul>{rows}</ul>
-    </div>
-    """
-
-
-def _atlas_rubric_html(criteria: list[dict]) -> str:
-    if not criteria:
-        return ""
-    rows = []
-    for item in criteria:
-        rows.append(
-            """
-            <li class="atlas-rubric-item">
-              <strong>{label}</strong>
-              <span>{prompt}</span>
-              {scale}
-            </li>
-            """.format(
-                label=escape(str(item.get("label") or "Criterion")),
-                prompt=escape(str(item.get("prompt") or "")),
-                scale=(
-                    f'<em>{escape(str(item.get("scale")))}</em>'
-                    if item.get("scale") else ""
-                ),
-            )
-        )
-    return """
-    <div class="atlas-teaching-block atlas-rubric">
-      <h5>Critique Rubric</h5>
-      <ul>{rows}</ul>
-    </div>
-    """.format(rows="".join(rows))
-
-
-def _atlas_concept_links_html(links: list[dict]) -> str:
-    if not links:
-        return ""
-    rows = []
-    for link in links:
-        rows.append(
-            """
-            <li class="atlas-concept-link">
-              <strong>{concept}</strong>
-              <span>{relation}</span>
-              <strong>{target}</strong>
-            </li>
-            """.format(
-                concept=escape(str(link.get("concept") or "")),
-                relation=escape(str(link.get("relation") or "related")),
-                target=escape(str(link.get("target") or "")),
-            )
-        )
-    return """
-    <div class="atlas-teaching-block atlas-concepts">
-      <h5>Concept Links</h5>
-      <ul>{rows}</ul>
-    </div>
-    """.format(rows="".join(rows))
-
-
-def _atlas_teaching_html(module: dict) -> str:
-    blocks = [
-        _atlas_list_html("Facilitator Notes", module.get("facilitator_notes") or [], "atlas-facilitator-notes"),
-        _atlas_list_html("Discussion Prompts", module.get("discussion_prompts") or [], "atlas-discussion-prompts"),
-        _atlas_rubric_html(module.get("critique_criteria") or []),
-        _atlas_concept_links_html(module.get("concept_links") or []),
-    ]
-    return "".join(blocks)
-
-
-def _atlas_panel_html(atlas: dict) -> str:
-    summary = atlas.get("summary", {})
-    programs = atlas.get("programs", [])
-    program_cards = []
-    for program in programs:
-        modules = []
-        for module in program.get("modules", []):
-            program_id = json.dumps(program.get("id") or "")
-            module_id = json.dumps(module.get("id") or "")
-            competencies = ", ".join(module.get("competencies") or [])
-            asset_count = int(module.get("asset_count") or 0)
-            modules.append(
-                """
-                <div class="atlas-module">
-                  <div>
-                    <h4>{title}</h4>
-                    <p>{objective}</p>
-                    <span>{level}{competencies}</span>
-                    {teaching}
-                  </div>
-                  <button type="button" onclick='focusAtlasModule({program_id}, {module_id})'{disabled}>{asset_count} asset{asset_plural}</button>
-                </div>
-                """.format(
-                    title=escape(str(module.get("title") or "Untitled module")),
-                    objective=escape(str(module.get("objective") or "")),
-                    level=escape(str(module.get("level") or "module")),
-                    competencies=escape(f" · {competencies}" if competencies else ""),
-                    teaching=_atlas_teaching_html(module),
-                    program_id=program_id,
-                    module_id=module_id,
-                    disabled=" disabled" if asset_count == 0 else "",
-                    asset_count=asset_count,
-                    asset_plural="" if asset_count == 1 else "s",
-                )
-            )
-        competencies = ", ".join(program.get("competencies") or [])
-        program_cards.append(
-            """
-            <article class="atlas-program" data-program="{program_id}">
-              <div class="atlas-program-head">
-                <div>
-                  <h3>{title}</h3>
-                  <p>{summary}</p>
-                </div>
-                <div class="atlas-program-count">
-                  <strong>{asset_count}</strong>
-                  <span>linked asset{asset_plural}</span>
-                </div>
-              </div>
-              <div class="atlas-competencies">{competencies}</div>
-              <div class="atlas-modules">{modules}</div>
-            </article>
-            """.format(
-                program_id=escape(str(program.get("id") or "")),
-                title=escape(str(program.get("title") or "Untitled program")),
-                summary=escape(str(program.get("summary") or "")),
-                asset_count=int(program.get("asset_count") or 0),
-                asset_plural="" if int(program.get("asset_count") or 0) == 1 else "s",
-                competencies=escape(competencies),
-                modules="".join(modules),
-            )
-        )
-
-    unmapped_assets = int(summary.get("unmapped_assets") or 0)
-    return """
-<section class="atlas-panel" id="curriculum-atlas-panel">
-  <div class="atlas-heading">
-    <div>
-      <h2>Curriculum Atlas</h2>
-      <p>Programs, modules, competencies, and archive links from <code>config/curriculum-atlas.json</code>.</p>
-    </div>
-    <div class="atlas-summary">
-      <span><strong>{program_count}</strong> programs</span>
-      <span><strong>{module_count}</strong> modules</span>
-      <span><strong>{linked_assets}</strong> linked assets</span>
-      <span><strong>{unmapped_assets}</strong> unmapped</span>
-    </div>
-  </div>
-  <div class="atlas-unmapped">
-    <div>
-      <h3>Mapping Queue</h3>
-      <p>Archive cards that do not match the current curriculum scaffold yet.</p>
-    </div>
-    <button type="button" onclick="focusAtlasUnmapped()"{unmapped_disabled}>{unmapped_assets} unmapped asset{unmapped_plural}</button>
-  </div>
-  <div class="atlas-grid">
-    {program_cards}
-  </div>
-</section>
-""".format(
-        program_count=int(summary.get("programs") or 0),
-        module_count=int(summary.get("modules") or 0),
-        linked_assets=int(summary.get("linked_assets") or 0),
-        unmapped_assets=unmapped_assets,
-        unmapped_disabled=" disabled" if unmapped_assets == 0 else "",
-        unmapped_plural="" if unmapped_assets == 1 else "s",
-        program_cards="".join(program_cards) or '<div class="atlas-empty">No curriculum programs configured yet.</div>',
-    )
-
-
 def _render_library(records: list[dict]) -> str:
     _annotate_filename_warnings(records)
 
@@ -848,6 +671,7 @@ def _render_library(records: list[dict]) -> str:
       <button class="filter-btn"        id="fb-star"       onclick="setRatingFilter('star')">&#9733; Starred <span id="fc-star"></span></button>
       <button class="filter-btn"        id="fb-reject"     onclick="setRatingFilter('reject')">&#x2715; Rejected <span id="fc-reject"></span></button>
       <button class="filter-btn"        id="fb-unreviewed" onclick="setRatingFilter('unreviewed')">Unreviewed <span id="fc-unreviewed"></span></button>
+      <button class="filter-btn"        id="fb-review-queue" onclick="setRatingFilter('review-queue')">Review Queue <span id="fc-review-queue"></span></button>
       <input id="search" type="text" placeholder="Search prompts…" autocomplete="off"
              oninput="_searchQuery=this.value.toLowerCase().trim();clearAtlasAssetFilter(false);applyFilters()">
       <label class="filter-select-label">
@@ -1144,9 +968,12 @@ function cleanList(value) {{
   if (Array.isArray(value)) return value.map(v => String(v || '').trim()).filter(Boolean);
   return String(value || '').split(',').map(v => v.trim()).filter(Boolean);
 }}
-function metadataStateLabel(item) {{
+function metadataStatesForItem(item) {{
   const entry = metadataForItem(item) || {{}};
-  const states = cleanList(item?.metadata_states || entry.states || []);
+  return cleanList(item?.metadata_states || entry.states || []);
+}}
+function metadataStateLabel(item) {{
+  const states = metadataStatesForItem(item);
   return states.map(state => state.replace(/-/g, ' ')).join(', ');
 }}
 function warningTextForItem(item) {{
@@ -1178,6 +1005,23 @@ function searchTextForItem(item) {{
 function feedbackForItem(item) {{
   const key = feedbackKeyForItem(item);
   return key ? (FEEDBACK[key] || null) : null;
+}}
+function atlasUnmappedIndexSet() {{
+  return new Set((CURRICULUM_ATLAS.unmapped_asset_indices || []).map(value => String(value)));
+}}
+function hasExportState(item) {{
+  const states = metadataStatesForItem(item).map(state => state.toLowerCase());
+  return states.some(state => ['canva', 'exported', 'delivered', 'published'].includes(state));
+}}
+function hasFeedbackAttention(item) {{
+  const entry = feedbackForItem(item) || {{}};
+  const status = String(entry.status || '').toLowerCase();
+  return ['needs-change', 'blocked', 'maybe', 'revise', 'revision-requested'].includes(status) || Boolean(entry.change_request);
+}}
+function isReviewQueueCard(card, ratingValue) {{
+  const idx = card?.dataset?.idx || '';
+  const item = LIBRARY[parseInt(idx || '0', 10)] || {{}};
+  return !ratingValue || hasFeedbackAttention(item) || !hasExportState(item) || atlasUnmappedIndexSet().has(idx);
 }}
 function feedbackLabel(entry) {{
   if (!entry) return '';
@@ -1234,6 +1078,26 @@ function renderTagsForCard(card, item) {{
     tagRow.appendChild(el);
   }});
 }}
+function lineageNextLabel(item) {{
+  if (item?.superseded_by) return 'next: compare';
+  if (hasFeedbackAttention(item)) return 'next: revise';
+  if (!metadataStatesForItem(item).length) return 'next: tag';
+  if (!hasExportState(item)) return 'next: export';
+  return 'ready';
+}}
+function syncLineageForCard(card, item) {{
+  const run = card.querySelector('.lineage-run');
+  const source = card.querySelector('.lineage-source');
+  const next = card.querySelector('.lineage-next');
+  if (run) {{
+    run.textContent = item.run_id ? item.run_id.replace(/^run-/, '') : 'run unknown';
+    run.title = item.run_id || '';
+  }}
+  if (source) {{
+    source.textContent = [item.source || 'archive', item.approval_status || 'unapproved'].filter(Boolean).join(' · ');
+  }}
+  if (next) next.textContent = lineageNextLabel(item);
+}}
 function syncCardContent(card, item) {{
   if (!card || !item) return;
   card.dataset.name = item.name || item.title || '';
@@ -1253,6 +1117,7 @@ function syncCardContent(card, item) {{
     metadataBadge.className = label ? 'metadata-state-badge metadata-state-on' : 'metadata-state-badge';
   }}
   renderTagsForCard(card, item);
+  syncLineageForCard(card, item);
 }}
 function applyMetadataToCards() {{
   document.querySelectorAll('.card').forEach(card => {{
@@ -1280,6 +1145,8 @@ function setFeedbackStatus(kind, message) {{
 async function loadFeedback() {{
   FEEDBACK = _loadLocalFeedback();
   applyFeedbackToCards();
+  updateFilterCounts();
+  applyFilters();
   if (!SERVER_MODE) return;
   try {{
     const resp = await fetch('/api/feedback');
@@ -1287,6 +1154,8 @@ async function loadFeedback() {{
     FEEDBACK = data.items || {{}};
     _saveLocalFeedback(FEEDBACK);
     applyFeedbackToCards();
+    updateFilterCounts();
+    applyFilters();
     if (_detailItem) renderFeedback(_detailItem);
   }} catch (err) {{}}
 }}
@@ -1317,6 +1186,8 @@ async function saveFeedbackForDetail(event) {{
     }}
     _saveLocalFeedback(FEEDBACK);
     applyFeedbackToCards();
+    updateFilterCounts();
+    applyFilters();
     setFeedbackStatus('success', 'Saved locally');
     return;
   }}
@@ -1335,6 +1206,8 @@ async function saveFeedbackForDetail(event) {{
     else delete FEEDBACK[key];
     _saveLocalFeedback(FEEDBACK);
     applyFeedbackToCards();
+    updateFilterCounts();
+    applyFilters();
     renderFeedback(_detailItem);
     setFeedbackStatus('success', 'Saved');
   }} catch (err) {{
@@ -1369,6 +1242,8 @@ async function loadArchiveMetadata() {{
     if (key && ARCHIVE_METADATA[key]) applyMetadataToItem(item, ARCHIVE_METADATA[key]);
   }}
   applyMetadataToCards();
+  updateFilterCounts();
+  applyFilters();
   if (!SERVER_MODE) return;
   try {{
     const resp = await fetch('/api/archive-metadata');
@@ -1380,6 +1255,8 @@ async function loadArchiveMetadata() {{
       applyMetadataToItem(item, key ? ARCHIVE_METADATA[key] || null : null);
     }}
     applyMetadataToCards();
+    updateFilterCounts();
+    applyFilters();
     if (_detailItem) renderMetadata(_detailItem);
   }} catch (err) {{}}
 }}
@@ -1415,6 +1292,8 @@ async function saveMetadataForDetail(event) {{
     _saveLocalMetadata(ARCHIVE_METADATA);
     applyMetadataToItem(_detailItem, ARCHIVE_METADATA[key] || null);
     applyMetadataToCards();
+    updateFilterCounts();
+    applyFilters();
     renderMetadata(_detailItem);
     setMetadataStatus('success', 'Saved locally');
     return;
@@ -1435,6 +1314,8 @@ async function saveMetadataForDetail(event) {{
     _saveLocalMetadata(ARCHIVE_METADATA);
     applyMetadataToItem(_detailItem, data.metadata || null);
     applyMetadataToCards();
+    updateFilterCounts();
+    applyFilters();
     renderMetadata(_detailItem);
     setMetadataStatus('success', 'Saved');
   }} catch (err) {{
@@ -1445,6 +1326,38 @@ function revisionPromptForItem(item) {{
   const base = item?.source_prompt || item?.prompt || item?.caption || '';
   const change = document.getElementById('feedback-change-request')?.value.trim() || feedbackForItem(item)?.change_request || '';
   return change ? base + '\\n\\nRevision request:\\n' + change : base;
+}}
+async function copyPromptForCard(event, idx) {{
+  if (event) {{
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  const item = LIBRARY[idx] || {{}};
+  const text = item.source_prompt || item.prompt || item.caption || '';
+  const button = event?.currentTarget || null;
+  if (!text) return;
+  try {{
+    if (navigator.clipboard && window.isSecureContext) {{
+      await navigator.clipboard.writeText(text);
+    }} else {{
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.setAttribute('readonly', '');
+      area.style.position = 'fixed';
+      area.style.left = '-9999px';
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand('copy');
+      document.body.removeChild(area);
+    }}
+    if (button) {{
+      const original = button.textContent;
+      button.textContent = 'Copied';
+      window.setTimeout(() => {{ button.textContent = original; }}, 1400);
+    }}
+  }} catch (err) {{
+    if (button) button.textContent = 'Copy failed';
+  }}
 }}
 function stageRevisionFromDetail(event, autoSubmit) {{
   if (event) {{
@@ -1703,7 +1616,7 @@ function rateCard(e, key, val, card) {{
 }}
 function setRatingFilter(mode) {{
   _ratingFilter = mode;
-  document.querySelectorAll('#fb-all,#fb-star,#fb-reject,#fb-unreviewed').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('#fb-all,#fb-star,#fb-reject,#fb-unreviewed,#fb-review-queue').forEach(b => b.classList.remove('active'));
   const a = document.getElementById('fb-' + mode);
   if (a) a.classList.add('active');
   applyFilters();
@@ -1748,6 +1661,7 @@ function applyFilters() {{
     if (_ratingFilter === 'star')            show = val === 'star';
     else if (_ratingFilter === 'reject')     show = val === 'reject';
     else if (_ratingFilter === 'unreviewed') show = !val;
+    else if (_ratingFilter === 'review-queue') show = isReviewQueueCard(card, val);
     if (show && _projFilter)   show = card.dataset.project === _projFilter;
     if (show && _modelFilter)  show = card.dataset.model === _modelFilter;
     if (show && _arFilter)     show = card.dataset.ar === _arFilter;
@@ -1764,14 +1678,16 @@ function applyFilters() {{
 function updateFilterCounts() {{
   const ratings = _loadRatings();
   const cards = Array.from(document.querySelectorAll('.card'));
-  let stars = 0, rejects = 0, unreviewed = 0;
+  let stars = 0, rejects = 0, unreviewed = 0, reviewQueue = 0;
   cards.forEach(c => {{
     const v = ratings[c.dataset.ratingKey] || null;
     if (v === 'star') stars++; else if (v === 'reject') rejects++; else unreviewed++;
+    if (isReviewQueueCard(c, v)) reviewQueue++;
   }});
   const set = (id, n) => {{ const el = document.getElementById(id); if (el) el.textContent = n ? ' ' + n : ''; }};
   set('fc-all', cards.length); set('fc-star', stars);
   set('fc-reject', rejects); set('fc-unreviewed', unreviewed);
+  set('fc-review-queue', reviewQueue);
 }}
 function resizeGrid(v) {{
   document.documentElement.style.setProperty('--card-w', v + 'px');
@@ -2109,6 +2025,12 @@ LIBRARY.forEach((item, i) => {{
     <div class="card-title"></div>
     <div class="card-prompt"></div>
     <div class="tag-row"></div>
+    <div class="lineage-row">
+      <span class="lineage-chip lineage-run"></span>
+      <span class="lineage-chip lineage-source"></span>
+      <span class="lineage-chip lineage-next"></span>
+      <button type="button" class="lineage-copy" onclick="copyPromptForCard(event, ${{i}})">Copy Prompt</button>
+    </div>
     <div class="card-foot">
       <span class="card-name"></span>
       <span class="proj-badge">${{item.project.replace(/-/g, ' ')}}</span>
@@ -2181,6 +2103,28 @@ def _library_extra_css() -> str:
   border-color: rgba(0,200,180,0.38);
   color: var(--teal);
   font-weight: 700;
+}
+.portal-mode-btn:focus-visible,
+.filter-btn:focus-visible,
+.filter-select-label select:focus-visible,
+.sort-select:focus-visible,
+.btn-rate:focus-visible,
+.lineage-copy:focus-visible,
+.run-detail-close:focus-visible,
+.atlas-filter-banner button:focus-visible,
+.atlas-module button:focus-visible,
+.atlas-unmapped button:focus-visible,
+.studio-submit:focus-visible,
+.studio-inline-btn:focus-visible,
+.portal-action-submit:focus-visible,
+.ops-billing-form button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0,200,180,0.16);
 }
 .portal-mode-panel[hidden] {
   display: none !important;
@@ -2310,6 +2254,51 @@ def _library_extra_css() -> str:
   gap: 1rem;
   margin-top: 0.85rem;
   padding: 0.8rem 1rem;
+}
+.atlas-concept-graph {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.025);
+  margin-top: 0.85rem;
+  padding: 0.9rem 1rem;
+  overflow: hidden;
+}
+.atlas-concept-graph h3 {
+  margin: 0;
+  font-size: 0.88rem;
+}
+.atlas-concept-graph p {
+  margin: 0.25rem 0 0;
+  color: var(--dim);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+.atlas-concept-graph svg {
+  width: 100%;
+  max-height: 260px;
+}
+.atlas-graph-edges line {
+  stroke: rgba(0,200,180,0.24);
+  stroke-width: 1.2;
+}
+.atlas-graph-edges text {
+  fill: var(--dim);
+  font-size: 9px;
+  text-anchor: middle;
+}
+.atlas-graph-nodes circle {
+  fill: rgba(124,106,247,0.9);
+  stroke: rgba(255,255,255,0.72);
+  stroke-width: 1.5;
+}
+.atlas-graph-nodes text {
+  fill: var(--ink);
+  font-size: 10px;
+  text-anchor: middle;
 }
 .atlas-grid {
   display: grid;
@@ -2529,6 +2518,37 @@ def _library_extra_css() -> str:
   flex-wrap: wrap;
   padding: 0.35rem 0.65rem 0;
   min-height: 1rem;
+}
+.lineage-row {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  flex-wrap: wrap;
+  padding: 0.42rem 0.65rem 0;
+}
+.lineage-chip,
+.lineage-copy {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: rgba(0,0,0,0.12);
+  color: var(--dim);
+  font-size: 0.58rem;
+  line-height: 1.1;
+  padding: 0.14rem 0.32rem;
+}
+.lineage-next {
+  color: #9ee7bf;
+  border-color: rgba(67,210,126,0.28);
+  background: rgba(67,210,126,0.08);
+}
+.lineage-copy {
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.58rem;
+}
+.lineage-copy:hover {
+  color: var(--teal);
+  border-color: rgba(0,200,180,0.34);
 }
 #search {
   background: var(--surface);
@@ -3214,10 +3234,14 @@ def _library_extra_css() -> str:
   }
   .atlas-heading,
   .atlas-unmapped,
+  .atlas-concept-graph,
   .atlas-program-head,
   .portal-actions-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .atlas-concept-graph {
+    grid-template-columns: 1fr;
   }
   .atlas-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3241,6 +3265,20 @@ def _library_extra_css() -> str:
   }
   .studio-note {
     white-space: normal;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+  .studio-submit:hover,
+  .studio-inline-btn:hover {
+    transform: none;
   }
 }
 </style>"""

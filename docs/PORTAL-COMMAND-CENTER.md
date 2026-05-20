@@ -7,8 +7,8 @@ archive, and uses the same generation path as the CLI.
 ## Surfaces
 
 - **Review** is the image-first default mode. It contains archive filters,
-  search, ratings, metadata badges, feedback badges, keyboard review, and the
-  run detail panel.
+  Review Queue, lineage chips, copy-prompt actions, search, ratings, metadata
+  badges, feedback badges, keyboard review, and the run detail panel.
 - **Generate** contains Prompt Studio and launches single-prompt or Markdown
   batch runs through `/api/regen`.
 - **Curate** exposes local action helpers such as approve starred, Canva export,
@@ -16,7 +16,8 @@ archive, and uses the same generation path as the CLI.
 - **Spend** contains local spend, billing imports, usage, and deploy readiness.
 - **Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json`,
   including facilitator notes, discussion prompts, critique rubrics, concept
-  links, and links from programs/modules back to matching archive cards.
+  links, a compact concept graph, and links from programs/modules back to
+  matching archive cards.
 - **Spend & Review Ops** summarizes local usage and run manifests:
   - provider-billing imports from `data/billing-imports.json`
   - estimated spend from local manifest amounts plus `config/pricing.json`
@@ -97,8 +98,19 @@ The **Teach** mode reads `config/curriculum-atlas.json`, matches archive cards
 against program and module patterns, and shows linked asset counts plus an
 unmapped queue. Selecting an atlas module switches back to **Review** mode with
 the matching image cards filtered. Module cards can also show facilitator notes,
-discussion prompts, critique rubric items, and concept links. See
+discussion prompts, critique rubric items, and concept links. The current
+concept graph is static SVG generated from `concept_links`; it is intentionally
+lightweight until the Atlas schema has been used in real review sessions. See
 [Curriculum Atlas](CURRICULUM-ATLAS.md).
+
+## Review Queue And Lineage
+
+The **Review Queue** filter surfaces cards that are still likely to need human
+attention: unrated cards, cards with feedback that requests attention, cards
+without export/publish metadata, and cards not yet mapped into the Curriculum
+Atlas. Each card also shows compact lineage chips for source run, archive
+source/approval state, and next action. **Copy Prompt** copies the source prompt
+for quick reuse or review notes.
 
 ## HTTP Endpoints
 
@@ -134,4 +146,7 @@ calling a provider, starts `generate.py serve` on a random localhost port, then
 checks the portal in Chromium. It verifies the home page, mode navigation,
 Teach/Curriculum Atlas rendering, usage and readiness APIs, search, run detail,
 metadata save, feedback save, rating filters, desktop and mobile overflow, and
-mobile lazy image loading after scroll.
+mobile lazy image loading after scroll. The quality lane also checks concept
+graph rendering, Review Queue behavior, lineage/copy affordances, focusable
+mode controls, reduced-motion CSS, absence of `transition: all`, and a clean
+browser console.

@@ -224,16 +224,24 @@ async function main() {
       const tagsInput = document.querySelector('#metadata-tags');
       const feedbackStatus = document.querySelector('#feedback-status');
       const feedbackNote = document.querySelector('#feedback-note');
+      const cssText = Array.from(document.querySelectorAll('style'))
+        .map((style) => style.textContent || '')
+        .join('\n');
 
       const initialMode = document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '';
       const reviewVisible = !document.querySelector('#portal-mode-review').hidden;
       setPortalMode('teach');
       const teachVisible = !document.querySelector('#portal-mode-teach').hidden;
+      const teachButton = document.querySelector('.portal-mode-btn[data-mode-target="teach"]');
+      teachButton.focus();
+      const teachFocusStyle = window.getComputedStyle(teachButton);
       const atlasPrograms = document.querySelectorAll('.atlas-program').length;
       const atlasModules = document.querySelectorAll('.atlas-module').length;
       const atlasFacilitatorNotes = document.querySelectorAll('.atlas-facilitator-notes li').length;
       const atlasRubricItems = document.querySelectorAll('.atlas-rubric-item').length;
       const atlasConceptLinks = document.querySelectorAll('.atlas-concept-link').length;
+      const atlasGraphNodes = document.querySelectorAll('.atlas-graph-nodes g').length;
+      const atlasGraphEdges = document.querySelectorAll('.atlas-graph-edges line').length;
       focusAtlasUnmapped();
       const atlasFilterVisible = countVisible();
       const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
@@ -268,6 +276,8 @@ async function main() {
       applyRating(first, first.dataset.ratingKey);
       setRatingFilter('star');
       const starFilterVisible = countVisible();
+      setRatingFilter('review-queue');
+      const reviewQueueVisible = countVisible();
       setRatingFilter('all');
 
       return {
@@ -286,8 +296,21 @@ async function main() {
           facilitatorNotes: atlasFacilitatorNotes,
           rubricItems: atlasRubricItems,
           conceptLinks: atlasConceptLinks,
+          graphNodes: atlasGraphNodes,
+          graphEdges: atlasGraphEdges,
           filterVisible: atlasFilterVisible,
           bannerVisible: atlasBannerVisible,
+        },
+        quality: {
+          focusedTeachModeButton: document.activeElement === teachButton,
+          teachFocusOutline: teachFocusStyle.outlineStyle,
+          teachFocusShadow: teachFocusStyle.boxShadow,
+          hasFocusVisibleCss: cssText.includes(':focus-visible'),
+          hasReducedMotionCss: cssText.includes('prefers-reduced-motion'),
+          hasTransitionAll: /transition\s*:\s*all\b/i.test(cssText),
+          lineageChips: document.querySelectorAll('.lineage-chip').length,
+          copyPromptButtons: document.querySelectorAll('.lineage-copy').length,
+          reviewQueueCount: document.querySelector('#fc-review-queue')?.textContent?.trim() || '',
         },
         cards: document.querySelectorAll('.card').length,
         visibleCards: countVisible(),
@@ -297,6 +320,7 @@ async function main() {
         metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
         feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
         starFilterVisible,
+        reviewQueueVisible,
         overflow: {
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,
@@ -321,8 +345,16 @@ async function main() {
     assert(desktopState.atlas.facilitatorNotes >= 1, 'curriculum atlas did not render facilitator notes');
     assert(desktopState.atlas.rubricItems >= 1, 'curriculum atlas did not render critique rubric items');
     assert(desktopState.atlas.conceptLinks >= 1, 'curriculum atlas did not render concept links');
+    assert(desktopState.atlas.graphNodes >= 1, 'curriculum atlas concept graph did not render nodes');
+    assert(desktopState.atlas.graphEdges >= 1, 'curriculum atlas concept graph did not render edges');
     assert(desktopState.atlas.filterVisible === 2, `unmapped atlas filter should show two cards, got ${desktopState.atlas.filterVisible}`);
     assert(desktopState.atlas.bannerVisible, 'atlas filter banner did not appear');
+    assert(desktopState.quality.focusedTeachModeButton, 'teach mode button did not accept focus');
+    assert(desktopState.quality.hasFocusVisibleCss, 'portal CSS is missing focus-visible guardrails');
+    assert(desktopState.quality.hasReducedMotionCss, 'portal CSS is missing prefers-reduced-motion guardrails');
+    assert(!desktopState.quality.hasTransitionAll, 'portal CSS still contains transition: all');
+    assert(desktopState.quality.lineageChips >= 6, 'card lineage chips did not render');
+    assert(desktopState.quality.copyPromptButtons === 2, `expected two copy prompt buttons, got ${desktopState.quality.copyPromptButtons}`);
     assert(desktopState.cards === 2, `expected two cards, got ${desktopState.cards}`);
     assert(desktopState.visibleCards === 2, `expected two visible cards, got ${desktopState.visibleCards}`);
     assert(desktopState.imageNaturalWidths.every((width) => width > 0), 'desktop images did not load');
@@ -331,6 +363,7 @@ async function main() {
     assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
     assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
     assert(desktopState.starFilterVisible === 1, `star filter should show one card, got ${desktopState.starFilterVisible}`);
+    assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
     assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');
 
     const desktopScreenshot = path.join(tmpRoot, 'portal-desktop.png');
