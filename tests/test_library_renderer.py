@@ -368,6 +368,14 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
     assert 'id="portal-mode-teach"' in html
     assert 'id="curriculum-atlas-panel"' in html
     assert "Responsible AI Program" in html
+    assert "Facilitator Notes" in html
+    assert "Discussion Prompts" in html
+    assert "Critique Rubric" in html
+    assert "Concept Links" in html
+    assert "Foundation clarity" in html
+    assert "AI literacy" in html
+    assert 'class="atlas-rubric-item"' in html
+    assert 'class="atlas-concept-link"' in html
     assert '"linked_assets": 1' in html
     assert "const CURRICULUM_ATLAS =" in html
     assert "function setPortalMode(mode)" in html

@@ -147,7 +147,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
-| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, and asset-matching terms into the portal's Teach mode. | Expand schema with facilitator notes, assessment/rubric criteria, and concept-graph relationships after real review sessions. |
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode. | Add graph visualization and visual baselines after real review sessions prove the schema shape. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -170,7 +170,7 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Expand Curriculum Atlas with facilitator notes, critique rubrics, and concept graph relationships.
+1. Add Curriculum Atlas graph visualization and visual baselines.
 2. Stamp portal export actions back into archive metadata automatically.
 3. Add archive health and cleanup reports.
 4. Add MCP and CLI dry-run smoke tests.

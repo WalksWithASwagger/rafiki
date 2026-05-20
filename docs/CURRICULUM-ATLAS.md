@@ -26,6 +26,10 @@ The schema is:
 | `modules[].level` | Suggested learner level or sequence marker. |
 | `modules[].competencies` | Module-specific competency labels. |
 | `modules[].asset_query` | Terms used to link generated archive cards to the module. |
+| `modules[].facilitator_notes` | Short teaching notes for how to use or critique the assets. |
+| `modules[].discussion_prompts` | Learner-facing prompts for live review or cohort discussion. |
+| `modules[].critique_criteria` | Evaluation rubric items with `id`, `label`, `prompt`, and optional `scale`. |
+| `modules[].concept_links` | Lightweight concept relationships with `concept`, `relation`, and `target`. |
 
 ## Portal Behavior
 
@@ -35,11 +39,13 @@ module patterns, then exposes:
 
 - linked asset counts per program and module
 - an unmapped queue for cards that do not match the scaffold yet
+- facilitator notes, discussion prompts, critique rubric items, and concept
+  links for each module
 - buttons that jump back to **Review** mode with the matching image cards
   filtered
 
-The atlas is read-only in this first slice. Keep authoring in the JSON file
-until the schema has proved itself through real teaching/review sessions.
+The atlas is read-only in the portal. Keep authoring in the JSON file until the
+schema has proved itself through real teaching/review sessions.
 
 ## Verification
 

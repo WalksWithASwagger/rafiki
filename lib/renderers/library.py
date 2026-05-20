@@ -575,6 +575,83 @@ def _ops_panel_html() -> str:
 """
 
 
+def _atlas_list_html(title: str, items: list[str], class_name: str) -> str:
+    if not items:
+        return ""
+    rows = "".join(f"<li>{escape(str(item))}</li>" for item in items)
+    return f"""
+    <div class="atlas-teaching-block {class_name}">
+      <h5>{escape(title)}</h5>
+      <ul>{rows}</ul>
+    </div>
+    """
+
+
+def _atlas_rubric_html(criteria: list[dict]) -> str:
+    if not criteria:
+        return ""
+    rows = []
+    for item in criteria:
+        rows.append(
+            """
+            <li class="atlas-rubric-item">
+              <strong>{label}</strong>
+              <span>{prompt}</span>
+              {scale}
+            </li>
+            """.format(
+                label=escape(str(item.get("label") or "Criterion")),
+                prompt=escape(str(item.get("prompt") or "")),
+                scale=(
+                    f'<em>{escape(str(item.get("scale")))}</em>'
+                    if item.get("scale") else ""
+                ),
+            )
+        )
+    return """
+    <div class="atlas-teaching-block atlas-rubric">
+      <h5>Critique Rubric</h5>
+      <ul>{rows}</ul>
+    </div>
+    """.format(rows="".join(rows))
+
+
+def _atlas_concept_links_html(links: list[dict]) -> str:
+    if not links:
+        return ""
+    rows = []
+    for link in links:
+        rows.append(
+            """
+            <li class="atlas-concept-link">
+              <strong>{concept}</strong>
+              <span>{relation}</span>
+              <strong>{target}</strong>
+            </li>
+            """.format(
+                concept=escape(str(link.get("concept") or "")),
+                relation=escape(str(link.get("relation") or "related")),
+                target=escape(str(link.get("target") or "")),
+            )
+        )
+    return """
+    <div class="atlas-teaching-block atlas-concepts">
+      <h5>Concept Links</h5>
+      <ul>{rows}</ul>
+    </div>
+    """.format(rows="".join(rows))
+
+
+def _atlas_teaching_html(module: dict) -> str:
+    blocks = [
+        _atlas_list_html("Facilitator Notes", module.get("facilitator_notes") or [], "atlas-facilitator-notes"),
+        _atlas_list_html("Discussion Prompts", module.get("discussion_prompts") or [], "atlas-discussion-prompts"),
+        _atlas_rubric_html(module.get("critique_criteria") or []),
+        _atlas_concept_links_html(module.get("concept_links") or []),
+    ]
+    return "".join(blocks)
+
+
 def _atlas_panel_html(atlas: dict) -> str:
     summary = atlas.get("summary", {})
     programs = atlas.get("programs", [])
@@ -593,6 +670,7 @@ def _atlas_panel_html(atlas: dict) -> str:
                     <h4>{title}</h4>
                     <p>{objective}</p>
                     <span>{level}{competencies}</span>
+                    {teaching}
                   </div>
                   <button type="button" onclick='focusAtlasModule({program_id}, {module_id})'{disabled}>{asset_count} asset{asset_plural}</button>
                 </div>
@@ -601,6 +679,7 @@ def _atlas_panel_html(atlas: dict) -> str:
                     objective=escape(str(module.get("objective") or "")),
                     level=escape(str(module.get("level") or "module")),
                     competencies=escape(f" · {competencies}" if competencies else ""),
+                    teaching=_atlas_teaching_html(module),
                     program_id=program_id,
                     module_id=module_id,
                     disabled=" disabled" if asset_count == 0 else "",
@@ -2278,6 +2357,75 @@ def _library_extra_css() -> str:
   font-size: 0.68rem;
   margin-top: 0.3rem;
 }
+.atlas-teaching-block {
+  border-top: 1px solid var(--border);
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+}
+.atlas-teaching-block h5 {
+  color: var(--dim);
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.35rem;
+  text-transform: uppercase;
+}
+.atlas-teaching-block ul {
+  display: grid;
+  gap: 0.32rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.atlas-teaching-block li {
+  color: var(--ink);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.atlas-rubric-item,
+.atlas-concept-link {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255,255,255,0.025);
+  padding: 0.45rem 0.5rem;
+}
+.atlas-rubric-item strong,
+.atlas-rubric-item span,
+.atlas-rubric-item em,
+.atlas-concept-link strong,
+.atlas-concept-link span {
+  display: block;
+  margin: 0;
+}
+.atlas-rubric-item strong,
+.atlas-concept-link strong {
+  color: var(--ink);
+  font-size: 0.72rem;
+}
+.atlas-rubric-item span,
+.atlas-concept-link span {
+  color: var(--dim);
+  font-size: 0.68rem;
+}
+.atlas-rubric-item em {
+  color: var(--teal);
+  font-size: 0.66rem;
+  font-style: normal;
+  margin-top: 0.25rem;
+}
+.atlas-concept-link {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 0.35rem;
+  align-items: center;
+}
+.atlas-concept-link span {
+  border: 1px solid rgba(0,200,180,0.24);
+  border-radius: 999px;
+  color: var(--teal);
+  padding: 0.08rem 0.3rem;
+  text-align: center;
+  white-space: nowrap;
+}
 .atlas-empty {
   color: var(--dim);
   border: 1px solid var(--border);
@@ -3077,6 +3225,9 @@ def _library_extra_css() -> str:
   }
   .atlas-module {
     flex-direction: column;
+  }
+  .atlas-concept-link {
+    grid-template-columns: 1fr;
   }
   .ops-heading {
     align-items: flex-start;

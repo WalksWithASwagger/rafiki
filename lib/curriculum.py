@@ -49,6 +49,10 @@ def build_curriculum_atlas(records: list[dict], config: dict | None = None) -> d
                 "level": str(module.get("level") or ""),
                 "competencies": _clean_list(module.get("competencies")),
                 "asset_query": _clean_list(module.get("asset_query")),
+                "facilitator_notes": _clean_list(module.get("facilitator_notes")),
+                "discussion_prompts": _clean_list(module.get("discussion_prompts")),
+                "critique_criteria": _clean_criteria(module.get("critique_criteria")),
+                "concept_links": _clean_concept_links(module.get("concept_links")),
                 "asset_indices": asset_indices,
                 "asset_count": len(asset_indices),
             })
@@ -95,6 +99,59 @@ def _clean_list(value: object) -> list[str]:
         seen.add(text)
         out.append(text)
     return out
+
+
+def _clean_criteria(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    out = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        label = str(item.get("label") or item.get("id") or "").strip()
+        prompt = str(item.get("prompt") or "").strip()
+        if not label and not prompt:
+            continue
+        out.append({
+            "id": str(item.get("id") or _slugify(label or prompt)).strip(),
+            "label": label or prompt,
+            "prompt": prompt,
+            "scale": str(item.get("scale") or "").strip(),
+        })
+    return out
+
+
+def _clean_concept_links(value: object) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    out = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        concept = str(item.get("concept") or "").strip()
+        target = str(item.get("target") or "").strip()
+        relation = str(item.get("relation") or "related").strip()
+        if not concept and not target:
+            continue
+        out.append({
+            "concept": concept or target,
+            "relation": relation or "related",
+            "target": target or concept,
+        })
+    return out
+
+
+def _slugify(value: str) -> str:
+    out = []
+    for ch in value.casefold():
+        if ch.isalnum():
+            out.append(ch)
+        elif ch in " -_/":
+            out.append("-")
+    slug = "".join(out)
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    return slug.strip("-")
 
 
 def _patterns_for(source: dict, *keys: str) -> list[str]:
