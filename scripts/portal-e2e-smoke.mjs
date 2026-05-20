@@ -231,6 +231,9 @@ async function main() {
       const teachVisible = !document.querySelector('#portal-mode-teach').hidden;
       const atlasPrograms = document.querySelectorAll('.atlas-program').length;
       const atlasModules = document.querySelectorAll('.atlas-module').length;
+      const atlasFacilitatorNotes = document.querySelectorAll('.atlas-facilitator-notes li').length;
+      const atlasRubricItems = document.querySelectorAll('.atlas-rubric-item').length;
+      const atlasConceptLinks = document.querySelectorAll('.atlas-concept-link').length;
       focusAtlasUnmapped();
       const atlasFilterVisible = countVisible();
       const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
@@ -280,6 +283,9 @@ async function main() {
         atlas: {
           programs: atlasPrograms,
           modules: atlasModules,
+          facilitatorNotes: atlasFacilitatorNotes,
+          rubricItems: atlasRubricItems,
+          conceptLinks: atlasConceptLinks,
           filterVisible: atlasFilterVisible,
           bannerVisible: atlasBannerVisible,
         },
@@ -312,6 +318,9 @@ async function main() {
     assert(desktopState.modeChecks.spendVisible, 'spend mode did not become visible');
     assert(desktopState.atlas.programs >= 1, 'curriculum atlas did not render programs');
     assert(desktopState.atlas.modules >= 1, 'curriculum atlas did not render modules');
+    assert(desktopState.atlas.facilitatorNotes >= 1, 'curriculum atlas did not render facilitator notes');
+    assert(desktopState.atlas.rubricItems >= 1, 'curriculum atlas did not render critique rubric items');
+    assert(desktopState.atlas.conceptLinks >= 1, 'curriculum atlas did not render concept links');
     assert(desktopState.atlas.filterVisible === 2, `unmapped atlas filter should show two cards, got ${desktopState.atlas.filterVisible}`);
     assert(desktopState.atlas.bannerVisible, 'atlas filter banner did not appear');
     assert(desktopState.cards === 2, `expected two cards, got ${desktopState.cards}`);

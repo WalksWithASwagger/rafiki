@@ -14,8 +14,9 @@ archive, and uses the same generation path as the CLI.
 - **Curate** exposes local action helpers such as approve starred, Canva export,
   Notion dry run, registry export, and static deploy helper.
 - **Spend** contains local spend, billing imports, usage, and deploy readiness.
-- **Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json` and
-  links programs/modules back to matching archive cards.
+- **Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json`,
+  including facilitator notes, discussion prompts, critique rubrics, concept
+  links, and links from programs/modules back to matching archive cards.
 - **Spend & Review Ops** summarizes local usage and run manifests:
   - provider-billing imports from `data/billing-imports.json`
   - estimated spend from local manifest amounts plus `config/pricing.json`
@@ -95,7 +96,9 @@ badges and searchable tags instead of being trapped in browser-local storage.
 The **Teach** mode reads `config/curriculum-atlas.json`, matches archive cards
 against program and module patterns, and shows linked asset counts plus an
 unmapped queue. Selecting an atlas module switches back to **Review** mode with
-the matching image cards filtered. See [Curriculum Atlas](CURRICULUM-ATLAS.md).
+the matching image cards filtered. Module cards can also show facilitator notes,
+discussion prompts, critique rubric items, and concept links. See
+[Curriculum Atlas](CURRICULUM-ATLAS.md).
 
 ## HTTP Endpoints
 
