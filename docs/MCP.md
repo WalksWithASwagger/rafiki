@@ -165,6 +165,7 @@ Notion workflows.
 {"args": ["--usage"]}
 {"args": ["library"]}
 {"args": ["archive-health", "--json"]}
+{"args": ["archive-health", "--cleanup-report"]}
 {"args": ["approve", "rap-all-weeks", "--run", "20260507-100000"]}
 {"args": ["clean", "rap-all-weeks", "--dry-run"]}
 {"args": ["billing", "summary", "--json"]}

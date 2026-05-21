@@ -181,6 +181,7 @@ python generate.py view <project> --all-runs
 npx rafiki view <project> --all-runs
 python generate.py library
 python generate.py library --open
+python generate.py archive-health --cleanup-report
 npm run smoke:dry-run
 ```
 

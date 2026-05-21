@@ -31,12 +31,12 @@ image generation platform.
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
 | Local portal | `lib/server.py`, `lib/renderers/library.py`, `lib/renderers/library_atlas.py` | Local library with all-runs archive browsing, review queue, lineage chips, filters, keyboard review, run detail panel, ratings, feedback, evaluations, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, Teach mode, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
-| Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, read-only archive health reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
+| Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, read-only archive health and cleanup reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 212 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 214 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -85,7 +85,7 @@ Goal: make common creative workflows hard to break.
 | P1 | Split `generate.py` subcommands into command modules when touched. | New command work does not make the dispatcher larger. |
 | P1 | Strengthen run manifests. | `run.json` records provider, model, style, prompt file, reference images, CLI/tool source, timings, and error states consistently. |
 | Shipped | Add cost and throughput summaries. | The portal now summarizes local manifest cost amounts, pricing-profile estimates, unpriced image counts, run duration, model mix, failed images, and recent runs. |
-| P2 | Make cleanup safer. | `clean` can report reclaimable disk space and defaults to dry-run in docs. |
+| Shipped | Make cleanup safer to inspect. | `archive-health --cleanup-report` groups cleanup candidates and risky runs by project/run, reports approved coverage and candidate bytes, and suggests dry-run `clean --keep-approved` commands without mutating outputs. |
 
 ## Phase 3: Registry-Backed Asset Library
 
@@ -101,7 +101,7 @@ historical `run-*` image while keeping curated registry/export scopes available.
 | Shipped | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
 | Shipped | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
 | Shipped | Add durable archive metadata state. | `output/archive-metadata.json` stores title overrides, tags, export/publish markers, and superseded links; library cards merge that state into badges and search, and successful portal Canva/Notion/deploy actions stamp matching source cards automatically. |
-| Shipped | Add read-only archive health reporting. | `python generate.py archive-health` reports missing images, malformed run manifests, duplicate filenames, sidecar orphans, disk usage, and cleanup risk without mutating outputs. |
+| Shipped | Add read-only archive health reporting. | `python generate.py archive-health` reports missing images, malformed run manifests, duplicate filenames, sidecar orphans, disk usage, cleanup risk, and advisory cleanup candidates without mutating outputs. |
 | P1 | Add approval/export state to registry exports. | Registry exports can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
 | P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
@@ -170,17 +170,17 @@ Before declaring a roadmap phase done:
 - `npm run smoke:dry-run`
 - `npm run e2e:portal`
 - `python generate.py archive-health --json`
+- `python generate.py archive-health --cleanup-report`
 - Docs checked for stale "known gap" claims
 - Git status reviewed for unrelated local artifacts
 
 ## Near-Term Execution Order
 
-1. Turn archive health findings into a conservative cleanup report when the read-only contract has settled.
-2. Add richer source mapping for project-level static deploys that do not point at approved/ or run-* viewers.
-3. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
-4. Connect evaluation decisions to Curriculum Atlas critique criteria.
-5. Expand doctor remediation for package and browser setup.
-6. Add prompt/run lineage comparisons across reruns and exports.
+1. Add richer source mapping for project-level static deploys that do not point at approved/ or run-* viewers.
+2. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
+3. Connect evaluation decisions to Curriculum Atlas critique criteria.
+4. Expand doctor remediation for package and browser setup.
+5. Add prompt/run lineage comparisons across reruns and exports.
 
 ## Non-Goals For Now
 

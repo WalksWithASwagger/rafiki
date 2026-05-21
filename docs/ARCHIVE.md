@@ -59,11 +59,14 @@ the rest.
    ```bash
    python generate.py archive-health
    python generate.py archive-health --json
+   python generate.py archive-health --cleanup-report
    ```
    This is read-only. It reports missing images, malformed `run.json` files,
    duplicate filenames, orphaned ratings/feedback/evaluation/metadata keys,
    image disk usage, and cleanup-risk counts before anyone deletes generated
-   work.
+   work. The cleanup report groups runs by project, labels low-risk candidates
+   versus repair-first or human-review cases, and prints the dry-run follow-up
+   command before any destructive cleanup is considered.
 
 ## Layout
 
@@ -128,7 +131,8 @@ or trace it later:
 - **`approved/` is never touched by `clean`.**
 - **`archive-health` is a report, not a cleanup command.** It does not mutate
   images, ratings, feedback, evaluations, archive metadata, manifests, or
-  approved sets.
+  approved sets. The `--cleanup-report` view is also advisory only; candidate
+  runs still require a separate `clean --keep-approved --dry-run` review.
 
 ## Where this lives
 

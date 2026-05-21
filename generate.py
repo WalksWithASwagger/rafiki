@@ -452,6 +452,11 @@ def _cmd_archive_health(argv: list[str]) -> None:
         help="Root output directory (default: output/ next to generate.py)",
     )
     p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+    p.add_argument(
+        "--cleanup-report",
+        action="store_true",
+        help="Print the conservative cleanup report grouped by project and run",
+    )
     args = p.parse_args(argv)
 
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
@@ -460,6 +465,9 @@ def _cmd_archive_health(argv: list[str]) -> None:
     report = archive_health_report(output_root)
     if args.json_output:
         print(json.dumps(report, indent=2))
+        return
+    if args.cleanup_report:
+        _print_archive_cleanup_report(report)
         return
 
     summary = report["summary"]
@@ -474,10 +482,54 @@ def _cmd_archive_health(argv: list[str]) -> None:
     )
     print(
         f"Orphans: ratings={summary['orphaned_ratings']} "
-        f"feedback={summary['orphaned_feedback']} metadata={summary['orphaned_metadata']}"
+        f"feedback={summary['orphaned_feedback']} "
+        f"evaluations={summary['orphaned_evaluations']} "
+        f"metadata={summary['orphaned_metadata']}"
+    )
+    cleanup = report["cleanup_report"]["summary"]
+    print(
+        f"Cleanup candidates: {cleanup['candidate_runs']} run(s), "
+        f"{cleanup['candidate_bytes']} bytes; risky runs: {cleanup['risky_runs']}"
     )
     for rec in report["recommendations"]:
         print(f"- {rec}")
+
+
+def _print_archive_cleanup_report(report: dict) -> None:
+    cleanup = report["cleanup_report"]
+    summary = cleanup["summary"]
+    print(f"Archive cleanup report: {report['output_root']}")
+    print(f"Policy: {cleanup['policy']}")
+    print(
+        f"Candidates: {summary['candidate_runs']} run(s), "
+        f"{summary['candidate_images']} image(s), {summary['candidate_bytes']} bytes"
+    )
+    print(
+        f"Review before cleanup: {summary['risky_runs']} run(s), "
+        f"{summary['sidecar_orphan_groups']} sidecar orphan group(s), "
+        f"{summary['duplicate_filename_groups']} duplicate filename group(s)"
+    )
+
+    for project in cleanup["projects"]:
+        project_summary = project["summary"]
+        print(
+            f"\n{project['project']}: {project_summary['candidate_runs']} candidate / "
+            f"{project_summary['risky_runs']} review"
+        )
+        for run in project["runs"]:
+            print(
+                f"  [{run['action']}:{run['risk_level']}] {run['run']} "
+                f"{run['approved_images']}/{run['image_count']} approved, "
+                f"{run['disk_bytes']} bytes"
+            )
+            print(f"    {run['reason']}")
+        for command in project["suggested_commands"]:
+            print(f"    next: {command}")
+
+    if cleanup["sidecar_orphans"]:
+        print("\nSidecar orphans:")
+        for orphan in cleanup["sidecar_orphans"]:
+            print(f"  {orphan['collection']}: {orphan['count']} key(s)")
 
 
 def _cmd_deploy(argv: list[str]) -> None:
