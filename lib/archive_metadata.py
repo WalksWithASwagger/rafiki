@@ -7,7 +7,7 @@ import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 METADATA_FILENAME = "archive-metadata.json"
 ARCHIVE_STATES = {"canva", "notion", "deployed", "published", "superseded"}
@@ -130,3 +130,42 @@ def update_archive_metadata(path: Path, payload: dict[str, Any]) -> dict[str, An
     data["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
     save_archive_metadata(path, data)
     return {"ok": True, "key": key, "metadata": items.get(key)}
+
+
+def stamp_archive_state(path: Path, keys: Iterable[str], state: str) -> dict[str, Any]:
+    """Append an archive state to existing card metadata without erasing fields."""
+    clean_state = _clean_list([state], "state", allowed=ARCHIVE_STATES)
+    if not clean_state:
+        raise ValueError("state is required")
+    state = clean_state[0]
+
+    data = load_archive_metadata(path)
+    items = data.setdefault("items", {})
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    stamped_keys: list[str] = []
+
+    for raw_key in keys:
+        key = _clean_text(raw_key, "key", max_len=1000)
+        if not key:
+            continue
+        entry = items.get(key)
+        if not isinstance(entry, dict):
+            entry = {}
+        states = _clean_list(entry.get("states"), "states", allowed=ARCHIVE_STATES)
+        if state not in states:
+            states.append(state)
+        entry["states"] = states
+        entry["updated_at"] = now
+        items[key] = entry
+        stamped_keys.append(key)
+
+    if stamped_keys:
+        data["updated_at"] = now
+        save_archive_metadata(path, data)
+
+    return {
+        "ok": True,
+        "state": state,
+        "stamped": len(stamped_keys),
+        "keys": stamped_keys,
+    }

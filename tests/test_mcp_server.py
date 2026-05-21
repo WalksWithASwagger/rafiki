@@ -183,6 +183,18 @@ def test_run_billing_summary_bridge(tmp_path):
     assert summary["entries"] == 0
 
 
+def test_run_archive_health_bridge(tmp_path):
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+
+    payload = json.loads(mcp_server.rafiki_run(["archive-health", "--output-dir", str(output_root), "--json"]))
+
+    assert payload["success"] is True
+    assert payload["mutating"] is False
+    assert payload["json"]["ok"] is True
+    assert payload["json"]["summary"]["projects"] == 0
+
+
 def test_registry_search_wrapper_returns_structured_matches(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     approved = output_root / "search-project" / "approved"

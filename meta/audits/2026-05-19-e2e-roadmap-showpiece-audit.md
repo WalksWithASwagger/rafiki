@@ -24,17 +24,19 @@ Commands and checks run:
 - Wrote two local fixture images into the smoke run so the archive could test
   real image loading without provider spend.
 - `python3 generate.py library`: passed with `2/2 present` across one project.
-- `npm run docs:check`: passed; 24 Markdown files checked.
+- `npm run docs:check`: passed; 24 Markdown files checked in the original
+  audit. The 2026-05-21 follow-up checks 26 Markdown files.
 - `npm run pack:check`: passed; dry-run package now includes the E2E smoke
-  script and contains 82 files.
-- `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed;
-  194 tests passed with one upstream Python 3.14 deprecation warning.
+  script, dry-run smoke script, and contains 90 files.
+- `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed in the
+  original audit with 199 tests. The 2026-05-21 follow-up passes 217 tests with
+  one upstream Python 3.14 deprecation warning.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm run doctor`: passed;
   0 critical issues and expected local provider-key warnings.
 - `npm run e2e:portal`: added and passed; it creates a disposable fixture
   archive, starts the portal on a random local port, checks desktop/mobile
-  browser behavior in Chromium, asserts screenshots are nonblank, and cleans
-  up its temp output/server process.
+  browser behavior in Chromium, asserts screenshot visual baseline metrics, and
+  cleans up its temp output/server process.
 
 Browser/API checks:
 
@@ -44,17 +46,50 @@ Browser/API checks:
 - `/api/deploy-readiness` returned a safe readiness report with Vercel detected
   and provider/auth checks marked optional.
 - Desktop browser smoke found two cards, both images loaded at natural widths
-  960px and 720px, no horizontal overflow, and a nonblank screenshot.
+  960px and 720px, no horizontal overflow, and visual baselines for Review and
+  Teach screenshots.
 - Mobile browser smoke found no horizontal overflow at 390px width; both images
-  lazy loaded correctly after scrolling to the cards.
+  lazy loaded correctly after scrolling to the cards, and the viewport capture
+  passed visual baseline checks.
 - Search reduced visible cards from 2 to 1 for `review portal`.
 - Run detail opened and showed the source run.
 - Metadata save persisted to `output/archive-metadata.json`.
 - Feedback save persisted to `output/feedback.json`.
+- Evaluation save persisted to `output/evaluations.json`, rendered a card badge,
+  and updated the run decision summary.
 - Rating plus starred filter worked when starting from a known unstarred state.
 - Screenshot artifacts are captured in the temporary E2E root and checked for
-  nonblank pixel stats. They are deleted by default and kept only when
-  `RAFIKI_E2E_KEEP_TMP=1` is set.
+  dimensions, luminance, contrast distribution, color variety, and saturation.
+  They are deleted by default and kept only when `RAFIKI_E2E_KEEP_TMP=1` is set.
+
+## 2026-05-20 And 2026-05-21 Follow-Up
+
+The quality-plan follow-ups keep the local-first/static-friendly architecture
+and add the first behavior-preserving split plus quality guardrails:
+
+- Curriculum Atlas HTML helpers moved into `lib/renderers/library_atlas.py`
+  while `lib/renderers/library.py` remains the public renderer entrypoint.
+- Teach mode now renders a compact SVG concept graph from existing
+  `concept_links`.
+- Review mode now has a Review Queue filter, lineage chips, and Copy Prompt
+  affordances on every card.
+- Portal CSS now has explicit `:focus-visible` treatment,
+  `prefers-reduced-motion` handling, and no `transition: all` in renderer CSS.
+- `npm run e2e:portal` now asserts the quality lane: focusable mode controls,
+  reduced-motion CSS, concept graph rendering, Review Queue behavior, lineage
+  chips, copy affordances, evaluation save, run decision summary, clean
+  console, desktop/mobile overflow, and visual baseline metrics for desktop
+  Review, desktop Teach, and mobile screenshots.
+- `python generate.py archive-health` now provides a read-only report for
+  missing images, malformed manifests, duplicate filenames, sidecar orphans
+  including evaluations, disk usage, and cleanup-risk counts.
+- Successful non-dry-run portal Canva, Notion, and static deploy actions now
+  stamp matching source cards in `output/archive-metadata.json` with `canva`,
+  `notion`, or `deployed` when the source is an approved set or run viewer.
+- Verification on 2026-05-20: `npm run docs:check`, `npm run doctor`,
+  `npm run pack:check`, `npm run e2e:portal`, and `npm test` all pass. Doctor
+  reports 0 critical issues with only expected missing `.env`/provider-key
+  warnings in the isolated worktree.
 
 ## Product Findings
 
@@ -73,21 +108,22 @@ Browser/API checks:
 ### Gaps Exposed By E2E
 
 - The repo had excellent unit/integration coverage but no committed browser E2E
-  smoke for the portal. This pass added `npm run e2e:portal`; the remaining gap
-  is expanding it with visual baselines and richer workflow assertions.
+  smoke for the portal. This pass added `npm run e2e:portal`; the follow-up
+  expanded it with a focused quality lane. The remaining gap is visual
+  baselines, performance/INP checks, and export/prompt-studio workflow depth.
 - The visible local library can contain run images while `registry-export`
   dry-run reports `count: 0`, because export scope is curated/registry-backed.
   That is defensible internally, but the UI should explain the mismatch.
-- Mobile review content is buried below Prompt Studio, Curation & Export, and
-  Spend & Review Ops. On the smoke page, the first card started around 3330px
-  down the mobile page. That is usable, not showpiece-grade.
-- Full-page mobile screenshots captured below-fold lazy images before they
-  loaded. Human scrolling works, but visual regression needs either scroll
-  probes or deterministic eager image loading for test mode.
+- Mobile review content is image-first after the portal mode split. The smoke
+  now asserts the first card starts above 900px on a 390px-wide viewport.
+- Mobile screenshot capture now scrolls to the review card, waits for lazy
+  images to load, and uses a viewport screenshot so the visual baseline matches
+  what a person sees first.
 - The portal previously requested `/favicon.ico` and received a 404. This pass
   now serves a quiet `204` so browser-console smoke stays clean.
-- The UI uses small transitions and hover movement but has no explicit
-  `prefers-reduced-motion` handling.
+- The UI now has explicit `prefers-reduced-motion` handling and visual baseline
+  coverage. Remaining polish is a measured motion/performance budget before
+  adding richer animations.
 
 ## Curriculum And Idea Coverage
 
@@ -104,24 +140,27 @@ Current coverage is strong in:
 
 Coverage gaps to close:
 
-- No canonical curriculum map across all programs. RAP, Upgrade AI, Hopecode,
-  BC + AI, and Creative Mornings exist as prompt islands rather than a browsable
-  curriculum atlas.
-- No explicit learning-objective schema. Prompt files include concepts, but
-  assets are not tagged with objectives, prerequisites, learner level, activity
-  type, assessment type, or competency.
-- No assessment/rubric layer. RAP has a capstone visual, but Rafiki does not
-  expose rubrics, artifacts, critique prompts, or "proof of competence" views.
+- The canonical curriculum map has started: `config/curriculum-atlas.json`
+  now covers RAP, Upgrade AI, HOPECODE, and BC AI Ecosystem in Teach mode.
+  Creative Mornings and several private prompt islands still need placement.
+- The first learning-objective schema exists with programs, modules, levels,
+  objectives, competencies, asset queries, facilitator notes, and discussion
+  prompts. The remaining gap is tagging real generated assets with richer
+  activity type, prerequisite, assessment, and learner-journey metadata.
+- The first rubric layer exists through module-level critique criteria and
+  concept links. Card-level evaluation state now exists; the remaining gap is
+  connecting those decisions directly to rubric criteria and proof-of-competence
+  summaries.
 - No learner journey view. There is no map from novice -> practitioner ->
   facilitator -> community builder across your body of work.
-- No "idea genealogy" or "concept dependency" interaction, despite many prompts
-  already using tree, garden, network, and atlas metaphors.
-- No facilitation mode. The portal is optimized for image review, not for
-  teaching a cohort live, walking through a module, or turning images into a
-  workshop sequence.
-- No live critique/evaluation mode for image candidates. The feedback field is
-  there, but there is no guided critique rubric for "on-brand", "teaches the
-  concept", "ethically safe", "publish-ready", or "needs regeneration".
+- No "idea genealogy" or "concept dependency" visualization yet, despite many
+  prompts already using tree, garden, network, and atlas metaphors.
+- Teach mode now provides the facilitation starting point, but there is no
+  cohort/story presentation flow for walking a live group through a module.
+- Image candidates now have live evaluation fields for decision, score, use
+  case, rationale, and next step. The remaining gap is guided rubric criteria
+  for "on-brand", "teaches the concept", "ethically safe", "publish-ready", and
+  "needs regeneration".
 
 ## External Research Signals
 
@@ -159,16 +198,21 @@ Sources:
 
 ### 1. Expand The E2E Harness
 
-Baseline is now committed as `npm run e2e:portal`. Next improvements:
+Baseline is now committed as `npm run e2e:portal`, and the quality lane asserts
+accessibility/motion guardrails, Review Queue behavior, Atlas graph behavior,
+and visual metrics for desktop Review, desktop Teach, and mobile screenshots.
+Next improvements:
 
-- Add visual baselines once the portal layout is less volatile.
+- Add optional saved diff artifacts for visual review when the layout settles.
 - Add richer workflow assertions for export actions, prompt studio generation,
   and registry-backed bundles.
 - Keep mobile scroll probes explicit so lazy image loading stays deterministic.
+- Add performance/INP probes before introducing heavier graph or transition
+  behavior.
 
 ### 2. Reframe The Portal As Modes
 
-Replace the one long stacked page with clear modes:
+The one long stacked page has been replaced with clear modes:
 
 - Review: image grid first, filters, selected-card detail.
 - Generate: Prompt Studio.
@@ -180,8 +224,8 @@ On mobile, default to Review first and collapse the other modes behind tabs.
 
 ### 3. Build The Curriculum Atlas
 
-Create a first-class `curriculum.json` or `content_map.json` layer that maps
-programs, modules, prompts, outputs, and competencies:
+The first-class `config/curriculum-atlas.json` layer now maps programs,
+modules, prompts, outputs, and competencies:
 
 - program: RAP, Upgrade AI, HOPECODE, BC + AI, Creative Mornings
 - module/week/session
@@ -194,8 +238,9 @@ programs, modules, prompts, outputs, and competencies:
 - visual assets
 - recommended interactive view
 
-Then add a portal view that lets someone browse the work as a learning world,
-not only an image archive.
+The portal now has the first learning-world view and card-level evaluation
+state. Remaining work is richer learner journeys, cohort/story presentation
+mode, and evaluation links to curriculum criteria.
 
 ### 4. Add Signature Interactive Views
 
@@ -213,7 +258,8 @@ Best next candidates:
 
 ### 5. Define A Motion System
 
-- Add `prefers-reduced-motion` CSS across viewers and portal.
+- Keep `prefers-reduced-motion` CSS across viewers and portal current as new UI
+  elements are added.
 - Keep animations to `transform` and `opacity` unless there is a measured
   reason to do otherwise.
 - Add purposeful motion only where it teaches state: card approval, run
@@ -223,18 +269,18 @@ Best next candidates:
 
 ### 6. Make Evaluation A First-Class Workflow
 
-- Add card-level criteria: brand fit, concept clarity, ethical safety,
-  accessibility, publish readiness, regeneration priority.
-- Add run-level summary: winners, unresolved decisions, blockers, total spend,
-  next action.
+- Connect card-level evaluation to criteria: brand fit, concept clarity,
+  ethical safety, accessibility, publish readiness, regeneration priority.
+- Expand run-level summaries with winners, unresolved decisions, blockers, total
+  spend, and next action.
 - Add export-ready bundles that include selected images plus critique notes and
   curriculum context.
 
 ## Recommended Next Issues
 
-1. `ux: split portal into Review/Generate/Curate/Spend/Teach modes`
-2. `curriculum: add content map schema for programs, modules, competencies, and assets`
-3. `showpiece: add Knowledge Garden prototype for concepts and generated images`
-4. `motion: add reduced-motion support and transition guidelines`
-5. `evals: add visual critique rubric and run-level decision summary`
-6. `e2e: add visual baselines and richer workflow assertions to portal smoke`
+1. `showpiece: add Knowledge Garden prototype for concepts and generated images`
+2. `curriculum: connect evaluation decisions to critique criteria`
+3. `e2e: add INP probes and richer workflow assertions`
+4. `mcp: add CLI and MCP dry-run smoke coverage`
+5. `curriculum: place Creative Mornings and private prompt islands into the Atlas`
+6. `archive: add conservative cleanup report on top of archive health`

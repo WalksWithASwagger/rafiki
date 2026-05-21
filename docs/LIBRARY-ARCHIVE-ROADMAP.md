@@ -1,6 +1,6 @@
 # Rafiki Library And Archive Roadmap
 
-Last reviewed: 2026-05-18
+Last reviewed: 2026-05-20
 
 ## Goal
 
@@ -28,6 +28,8 @@ Rafiki already has most of the pieces:
 | Project viewers | `lib/renderers/viewer.py`, `generate.py view` | Per-project and per-run review pages. |
 | Master library | `lib/renderers/library.py`, `generate.py library`, `generate.py serve` | Cross-project portal with search, filters, ratings, Prompt Studio, and curation/export actions. |
 | Ratings | `output/ratings.json`, `lib/server.py` | Star/reject state keyed by `project/run-id/file`. |
+| Evaluations | `output/evaluations.json`, `lib/evaluations.py`, `lib/server.py` | Decision, score, use case, rationale, next-step state keyed by `project/run-id/file`. |
+| Archive health | `lib/archive_health.py`, `generate.py archive-health` | Read-only report for missing images, malformed manifests, duplicate filenames, sidecar orphans, disk usage, cleanup risk, and advisory cleanup candidates. |
 | Approved archive | `lib/archive.py`, `generate.py approve`, `generate.py clean` | Promotes starred assets into `approved/` and supports conservative cleanup. |
 | Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache. |
 | External roots | `config/extra-outputs*.json` | Lets the portal include generated outputs outside the repo. |
@@ -86,22 +88,34 @@ Success criteria:
   `output/feedback.json`.
 - Show whether each archive card has been approved, exported to Canva, exported
   to Notion, deployed, or superseded. Export/publish/superseded badges are now
-  visible from archive metadata; automatic export stamping is still next.
+  visible from archive metadata; successful portal Canva, Notion, and static
+  deploy actions now stamp matching source cards automatically. Static deploy
+  mapping covers approved viewers, run viewers, and project-root comparison
+  viewers; custom viewer directories report why they are unmapped.
 - Add a "needs decision" queue for high-value projects where many images remain
-  unreviewed.
+  unreviewed. Done as **Review Queue**, which combines unreviewed cards,
+  feedback attention, missing evaluation, missing export state, and
+  Atlas-unmapped assets.
+- Add card-level evaluation and a run-level decision summary. Done in Run
+  Detail with decision, score, use case, rationale, next step, badges, and
+  per-run counts.
 
 ## Phase 4: Make Cleanup Safe
 
 Let Rafiki manage disk growth without losing source-of-truth assets.
 
+Status: read-only health and advisory cleanup reporting are shipped.
+
 Success criteria:
 
 - Add a dry-run cleanup report with image counts, total size, approved coverage,
-  and risky deletions.
+  and risky deletions. Done as `archive-health --cleanup-report`.
 - Keep cleanup conservative: never delete `approved/`, never delete runs with
   unapproved-only images unless explicitly requested.
 - Add an archive health command that reports missing files, malformed
-  `run.json`, orphaned ratings, and approved entries whose source run is gone.
+  `run.json`, orphaned ratings/feedback/evaluations/metadata, duplicate
+  filenames, disk usage, and cleanup risk. Done as
+  `python generate.py archive-health`.
 - Add optional thumbnail/cache generation so huge archives stay fast without
   mutating originals.
 
@@ -127,7 +141,7 @@ Success criteria:
 4. Move review notes/title/tags into durable metadata. Partly done:
    feedback notes live in `output/feedback.json`, and card metadata lives in
    `output/archive-metadata.json`.
-5. Add archive health and cleanup reports.
+5. Add archive health and cleanup reports. Done.
 6. Add MCP wrappers once the local contracts are stable.
 
 ## Non-Goals

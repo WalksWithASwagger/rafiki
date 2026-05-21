@@ -164,7 +164,8 @@ The portal adds:
 - persistent ratings stored on disk
 - cross-project browsing and search
 - lightbox review
-- run comparison
+- run detail with feedback, evaluation decisions, and local metadata
+- run-level decision summaries
 - library rebuilding on page load
 - prompt studio for single prompts and Markdown batches
 
@@ -180,6 +181,8 @@ python generate.py view <project> --all-runs
 npx rafiki view <project> --all-runs
 python generate.py library
 python generate.py library --open
+python generate.py archive-health --cleanup-report
+npm run smoke:dry-run
 ```
 
 `library` builds the full local archive: every `run-*` image under `output/`

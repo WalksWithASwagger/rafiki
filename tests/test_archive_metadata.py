@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from lib.archive_metadata import load_archive_metadata, update_archive_metadata
+from lib.archive_metadata import load_archive_metadata, stamp_archive_state, update_archive_metadata
 
 
 def test_update_archive_metadata_persists_title_tags_and_states(tmp_path: Path):
@@ -51,3 +51,24 @@ def test_update_archive_metadata_rejects_unknown_states(tmp_path: Path):
             tmp_path / "archive-metadata.json",
             {"key": "demo/run-1/hero.png", "states": ["emailed"]},
         )
+
+
+def test_stamp_archive_state_preserves_existing_metadata(tmp_path: Path):
+    path = tmp_path / "archive-metadata.json"
+    update_archive_metadata(
+        path,
+        {
+            "key": "demo/run-1/hero.png",
+            "title": "Homepage Hero",
+            "tags": ["keeper"],
+            "states": ["canva"],
+        },
+    )
+
+    result = stamp_archive_state(path, ["demo/run-1/hero.png"], "notion")
+
+    assert result["stamped"] == 1
+    entry = load_archive_metadata(path)["items"]["demo/run-1/hero.png"]
+    assert entry["title"] == "Homepage Hero"
+    assert entry["tags"] == ["keeper"]
+    assert entry["states"] == ["canva", "notion"]

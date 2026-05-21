@@ -120,13 +120,63 @@ async function writeFixtureImage(target, index, aspectRatio) {
 }
 
 async function screenshotStats(filePath) {
+  const metadata = await sharp(filePath).metadata();
   const stats = await sharp(filePath).stats();
   const stdev = stats.channels.map((channel) => Number(channel.stdev.toFixed(2)));
+  const { data, info } = await sharp(filePath)
+    .removeAlpha()
+    .resize({ width: 320, withoutEnlargement: true })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pixels = data.length / info.channels;
+  let lumaTotal = 0;
+  let darkPixels = 0;
+  let brightPixels = 0;
+  let saturatedPixels = 0;
+  const colorBuckets = new Set();
+
+  for (let index = 0; index < data.length; index += info.channels) {
+    const r = data[index];
+    const g = data[index + 1];
+    const b = data[index + 2];
+    const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    lumaTotal += luma;
+    if (luma < 35) darkPixels += 1;
+    if (luma > 225) brightPixels += 1;
+    if (max - min > 24) saturatedPixels += 1;
+    colorBuckets.add(`${r >> 5}:${g >> 5}:${b >> 5}`);
+  }
+
   return {
     file: filePath,
+    width: metadata.width || 0,
+    height: metadata.height || 0,
     stdev,
     nonblank: stdev.some((value) => value > 2),
+    visual: {
+      meanLuma: Number((lumaTotal / pixels).toFixed(2)),
+      darkRatio: Number((darkPixels / pixels).toFixed(3)),
+      brightRatio: Number((brightPixels / pixels).toFixed(3)),
+      saturatedRatio: Number((saturatedPixels / pixels).toFixed(3)),
+      colorBuckets: colorBuckets.size,
+    },
   };
+}
+
+function assertVisualBaseline(label, stats, rules) {
+  assert(stats.nonblank, `${label} screenshot is blank`);
+  assert(stats.width >= rules.minWidth, `${label} screenshot is too narrow: ${stats.width}`);
+  assert(stats.height >= rules.minHeight, `${label} screenshot is too short: ${stats.height}`);
+  assert(stats.visual.colorBuckets >= rules.minColorBuckets, `${label} screenshot has too few color buckets: ${stats.visual.colorBuckets}`);
+  assert(stats.visual.saturatedRatio >= rules.minSaturatedRatio, `${label} screenshot lost too much color: ${stats.visual.saturatedRatio}`);
+  assert(stats.visual.darkRatio >= rules.minDarkRatio, `${label} screenshot lost dark UI/content contrast: ${stats.visual.darkRatio}`);
+  assert(stats.visual.brightRatio <= rules.maxBrightRatio, `${label} screenshot is washed out: ${stats.visual.brightRatio}`);
+  assert(
+    stats.visual.meanLuma >= rules.minMeanLuma && stats.visual.meanLuma <= rules.maxMeanLuma,
+    `${label} screenshot luminance drifted outside baseline: ${stats.visual.meanLuma}`,
+  );
 }
 
 async function main() {
@@ -224,16 +274,29 @@ async function main() {
       const tagsInput = document.querySelector('#metadata-tags');
       const feedbackStatus = document.querySelector('#feedback-status');
       const feedbackNote = document.querySelector('#feedback-note');
+      const evaluationDecision = document.querySelector('#evaluation-decision');
+      const evaluationScore = document.querySelector('#evaluation-score');
+      const evaluationUseCase = document.querySelector('#evaluation-use-case');
+      const evaluationRationale = document.querySelector('#evaluation-rationale');
+      const evaluationNextStep = document.querySelector('#evaluation-next-step');
+      const cssText = Array.from(document.querySelectorAll('style'))
+        .map((style) => style.textContent || '')
+        .join('\n');
 
       const initialMode = document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '';
       const reviewVisible = !document.querySelector('#portal-mode-review').hidden;
       setPortalMode('teach');
       const teachVisible = !document.querySelector('#portal-mode-teach').hidden;
+      const teachButton = document.querySelector('.portal-mode-btn[data-mode-target="teach"]');
+      teachButton.focus();
+      const teachFocusStyle = window.getComputedStyle(teachButton);
       const atlasPrograms = document.querySelectorAll('.atlas-program').length;
       const atlasModules = document.querySelectorAll('.atlas-module').length;
       const atlasFacilitatorNotes = document.querySelectorAll('.atlas-facilitator-notes li').length;
       const atlasRubricItems = document.querySelectorAll('.atlas-rubric-item').length;
       const atlasConceptLinks = document.querySelectorAll('.atlas-concept-link').length;
+      const atlasGraphNodes = document.querySelectorAll('.atlas-graph-nodes g').length;
+      const atlasGraphEdges = document.querySelectorAll('.atlas-graph-edges line').length;
       focusAtlasUnmapped();
       const atlasFilterVisible = countVisible();
       const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
@@ -262,12 +325,21 @@ async function main() {
       feedbackNote.value = 'Browser E2E note';
       await saveFeedbackForDetail({ preventDefault() {}, stopPropagation() {} });
 
+      evaluationDecision.value = 'approve';
+      evaluationScore.value = '5';
+      evaluationUseCase.value = 'homepage hero';
+      evaluationRationale.value = 'Browser E2E evaluation note';
+      evaluationNextStep.value = 'Export with the smoke bundle';
+      await saveEvaluationForDetail({ preventDefault() {}, stopPropagation() {} });
+
       setRating(first.dataset.ratingKey, null);
       applyRating(first, first.dataset.ratingKey);
       setRating(first.dataset.ratingKey, 'star');
       applyRating(first, first.dataset.ratingKey);
       setRatingFilter('star');
       const starFilterVisible = countVisible();
+      setRatingFilter('review-queue');
+      const reviewQueueVisible = countVisible();
       setRatingFilter('all');
 
       return {
@@ -286,8 +358,22 @@ async function main() {
           facilitatorNotes: atlasFacilitatorNotes,
           rubricItems: atlasRubricItems,
           conceptLinks: atlasConceptLinks,
+          graphNodes: atlasGraphNodes,
+          graphEdges: atlasGraphEdges,
           filterVisible: atlasFilterVisible,
           bannerVisible: atlasBannerVisible,
+        },
+        quality: {
+          focusedTeachModeButton: document.activeElement === teachButton,
+          teachFocusOutline: teachFocusStyle.outlineStyle,
+          teachFocusShadow: teachFocusStyle.boxShadow,
+          hasFocusVisibleCss: cssText.includes(':focus-visible'),
+          hasReducedMotionCss: cssText.includes('prefers-reduced-motion'),
+          hasTransitionAll: /transition\s*:\s*all\b/i.test(cssText),
+          lineageChips: document.querySelectorAll('.lineage-chip').length,
+          copyPromptButtons: document.querySelectorAll('.lineage-copy').length,
+          reviewQueueCount: document.querySelector('#fc-review-queue')?.textContent?.trim() || '',
+          evaluationBadges: document.querySelectorAll('.evaluation-badge.evaluation-on').length,
         },
         cards: document.querySelectorAll('.card').length,
         visibleCards: countVisible(),
@@ -296,7 +382,10 @@ async function main() {
         detailOpen: document.querySelector('#run-detail-panel').getAttribute('aria-hidden') === 'false',
         metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
         feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
+        evaluationStatus: document.querySelector('#evaluation-status-message').textContent.trim(),
+        runDecisionSummary: document.querySelector('#run-decision-summary')?.textContent || '',
         starFilterVisible,
+        reviewQueueVisible,
         overflow: {
           scrollWidth: document.documentElement.scrollWidth,
           clientWidth: document.documentElement.clientWidth,
@@ -321,8 +410,16 @@ async function main() {
     assert(desktopState.atlas.facilitatorNotes >= 1, 'curriculum atlas did not render facilitator notes');
     assert(desktopState.atlas.rubricItems >= 1, 'curriculum atlas did not render critique rubric items');
     assert(desktopState.atlas.conceptLinks >= 1, 'curriculum atlas did not render concept links');
+    assert(desktopState.atlas.graphNodes >= 1, 'curriculum atlas concept graph did not render nodes');
+    assert(desktopState.atlas.graphEdges >= 1, 'curriculum atlas concept graph did not render edges');
     assert(desktopState.atlas.filterVisible === 2, `unmapped atlas filter should show two cards, got ${desktopState.atlas.filterVisible}`);
     assert(desktopState.atlas.bannerVisible, 'atlas filter banner did not appear');
+    assert(desktopState.quality.focusedTeachModeButton, 'teach mode button did not accept focus');
+    assert(desktopState.quality.hasFocusVisibleCss, 'portal CSS is missing focus-visible guardrails');
+    assert(desktopState.quality.hasReducedMotionCss, 'portal CSS is missing prefers-reduced-motion guardrails');
+    assert(!desktopState.quality.hasTransitionAll, 'portal CSS still contains transition: all');
+    assert(desktopState.quality.lineageChips >= 6, 'card lineage chips did not render');
+    assert(desktopState.quality.copyPromptButtons === 2, `expected two copy prompt buttons, got ${desktopState.quality.copyPromptButtons}`);
     assert(desktopState.cards === 2, `expected two cards, got ${desktopState.cards}`);
     assert(desktopState.visibleCards === 2, `expected two visible cards, got ${desktopState.visibleCards}`);
     assert(desktopState.imageNaturalWidths.every((width) => width > 0), 'desktop images did not load');
@@ -330,13 +427,43 @@ async function main() {
     assert(desktopState.detailOpen, 'detail panel did not open');
     assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
     assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
+    assert(desktopState.evaluationStatus === 'Saved', `evaluation save failed: ${desktopState.evaluationStatus}`);
+    assert(desktopState.quality.evaluationBadges >= 1, 'evaluation badge did not render after save');
+    assert(desktopState.runDecisionSummary.includes('Approve 1'), `run decision summary did not count approval: ${desktopState.runDecisionSummary}`);
+    assert(desktopState.runDecisionSummary.includes('Avg score 5.0'), `run decision summary did not average score: ${desktopState.runDecisionSummary}`);
     assert(desktopState.starFilterVisible === 1, `star filter should show one card, got ${desktopState.starFilterVisible}`);
+    assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
     assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');
 
-    const desktopScreenshot = path.join(tmpRoot, 'portal-desktop.png');
-    await desktop.screenshot({ path: desktopScreenshot, fullPage: true });
-    const desktopStats = await screenshotStats(desktopScreenshot);
-    assert(desktopStats.nonblank, 'desktop screenshot is blank');
+    const desktopReviewScreenshot = path.join(tmpRoot, 'portal-desktop-review.png');
+    await desktop.screenshot({ path: desktopReviewScreenshot, fullPage: true });
+    const desktopReviewStats = await screenshotStats(desktopReviewScreenshot);
+    assertVisualBaseline('desktop review', desktopReviewStats, {
+      minWidth: 1200,
+      minHeight: 900,
+      minColorBuckets: 24,
+      minSaturatedRatio: 0.04,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.86,
+      minMeanLuma: 20,
+      maxMeanLuma: 220,
+    });
+
+    await desktop.evaluate(() => setPortalMode('teach'));
+    await desktop.waitForFunction(() => !document.querySelector('#portal-mode-teach').hidden);
+    const desktopTeachScreenshot = path.join(tmpRoot, 'portal-desktop-teach.png');
+    await desktop.screenshot({ path: desktopTeachScreenshot, fullPage: true });
+    const desktopTeachStats = await screenshotStats(desktopTeachScreenshot);
+    assertVisualBaseline('desktop teach', desktopTeachStats, {
+      minWidth: 1200,
+      minHeight: 900,
+      minColorBuckets: 24,
+      minSaturatedRatio: 0.015,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.86,
+      minMeanLuma: 20,
+      maxMeanLuma: 220,
+    });
 
     const mobile = await browser.newPage();
     mobile.on('pageerror', (error) => errors.push(`mobile pageerror: ${error.message}`));
@@ -392,7 +519,16 @@ async function main() {
     const mobileScreenshot = path.join(tmpRoot, 'portal-mobile.png');
     await mobile.screenshot({ path: mobileScreenshot, fullPage: false });
     const mobileStats = await screenshotStats(mobileScreenshot);
-    assert(mobileStats.nonblank, 'mobile screenshot is blank');
+    assertVisualBaseline('mobile', mobileStats, {
+      minWidth: 390,
+      minHeight: 800,
+      minColorBuckets: 18,
+      minSaturatedRatio: 0.03,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.9,
+      minMeanLuma: 20,
+      maxMeanLuma: 230,
+    });
 
     assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
 
@@ -407,7 +543,8 @@ async function main() {
       desktop: desktopState,
       mobile: mobileState,
       screenshots: {
-        desktop: desktopStats,
+        desktopReview: desktopReviewStats,
+        desktopTeach: desktopTeachStats,
         mobile: mobileStats,
       },
       server_output: serverOutput.split('\n').filter(Boolean).slice(0, 6),

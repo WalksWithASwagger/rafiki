@@ -52,13 +52,28 @@ the rest.
    repeats and simple normalized-stem matches within the same project so you
    can compare reruns before approving or cleaning anything.
    The same detail panel can save feedback notes/change requests to
-   `output/feedback.json` and stage a revision back into Prompt Studio.
+   `output/feedback.json`, save evaluation decisions/scores to
+   `output/evaluations.json`, show a run-level decision summary, and stage a
+   revision back into Prompt Studio.
+6. **Check archive health before cleanup**:
+   ```bash
+   python generate.py archive-health
+   python generate.py archive-health --json
+   python generate.py archive-health --cleanup-report
+   ```
+   This is read-only. It reports missing images, malformed `run.json` files,
+   duplicate filenames, orphaned ratings/feedback/evaluation/metadata keys,
+   image disk usage, and cleanup-risk counts before anyone deletes generated
+   work. The cleanup report groups runs by project, labels low-risk candidates
+   versus repair-first or human-review cases, and prints the dry-run follow-up
+   command before any destructive cleanup is considered.
 
 ## Layout
 
 ```
 output/
 ├── ratings.json                       # star/reject map, written by the portal
+├── evaluations.json                   # decision/score/use-case map
 └── rap-week-1/
     ├── run-20260502-202936/           # raw run output
     │   ├── 01-foo.png
@@ -114,10 +129,15 @@ or trace it later:
 - **`--older-than 30d` and `--keep-approved` compose.** When both are
   passed, both conditions must hold before a run is deleted.
 - **`approved/` is never touched by `clean`.**
+- **`archive-health` is a report, not a cleanup command.** It does not mutate
+  images, ratings, feedback, evaluations, archive metadata, manifests, or
+  approved sets. The `--cleanup-report` view is also advisory only; candidate
+  runs still require a separate `clean --keep-approved --dry-run` review.
 
 ## Where this lives
 
 - CLI dispatch — `generate.py` (`approve`, `clean`, `view --approved`)
 - Full archive viewer — `generate.py library`, `generate.py serve`
-- All logic — `lib/archive.py`
-- Tests — `tests/test_archive.py`
+- Archive curation logic — `lib/archive.py`
+- Archive health report — `lib/archive_health.py`
+- Tests — `tests/test_archive.py`, `tests/test_archive_health.py`

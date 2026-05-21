@@ -289,6 +289,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     output_root: Path
     ratings_file: Path
     feedback_file: Path
+    evaluations_file: Path
     archive_metadata_file: Path
     billing_imports_file: Path
     extra_roots: dict[str, Path]  # project_name → real dir
@@ -344,6 +345,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_ratings()
         elif path == "/api/feedback":
             self._serve_feedback()
+        elif path == "/api/evaluations":
+            self._serve_evaluations()
         elif path == "/api/archive-metadata":
             self._serve_archive_metadata()
         elif path == "/api/usage":
@@ -365,6 +368,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._update_ratings()
         elif path == "/api/feedback":
             self._update_feedback()
+        elif path == "/api/evaluations":
+            self._update_evaluation()
         elif path == "/api/archive-metadata":
             self._update_archive_metadata()
         elif path == "/api/billing-imports":
@@ -421,6 +426,11 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         from lib.feedback import load_feedback
 
         self._respond(200, "application/json", json.dumps(load_feedback(self.feedback_file)).encode())
+
+    def _serve_evaluations(self):
+        from lib.evaluations import load_evaluations
+
+        self._respond(200, "application/json", json.dumps(load_evaluations(self.evaluations_file)).encode())
 
     def _serve_archive_metadata(self):
         from lib.archive_metadata import load_archive_metadata
@@ -498,6 +508,26 @@ class _RafikiHandler(BaseHTTPRequestHandler):
                 500,
                 "application/json",
                 json.dumps({"error": "feedback update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _update_evaluation(self):
+        from lib.evaluations import update_evaluation
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = update_evaluation(self.evaluations_file, payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "evaluation update failed", "detail": str(e)}).encode("utf-8"),
             )
             return
         self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
@@ -698,6 +728,7 @@ def serve(
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
     feedback_file = output_root / "feedback.json"
+    evaluations_file = output_root / "evaluations.json"
     archive_metadata_file = output_root / "archive-metadata.json"
     billing_imports_file = REPO_ROOT / "data" / "billing-imports.json"
     extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
@@ -708,6 +739,7 @@ def serve(
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
     Handler.feedback_file = feedback_file
+    Handler.evaluations_file = evaluations_file
     Handler.archive_metadata_file = archive_metadata_file
     Handler.billing_imports_file = billing_imports_file
     Handler.extra_roots = extra_roots

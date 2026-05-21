@@ -70,6 +70,21 @@ generated. For an interactive public portal, set `PORTAL_USERNAME` and
 - All sibling files (`run-*/`, image PNGs, etc.) are uploaded so relative
   `<img src="../run-XXX/foo.png">` references resolve.
 
+## Source Mapping
+
+Portal static deploy actions report how the deployed viewer maps back to local
+archive cards:
+
+- `approved/` viewers map through `approved/index.json`.
+- `run-*` viewers map through that run's `run.json`.
+- project-root viewers map to all `run-*` manifest images in the project.
+- custom viewer directories outside those shapes report `unmapped` with a
+  reason and do not stamp card metadata.
+
+Successful non-dry-run portal deploys stamp mapped source cards as `deployed`
+in `output/archive-metadata.json`. Dry runs report the same source mapping
+without writing metadata or calling Vercel.
+
 ## Caveats
 
 - The Vercel CLI must be on `$PATH`. Run `which vercel` if the command fails.
