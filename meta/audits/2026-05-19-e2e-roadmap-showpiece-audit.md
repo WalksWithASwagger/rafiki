@@ -55,6 +55,8 @@ Browser/API checks:
 - Run detail opened and showed the source run.
 - Metadata save persisted to `output/archive-metadata.json`.
 - Feedback save persisted to `output/feedback.json`.
+- Evaluation save persisted to `output/evaluations.json`, rendered a card badge,
+  and updated the run decision summary.
 - Rating plus starred filter worked when starting from a known unstarred state.
 - Screenshot artifacts are captured in the temporary E2E root and checked for
   dimensions, luminance, contrast distribution, color variety, and saturation.
@@ -75,11 +77,12 @@ and add the first behavior-preserving split plus quality guardrails:
   `prefers-reduced-motion` handling, and no `transition: all` in renderer CSS.
 - `npm run e2e:portal` now asserts the quality lane: focusable mode controls,
   reduced-motion CSS, concept graph rendering, Review Queue behavior, lineage
-  chips, copy affordances, clean console, desktop/mobile overflow, and visual
-  baseline metrics for desktop Review, desktop Teach, and mobile screenshots.
+  chips, copy affordances, evaluation save, run decision summary, clean
+  console, desktop/mobile overflow, and visual baseline metrics for desktop
+  Review, desktop Teach, and mobile screenshots.
 - `python generate.py archive-health` now provides a read-only report for
-  missing images, malformed manifests, duplicate filenames, sidecar orphans,
-  disk usage, and cleanup-risk counts.
+  missing images, malformed manifests, duplicate filenames, sidecar orphans
+  including evaluations, disk usage, and cleanup-risk counts.
 - Successful non-dry-run portal Canva, Notion, and static deploy actions now
   stamp matching source cards in `output/archive-metadata.json` with `canva`,
   `notion`, or `deployed` when the source is an approved set or run viewer.
@@ -145,17 +148,19 @@ Coverage gaps to close:
   prompts. The remaining gap is tagging real generated assets with richer
   activity type, prerequisite, assessment, and learner-journey metadata.
 - The first rubric layer exists through module-level critique criteria and
-  concept links. The remaining gap is turning those criteria into card-level
-  evaluation state and proof-of-competence summaries.
+  concept links. Card-level evaluation state now exists; the remaining gap is
+  connecting those decisions directly to rubric criteria and proof-of-competence
+  summaries.
 - No learner journey view. There is no map from novice -> practitioner ->
   facilitator -> community builder across your body of work.
 - No "idea genealogy" or "concept dependency" visualization yet, despite many
   prompts already using tree, garden, network, and atlas metaphors.
 - Teach mode now provides the facilitation starting point, but there is no
   cohort/story presentation flow for walking a live group through a module.
-- No live critique/evaluation mode for image candidates. The feedback field is
-  there, but there is no guided critique rubric for "on-brand", "teaches the
-  concept", "ethically safe", "publish-ready", or "needs regeneration".
+- Image candidates now have live evaluation fields for decision, score, use
+  case, rationale, and next step. The remaining gap is guided rubric criteria
+  for "on-brand", "teaches the concept", "ethically safe", "publish-ready", and
+  "needs regeneration".
 
 ## External Research Signals
 
@@ -233,9 +238,9 @@ modules, prompts, outputs, and competencies:
 - visual assets
 - recommended interactive view
 
-The portal now has the first learning-world view. Remaining work is richer
-learner journeys, cohort/story presentation mode, and card-level evaluation
-state.
+The portal now has the first learning-world view and card-level evaluation
+state. Remaining work is richer learner journeys, cohort/story presentation
+mode, and evaluation links to curriculum criteria.
 
 ### 4. Add Signature Interactive Views
 
@@ -264,17 +269,17 @@ Best next candidates:
 
 ### 6. Make Evaluation A First-Class Workflow
 
-- Add card-level criteria: brand fit, concept clarity, ethical safety,
-  accessibility, publish readiness, regeneration priority.
-- Add run-level summary: winners, unresolved decisions, blockers, total spend,
-  next action.
+- Connect card-level evaluation to criteria: brand fit, concept clarity,
+  ethical safety, accessibility, publish readiness, regeneration priority.
+- Expand run-level summaries with winners, unresolved decisions, blockers, total
+  spend, and next action.
 - Add export-ready bundles that include selected images plus critique notes and
   curriculum context.
 
 ## Recommended Next Issues
 
 1. `showpiece: add Knowledge Garden prototype for concepts and generated images`
-2. `evals: add card-level visual critique state and run-level decision summary`
+2. `curriculum: connect evaluation decisions to critique criteria`
 3. `e2e: add INP probes and richer workflow assertions`
 4. `mcp: add CLI and MCP dry-run smoke coverage`
 5. `curriculum: place Creative Mornings and private prompt islands into the Atlas`

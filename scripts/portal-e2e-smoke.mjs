@@ -274,6 +274,11 @@ async function main() {
       const tagsInput = document.querySelector('#metadata-tags');
       const feedbackStatus = document.querySelector('#feedback-status');
       const feedbackNote = document.querySelector('#feedback-note');
+      const evaluationDecision = document.querySelector('#evaluation-decision');
+      const evaluationScore = document.querySelector('#evaluation-score');
+      const evaluationUseCase = document.querySelector('#evaluation-use-case');
+      const evaluationRationale = document.querySelector('#evaluation-rationale');
+      const evaluationNextStep = document.querySelector('#evaluation-next-step');
       const cssText = Array.from(document.querySelectorAll('style'))
         .map((style) => style.textContent || '')
         .join('\n');
@@ -320,6 +325,13 @@ async function main() {
       feedbackNote.value = 'Browser E2E note';
       await saveFeedbackForDetail({ preventDefault() {}, stopPropagation() {} });
 
+      evaluationDecision.value = 'approve';
+      evaluationScore.value = '5';
+      evaluationUseCase.value = 'homepage hero';
+      evaluationRationale.value = 'Browser E2E evaluation note';
+      evaluationNextStep.value = 'Export with the smoke bundle';
+      await saveEvaluationForDetail({ preventDefault() {}, stopPropagation() {} });
+
       setRating(first.dataset.ratingKey, null);
       applyRating(first, first.dataset.ratingKey);
       setRating(first.dataset.ratingKey, 'star');
@@ -361,6 +373,7 @@ async function main() {
           lineageChips: document.querySelectorAll('.lineage-chip').length,
           copyPromptButtons: document.querySelectorAll('.lineage-copy').length,
           reviewQueueCount: document.querySelector('#fc-review-queue')?.textContent?.trim() || '',
+          evaluationBadges: document.querySelectorAll('.evaluation-badge.evaluation-on').length,
         },
         cards: document.querySelectorAll('.card').length,
         visibleCards: countVisible(),
@@ -369,6 +382,8 @@ async function main() {
         detailOpen: document.querySelector('#run-detail-panel').getAttribute('aria-hidden') === 'false',
         metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
         feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
+        evaluationStatus: document.querySelector('#evaluation-status-message').textContent.trim(),
+        runDecisionSummary: document.querySelector('#run-decision-summary')?.textContent || '',
         starFilterVisible,
         reviewQueueVisible,
         overflow: {
@@ -412,6 +427,10 @@ async function main() {
     assert(desktopState.detailOpen, 'detail panel did not open');
     assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
     assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
+    assert(desktopState.evaluationStatus === 'Saved', `evaluation save failed: ${desktopState.evaluationStatus}`);
+    assert(desktopState.quality.evaluationBadges >= 1, 'evaluation badge did not render after save');
+    assert(desktopState.runDecisionSummary.includes('Approve 1'), `run decision summary did not count approval: ${desktopState.runDecisionSummary}`);
+    assert(desktopState.runDecisionSummary.includes('Avg score 5.0'), `run decision summary did not average score: ${desktopState.runDecisionSummary}`);
     assert(desktopState.starFilterVisible === 1, `star filter should show one card, got ${desktopState.starFilterVisible}`);
     assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
     assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');

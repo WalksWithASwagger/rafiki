@@ -337,16 +337,24 @@ def test_library_viewer_renders_usage_feedback_and_revision_hooks(tmp_path, monk
     assert "fetch('/api/deploy-readiness')" in html
     assert 'id="run-detail-feedback"' in html
     assert 'id="run-detail-metadata"' in html
+    assert 'id="run-detail-evaluation"' in html
+    assert 'id="run-decision-summary"' in html
     assert 'id="feedback-change-request"' in html
+    assert 'id="evaluation-decision"' in html
+    assert 'id="evaluation-score"' in html
     assert 'id="metadata-state-grid"' in html
     assert "async function saveFeedbackForDetail(event)" in html
+    assert "async function saveEvaluationForDetail(event)" in html
     assert "async function saveMetadataForDetail(event)" in html
     assert "fetch('/api/feedback'" in html
+    assert "fetch('/api/evaluations'" in html
     assert "fetch('/api/archive-metadata'" in html
     assert "function stageRevisionFromDetail(event, autoSubmit)" in html
     assert "async function copyPromptForCard(event, idx)" in html
     assert 'class="feedback-badge"' in html
+    assert 'class="evaluation-badge"' in html
     assert 'class="metadata-state-badge"' in html
+    assert "function renderRunDecisionSummary(detail, item)" in html
     assert 'class="lineage-chip lineage-run"' in html
     assert 'class="lineage-copy"' in html
 

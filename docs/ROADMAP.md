@@ -29,7 +29,7 @@ image generation platform.
 | Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
 | Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, billing imports, deploy, exports, scheduled regen, and portal startup. |
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
-| Local portal | `lib/server.py`, `lib/renderers/library.py`, `lib/renderers/library_atlas.py` | Local library with all-runs archive browsing, review queue, lineage chips, filters, keyboard review, run detail panel, ratings, feedback, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, Teach mode, and run browsing. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py`, `lib/renderers/library_atlas.py` | Local library with all-runs archive browsing, review queue, lineage chips, filters, keyboard review, run detail panel, ratings, feedback, evaluations, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, Teach mode, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
 | Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, read-only archive health reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
@@ -113,11 +113,12 @@ Goal: make the local portal the best default interface for review and curation.
 |---|---|---|
 | P0 | Surface run status and errors better in the portal. | A failed generation shows useful error state and next action, not just missing images. |
 | Shipped | Add local spend and feedback surfaces. | The portal shows local spend/run summaries, persists per-card feedback to `output/feedback.json`, and can stage feedback-driven reruns into Prompt Studio. |
+| Shipped | Add card-level evaluation state. | Run Detail writes decisions, 1-5 scores, use cases, rationale, and next steps to `output/evaluations.json`; cards show evaluation badges and Run Detail summarizes decisions across the current run. |
 | Shipped | Add pricing-profile spend estimates. | `config/pricing.json` estimates fixed-price image outputs locally while leaving token-priced or unknown models unpriced until manifests include usage. |
 | Shipped | Add local provider billing imports. | CSV/JSON/manual billing rows land in `data/billing-imports.json`, appear in the portal, and take precedence as the spend display total when present. |
 | Shipped | Expand curation state from the UI. | Per-card metadata now makes title overrides, tags, exported/published state, and superseded links durable and visible while reviewing. |
 | Shipped | Split portal into modes and seed Curriculum Atlas. | Review is the image-first default; Generate, Curate, Spend, and Teach are distinct modes; Teach reads `config/curriculum-atlas.json`, renders a concept graph, and can filter matching archive cards back in Review. |
-| Shipped | Add review ritual affordances. | Cards now expose lineage chips and copy-prompt actions, while Review Queue combines unreviewed cards, feedback attention, missing export state, and Atlas-unmapped assets. |
+| Shipped | Add review ritual affordances. | Cards now expose lineage chips and copy-prompt actions, while Review Queue combines unreviewed cards, feedback attention, missing evaluation, missing export state, and Atlas-unmapped assets. |
 | Shipped | Add portal accessibility guardrails. | The portal has explicit `:focus-visible` treatment, reduced-motion CSS, no `transition: all` in renderer CSS, and E2E assertions for those guardrails. |
 | Shipped | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; successful Canva, Notion, and static deploy actions stamp archive metadata automatically when their source maps back to run images. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
@@ -150,7 +151,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
-| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, and `npm run e2e:portal` includes screenshot visual baseline metrics for desktop Review, desktop Teach, and mobile. | Add cohort/story presentation flow and card-level evaluation state after real review sessions prove the schema shape. |
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, and `npm run e2e:portal` includes screenshot visual baseline metrics for desktop Review, desktop Teach, and mobile. | Add cohort/story presentation flow and connect evaluation notes to curriculum criteria after real review sessions prove the schema shape. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -174,12 +175,12 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
-2. Add card-level evaluation state and run-level decision summaries.
-3. Add MCP and CLI dry-run smoke tests.
-4. Expand doctor remediation for package and browser setup.
-5. Turn archive health findings into a conservative cleanup report when the read-only contract has settled.
-6. Add richer source mapping for project-level static deploys that do not point at approved/ or run-* viewers.
+1. Add MCP and CLI dry-run smoke tests.
+2. Turn archive health findings into a conservative cleanup report when the read-only contract has settled.
+3. Add richer source mapping for project-level static deploys that do not point at approved/ or run-* viewers.
+4. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
+5. Connect evaluation decisions to Curriculum Atlas critique criteria.
+6. Expand doctor remediation for package and browser setup.
 
 ## Non-Goals For Now
 

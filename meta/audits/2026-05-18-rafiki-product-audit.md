@@ -87,8 +87,8 @@ Recommended next slice:
 
 - Add `generate.py archive-health` or `generate.py clean --report`.
 - Report missing files, malformed `run.json`, orphaned ratings/feedback/
-  metadata, approved entries whose source run is gone, duplicate filenames,
-  disk usage, and deletion risk.
+  evaluations/metadata, approved entries whose source run is gone, duplicate
+  filenames, disk usage, and deletion risk.
 - Keep actual deletion opt-in and separate from the report.
 
 ### 4. Agent And CLI Smoke Coverage Is The Main Reliability Gap

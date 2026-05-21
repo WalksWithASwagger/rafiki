@@ -8,7 +8,8 @@ archive, and uses the same generation path as the CLI.
 
 - **Review** is the image-first default mode. It contains archive filters,
   Review Queue, lineage chips, copy-prompt actions, search, ratings, metadata
-  badges, feedback badges, keyboard review, and the run detail panel.
+  badges, feedback badges, evaluation badges, keyboard review, and the run
+  detail panel.
 - **Generate** contains Prompt Studio and launches single-prompt or Markdown
   batch runs through `/api/regen`.
 - **Curate** exposes local action helpers such as approve starred, Canva export,
@@ -30,7 +31,8 @@ archive, and uses the same generation path as the CLI.
   - manual one-off billing entry form for exact charges
   - deployment readiness for local public sharing and static Vercel deploys
 - **Run Detail** shows manifest metadata, direct viewer links, filename
-  warnings, durable card metadata, and per-card feedback.
+  warnings, durable card metadata, per-card feedback, card evaluation, and a
+  run-level decision summary.
 
 ## Local State
 
@@ -38,6 +40,7 @@ archive, and uses the same generation path as the CLI.
 |---|---|---|
 | `output/ratings.json` | `/api/ratings` | Star/reject review state keyed by `project/run/file`. |
 | `output/feedback.json` | `/api/feedback` | Per-card notes, change requests, and review statuses. |
+| `output/evaluations.json` | `/api/evaluations` | Per-card decision, score, use case, rationale, and next step. |
 | `output/archive-metadata.json` | `/api/archive-metadata` | Title overrides, tags, export/publish markers, and superseded links. |
 | `data/usage-log.json` | `lib.usage.log_generation` | Local generation event log. |
 | `data/billing-imports.json` | `generate.py billing` and `/api/billing-imports` | Local provider billing ledger. |
@@ -46,8 +49,8 @@ archive, and uses the same generation path as the CLI.
 | `output/<project>/run-*/run.json` | `lib.batch.run_batch` | Run metadata, prompt details, timings, state, and local cost estimates. |
 
 `output/`, `data/usage-log.json`, and `data/billing-imports.json` are
-gitignored. Feedback, ratings, archive metadata, and imported billing stay
-local unless an operator intentionally exports or deploys them.
+gitignored. Feedback, ratings, evaluations, archive metadata, and imported
+billing stay local unless an operator intentionally exports or deploys them.
 
 ## Spend Semantics
 
@@ -83,6 +86,15 @@ It does not deploy, call provider APIs, or expose secret values.
 5. Run the staged prompt when ready; the new output lands in the same
    `output/<project>/run-*` archive.
 
+## Card Evaluation
+
+The **Evaluation** section in the run detail panel writes to
+`output/evaluations.json`. It records the card decision (`approve`, `revise`,
+`reject`, or `reference`), a 1-5 score, intended use case, rationale, and next
+step. Cards show the decision as an evaluation badge, Review Queue treats
+missing evaluations as attention-worthy, and Run Detail summarizes decisions
+across the current run.
+
 ## Durable Card Metadata
 
 The **Card Metadata** section in the run detail panel writes to
@@ -110,10 +122,10 @@ lightweight until the Atlas schema has been used in real review sessions. See
 
 The **Review Queue** filter surfaces cards that are still likely to need human
 attention: unrated cards, cards with feedback that requests attention, cards
-without export/publish metadata, and cards not yet mapped into the Curriculum
-Atlas. Each card also shows compact lineage chips for source run, archive
-source/approval state, and next action. **Copy Prompt** copies the source prompt
-for quick reuse or review notes.
+without evaluation state, cards without export/publish metadata, and cards not
+yet mapped into the Curriculum Atlas. Each card also shows compact lineage chips
+for source run, archive source/approval state, and next action. **Copy Prompt**
+copies the source prompt for quick reuse or review notes.
 
 ## HTTP Endpoints
 
@@ -125,12 +137,17 @@ for quick reuse or review notes.
 | `/api/deploy-readiness` | `GET` | Secret-safe readiness checks for static deploy and public portal sharing. |
 | `/api/feedback` | `GET` | Return `output/feedback.json` as `{version, items}`. |
 | `/api/feedback` | `POST` | Upsert one feedback item using `key`, `status`, `note`, and `change_request`. |
+| `/api/evaluations` | `GET` | Return `output/evaluations.json` as `{version, items}`. |
+| `/api/evaluations` | `POST` | Upsert one evaluation item using `key`, `decision`, `score`, `use_case`, `rationale`, and `next_step`. |
 | `/api/archive-metadata` | `GET` | Return `output/archive-metadata.json` as `{version, items}`. |
 | `/api/archive-metadata` | `POST` | Upsert one metadata item using `key`, `title`, `tags`, `states`, and `superseded_by`. |
 | `/api/regen` | `POST` | Run Prompt Studio generation or dry run through `lib.batch.run_batch`. |
 
 Supported feedback statuses are `needs-change`, `keep`, `maybe`, `blocked`, and
 `done`.
+
+Supported evaluation decisions are `approve`, `revise`, `reject`, and
+`reference`. Scores are optional integers from 1 to 5.
 
 Supported archive metadata states are `canva`, `notion`, `deployed`,
 `published`, and `superseded`.
@@ -148,8 +165,9 @@ The smoke uses a temporary output root, creates a dry-run archive from
 calling a provider, starts `generate.py serve` on a random localhost port, then
 checks the portal in Chromium. It verifies the home page, mode navigation,
 Teach/Curriculum Atlas rendering, usage and readiness APIs, search, run detail,
-metadata save, feedback save, rating filters, desktop and mobile overflow, and
-mobile lazy image loading after scroll. The quality lane also checks concept
+metadata save, feedback save, evaluation save, run decision summary, rating
+filters, desktop and mobile overflow, and mobile lazy image loading after
+scroll. The quality lane also checks concept
 graph rendering, Review Queue behavior, lineage/copy affordances, focusable
 mode controls, reduced-motion CSS, absence of `transition: all`, and a clean
 browser console. Screenshots are not pixel-snapshotted, but the smoke now

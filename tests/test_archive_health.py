@@ -38,6 +38,10 @@ def test_archive_health_reports_missing_images_and_sidecar_orphans(tmp_path: Pat
         json.dumps({"version": 1, "items": {"demo/run-old/missing.png": {"status": "blocked"}}}),
         encoding="utf-8",
     )
+    (output_root / "evaluations.json").write_text(
+        json.dumps({"version": 1, "items": {"demo/run-old/missing.png": {"decision": "revise"}}}),
+        encoding="utf-8",
+    )
     (output_root / "archive-metadata.json").write_text(
         json.dumps({"version": 1, "items": {"demo/run-old/missing.png": {"title": "Old"}}}),
         encoding="utf-8",
@@ -53,8 +57,9 @@ def test_archive_health_reports_missing_images_and_sidecar_orphans(tmp_path: Pat
     assert report["missing_images"][0]["key"] == "demo/run-20260520-120000/missing.png"
     assert report["orphaned"]["ratings"] == ["demo/run-old/missing.png"]
     assert report["orphaned"]["feedback"] == ["demo/run-old/missing.png"]
+    assert report["orphaned"]["evaluations"] == ["demo/run-old/missing.png"]
     assert report["orphaned"]["metadata"] == ["demo/run-old/missing.png"]
-    assert report["summary"]["cleanup_risk_items"] == 4
+    assert report["summary"]["cleanup_risk_items"] == 5
 
 
 def test_archive_health_reports_malformed_runs_and_duplicate_names(tmp_path: Path):

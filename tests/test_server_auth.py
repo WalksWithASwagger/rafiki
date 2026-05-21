@@ -33,6 +33,7 @@ def _make_handler_class(tmp_path: Path) -> type:
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
     Handler.feedback_file = output_root / "feedback.json"
+    Handler.evaluations_file = output_root / "evaluations.json"
     Handler.archive_metadata_file = output_root / "archive-metadata.json"
     Handler.billing_imports_file = tmp_path / "billing-imports.json"
     Handler.extra_roots = {}
@@ -119,6 +120,30 @@ def test_feedback_endpoint_persists_review_notes(server):
 
     saved = json.loads(_get(f"{server}/api/feedback").read().decode("utf-8"))
     assert saved["items"]["demo/run-1/01-hero.png"]["note"] == "Too dark"
+
+
+def test_evaluations_endpoint_persists_review_decision(server):
+    resp = _post_json(
+        f"{server}/api/evaluations",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "decision": "approve",
+            "score": 5,
+            "use_case": "homepage hero",
+            "rationale": "Strong, legible, and on-brand.",
+            "next_step": "Export with the launch bundle.",
+        },
+    )
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["evaluation"]["decision"] == "approve"
+    assert payload["evaluation"]["score"] == 5
+
+    saved = json.loads(_get(f"{server}/api/evaluations").read().decode("utf-8"))
+    entry = saved["items"]["demo/run-1/01-hero.png"]
+    assert entry["use_case"] == "homepage hero"
+    assert entry["next_step"] == "Export with the launch bundle."
 
 
 def test_archive_metadata_endpoint_persists_card_state(server):

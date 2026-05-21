@@ -65,7 +65,9 @@ by git. Billing exports from Gemini/OpenAI remain the source of truth for exact
 spend.
 
 Card-level notes and change requests are stored in `output/feedback.json`
-through `/api/feedback`, beside `output/ratings.json`. Title overrides, tags,
+through `/api/feedback`, beside `output/ratings.json`. Card-level evaluation
+decisions, scores, use cases, rationale, and next steps are stored in
+`output/evaluations.json` through `/api/evaluations`. Title overrides, tags,
 export markers, publish markers, and superseded links are stored in
 `output/archive-metadata.json` through `/api/archive-metadata`. These files are
 local review state and are ignored by git with the rest of `output/`.

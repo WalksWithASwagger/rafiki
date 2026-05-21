@@ -28,6 +28,7 @@ Rafiki already has most of the pieces:
 | Project viewers | `lib/renderers/viewer.py`, `generate.py view` | Per-project and per-run review pages. |
 | Master library | `lib/renderers/library.py`, `generate.py library`, `generate.py serve` | Cross-project portal with search, filters, ratings, Prompt Studio, and curation/export actions. |
 | Ratings | `output/ratings.json`, `lib/server.py` | Star/reject state keyed by `project/run-id/file`. |
+| Evaluations | `output/evaluations.json`, `lib/evaluations.py`, `lib/server.py` | Decision, score, use case, rationale, next-step state keyed by `project/run-id/file`. |
 | Archive health | `lib/archive_health.py`, `generate.py archive-health` | Read-only report for missing images, malformed manifests, duplicate filenames, sidecar orphans, disk usage, and cleanup risk. |
 | Approved archive | `lib/archive.py`, `generate.py approve`, `generate.py clean` | Promotes starred assets into `approved/` and supports conservative cleanup. |
 | Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache. |
@@ -91,7 +92,11 @@ Success criteria:
   deploy actions now stamp matching source cards automatically.
 - Add a "needs decision" queue for high-value projects where many images remain
   unreviewed. Done as **Review Queue**, which combines unreviewed cards,
-  feedback attention, missing export state, and Atlas-unmapped assets.
+  feedback attention, missing evaluation, missing export state, and
+  Atlas-unmapped assets.
+- Add card-level evaluation and a run-level decision summary. Done in Run
+  Detail with decision, score, use case, rationale, next step, badges, and
+  per-run counts.
 
 ## Phase 4: Make Cleanup Safe
 
@@ -106,8 +111,9 @@ Success criteria:
 - Keep cleanup conservative: never delete `approved/`, never delete runs with
   unapproved-only images unless explicitly requested.
 - Add an archive health command that reports missing files, malformed
-  `run.json`, orphaned ratings/feedback/metadata, duplicate filenames, disk
-  usage, and cleanup risk. Done as `python generate.py archive-health`.
+  `run.json`, orphaned ratings/feedback/evaluations/metadata, duplicate
+  filenames, disk usage, and cleanup risk. Done as
+  `python generate.py archive-health`.
 - Add optional thumbnail/cache generation so huge archives stay fast without
   mutating originals.
 

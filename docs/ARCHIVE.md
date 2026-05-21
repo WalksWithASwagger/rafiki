@@ -52,21 +52,25 @@ the rest.
    repeats and simple normalized-stem matches within the same project so you
    can compare reruns before approving or cleaning anything.
    The same detail panel can save feedback notes/change requests to
-   `output/feedback.json` and stage a revision back into Prompt Studio.
+   `output/feedback.json`, save evaluation decisions/scores to
+   `output/evaluations.json`, show a run-level decision summary, and stage a
+   revision back into Prompt Studio.
 6. **Check archive health before cleanup**:
    ```bash
    python generate.py archive-health
    python generate.py archive-health --json
    ```
    This is read-only. It reports missing images, malformed `run.json` files,
-   duplicate filenames, orphaned ratings/feedback/metadata keys, image disk
-   usage, and cleanup-risk counts before anyone deletes generated work.
+   duplicate filenames, orphaned ratings/feedback/evaluation/metadata keys,
+   image disk usage, and cleanup-risk counts before anyone deletes generated
+   work.
 
 ## Layout
 
 ```
 output/
 ├── ratings.json                       # star/reject map, written by the portal
+├── evaluations.json                   # decision/score/use-case map
 └── rap-week-1/
     ├── run-20260502-202936/           # raw run output
     │   ├── 01-foo.png
@@ -123,7 +127,8 @@ or trace it later:
   passed, both conditions must hold before a run is deleted.
 - **`approved/` is never touched by `clean`.**
 - **`archive-health` is a report, not a cleanup command.** It does not mutate
-  images, ratings, feedback, archive metadata, manifests, or approved sets.
+  images, ratings, feedback, evaluations, archive metadata, manifests, or
+  approved sets.
 
 ## Where this lives
 

@@ -164,7 +164,8 @@ The portal adds:
 - persistent ratings stored on disk
 - cross-project browsing and search
 - lightbox review
-- run comparison
+- run detail with feedback, evaluation decisions, and local metadata
+- run-level decision summaries
 - library rebuilding on page load
 - prompt studio for single prompts and Markdown batches
 

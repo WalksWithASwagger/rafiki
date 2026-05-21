@@ -751,6 +751,7 @@ def _render_library(records: list[dict]) -> str:
   <div class="run-detail-body">
     <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
+    <div class="run-decision-summary" id="run-decision-summary"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
     <div class="run-detail-metadata" id="run-detail-metadata">
       <h3>Card Metadata</h3>
@@ -806,6 +807,46 @@ def _render_library(records: list[dict]) -> str:
       </div>
       <div class="feedback-status" id="feedback-status-message" aria-live="polite"></div>
     </div>
+    <div class="run-detail-evaluation" id="run-detail-evaluation">
+      <h3>Evaluation</h3>
+      <label>
+        <span>Decision</span>
+        <select id="evaluation-decision">
+          <option value="">None</option>
+          <option value="approve">Approve</option>
+          <option value="revise">Revise</option>
+          <option value="reject">Reject</option>
+          <option value="reference">Reference</option>
+        </select>
+      </label>
+      <label>
+        <span>Score</span>
+        <select id="evaluation-score">
+          <option value="">No score</option>
+          <option value="5">5 - Excellent</option>
+          <option value="4">4 - Strong</option>
+          <option value="3">3 - Useful</option>
+          <option value="2">2 - Weak</option>
+          <option value="1">1 - Not usable</option>
+        </select>
+      </label>
+      <label>
+        <span>Use Case</span>
+        <input id="evaluation-use-case" type="text" placeholder="homepage hero, module opener, social">
+      </label>
+      <label>
+        <span>Rationale</span>
+        <textarea id="evaluation-rationale" rows="3"></textarea>
+      </label>
+      <label>
+        <span>Next Step</span>
+        <textarea id="evaluation-next-step" rows="3"></textarea>
+      </label>
+      <div class="evaluation-actions">
+        <button type="button" onclick="saveEvaluationForDetail(event)">Save Evaluation</button>
+      </div>
+      <div class="evaluation-status" id="evaluation-status-message" aria-live="polite"></div>
+    </div>
     <pre class="run-detail-json" id="run-detail-json"></pre>
   </div>
 </aside>
@@ -819,9 +860,11 @@ const RUN_DETAILS = {run_details_json};
 const CURRICULUM_ATLAS = {atlas_json};
 const RATINGS_KEY = 'rafiki:ratings';
 const FEEDBACK_KEY = 'rafiki:feedback';
+const EVALUATIONS_KEY = 'rafiki:evaluations';
 const METADATA_KEY = 'rafiki:archiveMetadata';
 const SERVER_MODE = location.protocol !== 'file:';
 let FEEDBACK = {{}};
+let EVALUATIONS = {{}};
 let ARCHIVE_METADATA = {{}};
 let _ratingFilter = 'all';
 let _projFilter = null;
@@ -844,6 +887,10 @@ function _loadLocalFeedback() {{
   try {{ return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
 }}
 function _saveLocalFeedback(items) {{ localStorage.setItem(FEEDBACK_KEY, JSON.stringify(items || {{}})); }}
+function _loadLocalEvaluations() {{
+  try {{ return JSON.parse(localStorage.getItem(EVALUATIONS_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
+}}
+function _saveLocalEvaluations(items) {{ localStorage.setItem(EVALUATIONS_KEY, JSON.stringify(items || {{}})); }}
 function _loadLocalMetadata() {{
   try {{ return JSON.parse(localStorage.getItem(METADATA_KEY) || '{{}}'); }} catch(e) {{ return {{}}; }}
 }}
@@ -957,6 +1004,9 @@ function appendDetailLink(target, label, href) {{
 function feedbackKeyForItem(item) {{
   return item?.file || '';
 }}
+function evaluationKeyForItem(item) {{
+  return item?.file || '';
+}}
 function metadataKeyForItem(item) {{
   return item?.file || '';
 }}
@@ -999,12 +1049,35 @@ function searchTextForItem(item) {{
     (item.approval_status || '') + ' ' +
     metadataStateLabel(item) + ' ' +
     (item.superseded_by || '') + ' ' +
+    evaluationSearchText(item) + ' ' +
     warningTextForItem(item)
   ).toLowerCase();
 }}
 function feedbackForItem(item) {{
   const key = feedbackKeyForItem(item);
   return key ? (FEEDBACK[key] || null) : null;
+}}
+function evaluationForItem(item) {{
+  const key = evaluationKeyForItem(item);
+  return key ? (EVALUATIONS[key] || null) : null;
+}}
+function evaluationDecisionLabel(entry) {{
+  if (!entry) return '';
+  return String(entry.decision || '').replace(/-/g, ' ');
+}}
+function evaluationSearchText(item) {{
+  const entry = evaluationForItem(item) || {{}};
+  return [
+    entry.decision,
+    entry.score ? 'score ' + entry.score : '',
+    entry.use_case,
+    entry.rationale,
+    entry.next_step,
+  ].filter(Boolean).join(' ');
+}}
+function hasEvaluationDecision(item) {{
+  const entry = evaluationForItem(item) || {{}};
+  return Boolean(entry.decision || entry.score || entry.use_case || entry.rationale || entry.next_step);
 }}
 function atlasUnmappedIndexSet() {{
   return new Set((CURRICULUM_ATLAS.unmapped_asset_indices || []).map(value => String(value)));
@@ -1021,7 +1094,7 @@ function hasFeedbackAttention(item) {{
 function isReviewQueueCard(card, ratingValue) {{
   const idx = card?.dataset?.idx || '';
   const item = LIBRARY[parseInt(idx || '0', 10)] || {{}};
-  return !ratingValue || hasFeedbackAttention(item) || !hasExportState(item) || atlasUnmappedIndexSet().has(idx);
+  return !ratingValue || hasFeedbackAttention(item) || !hasEvaluationDecision(item) || !hasExportState(item) || atlasUnmappedIndexSet().has(idx);
 }}
 function feedbackLabel(entry) {{
   if (!entry) return '';
@@ -1045,6 +1118,31 @@ function applyFeedbackToCards() {{
   document.querySelectorAll('.card').forEach(card => {{
     const idx = parseInt(card.dataset.idx || '0', 10);
     applyFeedbackToCard(card, LIBRARY[idx]);
+  }});
+}}
+function applyEvaluationToCard(card, item) {{
+  const badge = card.querySelector('.evaluation-badge');
+  if (!badge) return;
+  const entry = evaluationForItem(item);
+  if (!entry) {{
+    badge.textContent = '';
+    badge.title = '';
+    badge.className = 'evaluation-badge';
+    return;
+  }}
+  const label = evaluationDecisionLabel(entry) || (entry.score ? 'score ' + entry.score : 'evaluated');
+  badge.textContent = label;
+  badge.title = [
+    entry.score ? 'Score ' + entry.score : '',
+    entry.use_case,
+    entry.next_step,
+  ].filter(Boolean).join(' | ');
+  badge.className = 'evaluation-badge evaluation-on evaluation-' + (entry.decision || 'scored');
+}}
+function applyEvaluationsToCards() {{
+  document.querySelectorAll('.card').forEach(card => {{
+    const idx = parseInt(card.dataset.idx || '0', 10);
+    applyEvaluationToCard(card, LIBRARY[idx]);
   }});
 }}
 function applyMetadataToItem(item, entry) {{
@@ -1081,6 +1179,7 @@ function renderTagsForCard(card, item) {{
 function lineageNextLabel(item) {{
   if (item?.superseded_by) return 'next: compare';
   if (hasFeedbackAttention(item)) return 'next: revise';
+  if (!hasEvaluationDecision(item)) return 'next: evaluate';
   if (!metadataStatesForItem(item).length) return 'next: tag';
   if (!hasExportState(item)) return 'next: export';
   return 'ready';
@@ -1118,6 +1217,7 @@ function syncCardContent(card, item) {{
   }}
   renderTagsForCard(card, item);
   syncLineageForCard(card, item);
+  applyEvaluationToCard(card, item);
 }}
 function applyMetadataToCards() {{
   document.querySelectorAll('.card').forEach(card => {{
@@ -1212,6 +1312,156 @@ async function saveFeedbackForDetail(event) {{
     setFeedbackStatus('success', 'Saved');
   }} catch (err) {{
     setFeedbackStatus('error', err?.message || 'Save failed');
+  }}
+}}
+function renderEvaluation(item) {{
+  const entry = evaluationForItem(item) || {{}};
+  const decision = document.getElementById('evaluation-decision');
+  const score = document.getElementById('evaluation-score');
+  const useCase = document.getElementById('evaluation-use-case');
+  const rationale = document.getElementById('evaluation-rationale');
+  const nextStep = document.getElementById('evaluation-next-step');
+  const msg = document.getElementById('evaluation-status-message');
+  if (decision) decision.value = entry.decision || '';
+  if (score) score.value = entry.score ? String(entry.score) : '';
+  if (useCase) useCase.value = entry.use_case || '';
+  if (rationale) rationale.value = entry.rationale || '';
+  if (nextStep) nextStep.value = entry.next_step || '';
+  if (msg) msg.textContent = entry.updated_at ? 'Saved ' + entry.updated_at : '';
+}}
+function setEvaluationStatus(kind, message) {{
+  const msg = document.getElementById('evaluation-status-message');
+  if (!msg) return;
+  msg.className = 'evaluation-status evaluation-status-' + kind;
+  msg.textContent = message || '';
+}}
+function runKeyForItem(item) {{
+  return item?.run_key || [item?.project, item?.run_id].filter(Boolean).join('/');
+}}
+function renderRunDecisionSummary(detail, item) {{
+  const box = document.getElementById('run-decision-summary');
+  if (!box) return;
+  const runKey = runKeyForItem(item);
+  const runItems = LIBRARY.filter(candidate => runKeyForItem(candidate) === runKey);
+  const counts = {{approve: 0, revise: 0, reject: 0, reference: 0, unreviewed: 0}};
+  const scores = [];
+  runItems.forEach(candidate => {{
+    const entry = evaluationForItem(candidate) || {{}};
+    const decision = entry.decision || '';
+    if (decision && counts[decision] !== undefined) counts[decision] += 1;
+    else counts.unreviewed += 1;
+    if (entry.score) scores.push(Number(entry.score));
+  }});
+  const average = scores.length
+    ? (scores.reduce((total, value) => total + value, 0) / scores.length).toFixed(1)
+    : '';
+  box.innerHTML = '';
+  const title = document.createElement('h3');
+  title.textContent = 'Run Decision Summary';
+  const row = document.createElement('div');
+  row.className = 'run-decision-chip-row';
+  [
+    ['Images', runItems.length],
+    ['Approve', counts.approve],
+    ['Revise', counts.revise],
+    ['Reject', counts.reject],
+    ['Reference', counts.reference],
+    ['Unreviewed', counts.unreviewed],
+  ].forEach(([label, value]) => {{
+    const chip = document.createElement('span');
+    chip.className = 'run-decision-chip';
+    chip.textContent = label + ' ' + value;
+    row.appendChild(chip);
+  }});
+  if (average) {{
+    const avg = document.createElement('span');
+    avg.className = 'run-decision-chip run-decision-score';
+    avg.textContent = 'Avg score ' + average;
+    row.appendChild(avg);
+  }}
+  box.appendChild(title);
+  box.appendChild(row);
+}}
+async function loadEvaluations() {{
+  EVALUATIONS = _loadLocalEvaluations();
+  applyEvaluationsToCards();
+  updateFilterCounts();
+  applyFilters();
+  if (!SERVER_MODE) return;
+  try {{
+    const resp = await fetch('/api/evaluations');
+    const data = await resp.json();
+    EVALUATIONS = data.items || {{}};
+    _saveLocalEvaluations(EVALUATIONS);
+    applyEvaluationsToCards();
+    updateFilterCounts();
+    applyFilters();
+    if (_detailItem) {{
+      renderEvaluation(_detailItem);
+      renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+    }}
+  }} catch (err) {{}}
+}}
+async function saveEvaluationForDetail(event) {{
+  if (event) {{
+    event.preventDefault();
+    event.stopPropagation();
+  }}
+  if (!_detailItem) return;
+  const key = evaluationKeyForItem(_detailItem);
+  const payload = {{
+    key,
+    decision: document.getElementById('evaluation-decision')?.value || '',
+    score: document.getElementById('evaluation-score')?.value || '',
+    use_case: document.getElementById('evaluation-use-case')?.value || '',
+    rationale: document.getElementById('evaluation-rationale')?.value || '',
+    next_step: document.getElementById('evaluation-next-step')?.value || '',
+  }};
+  setEvaluationStatus('busy', 'Saving...');
+  if (!SERVER_MODE) {{
+    const localEntry = {{}};
+    if (payload.decision) localEntry.decision = payload.decision;
+    if (payload.score) localEntry.score = Number(payload.score);
+    if (payload.use_case.trim()) localEntry.use_case = payload.use_case.trim();
+    if (payload.rationale.trim()) localEntry.rationale = payload.rationale.trim();
+    if (payload.next_step.trim()) localEntry.next_step = payload.next_step.trim();
+    if (Object.keys(localEntry).length) {{
+      localEntry.updated_at = new Date().toISOString();
+      EVALUATIONS[key] = localEntry;
+    }} else {{
+      delete EVALUATIONS[key];
+    }}
+    _saveLocalEvaluations(EVALUATIONS);
+    applyEvaluationsToCards();
+    updateFilterCounts();
+    applyFilters();
+    renderEvaluation(_detailItem);
+    renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+    setEvaluationStatus('success', 'Saved locally');
+    return;
+  }}
+  try {{
+    const resp = await fetch('/api/evaluations', {{
+      method: 'POST',
+      headers: {{'Content-Type': 'application/json'}},
+      body: JSON.stringify(payload),
+    }});
+    const data = await resp.json().catch(() => ({{error: 'Invalid server response'}}));
+    if (!resp.ok || !data.ok) {{
+      setEvaluationStatus('error', data.error || 'Save failed');
+      return;
+    }}
+    if (data.evaluation) EVALUATIONS[key] = data.evaluation;
+    else delete EVALUATIONS[key];
+    _saveLocalEvaluations(EVALUATIONS);
+    applyEvaluationsToCards();
+    updateFilterCounts();
+    applyFilters();
+    renderEvaluation(_detailItem);
+    renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+    setEvaluationStatus('success', 'Saved');
+  }} catch (err) {{
+    setEvaluationStatus('error', err?.message || 'Save failed');
   }}
 }}
 function renderMetadata(item) {{
@@ -1569,9 +1819,11 @@ function showRunDetail(item) {{
   }}
 
   renderFilenameWarning(item);
+  renderRunDecisionSummary(detail, item);
   renderDetailFields(detail, item);
   renderMetadata(item);
   renderFeedback(item);
+  renderEvaluation(item);
   const jsonEl = document.getElementById('run-detail-json');
   if (jsonEl) jsonEl.textContent = JSON.stringify(detail.manifest || {{}}, null, 2);
 }}
@@ -1962,6 +2214,7 @@ async function submitStudio(event) {{
   loadUsageSummary();
   loadArchiveMetadata();
   loadFeedback();
+  loadEvaluations();
   if (!SERVER_MODE) {{
     document.getElementById('studio-panel')?.classList.add('studio-disabled');
     document.getElementById('portal-actions-panel')?.classList.add('studio-disabled');
@@ -2021,6 +2274,7 @@ LIBRARY.forEach((item, i) => {{
       <span class="filename-warning-badge"></span>
       <span class="metadata-state-badge"></span>
       <span class="feedback-badge"></span>
+      <span class="evaluation-badge"></span>
       <span class="model-badge"></span>
     </div>
     <div class="card-title"></div>
@@ -2454,6 +2708,7 @@ a:focus-visible {
 .filename-warning-badge,
 .metadata-state-badge,
 .feedback-badge,
+.evaluation-badge,
 .model-badge,
 .tag {
   border: 1px solid var(--border);
@@ -2473,6 +2728,9 @@ a:focus-visible {
 .feedback-badge:empty {
   display: none;
 }
+.evaluation-badge:empty {
+  display: none;
+}
 .metadata-state-on {
   color: #d7c7ff;
   border-color: rgba(124,106,247,0.34);
@@ -2484,6 +2742,22 @@ a:focus-visible {
   border-color: rgba(67,210,126,0.34);
   background: rgba(67,210,126,0.10);
   text-transform: capitalize;
+}
+.evaluation-on {
+  color: #f4d35e;
+  border-color: rgba(244,211,94,0.32);
+  background: rgba(244,211,94,0.10);
+  text-transform: capitalize;
+}
+.evaluation-revise {
+  color: #ffd78f;
+  border-color: rgba(255,193,94,0.34);
+  background: rgba(255,193,94,0.10);
+}
+.evaluation-reject {
+  color: #ff9da3;
+  border-color: rgba(255,100,120,0.30);
+  background: rgba(255,100,120,0.10);
 }
 .filename-warning-exact,
 .filename-warning-similar {
@@ -2741,8 +3015,37 @@ a:focus-visible {
   color: var(--ink);
   overflow-wrap: anywhere;
 }
+.run-decision-summary {
+  border: 1px solid rgba(244,211,94,0.22);
+  background: rgba(244,211,94,0.06);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0 0 1rem;
+}
+.run-decision-summary h3 {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+}
+.run-decision-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.run-decision-chip {
+  border: 1px solid rgba(244,211,94,0.24);
+  border-radius: 4px;
+  color: var(--dim);
+  background: rgba(0,0,0,0.16);
+  font-size: 0.66rem;
+  line-height: 1.1;
+  padding: 0.2rem 0.38rem;
+}
+.run-decision-score {
+  color: #f4d35e;
+}
 .run-detail-metadata,
-.run-detail-feedback {
+.run-detail-feedback,
+.run-detail-evaluation {
   border: 1px solid var(--border);
   background: rgba(255,255,255,0.025);
   border-radius: 8px;
@@ -2750,27 +3053,33 @@ a:focus-visible {
   margin: 0 0 1rem;
 }
 .run-detail-metadata h3,
-.run-detail-feedback h3 {
+.run-detail-feedback h3,
+.run-detail-evaluation h3 {
   margin: 0 0 0.65rem;
   font-size: 0.85rem;
 }
 .run-detail-metadata label,
-.run-detail-feedback label {
+.run-detail-feedback label,
+.run-detail-evaluation label {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   margin-bottom: 0.65rem;
 }
 .run-detail-metadata label span,
-.run-detail-feedback label span {
+.run-detail-feedback label span,
+.run-detail-evaluation label span {
   color: var(--dim);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
 .run-detail-metadata input[type="text"],
+.run-detail-evaluation input[type="text"],
 .run-detail-feedback select,
-.run-detail-feedback textarea {
+.run-detail-evaluation select,
+.run-detail-feedback textarea,
+.run-detail-evaluation textarea {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -2783,6 +3092,9 @@ a:focus-visible {
   font-size: 0.76rem;
 }
 .run-detail-feedback textarea {
+  resize: vertical;
+}
+.run-detail-evaluation textarea {
   resize: vertical;
 }
 .metadata-state-grid {
@@ -2799,13 +3111,15 @@ a:focus-visible {
   margin: 0;
 }
 .metadata-actions,
-.feedback-actions {
+.feedback-actions,
+.evaluation-actions {
   display: flex;
   gap: 0.45rem;
   flex-wrap: wrap;
 }
 .metadata-actions button,
-.feedback-actions button {
+.feedback-actions button,
+.evaluation-actions button {
   border: 1px solid rgba(0,200,180,0.24);
   background: rgba(0,200,180,0.09);
   color: var(--teal);
@@ -2816,22 +3130,27 @@ a:focus-visible {
   cursor: pointer;
 }
 .metadata-actions button:hover,
-.feedback-actions button:hover {
+.feedback-actions button:hover,
+.evaluation-actions button:hover {
   border-color: var(--teal);
 }
 .metadata-status,
-.feedback-status {
+.feedback-status,
+.evaluation-status {
   min-height: 1rem;
   margin-top: 0.55rem;
   color: var(--dim);
   font-size: 0.72rem;
 }
 .metadata-status-error,
-.feedback-status-error { color: #ff8f8f; }
+.feedback-status-error,
+.evaluation-status-error { color: #ff8f8f; }
 .metadata-status-busy,
-.feedback-status-busy { color: var(--teal); }
+.feedback-status-busy,
+.evaluation-status-busy { color: var(--teal); }
 .metadata-status-success,
-.feedback-status-success { color: #9ee7bf; }
+.feedback-status-success,
+.evaluation-status-success { color: #9ee7bf; }
 .run-detail-json {
   border: 1px solid var(--border);
   background: rgba(0,0,0,0.22);

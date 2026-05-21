@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.archive_metadata import archive_metadata_path, load_archive_metadata
+from lib.evaluations import evaluations_path, load_evaluations
 from lib.feedback import load_feedback
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
@@ -63,6 +64,7 @@ def archive_health_report(output_root: Path) -> dict[str, Any]:
     output_root = Path(output_root)
     ratings = _load_ratings(output_root)
     feedback = load_feedback(output_root / "feedback.json").get("items", {})
+    evaluations = load_evaluations(evaluations_path(output_root)).get("items", {})
     metadata = load_archive_metadata(archive_metadata_path(output_root)).get("items", {})
 
     run_count = 0
@@ -129,6 +131,7 @@ def archive_health_report(output_root: Path) -> dict[str, Any]:
     orphaned = {
         "ratings": sorted(key for key in ratings if key not in known_keys),
         "feedback": sorted(key for key in feedback if key not in known_keys),
+        "evaluations": sorted(key for key in evaluations if key not in known_keys),
         "metadata": sorted(key for key in metadata if key not in known_keys),
     }
     image_files = _image_files(output_root)
@@ -150,6 +153,7 @@ def archive_health_report(output_root: Path) -> dict[str, Any]:
             "duplicate_filename_groups": len(duplicate_filenames),
             "orphaned_ratings": len(orphaned["ratings"]),
             "orphaned_feedback": len(orphaned["feedback"]),
+            "orphaned_evaluations": len(orphaned["evaluations"]),
             "orphaned_metadata": len(orphaned["metadata"]),
             "cleanup_risk_items": cleanup_risk,
         },
@@ -173,7 +177,7 @@ def _recommendations(
     if missing_images:
         recs.append("Rebuild viewers after deciding whether missing image records should stay in the archive.")
     if any(orphaned.values()):
-        recs.append("Review orphaned ratings, feedback, and metadata before deleting sidecar state.")
+        recs.append("Review orphaned ratings, feedback, evaluations, and metadata before deleting sidecar state.")
     if duplicate_filenames:
         recs.append("Inspect duplicate filename groups before approving or removing reruns.")
     if not recs:
