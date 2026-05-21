@@ -244,6 +244,8 @@ def test_static_deploy_dry_run_reports_command_without_calling_vercel(tmp_path):
     assert result["mutating"] is False
     assert result["external"] is False
     assert result["command"] == ["vercel", "deploy", str(viewer_dir), "--yes"]
+    assert result["source_mapping"]["mapped"] is False
+    assert result["source_mapping"]["source_kind"] == "unmapped"
 
 
 def test_static_deploy_stamps_approved_source_cards(tmp_path, monkeypatch):
@@ -271,6 +273,90 @@ def test_static_deploy_stamps_approved_source_cards(tmp_path, monkeypatch):
     metadata = json.loads((output_root / "archive-metadata.json").read_text(encoding="utf-8"))
     entry = metadata["items"]["demo/run-20260101-100000/hero.png"]
     assert result["url"] == "https://example.vercel.app"
+    assert result["source_mapping"]["source_kind"] == "approved"
+    assert result["source_mapping"]["key_count"] == 1
     assert result["metadata_state"] == "deployed"
     assert result["metadata_stamped"] == 1
+    assert result["metadata_unmapped"] is False
     assert entry["states"] == ["deployed"]
+
+
+def test_static_deploy_stamps_project_viewer_run_cards(tmp_path, monkeypatch):
+    from lib.deploy import vercel
+
+    output_root = tmp_path / "output"
+    project_dir = output_root / "demo"
+    run_dir = project_dir / "run-20260101-100000"
+    _write_run(run_dir, [{"name": "Hero", "prompt": "caption", "file": "hero.png"}])
+    (project_dir / "viewer.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(vercel, "deploy", lambda *args, **kwargs: "https://example.vercel.app")
+
+    result = portal_actions.run_action(
+        {
+            "action": "static-deploy",
+            "project": "demo",
+            "confirm": True,
+        },
+        output_root=output_root,
+    )
+
+    metadata = json.loads((output_root / "archive-metadata.json").read_text(encoding="utf-8"))
+    entry = metadata["items"]["demo/run-20260101-100000/hero.png"]
+    assert result["source_mapping"]["source_kind"] == "project"
+    assert result["source_mapping"]["key_count"] == 1
+    assert result["metadata_stamped"] == 1
+    assert entry["states"] == ["deployed"]
+
+
+def test_static_deploy_stamps_run_viewer_cards(tmp_path, monkeypatch):
+    from lib.deploy import vercel
+
+    output_root = tmp_path / "output"
+    run_dir = output_root / "demo" / "run-20260101-100000"
+    _write_run(run_dir, [{"name": "Hero", "prompt": "caption", "file": "hero.png"}])
+    (run_dir / "viewer.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(vercel, "deploy", lambda *args, **kwargs: "https://example.vercel.app")
+
+    result = portal_actions.run_action(
+        {
+            "action": "static-deploy",
+            "project": "demo",
+            "viewer_dir": str(run_dir),
+            "confirm": True,
+        },
+        output_root=output_root,
+    )
+
+    metadata = json.loads((output_root / "archive-metadata.json").read_text(encoding="utf-8"))
+    entry = metadata["items"]["demo/run-20260101-100000/hero.png"]
+    assert result["source_mapping"]["source_kind"] == "run"
+    assert result["source_mapping"]["source_label"] == "run-20260101-100000"
+    assert result["metadata_stamped"] == 1
+    assert entry["states"] == ["deployed"]
+
+
+def test_static_deploy_reports_unmapped_custom_viewer(tmp_path, monkeypatch):
+    from lib.deploy import vercel
+
+    output_root = tmp_path / "output"
+    viewer_dir = tmp_path / "custom-viewer"
+    viewer_dir.mkdir()
+    (viewer_dir / "viewer.html").write_text("<html></html>", encoding="utf-8")
+    monkeypatch.setattr(vercel, "deploy", lambda *args, **kwargs: "https://example.vercel.app")
+
+    result = portal_actions.run_action(
+        {
+            "action": "static-deploy",
+            "project": "demo",
+            "viewer_dir": str(viewer_dir),
+            "confirm": True,
+        },
+        output_root=output_root,
+    )
+
+    assert result["source_mapping"]["mapped"] is False
+    assert result["source_mapping"]["source_kind"] == "unmapped"
+    assert "outside the project output root" in result["source_mapping"]["reason"]
+    assert result["metadata_stamped"] == 0
+    assert result["metadata_unmapped"] is True
+    assert not (output_root / "archive-metadata.json").exists()

@@ -258,6 +258,7 @@ def _static_deploy(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
     command = ["vercel", "deploy", str(resolved_dir), "--yes"]
     if prod:
         command.append("--prod")
+    source_map = _deploy_source_map(output_root, project=project, viewer_dir=resolved_dir)
 
     if dry_run:
         if not (resolved_dir / "viewer.html").exists():
@@ -268,18 +269,14 @@ def _static_deploy(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
             "viewer_dir": str(resolved_dir.resolve(strict=False)),
             "command": command,
             "url": "",
+            "source_mapping": source_map,
         }
 
     url = vercel.deploy(project, viewer_dir=resolved_dir, prod=prod, dry_run=False)
-    source_label = _source_label_for_viewer_dir(output_root, project, resolved_dir)
-    metadata = (
-        _stamp_archive_state_for_source(
-            output_root,
-            project=project,
-            source_label=source_label,
-            state="deployed",
-        )
-        if source_label else {}
+    metadata = _stamp_archive_state_for_keys(
+        output_root,
+        keys=source_map["keys"],
+        state="deployed",
     )
     return {
         "project": project,
@@ -287,6 +284,8 @@ def _static_deploy(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
         "viewer_dir": str(resolved_dir.resolve(strict=False)),
         "command": command,
         "url": url,
+        "source_mapping": source_map,
+        "metadata_unmapped": not source_map["mapped"],
         **metadata,
     }
 
@@ -331,9 +330,18 @@ def _stamp_archive_state_for_source(
     source_label: str,
     state: str,
 ) -> dict[str, Any]:
+    keys = _archive_keys_for_source(output_root, project=project, source_label=source_label)
+    return _stamp_archive_state_for_keys(output_root, keys=keys, state=state)
+
+
+def _stamp_archive_state_for_keys(
+    output_root: Path,
+    *,
+    keys: list[str],
+    state: str,
+) -> dict[str, Any]:
     from lib.archive_metadata import archive_metadata_path, stamp_archive_state
 
-    keys = _archive_keys_for_source(output_root, project=project, source_label=source_label)
     result = stamp_archive_state(archive_metadata_path(output_root), keys, state)
     return {
         "metadata_state": result["state"],
@@ -393,19 +401,82 @@ def _archive_keys_for_run(run_dir: Path, project: str) -> list[str]:
     return keys
 
 
-def _source_label_for_viewer_dir(output_root: Path, project: str, viewer_dir: Path) -> str:
+def _deploy_source_map(output_root: Path, *, project: str, viewer_dir: Path) -> dict[str, Any]:
     resolved = Path(viewer_dir).resolve(strict=False)
     project_dir = _project_dir(output_root, project).resolve(strict=False)
     approved_dir = (project_dir / "approved").resolve(strict=False)
+
     if resolved == approved_dir:
-        return "approved"
+        keys = _archive_keys_for_approved(project_dir, project)
+        return _source_map_payload(
+            kind="approved",
+            label="approved",
+            keys=keys,
+            reason="approved/index.json maps deployed images to source run cards",
+        )
+
+    if resolved == project_dir:
+        keys = _archive_keys_for_project(project_dir, project)
+        return _source_map_payload(
+            kind="project",
+            label=project,
+            keys=keys,
+            reason="project viewer maps to all run-* manifest images",
+        )
+
     try:
         relative = resolved.relative_to(project_dir)
     except ValueError:
-        return ""
+        return _source_map_payload(
+            kind="unmapped",
+            label="",
+            keys=[],
+            reason="viewer directory is outside the project output root",
+        )
+
     if len(relative.parts) == 1 and relative.parts[0].startswith("run-"):
-        return relative.parts[0]
-    return ""
+        run_id = relative.parts[0]
+        keys = _archive_keys_for_run(project_dir / run_id, project)
+        return _source_map_payload(
+            kind="run",
+            label=run_id,
+            keys=keys,
+            reason="run viewer maps directly to its run.json image records",
+        )
+
+    return _source_map_payload(
+        kind="unmapped",
+        label="",
+        keys=[],
+        reason="viewer directory is not project root, approved/, or a run-* directory",
+    )
+
+
+def _archive_keys_for_project(project_dir: Path, project: str) -> list[str]:
+    keys = []
+    for run_dir in sorted(project_dir.glob("run-*")):
+        if run_dir.is_dir():
+            keys.extend(_archive_keys_for_run(run_dir, project))
+    return keys
+
+
+def _source_map_payload(
+    *,
+    kind: str,
+    label: str,
+    keys: list[str],
+    reason: str,
+) -> dict[str, Any]:
+    if not keys and kind != "unmapped":
+        reason = f"{reason}, but no source image keys were found"
+    return {
+        "mapped": bool(keys),
+        "source_kind": kind,
+        "source_label": label,
+        "reason": reason,
+        "key_count": len(keys),
+        "keys": keys,
+    }
 
 
 def _coerce_bool(value: object) -> bool:

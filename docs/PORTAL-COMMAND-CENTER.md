@@ -105,7 +105,11 @@ library merges that sidecar when it renders, so the state is visible as card
 badges and searchable tags instead of being trapped in browser-local storage.
 Successful non-dry-run Canva, Notion, and static deploy portal actions stamp
 the matching source cards with `canva`, `notion`, or `deployed` automatically
-when Rafiki can map the exported source back to run images.
+when Rafiki can map the exported source back to run images. Static deploys map
+`approved/` viewers through `approved/index.json`, `run-*` viewers through
+their run manifest, and project-root viewers through every `run-*` manifest in
+that project. Custom viewer directories that do not map to local run images
+return an explicit `unmapped` reason instead of silently stamping nothing.
 
 ## Curriculum Atlas
 

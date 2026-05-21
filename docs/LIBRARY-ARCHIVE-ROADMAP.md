@@ -89,7 +89,9 @@ Success criteria:
 - Show whether each archive card has been approved, exported to Canva, exported
   to Notion, deployed, or superseded. Export/publish/superseded badges are now
   visible from archive metadata; successful portal Canva, Notion, and static
-  deploy actions now stamp matching source cards automatically.
+  deploy actions now stamp matching source cards automatically. Static deploy
+  mapping covers approved viewers, run viewers, and project-root comparison
+  viewers; custom viewer directories report why they are unmapped.
 - Add a "needs decision" queue for high-value projects where many images remain
   unreviewed. Done as **Review Queue**, which combines unreviewed cards,
   feedback attention, missing evaluation, missing export state, and
