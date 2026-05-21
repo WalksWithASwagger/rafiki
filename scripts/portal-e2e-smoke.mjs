@@ -120,13 +120,63 @@ async function writeFixtureImage(target, index, aspectRatio) {
 }
 
 async function screenshotStats(filePath) {
+  const metadata = await sharp(filePath).metadata();
   const stats = await sharp(filePath).stats();
   const stdev = stats.channels.map((channel) => Number(channel.stdev.toFixed(2)));
+  const { data, info } = await sharp(filePath)
+    .removeAlpha()
+    .resize({ width: 320, withoutEnlargement: true })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const pixels = data.length / info.channels;
+  let lumaTotal = 0;
+  let darkPixels = 0;
+  let brightPixels = 0;
+  let saturatedPixels = 0;
+  const colorBuckets = new Set();
+
+  for (let index = 0; index < data.length; index += info.channels) {
+    const r = data[index];
+    const g = data[index + 1];
+    const b = data[index + 2];
+    const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    lumaTotal += luma;
+    if (luma < 35) darkPixels += 1;
+    if (luma > 225) brightPixels += 1;
+    if (max - min > 24) saturatedPixels += 1;
+    colorBuckets.add(`${r >> 5}:${g >> 5}:${b >> 5}`);
+  }
+
   return {
     file: filePath,
+    width: metadata.width || 0,
+    height: metadata.height || 0,
     stdev,
     nonblank: stdev.some((value) => value > 2),
+    visual: {
+      meanLuma: Number((lumaTotal / pixels).toFixed(2)),
+      darkRatio: Number((darkPixels / pixels).toFixed(3)),
+      brightRatio: Number((brightPixels / pixels).toFixed(3)),
+      saturatedRatio: Number((saturatedPixels / pixels).toFixed(3)),
+      colorBuckets: colorBuckets.size,
+    },
   };
+}
+
+function assertVisualBaseline(label, stats, rules) {
+  assert(stats.nonblank, `${label} screenshot is blank`);
+  assert(stats.width >= rules.minWidth, `${label} screenshot is too narrow: ${stats.width}`);
+  assert(stats.height >= rules.minHeight, `${label} screenshot is too short: ${stats.height}`);
+  assert(stats.visual.colorBuckets >= rules.minColorBuckets, `${label} screenshot has too few color buckets: ${stats.visual.colorBuckets}`);
+  assert(stats.visual.saturatedRatio >= rules.minSaturatedRatio, `${label} screenshot lost too much color: ${stats.visual.saturatedRatio}`);
+  assert(stats.visual.darkRatio >= rules.minDarkRatio, `${label} screenshot lost dark UI/content contrast: ${stats.visual.darkRatio}`);
+  assert(stats.visual.brightRatio <= rules.maxBrightRatio, `${label} screenshot is washed out: ${stats.visual.brightRatio}`);
+  assert(
+    stats.visual.meanLuma >= rules.minMeanLuma && stats.visual.meanLuma <= rules.maxMeanLuma,
+    `${label} screenshot luminance drifted outside baseline: ${stats.visual.meanLuma}`,
+  );
 }
 
 async function main() {
@@ -366,10 +416,35 @@ async function main() {
     assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
     assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');
 
-    const desktopScreenshot = path.join(tmpRoot, 'portal-desktop.png');
-    await desktop.screenshot({ path: desktopScreenshot, fullPage: true });
-    const desktopStats = await screenshotStats(desktopScreenshot);
-    assert(desktopStats.nonblank, 'desktop screenshot is blank');
+    const desktopReviewScreenshot = path.join(tmpRoot, 'portal-desktop-review.png');
+    await desktop.screenshot({ path: desktopReviewScreenshot, fullPage: true });
+    const desktopReviewStats = await screenshotStats(desktopReviewScreenshot);
+    assertVisualBaseline('desktop review', desktopReviewStats, {
+      minWidth: 1200,
+      minHeight: 900,
+      minColorBuckets: 24,
+      minSaturatedRatio: 0.04,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.86,
+      minMeanLuma: 20,
+      maxMeanLuma: 220,
+    });
+
+    await desktop.evaluate(() => setPortalMode('teach'));
+    await desktop.waitForFunction(() => !document.querySelector('#portal-mode-teach').hidden);
+    const desktopTeachScreenshot = path.join(tmpRoot, 'portal-desktop-teach.png');
+    await desktop.screenshot({ path: desktopTeachScreenshot, fullPage: true });
+    const desktopTeachStats = await screenshotStats(desktopTeachScreenshot);
+    assertVisualBaseline('desktop teach', desktopTeachStats, {
+      minWidth: 1200,
+      minHeight: 900,
+      minColorBuckets: 24,
+      minSaturatedRatio: 0.015,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.86,
+      minMeanLuma: 20,
+      maxMeanLuma: 220,
+    });
 
     const mobile = await browser.newPage();
     mobile.on('pageerror', (error) => errors.push(`mobile pageerror: ${error.message}`));
@@ -425,7 +500,16 @@ async function main() {
     const mobileScreenshot = path.join(tmpRoot, 'portal-mobile.png');
     await mobile.screenshot({ path: mobileScreenshot, fullPage: false });
     const mobileStats = await screenshotStats(mobileScreenshot);
-    assert(mobileStats.nonblank, 'mobile screenshot is blank');
+    assertVisualBaseline('mobile', mobileStats, {
+      minWidth: 390,
+      minHeight: 800,
+      minColorBuckets: 18,
+      minSaturatedRatio: 0.03,
+      minDarkRatio: 0.03,
+      maxBrightRatio: 0.9,
+      minMeanLuma: 20,
+      maxMeanLuma: 230,
+    });
 
     assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
 
@@ -440,7 +524,8 @@ async function main() {
       desktop: desktopState,
       mobile: mobileState,
       screenshots: {
-        desktop: desktopStats,
+        desktopReview: desktopReviewStats,
+        desktopTeach: desktopTeachStats,
         mobile: mobileStats,
       },
       server_output: serverOutput.split('\n').filter(Boolean).slice(0, 6),

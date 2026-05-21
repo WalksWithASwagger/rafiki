@@ -152,4 +152,8 @@ metadata save, feedback save, rating filters, desktop and mobile overflow, and
 mobile lazy image loading after scroll. The quality lane also checks concept
 graph rendering, Review Queue behavior, lineage/copy affordances, focusable
 mode controls, reduced-motion CSS, absence of `transition: all`, and a clean
-browser console.
+browser console. Screenshots are not pixel-snapshotted, but the smoke now
+records visual baseline metrics for desktop Review, desktop Teach, and mobile
+captures, including dimensions, luminance, contrast distribution, color variety,
+and saturation, so blank pages and major layout/theme regressions fail without
+creating brittle image fixtures.

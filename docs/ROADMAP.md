@@ -150,7 +150,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
-| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`. | Add visual baselines, cohort/story presentation flow, and card-level evaluation state after real review sessions prove the schema shape. |
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, and `npm run e2e:portal` includes screenshot visual baseline metrics for desktop Review, desktop Teach, and mobile. | Add cohort/story presentation flow and card-level evaluation state after real review sessions prove the schema shape. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -174,7 +174,7 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Add visual baselines for portal review, Teach mode, and mobile layouts.
+1. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
 2. Add card-level evaluation state and run-level decision summaries.
 3. Add MCP and CLI dry-run smoke tests.
 4. Expand doctor remediation for package and browser setup.

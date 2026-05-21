@@ -35,8 +35,8 @@ Commands and checks run:
   0 critical issues and expected local provider-key warnings.
 - `npm run e2e:portal`: added and passed; it creates a disposable fixture
   archive, starts the portal on a random local port, checks desktop/mobile
-  browser behavior in Chromium, asserts screenshots are nonblank, and cleans
-  up its temp output/server process.
+  browser behavior in Chromium, asserts screenshot visual baseline metrics, and
+  cleans up its temp output/server process.
 
 Browser/API checks:
 
@@ -46,22 +46,24 @@ Browser/API checks:
 - `/api/deploy-readiness` returned a safe readiness report with Vercel detected
   and provider/auth checks marked optional.
 - Desktop browser smoke found two cards, both images loaded at natural widths
-  960px and 720px, no horizontal overflow, and a nonblank screenshot.
+  960px and 720px, no horizontal overflow, and visual baselines for Review and
+  Teach screenshots.
 - Mobile browser smoke found no horizontal overflow at 390px width; both images
-  lazy loaded correctly after scrolling to the cards.
+  lazy loaded correctly after scrolling to the cards, and the viewport capture
+  passed visual baseline checks.
 - Search reduced visible cards from 2 to 1 for `review portal`.
 - Run detail opened and showed the source run.
 - Metadata save persisted to `output/archive-metadata.json`.
 - Feedback save persisted to `output/feedback.json`.
 - Rating plus starred filter worked when starting from a known unstarred state.
 - Screenshot artifacts are captured in the temporary E2E root and checked for
-  nonblank pixel stats. They are deleted by default and kept only when
-  `RAFIKI_E2E_KEEP_TMP=1` is set.
+  dimensions, luminance, contrast distribution, color variety, and saturation.
+  They are deleted by default and kept only when `RAFIKI_E2E_KEEP_TMP=1` is set.
 
-## 2026-05-20 Follow-Up
+## 2026-05-20 And 2026-05-21 Follow-Up
 
-The quality-plan follow-up keeps the local-first/static-friendly architecture
-and adds the first behavior-preserving split plus quality guardrails:
+The quality-plan follow-ups keep the local-first/static-friendly architecture
+and add the first behavior-preserving split plus quality guardrails:
 
 - Curriculum Atlas HTML helpers moved into `lib/renderers/library_atlas.py`
   while `lib/renderers/library.py` remains the public renderer entrypoint.
@@ -73,8 +75,8 @@ and adds the first behavior-preserving split plus quality guardrails:
   `prefers-reduced-motion` handling, and no `transition: all` in renderer CSS.
 - `npm run e2e:portal` now asserts the quality lane: focusable mode controls,
   reduced-motion CSS, concept graph rendering, Review Queue behavior, lineage
-  chips, copy affordances, clean console, desktop/mobile overflow, and nonblank
-  screenshots.
+  chips, copy affordances, clean console, desktop/mobile overflow, and visual
+  baseline metrics for desktop Review, desktop Teach, and mobile screenshots.
 - `python generate.py archive-health` now provides a read-only report for
   missing images, malformed manifests, duplicate filenames, sidecar orphans,
   disk usage, and cleanup-risk counts.
@@ -109,16 +111,15 @@ and adds the first behavior-preserving split plus quality guardrails:
 - The visible local library can contain run images while `registry-export`
   dry-run reports `count: 0`, because export scope is curated/registry-backed.
   That is defensible internally, but the UI should explain the mismatch.
-- Mobile review content is buried below Prompt Studio, Curation & Export, and
-  Spend & Review Ops. On the smoke page, the first card started around 3330px
-  down the mobile page. That is usable, not showpiece-grade.
-- Full-page mobile screenshots captured below-fold lazy images before they
-  loaded. Human scrolling works, but visual regression needs either scroll
-  probes or deterministic eager image loading for test mode.
+- Mobile review content is image-first after the portal mode split. The smoke
+  now asserts the first card starts above 900px on a 390px-wide viewport.
+- Mobile screenshot capture now scrolls to the review card, waits for lazy
+  images to load, and uses a viewport screenshot so the visual baseline matches
+  what a person sees first.
 - The portal previously requested `/favicon.ico` and received a 404. This pass
   now serves a quiet `204` so browser-console smoke stays clean.
-- The UI now has explicit `prefers-reduced-motion` handling. Remaining polish is
-  visual baseline coverage and a measured motion/performance budget before
+- The UI now has explicit `prefers-reduced-motion` handling and visual baseline
+  coverage. Remaining polish is a measured motion/performance budget before
   adding richer animations.
 
 ## Curriculum And Idea Coverage
@@ -192,11 +193,12 @@ Sources:
 
 ### 1. Expand The E2E Harness
 
-Baseline is now committed as `npm run e2e:portal`, and the first quality lane
-asserts accessibility/motion guardrails plus Review Queue and Atlas graph
-behavior. Next improvements:
+Baseline is now committed as `npm run e2e:portal`, and the quality lane asserts
+accessibility/motion guardrails, Review Queue behavior, Atlas graph behavior,
+and visual metrics for desktop Review, desktop Teach, and mobile screenshots.
+Next improvements:
 
-- Add visual baselines once the portal layout is less volatile.
+- Add optional saved diff artifacts for visual review when the layout settles.
 - Add richer workflow assertions for export actions, prompt studio generation,
   and registry-backed bundles.
 - Keep mobile scroll probes explicit so lazy image loading stays deterministic.
@@ -273,7 +275,7 @@ Best next candidates:
 
 1. `showpiece: add Knowledge Garden prototype for concepts and generated images`
 2. `evals: add card-level visual critique state and run-level decision summary`
-3. `e2e: add visual baselines, INP probes, and richer workflow assertions`
+3. `e2e: add INP probes and richer workflow assertions`
 4. `mcp: add CLI and MCP dry-run smoke coverage`
 5. `curriculum: place Creative Mornings and private prompt islands into the Atlas`
 6. `archive: add conservative cleanup report on top of archive health`
