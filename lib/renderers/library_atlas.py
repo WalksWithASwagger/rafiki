@@ -170,24 +170,36 @@ def _atlas_panel_html(atlas: dict) -> str:
         for module in program.get("modules", []):
             program_id = json.dumps(program.get("id") or "")
             module_id = json.dumps(module.get("id") or "")
+            program_id_attr = escape(str(program.get("id") or ""))
+            module_id_attr = escape(str(module.get("id") or ""))
             competencies = ", ".join(module.get("competencies") or [])
             asset_count = int(module.get("asset_count") or 0)
+            evaluation = module.get("evaluation_summary") if isinstance(module.get("evaluation_summary"), dict) else {}
+            evaluated = int(evaluation.get("evaluated_count") or 0)
+            average = evaluation.get("average_score")
+            evaluation_text = f"{evaluated}/{asset_count} evaluated"
+            if average:
+                evaluation_text += f" · avg {average}"
             modules.append(
                 """
-                <div class="atlas-module">
+                <div class="atlas-module" data-program-id="{program_id_attr}" data-module-id="{module_id_attr}">
                   <div>
                     <h4>{title}</h4>
                     <p>{objective}</p>
                     <span>{level}{competencies}</span>
+                    <div class="atlas-evaluation-summary" data-program-id="{program_id_attr}" data-module-id="{module_id_attr}">{evaluation_text}</div>
                     {teaching}
                   </div>
                   <button type="button" onclick='focusAtlasModule({program_id}, {module_id})'{disabled}>{asset_count} asset{asset_plural}</button>
                 </div>
                 """.format(
+                    program_id_attr=program_id_attr,
+                    module_id_attr=module_id_attr,
                     title=escape(str(module.get("title") or "Untitled module")),
                     objective=escape(str(module.get("objective") or "")),
                     level=escape(str(module.get("level") or "module")),
                     competencies=escape(f" · {competencies}" if competencies else ""),
+                    evaluation_text=escape(evaluation_text),
                     teaching=_atlas_teaching_html(module),
                     program_id=program_id,
                     module_id=module_id,

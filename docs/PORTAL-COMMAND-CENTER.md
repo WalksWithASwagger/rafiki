@@ -93,7 +93,9 @@ The **Evaluation** section in the run detail panel writes to
 `reject`, or `reference`), a 1-5 score, intended use case, rationale, and next
 step. Cards show the decision as an evaluation badge, Review Queue treats
 missing evaluations as attention-worthy, and Run Detail summarizes decisions
-across the current run.
+across the current run. When a card matches the Curriculum Atlas, Run Detail
+also shows the matched module, objective, matching terms, critique criteria,
+and discussion prompts beside the evaluation form.
 
 ## Durable Card Metadata
 
@@ -117,10 +119,10 @@ The **Teach** mode reads `config/curriculum-atlas.json`, matches archive cards
 against program and module patterns, and shows linked asset counts plus an
 unmapped queue. Selecting an atlas module switches back to **Review** mode with
 the matching image cards filtered. Module cards can also show facilitator notes,
-discussion prompts, critique rubric items, and concept links. The current
-concept graph is static SVG generated from `concept_links`; it is intentionally
-lightweight until the Atlas schema has been used in real review sessions. See
-[Curriculum Atlas](CURRICULUM-ATLAS.md).
+discussion prompts, critique rubric items, concept links, and evaluation
+summaries by decision/score. The current concept graph is static SVG generated
+from `concept_links`; it is intentionally lightweight until the Atlas schema
+has been used in real review sessions. See [Curriculum Atlas](CURRICULUM-ATLAS.md).
 
 ## Review Queue And Lineage
 

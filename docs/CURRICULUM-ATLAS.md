@@ -41,8 +41,15 @@ module patterns, then exposes:
 - an unmapped queue for cards that do not match the scaffold yet
 - facilitator notes, discussion prompts, critique rubric items, and concept
   links for each module
+- evaluation summaries per module using `output/evaluations.json` decisions
+  and scores
 - buttons that jump back to **Review** mode with the matching image cards
   filtered
+
+Run Detail also shows a **Curriculum Fit** panel for the selected card. It
+lists matched programs/modules, the module objective, matching terms, critique
+criteria, and discussion prompts so a saved evaluation can be reviewed against
+the teaching context instead of living as a standalone note.
 
 The atlas is read-only in the portal. Keep authoring in the JSON file until the
 schema has proved itself through real teaching/review sessions.

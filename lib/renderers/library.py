@@ -10,6 +10,7 @@ from pathlib import Path
 
 from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
 from lib.curriculum import build_curriculum_atlas
+from lib.evaluations import evaluations_path, load_evaluations
 from lib import registry
 from lib.extra_outputs import load_extra_outputs
 from lib.renderers.library_atlas import _atlas_panel_html
@@ -320,7 +321,7 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
     _apply_archive_metadata(records, output_root)
     records.sort(key=lambda r: r["timestamp"], reverse=True)
 
-    html = _render_library(records)
+    html = _render_library(records, output_root=output_root)
     out_path = output_root / "library.html"
     out_path.write_text(html, encoding="utf-8")
 
@@ -575,7 +576,7 @@ def _ops_panel_html() -> str:
 """
 
 
-def _render_library(records: list[dict]) -> str:
+def _render_library(records: list[dict], output_root: Path | None = None) -> str:
     _annotate_filename_warnings(records)
 
     run_details: dict[str, dict] = {}
@@ -589,9 +590,14 @@ def _render_library(records: list[dict]) -> str:
         library_records.append(item)
 
     records = library_records
+    evaluations = (
+        load_evaluations(evaluations_path(output_root))
+        if output_root is not None
+        else {"items": {}}
+    )
+    curriculum_atlas = build_curriculum_atlas(records, evaluations=evaluations)
     library_json = json.dumps(records, ensure_ascii=False)
     run_details_json = json.dumps(run_details, ensure_ascii=False)
-    curriculum_atlas = build_curriculum_atlas(records)
     atlas_json = json.dumps(curriculum_atlas, ensure_ascii=False)
     ok_count = sum(1 for r in records if r["ok"])
     projects = sorted({r["project"] for r in records})
@@ -752,6 +758,7 @@ def _render_library(records: list[dict]) -> str:
     <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
     <div class="run-decision-summary" id="run-decision-summary"></div>
+    <div class="run-detail-curriculum" id="run-detail-curriculum"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
     <div class="run-detail-metadata" id="run-detail-metadata">
       <h3>Card Metadata</h3>
@@ -982,6 +989,127 @@ function focusAtlasModule(programId, moduleId) {{
 }}
 function focusAtlasUnmapped() {{
   focusAtlasAssets(CURRICULUM_ATLAS.unmapped_asset_indices || [], 'Unmapped curriculum queue');
+}}
+function curriculumMatchesForIndex(idx) {{
+  const needle = String(idx);
+  const matches = [];
+  (CURRICULUM_ATLAS.programs || []).forEach(program => {{
+    (program.modules || []).forEach(module => {{
+      const indices = (module.asset_indices || []).map(value => String(value));
+      if (indices.includes(needle)) matches.push({{program, module}});
+    }});
+  }});
+  return matches;
+}}
+function curriculumMatchesForItem(item) {{
+  const idx = LIBRARY.indexOf(item);
+  return idx >= 0 ? curriculumMatchesForIndex(idx) : [];
+}}
+function evaluationSummaryForIndices(indices) {{
+  const counts = {{approve: 0, revise: 0, reject: 0, reference: 0}};
+  const scores = [];
+  let evaluated = 0;
+  const assetIndices = Array.isArray(indices) ? indices : [];
+  assetIndices.forEach(idx => {{
+    const item = LIBRARY[parseInt(idx, 10)];
+    const entry = evaluationForItem(item) || {{}};
+    const decision = String(entry.decision || '').toLowerCase();
+    const hasEvaluation = Boolean(decision || entry.score || entry.use_case || entry.rationale || entry.next_step);
+    if (!hasEvaluation) return;
+    evaluated += 1;
+    if (counts[decision] !== undefined) counts[decision] += 1;
+    const score = Number(entry.score);
+    if (Number.isFinite(score) && score >= 1 && score <= 5) scores.push(score);
+  }});
+  const avg = scores.length
+    ? (scores.reduce((total, value) => total + value, 0) / scores.length).toFixed(1)
+    : '';
+  return {{
+    assetCount: assetIndices.length,
+    evaluated,
+    unreviewed: Math.max(0, assetIndices.length - evaluated),
+    counts,
+    average: avg,
+  }};
+}}
+function evaluationSummaryText(summary) {{
+  const bits = [
+    summary.evaluated + '/' + summary.assetCount + ' evaluated',
+    'approve ' + summary.counts.approve,
+    'revise ' + summary.counts.revise,
+    'reject ' + summary.counts.reject,
+    'reference ' + summary.counts.reference,
+  ];
+  if (summary.average) bits.push('avg ' + summary.average);
+  if (summary.unreviewed) bits.push(summary.unreviewed + ' unreviewed');
+  return bits.join(' · ');
+}}
+function renderAtlasEvaluationSummaries() {{
+  document.querySelectorAll('.atlas-evaluation-summary').forEach(box => {{
+    const module = atlasModuleById(box.dataset.programId || '', box.dataset.moduleId || '');
+    if (!module) return;
+    box.textContent = evaluationSummaryText(evaluationSummaryForIndices(module.asset_indices || []));
+  }});
+}}
+function appendCurriculumList(parent, title, values, className) {{
+  const clean = cleanList(values || []);
+  if (!clean.length) return;
+  const block = document.createElement('div');
+  block.className = 'curriculum-context-list ' + className;
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  const list = document.createElement('ul');
+  clean.slice(0, 4).forEach(value => {{
+    const item = document.createElement('li');
+    item.textContent = value;
+    list.appendChild(item);
+  }});
+  block.appendChild(heading);
+  block.appendChild(list);
+  parent.appendChild(block);
+}}
+function renderCurriculumContext(item) {{
+  const box = document.getElementById('run-detail-curriculum');
+  if (!box) return;
+  box.innerHTML = '';
+  const title = document.createElement('h3');
+  title.textContent = 'Curriculum Fit';
+  box.appendChild(title);
+  const matches = curriculumMatchesForItem(item);
+  if (!matches.length) {{
+    const empty = document.createElement('p');
+    empty.className = 'curriculum-context-empty';
+    empty.textContent = 'No Atlas module match yet.';
+    box.appendChild(empty);
+    return;
+  }}
+  matches.slice(0, 3).forEach(match => {{
+    const program = match.program || {{}};
+    const module = match.module || {{}};
+    const article = document.createElement('article');
+    article.className = 'curriculum-context-card';
+    const heading = document.createElement('h4');
+    heading.textContent = [program.title, module.title].filter(Boolean).join(' / ');
+    article.appendChild(heading);
+    if (module.objective) {{
+      const objective = document.createElement('p');
+      objective.textContent = module.objective;
+      article.appendChild(objective);
+    }}
+    const why = document.createElement('div');
+    why.className = 'curriculum-context-why';
+    const query = cleanList(module.asset_query || []);
+    why.textContent = query.length ? 'Matches: ' + query.join(', ') : 'Matched through program context.';
+    article.appendChild(why);
+    appendCurriculumList(article, 'Criteria', (module.critique_criteria || []).map(item => item.label || item.prompt), 'curriculum-context-criteria');
+    appendCurriculumList(article, 'Discuss', module.discussion_prompts || [], 'curriculum-context-prompts');
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Open module';
+    button.addEventListener('click', () => focusAtlasModule(program.id || '', module.id || ''));
+    article.appendChild(button);
+    box.appendChild(article);
+  }});
 }}
 function detailForItem(item) {{
   if (!item) return null;
@@ -1385,6 +1513,7 @@ function renderRunDecisionSummary(detail, item) {{
 async function loadEvaluations() {{
   EVALUATIONS = _loadLocalEvaluations();
   applyEvaluationsToCards();
+  renderAtlasEvaluationSummaries();
   updateFilterCounts();
   applyFilters();
   if (!SERVER_MODE) return;
@@ -1394,11 +1523,13 @@ async function loadEvaluations() {{
     EVALUATIONS = data.items || {{}};
     _saveLocalEvaluations(EVALUATIONS);
     applyEvaluationsToCards();
+    renderAtlasEvaluationSummaries();
     updateFilterCounts();
     applyFilters();
     if (_detailItem) {{
       renderEvaluation(_detailItem);
       renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+      renderCurriculumContext(_detailItem);
     }}
   }} catch (err) {{}}
 }}
@@ -1433,10 +1564,12 @@ async function saveEvaluationForDetail(event) {{
     }}
     _saveLocalEvaluations(EVALUATIONS);
     applyEvaluationsToCards();
+    renderAtlasEvaluationSummaries();
     updateFilterCounts();
     applyFilters();
     renderEvaluation(_detailItem);
     renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+    renderCurriculumContext(_detailItem);
     setEvaluationStatus('success', 'Saved locally');
     return;
   }}
@@ -1455,10 +1588,12 @@ async function saveEvaluationForDetail(event) {{
     else delete EVALUATIONS[key];
     _saveLocalEvaluations(EVALUATIONS);
     applyEvaluationsToCards();
+    renderAtlasEvaluationSummaries();
     updateFilterCounts();
     applyFilters();
     renderEvaluation(_detailItem);
     renderRunDecisionSummary(detailForItem(_detailItem), _detailItem);
+    renderCurriculumContext(_detailItem);
     setEvaluationStatus('success', 'Saved');
   }} catch (err) {{
     setEvaluationStatus('error', err?.message || 'Save failed');
@@ -1820,6 +1955,7 @@ function showRunDetail(item) {{
 
   renderFilenameWarning(item);
   renderRunDecisionSummary(detail, item);
+  renderCurriculumContext(item);
   renderDetailFields(detail, item);
   renderMetadata(item);
   renderFeedback(item);
@@ -2375,6 +2511,7 @@ def _library_extra_css() -> str:
 .atlas-filter-banner button:focus-visible,
 .atlas-module button:focus-visible,
 .atlas-unmapped button:focus-visible,
+.curriculum-context-card button:focus-visible,
 .studio-submit:focus-visible,
 .studio-inline-btn:focus-visible,
 .portal-action-submit:focus-visible,
@@ -2606,6 +2743,17 @@ a:focus-visible {
   color: var(--dim);
   font-size: 0.68rem;
   margin-top: 0.3rem;
+}
+.atlas-evaluation-summary {
+  border: 1px solid rgba(244,211,94,0.20);
+  border-radius: 4px;
+  color: #f4d35e;
+  background: rgba(244,211,94,0.06);
+  display: inline-block;
+  font-size: 0.66rem;
+  line-height: 1.25;
+  margin-top: 0.5rem;
+  padding: 0.22rem 0.38rem;
 }
 .atlas-teaching-block {
   border-top: 1px solid var(--border);
@@ -3049,6 +3197,7 @@ a:focus-visible {
 .run-decision-score {
   color: #f4d35e;
 }
+.run-detail-curriculum,
 .run-detail-metadata,
 .run-detail-feedback,
 .run-detail-evaluation {
@@ -3058,11 +3207,64 @@ a:focus-visible {
   padding: 0.8rem;
   margin: 0 0 1rem;
 }
+.run-detail-curriculum {
+  border-color: rgba(0,200,180,0.20);
+  background: rgba(0,200,180,0.045);
+}
+.run-detail-curriculum h3,
 .run-detail-metadata h3,
 .run-detail-feedback h3,
 .run-detail-evaluation h3 {
   margin: 0 0 0.65rem;
   font-size: 0.85rem;
+}
+.curriculum-context-card {
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  padding: 0.65rem;
+  margin-top: 0.6rem;
+  background: rgba(0,0,0,0.16);
+}
+.curriculum-context-card h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+}
+.curriculum-context-card p,
+.curriculum-context-empty,
+.curriculum-context-why {
+  margin: 0 0 0.5rem;
+  color: var(--dim);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.curriculum-context-list {
+  margin-top: 0.55rem;
+}
+.curriculum-context-list strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--ink);
+  font-size: 0.7rem;
+}
+.curriculum-context-list ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--dim);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+.curriculum-context-card button {
+  border: 1px solid rgba(0,200,180,0.24);
+  background: rgba(0,200,180,0.08);
+  color: var(--teal);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 0.6rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.72rem;
+}
+.curriculum-context-card button:hover {
+  border-color: var(--teal);
 }
 .run-detail-metadata label,
 .run-detail-feedback label,
