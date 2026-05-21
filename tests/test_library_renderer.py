@@ -370,6 +370,19 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
         style="bcai",
         aspect_ratio="16:9",
     )
+    (output_root / "evaluations.json").write_text(
+        json.dumps({
+            "version": 1,
+            "items": {
+                "rap-week-2/run-20260509-120000/bias-map.png": {
+                    "decision": "approve",
+                    "score": 5,
+                    "use_case": "module opener",
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
 
     html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
 
@@ -392,12 +405,17 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
     assert 'class="atlas-concept-link"' in html
     assert 'class="atlas-concept-graph"' in html
     assert 'class="atlas-graph-nodes"' in html
+    assert 'class="atlas-evaluation-summary"' in html
+    assert "1/1 evaluated · avg 5.0" in html
     assert 'aria-label="Curriculum concept relationships"' in html
     assert '"linked_assets": 1' in html
+    assert 'id="run-detail-curriculum"' in html
     assert "const CURRICULUM_ATLAS =" in html
     assert "function setPortalMode(mode)" in html
     assert "function focusAtlasModule(programId, moduleId)" in html
     assert "function focusAtlasUnmapped()" in html
+    assert "function renderCurriculumContext(item)" in html
+    assert "function renderAtlasEvaluationSummaries()" in html
     assert "clearAtlasAssetFilter(false)" in html
     assert ":focus-visible" in html
     assert "prefers-reduced-motion" in html

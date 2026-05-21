@@ -121,3 +121,51 @@ def test_build_curriculum_atlas_normalizes_loose_teaching_fields():
         {"concept": "Agency", "relation": "related", "target": "Accountability"},
         {"concept": "Rubric", "relation": "related", "target": "Rubric"},
     ]
+
+
+def test_build_curriculum_atlas_summarizes_evaluations_by_module():
+    config = {
+        "programs": [{
+            "id": "rap",
+            "project_patterns": ["rap"],
+            "modules": [{
+                "id": "ethics",
+                "title": "Ethics",
+                "asset_query": ["bias"],
+            }],
+        }],
+    }
+    records = [
+        {
+            "project": "rap-week-2",
+            "title": "Bias Map",
+            "prompt": "Map bias and accountability.",
+            "file": "rap-week-2/run-1/bias.png",
+        },
+        {
+            "project": "rap-week-2",
+            "title": "Bias Review",
+            "prompt": "Bias review checkpoint.",
+            "file": "rap-week-2/run-1/checkpoint.png",
+        },
+    ]
+    evaluations = {
+        "items": {
+            "rap-week-2/run-1/bias.png": {"decision": "approve", "score": 5},
+            "rap-week-2/run-1/checkpoint.png": {"decision": "revise", "score": 3},
+        }
+    }
+
+    atlas = curriculum.build_curriculum_atlas(records, config, evaluations=evaluations)
+
+    summary = atlas["programs"][0]["modules"][0]["evaluation_summary"]
+    assert summary["asset_count"] == 2
+    assert summary["evaluated_count"] == 2
+    assert summary["unreviewed_count"] == 0
+    assert summary["decision_counts"] == {
+        "approve": 1,
+        "revise": 1,
+        "reject": 0,
+        "reference": 0,
+    }
+    assert summary["average_score"] == 4.0

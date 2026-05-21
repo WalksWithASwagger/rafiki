@@ -29,7 +29,7 @@ Commands and checks run:
 - `npm run pack:check`: passed; dry-run package now includes the E2E smoke
   script, dry-run smoke script, and contains 90 files.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed in the
-  original audit with 199 tests. The 2026-05-21 follow-up passes 217 tests with
+  original audit with 199 tests. The 2026-05-21 follow-up passes 218 tests with
   one upstream Python 3.14 deprecation warning.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm run doctor`: passed;
   0 critical issues and expected local provider-key warnings.

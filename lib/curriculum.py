@@ -22,8 +22,13 @@ def load_curriculum_atlas(path: Path | None = None) -> dict:
     return {"version": data.get("version", 1), "programs": [p for p in programs if isinstance(p, dict)]}
 
 
-def build_curriculum_atlas(records: list[dict], config: dict | None = None) -> dict:
+def build_curriculum_atlas(
+    records: list[dict],
+    config: dict | None = None,
+    evaluations: dict | None = None,
+) -> dict:
     atlas_config = config or load_curriculum_atlas()
+    evaluation_items = _evaluation_items(evaluations)
     programs = []
     matched_indices: set[int] = set()
 
@@ -55,6 +60,7 @@ def build_curriculum_atlas(records: list[dict], config: dict | None = None) -> d
                 "concept_links": _clean_concept_links(module.get("concept_links")),
                 "asset_indices": asset_indices,
                 "asset_count": len(asset_indices),
+                "evaluation_summary": _evaluation_summary(asset_indices, records, evaluation_items),
             })
 
         programs.append({
@@ -65,6 +71,7 @@ def build_curriculum_atlas(records: list[dict], config: dict | None = None) -> d
             "modules": modules,
             "asset_indices": sorted(program_indices),
             "asset_count": len(program_indices),
+            "evaluation_summary": _evaluation_summary(sorted(program_indices), records, evaluation_items),
         })
 
     unmapped_indices = [idx for idx in range(len(records)) if idx not in matched_indices]
@@ -99,6 +106,56 @@ def _clean_list(value: object) -> list[str]:
         seen.add(text)
         out.append(text)
     return out
+
+
+def _evaluation_items(evaluations: dict | None) -> dict:
+    if not isinstance(evaluations, dict):
+        return {}
+    items = evaluations.get("items") if isinstance(evaluations.get("items"), dict) else evaluations
+    return items if isinstance(items, dict) else {}
+
+
+def _evaluation_summary(asset_indices: list[int], records: list[dict], evaluations: dict) -> dict:
+    counts = {"approve": 0, "revise": 0, "reject": 0, "reference": 0}
+    scores: list[int] = []
+    evaluated = 0
+
+    for idx in asset_indices:
+        if idx < 0 or idx >= len(records):
+            continue
+        key = str(records[idx].get("file") or "")
+        entry = evaluations.get(key) if key else None
+        if not isinstance(entry, dict):
+            continue
+        decision = str(entry.get("decision") or "").strip().lower()
+        score = entry.get("score")
+        has_evaluation = bool(
+            decision
+            or score
+            or str(entry.get("use_case") or "").strip()
+            or str(entry.get("rationale") or "").strip()
+            or str(entry.get("next_step") or "").strip()
+        )
+        if not has_evaluation:
+            continue
+        evaluated += 1
+        if decision in counts:
+            counts[decision] += 1
+        try:
+            numeric_score = int(score)
+        except (TypeError, ValueError):
+            continue
+        if 1 <= numeric_score <= 5:
+            scores.append(numeric_score)
+
+    average_score = round(sum(scores) / len(scores), 1) if scores else None
+    return {
+        "asset_count": len(asset_indices),
+        "evaluated_count": evaluated,
+        "unreviewed_count": max(0, len(asset_indices) - evaluated),
+        "decision_counts": counts,
+        "average_score": average_score,
+    }
 
 
 def _clean_criteria(value: object) -> list[dict]:

@@ -36,7 +36,7 @@ image generation platform.
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 217 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 218 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -122,6 +122,7 @@ Goal: make the local portal the best default interface for review and curation.
 | Shipped | Add review ritual affordances. | Cards now expose lineage chips and copy-prompt actions, while Review Queue combines unreviewed cards, feedback attention, missing evaluation, missing export state, and Atlas-unmapped assets. |
 | Shipped | Add portal accessibility guardrails. | The portal has explicit `:focus-visible` treatment, reduced-motion CSS, no `transition: all` in renderer CSS, and E2E assertions for those guardrails. |
 | Shipped | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; successful Canva, Notion, and static deploy actions stamp archive metadata automatically when their source maps back to run images, including approved, run-level, and project-root static viewers. |
+| Shipped | Connect evaluation to curriculum. | Run Detail shows matched Atlas modules, matching terms, critique criteria, and discussion prompts beside the evaluation form; Teach mode summarizes module decision counts and average scores from `output/evaluations.json`. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
 | Shipped | Add portal browser E2E smoke. | `npm run e2e:portal` creates a disposable dry-run archive, starts the portal, and verifies desktop/mobile review flows in Chromium. |
@@ -152,7 +153,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
-| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, and `npm run e2e:portal` includes screenshot visual baseline metrics for desktop Review, desktop Teach, and mobile. | Add cohort/story presentation flow and connect evaluation notes to curriculum criteria after real review sessions prove the schema shape. |
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, links Run Detail evaluation context to matched modules, and summarizes module evaluation decisions/scores. | Add cohort/story presentation flow after real review sessions prove the schema shape. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -176,10 +177,9 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Expand portal visual quality checks with optional saved diff artifacts for review and Teach mode.
-2. Connect evaluation decisions to Curriculum Atlas critique criteria.
-3. Expand doctor remediation for package and browser setup.
-4. Add prompt/run lineage comparisons across reruns and exports.
+1. Expand portal visual quality checks with optional saved diff artifacts for Review and Teach mode.
+2. Expand doctor remediation for package and browser setup.
+3. Add prompt/run lineage comparisons across reruns and exports.
 
 ## Non-Goals For Now
 
