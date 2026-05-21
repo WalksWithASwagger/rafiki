@@ -87,7 +87,8 @@ Success criteria:
   `output/feedback.json`.
 - Show whether each archive card has been approved, exported to Canva, exported
   to Notion, deployed, or superseded. Export/publish/superseded badges are now
-  visible from archive metadata; automatic export stamping is still next.
+  visible from archive metadata; successful portal Canva, Notion, and static
+  deploy actions now stamp matching source cards automatically.
 - Add a "needs decision" queue for high-value projects where many images remain
   unreviewed. Done as **Review Queue**, which combines unreviewed cards,
   feedback attention, missing export state, and Atlas-unmapped assets.

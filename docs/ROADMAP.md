@@ -36,7 +36,7 @@ image generation platform.
 | Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 203 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 207 Python tests across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
 
 ## Roadmap Themes
 
@@ -99,7 +99,7 @@ historical `run-*` image while keeping curated registry/export scopes available.
 |---|---|---|
 | Shipped | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
 | Shipped | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
-| Shipped | Add durable archive metadata state. | `output/archive-metadata.json` stores title overrides, tags, export/publish markers, and superseded links; library cards merge that state into badges and search. |
+| Shipped | Add durable archive metadata state. | `output/archive-metadata.json` stores title overrides, tags, export/publish markers, and superseded links; library cards merge that state into badges and search, and successful portal Canva/Notion/deploy actions stamp matching source cards automatically. |
 | Shipped | Add read-only archive health reporting. | `python generate.py archive-health` reports missing images, malformed run manifests, duplicate filenames, sidecar orphans, disk usage, and cleanup risk without mutating outputs. |
 | P1 | Add approval/export state to registry exports. | Registry exports can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
@@ -119,7 +119,7 @@ Goal: make the local portal the best default interface for review and curation.
 | Shipped | Split portal into modes and seed Curriculum Atlas. | Review is the image-first default; Generate, Curate, Spend, and Teach are distinct modes; Teach reads `config/curriculum-atlas.json`, renders a concept graph, and can filter matching archive cards back in Review. |
 | Shipped | Add review ritual affordances. | Cards now expose lineage chips and copy-prompt actions, while Review Queue combines unreviewed cards, feedback attention, missing export state, and Atlas-unmapped assets. |
 | Shipped | Add portal accessibility guardrails. | The portal has explicit `:focus-visible` treatment, reduced-motion CSS, no `transition: all` in renderer CSS, and E2E assertions for those guardrails. |
-| P1 | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; next, stamp export actions back into archive metadata automatically. |
+| Shipped | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; successful Canva, Notion, and static deploy actions stamp archive metadata automatically when their source maps back to run images. |
 | P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
 | Shipped | Add portal browser E2E smoke. | `npm run e2e:portal` creates a disposable dry-run archive, starts the portal, and verifies desktop/mobile review flows in Chromium. |
@@ -174,12 +174,12 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Stamp portal export actions back into archive metadata automatically.
-2. Add MCP and CLI dry-run smoke tests.
-3. Add visual baselines for portal review, Teach mode, and mobile layouts.
-4. Add card-level evaluation state and run-level decision summaries.
-5. Expand doctor remediation for package and browser setup.
-6. Turn archive health findings into a conservative cleanup report when the read-only contract has settled.
+1. Add visual baselines for portal review, Teach mode, and mobile layouts.
+2. Add card-level evaluation state and run-level decision summaries.
+3. Add MCP and CLI dry-run smoke tests.
+4. Expand doctor remediation for package and browser setup.
+5. Turn archive health findings into a conservative cleanup report when the read-only contract has settled.
+6. Add richer source mapping for project-level static deploys that do not point at approved/ or run-* viewers.
 
 ## Non-Goals For Now
 

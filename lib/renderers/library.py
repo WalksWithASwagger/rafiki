@@ -1867,6 +1867,7 @@ async function submitPortalAction(event) {{
     if (data.image_count !== undefined) bits.push(data.image_count + ' image(s)');
     if (data.exported !== undefined) bits.push(data.exported + ' exported');
     if (data.count !== undefined) bits.push(data.count + ' indexed');
+    if (data.metadata_stamped !== undefined) bits.push(data.metadata_stamped + ' card state' + (data.metadata_stamped === 1 ? '' : 's') + ' stamped');
     if (data.result_path) bits.push('<code>' + studioEscapeHtml(data.result_path) + '</code>');
     if (data.path) bits.push('<code>' + studioEscapeHtml(data.path) + '</code>');
     if (data.url) bits.push('<a href="' + data.url + '">' + studioEscapeHtml(data.url) + '</a>');

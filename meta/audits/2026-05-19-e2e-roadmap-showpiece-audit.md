@@ -29,7 +29,7 @@ Commands and checks run:
 - `npm run pack:check`: passed; dry-run package now includes the E2E smoke
   script and contains 82 files.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed in the
-  original audit with 199 tests. The 2026-05-20 follow-up passes 203 tests with
+  original audit with 199 tests. The 2026-05-20 follow-up passes 207 tests with
   one upstream Python 3.14 deprecation warning.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm run doctor`: passed;
   0 critical issues and expected local provider-key warnings.
@@ -78,6 +78,9 @@ and adds the first behavior-preserving split plus quality guardrails:
 - `python generate.py archive-health` now provides a read-only report for
   missing images, malformed manifests, duplicate filenames, sidecar orphans,
   disk usage, and cleanup-risk counts.
+- Successful non-dry-run portal Canva, Notion, and static deploy actions now
+  stamp matching source cards in `output/archive-metadata.json` with `canva`,
+  `notion`, or `deployed` when the source is an approved set or run viewer.
 - Verification on 2026-05-20: `npm run docs:check`, `npm run doctor`,
   `npm run pack:check`, `npm run e2e:portal`, and `npm test` all pass. Doctor
   reports 0 critical issues with only expected missing `.env`/provider-key
@@ -271,6 +274,6 @@ Best next candidates:
 1. `showpiece: add Knowledge Garden prototype for concepts and generated images`
 2. `evals: add card-level visual critique state and run-level decision summary`
 3. `e2e: add visual baselines, INP probes, and richer workflow assertions`
-4. `exports: stamp successful portal export actions into archive metadata`
-5. `mcp: add CLI and MCP dry-run smoke coverage`
-6. `curriculum: place Creative Mornings and private prompt islands into the Atlas`
+4. `mcp: add CLI and MCP dry-run smoke coverage`
+5. `curriculum: place Creative Mornings and private prompt islands into the Atlas`
+6. `archive: add conservative cleanup report on top of archive health`

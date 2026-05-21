@@ -91,6 +91,9 @@ review tags, mark local export/publish states (`canva`, `notion`, `deployed`,
 `published`, `superseded`), and record a `superseded_by` card key. The master
 library merges that sidecar when it renders, so the state is visible as card
 badges and searchable tags instead of being trapped in browser-local storage.
+Successful non-dry-run Canva, Notion, and static deploy portal actions stamp
+the matching source cards with `canva`, `notion`, or `deployed` automatically
+when Rafiki can map the exported source back to run images.
 
 ## Curriculum Atlas
 
