@@ -25,11 +25,11 @@ Commands and checks run:
   real image loading without provider spend.
 - `python3 generate.py library`: passed with `2/2 present` across one project.
 - `npm run docs:check`: passed; 24 Markdown files checked in the original
-  audit. The 2026-05-20 follow-up checks 25 Markdown files.
+  audit. The 2026-05-21 follow-up checks 26 Markdown files.
 - `npm run pack:check`: passed; dry-run package now includes the E2E smoke
-  script and contains 82 files.
+  script, dry-run smoke script, and contains 90 files.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed in the
-  original audit with 199 tests. The 2026-05-20 follow-up passes 207 tests with
+  original audit with 199 tests. The 2026-05-21 follow-up passes 212 tests with
   one upstream Python 3.14 deprecation warning.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm run doctor`: passed;
   0 critical issues and expected local provider-key warnings.

@@ -22,6 +22,7 @@
     "test": "node scripts/run-pytest.js",
     "test:python": "node scripts/run-pytest.js",
     "e2e:portal": "node scripts/portal-e2e-smoke.mjs",
+    "smoke:dry-run": "python3 scripts/dry-run-smoke.py",
     "pack:check": "npm pack --dry-run",
     "docs:check": "python3 scripts/check-doc-links.py"
   },
@@ -29,6 +30,7 @@
     "index.js",
     "generate.py",
     "mcp_server.py",
+    "scripts/dry-run-smoke.py",
     "scripts/portal-e2e-smoke.mjs",
     "lib/**/*.py",
     "styles/**/*.md",

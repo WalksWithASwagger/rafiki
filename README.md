@@ -181,6 +181,7 @@ python generate.py view <project> --all-runs
 npx rafiki view <project> --all-runs
 python generate.py library
 python generate.py library --open
+npm run smoke:dry-run
 ```
 
 `library` builds the full local archive: every `run-*` image under `output/`

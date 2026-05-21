@@ -17,6 +17,18 @@ From this checkout:
 ./.venv/bin/python -m py_compile mcp_server.py
 ```
 
+Run the spend-free agent smoke before changing MCP or CLI bridge behavior:
+
+```bash
+npm run smoke:dry-run
+```
+
+The smoke uses a disposable prompt file and output root. It runs the Node CLI in
+`--dry-run --json` mode, calls `rafiki_status`, lists MCP tools, runs the MCP
+`rafiki_run` bridge in dry-run mode, and checks `archive-health --json` over
+the resulting dry-run manifests. It clears provider-key environment variables
+inside the smoke process so a passing run never proves live provider access.
+
 Codex:
 
 ```bash
