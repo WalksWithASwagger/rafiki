@@ -58,12 +58,16 @@ def _run_doctor(
     openai_key: str = "test-openai-key",
     missing_deps: str = "",
     mcp_ready: bool = True,
+    script_path: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     fake_python = _write_fake_python(tmp_path)
     fake_browser = tmp_path / "chrome"
     fake_browser.write_text("")
+    script = script_path or REPO_ROOT / "index.js"
 
     env = os.environ.copy()
+    if script_path is not None:
+        env.pop("NODE_PATH", None)
     env.update(
         {
             "NO_COLOR": "1",
@@ -77,8 +81,8 @@ def _run_doctor(
     )
 
     return subprocess.run(
-        ["node", "index.js", "--doctor"],
-        cwd=REPO_ROOT,
+        ["node", str(script), "--doctor"],
+        cwd=script.parent,
         env=env,
         text=True,
         capture_output=True,
@@ -90,6 +94,7 @@ def test_doctor_reports_expanded_ready_status(tmp_path: Path) -> None:
     result = _run_doctor(tmp_path)
 
     assert result.returncode == 0
+    assert "[ok] Node deps: core CLI dependencies installed" in result.stdout
     assert "[ok] Python deps: core requirements installed" in result.stdout
     assert "[ok] Provider keys: GOOGLE_API_KEY set; OPENAI_API_KEY set" in result.stdout
     assert "[ok] MCP availability: mcp_server.py compiles and FastMCP imports" in result.stdout
@@ -104,7 +109,7 @@ def test_doctor_warns_without_failing_when_provider_keys_are_missing(tmp_path: P
 
     assert result.returncode == 0
     assert "[warn] Provider keys: GOOGLE_API_KEY not set; OPENAI_API_KEY not set" in result.stdout
-    assert "Add `GOOGLE_API_KEY` for Gemini or `OPENAI_API_KEY` for OpenAI image generation." in result.stdout
+    assert "Add `GOOGLE_API_KEY` for Gemini or `OPENAI_API_KEY` for OpenAI image generation; dry-run, render, and review workflows can still run without provider keys." in result.stdout
     assert "Doctor found 0 critical issue(s)" in result.stdout
 
 
@@ -114,5 +119,18 @@ def test_doctor_fails_for_missing_core_python_dependency(tmp_path: Path) -> None
     assert result.returncode == 1
     assert "[fail] Python deps: missing openai" in result.stdout
     assert "Required next steps:" in result.stdout
-    assert "Install Python dependencies:" in result.stdout
+    assert "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt" in result.stdout
+    assert "Doctor found 1 critical issue(s)" in result.stdout
+
+
+def test_doctor_reports_missing_node_deps_without_crashing(tmp_path: Path) -> None:
+    isolated_script = tmp_path / "index.js"
+    isolated_script.write_text((REPO_ROOT / "index.js").read_text(encoding="utf-8"), encoding="utf-8")
+
+    result = _run_doctor(tmp_path, script_path=isolated_script)
+
+    assert result.returncode == 1
+    assert "[fail] Node deps: missing commander, dotenv, chalk" in result.stdout
+    assert "[warn] Browser rendering: missing puppeteer, sharp" in result.stdout
+    assert "Install Node dependencies from the repo root: `npm install`, then re-run `npm run doctor`." in result.stdout
     assert "Doctor found 1 critical issue(s)" in result.stdout
