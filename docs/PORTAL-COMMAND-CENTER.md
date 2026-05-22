@@ -181,3 +181,23 @@ records visual baseline metrics for desktop Review, desktop Teach, and mobile
 captures, including dimensions, luminance, contrast distribution, color variety,
 and saturation, so blank pages and major layout/theme regressions fail without
 creating brittle image fixtures.
+
+For human visual review, opt into saved screenshots with an explicit artifact
+directory:
+
+```bash
+RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals npm run e2e:portal
+```
+
+The run writes named PNGs for desktop Review, desktop Teach, and mobile Review:
+`portal-desktop-review.png`, `portal-desktop-teach.png`, and
+`portal-mobile-review.png`. The JSON output includes
+`visual_artifacts.directory` and `visual_artifacts.files` with those saved
+paths, while `screenshots` continues to report the metric inputs used by the
+smoke. These files are scratch review artifacts; compare them across runs, but
+do not commit generated screenshots.
+
+`RAFIKI_E2E_KEEP_TMP=1 npm run e2e:portal` still keeps the entire disposable
+workspace for debugging. When `RAFIKI_E2E_ARTIFACT_DIR` is not set, the same
+named visual artifacts are copied under the kept temp directory at
+`visual-artifacts/`.
