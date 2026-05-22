@@ -52,6 +52,25 @@ function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
+function envIsSet(name) {
+  return Boolean(process.env[name]);
+}
+
+function resolveVisualArtifactDir(tmpRoot, keepTmp) {
+  const configured = process.env.RAFIKI_E2E_ARTIFACT_DIR?.trim();
+  if (configured) return path.resolve(repoRoot, configured);
+  if (keepTmp) return path.join(tmpRoot, 'visual-artifacts');
+  return null;
+}
+
+function saveVisualArtifact(artifactDir, source, fileName) {
+  if (!artifactDir) return null;
+  fs.mkdirSync(artifactDir, { recursive: true });
+  const target = path.join(artifactDir, fileName);
+  fs.copyFileSync(source, target);
+  return target;
+}
+
 function requestStatus(url) {
   return new Promise((resolve, reject) => {
     const req = http.get(url, (res) => {
@@ -182,6 +201,8 @@ function assertVisualBaseline(label, stats, rules) {
 async function main() {
   const python = getPythonExecutable();
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rafiki-portal-e2e-'));
+  const keepTmp = envIsSet('RAFIKI_E2E_KEEP_TMP');
+  const visualArtifactDir = resolveVisualArtifactDir(tmpRoot, keepTmp);
   const outputRoot = path.join(tmpRoot, 'output');
   const project = 'e2e-showpiece-smoke';
   const projectDir = path.join(outputRoot, project);
@@ -438,6 +459,11 @@ async function main() {
     const desktopReviewScreenshot = path.join(tmpRoot, 'portal-desktop-review.png');
     await desktop.screenshot({ path: desktopReviewScreenshot, fullPage: true });
     const desktopReviewStats = await screenshotStats(desktopReviewScreenshot);
+    const desktopReviewArtifact = saveVisualArtifact(
+      visualArtifactDir,
+      desktopReviewScreenshot,
+      'portal-desktop-review.png',
+    );
     assertVisualBaseline('desktop review', desktopReviewStats, {
       minWidth: 1200,
       minHeight: 900,
@@ -454,6 +480,11 @@ async function main() {
     const desktopTeachScreenshot = path.join(tmpRoot, 'portal-desktop-teach.png');
     await desktop.screenshot({ path: desktopTeachScreenshot, fullPage: true });
     const desktopTeachStats = await screenshotStats(desktopTeachScreenshot);
+    const desktopTeachArtifact = saveVisualArtifact(
+      visualArtifactDir,
+      desktopTeachScreenshot,
+      'portal-desktop-teach.png',
+    );
     assertVisualBaseline('desktop teach', desktopTeachStats, {
       minWidth: 1200,
       minHeight: 900,
@@ -519,6 +550,11 @@ async function main() {
     const mobileScreenshot = path.join(tmpRoot, 'portal-mobile.png');
     await mobile.screenshot({ path: mobileScreenshot, fullPage: false });
     const mobileStats = await screenshotStats(mobileScreenshot);
+    const mobileArtifact = saveVisualArtifact(
+      visualArtifactDir,
+      mobileScreenshot,
+      'portal-mobile-review.png',
+    );
     assertVisualBaseline('mobile', mobileStats, {
       minWidth: 390,
       minHeight: 800,
@@ -547,6 +583,14 @@ async function main() {
         desktopTeach: desktopTeachStats,
         mobile: mobileStats,
       },
+      visual_artifacts: visualArtifactDir ? {
+        directory: visualArtifactDir,
+        files: {
+          desktopReview: desktopReviewArtifact,
+          desktopTeach: desktopTeachArtifact,
+          mobile: mobileArtifact,
+        },
+      } : null,
       server_output: serverOutput.split('\n').filter(Boolean).slice(0, 6),
     }, null, 2));
   } finally {
@@ -564,7 +608,7 @@ async function main() {
         });
       });
     }
-    if (!process.env.RAFIKI_E2E_KEEP_TMP) {
+    if (!keepTmp) {
       fs.rmSync(tmpRoot, { recursive: true, force: true });
     } else {
       console.error(`Kept E2E temp dir: ${tmpRoot}`);
