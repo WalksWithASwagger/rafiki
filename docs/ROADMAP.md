@@ -31,7 +31,7 @@ image generation platform.
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
 | Local portal | `lib/server.py`, `lib/renderers/library.py`, `lib/renderers/library_atlas.py` | Local library with all-runs archive browsing, review queue, lineage chips, filters, keyboard review, run detail panel, ratings, feedback, evaluations, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, Teach mode, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
-| Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/` | Approved-image curation, read-only archive health and cleanup reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
+| Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/`, `scripts/workspace_hygiene.py` | Approved-image curation, read-only archive health and workspace hygiene reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
@@ -73,6 +73,7 @@ Goal: make Rafiki safe and understandable outside this machine.
 | P1 | Add a public quickstart fixture. | A tiny sample `image-prompts.md` and dry-run workflow can be used without private prompt libraries. |
 | P1 | Add docs lint or link smoke check. | Broken internal links are caught before release. |
 | P1 | Expand `npm run doctor`. | Doctor checks MCP dependency, .env presence, Chrome/Puppeteer status, and gives precise remediation. |
+| Shipped | Add safe workspace hygiene reporting. | `npm run workspace:hygiene -- --repo .` reports dirty worktrees, gone upstreams, branches attached to worktrees, dependency/cache bulk hints, and human-gated cleanup risk without deleting anything. |
 
 ## Phase 2: Workflow Reliability
 
