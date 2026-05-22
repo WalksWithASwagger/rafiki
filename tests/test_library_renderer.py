@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 
 from lib import extra_outputs, registry
-from lib.renderers import library
+from lib.renderers import library, library_styles
 
 
 def _isolate_registry(tmp_path, monkeypatch) -> Path:
@@ -139,6 +139,20 @@ def test_library_viewer_renders_output_only_project_without_prebuilt_registry(tm
     assert "Plain Title" in html
     assert "plain source prompt" in html
     assert not registry.REGISTRY_JSON.exists()
+
+
+def test_library_viewer_includes_extracted_extra_css(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "css-project" / "run-20260501-120000",
+        "css.png",
+        "CSS Title",
+        "css source prompt",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert library_styles._library_extra_css() in html
 
 
 def test_library_viewer_merges_local_archive_metadata(tmp_path, monkeypatch):
