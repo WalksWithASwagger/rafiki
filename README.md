@@ -329,6 +329,7 @@ Key references:
 
 - [Scope](docs/SCOPE.md)
 - [MCP](docs/MCP.md)
+- [Command Center](docs/COMMAND-CENTER.md)
 - [Asset Registry](docs/ASSET-REGISTRY.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Delivery Pipeline](docs/DELIVERY-PIPELINE.md)

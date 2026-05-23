@@ -36,6 +36,9 @@ deeper operating docs by surface area.
 
 ## Registries, Archives, And Libraries
 
+- [Command Center](COMMAND-CENTER.md) - aggregate every Rafiki image across all
+  your repos into one dashboard (static library + live portal); registering
+  external projects and the one-command refresh.
 - [Asset Registry](ASSET-REGISTRY.md) - registry schema, CLI indexing, and
   re-indexing guidance for external or generated assets.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,

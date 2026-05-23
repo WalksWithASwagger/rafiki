@@ -54,5 +54,8 @@ config/scheduled-regen.json
 # Local external-project registry override (template: config/extra-outputs.json.example)
 config/extra-outputs.local.json
 
+# Local loose-image import map (run-wrapper sources for non-standard outputs)
+config/loose-imports.local.json
+
 # Local package artifacts
 *.tgz
