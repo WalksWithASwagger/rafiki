@@ -51,6 +51,9 @@ the rest.
    Filename warnings are informational: the library flags exact filename
    repeats and simple normalized-stem matches within the same project so you
    can compare reruns before approving or cleaning anything.
+   If a card metadata entry includes `superseded_by`, Run Detail also compares
+   the local prompt, run, model, style, aspect ratio, and archive state against
+   that linked archive card; missing targets stay visible as no-data states.
    The same detail panel can save feedback notes/change requests to
    `output/feedback.json`, save evaluation decisions/scores to
    `output/evaluations.json`, show a run-level decision summary, and stage a

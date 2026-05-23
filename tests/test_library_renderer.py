@@ -190,6 +190,98 @@ def test_library_viewer_merges_local_archive_metadata(tmp_path, monkeypatch):
     assert 'class="metadata-state-badge"' in html
 
 
+def test_library_viewer_renders_lineage_comparison_for_superseded_asset(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    project = output_root / "lineage-project"
+    _write_run(
+        project / "run-20260501-120000",
+        "hero.png",
+        "Original Hero",
+        "original prompt with soft community table",
+        model="gpt-image-2",
+        style="bcai",
+        aspect_ratio="16:9",
+        timestamp="2026-05-01 12:00",
+    )
+    _write_run(
+        project / "run-20260502-120000",
+        "hero-revision.png",
+        "Revision Hero",
+        "revised prompt with a brighter workshop scene",
+        model="gemini-2.5-flash-image",
+        style="kk",
+        aspect_ratio="1:1",
+        timestamp="2026-05-02 12:00",
+    )
+    (output_root / "archive-metadata.json").write_text(
+        json.dumps({
+            "version": 1,
+            "items": {
+                "lineage-project/run-20260501-120000/hero.png": {
+                    "states": ["superseded"],
+                    "superseded_by": "lineage-project/run-20260502-120000/hero-revision.png",
+                },
+                "lineage-project/run-20260502-120000/hero-revision.png": {
+                    "states": ["published"],
+                },
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="run-lineage-comparison"' in html
+    assert "function renderLineageComparison(item)" in html
+    assert '"lineage_comparison": {' in html
+    assert '"status": "linked"' in html
+    assert '"target_key": "lineage-project/run-20260502-120000/hero-revision.png"' in html
+    assert '"target_title": "Revision Hero"' in html
+    assert '"target_run_id": "run-20260502-120000"' in html
+    assert '"label": "Prompt"' in html
+    assert '"before": "original prompt with soft community table"' in html
+    assert '"after": "revised prompt with a brighter workshop scene"' in html
+    assert '"label": "Model"' in html
+    assert '"before": "gpt-image-2"' in html
+    assert '"after": "gemini-2.5-flash-image"' in html
+    assert "Open Superseding Card" in html
+
+
+def test_library_viewer_keeps_lineage_empty_and_missing_states_readable(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "lineage-empty" / "run-20260503-120000",
+        "solo.png",
+        "Solo Asset",
+        "standalone prompt",
+    )
+    _write_run(
+        output_root / "lineage-missing" / "run-20260504-120000",
+        "missing-target.png",
+        "Missing Target Asset",
+        "old prompt",
+    )
+    (output_root / "archive-metadata.json").write_text(
+        json.dumps({
+            "version": 1,
+            "items": {
+                "lineage-missing/run-20260504-120000/missing-target.png": {
+                    "states": ["superseded"],
+                    "superseded_by": "lineage-missing/run-20260505-120000/newer.png",
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert "No linked comparison yet." in html
+    assert '"status": "missing-target"' in html
+    assert "Comparison target is not in the current local archive." in html
+    assert "lineage-missing/run-20260505-120000/newer.png" in html
+
+
 def test_library_viewer_renders_archive_review_filters_and_keyboard_hooks(tmp_path, monkeypatch):
     output_root = _isolate_registry(tmp_path, monkeypatch)
     project = output_root / "review-project"

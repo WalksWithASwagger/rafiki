@@ -13,6 +13,7 @@ from lib.curriculum import build_curriculum_atlas
 from lib.evaluations import evaluations_path, load_evaluations
 from lib import registry
 from lib.extra_outputs import load_extra_outputs
+from lib.lineage import annotate_lineage_comparisons
 from lib.renderers.library_atlas import _atlas_panel_html
 from lib.renderers.library_styles import _library_extra_css
 from lib.styles import get_default_style, load_styles
@@ -579,6 +580,7 @@ def _ops_panel_html() -> str:
 
 def _render_library(records: list[dict], output_root: Path | None = None) -> str:
     _annotate_filename_warnings(records)
+    annotate_lineage_comparisons(records)
 
     run_details: dict[str, dict] = {}
     library_records: list[dict] = []
@@ -758,6 +760,7 @@ def _render_library(records: list[dict], output_root: Path | None = None) -> str
   <div class="run-detail-body">
     <div class="run-detail-warning" id="run-detail-warning"></div>
     <div class="run-detail-links" id="run-detail-links"></div>
+    <div class="run-lineage-comparison" id="run-lineage-comparison"></div>
     <div class="run-decision-summary" id="run-decision-summary"></div>
     <div class="run-detail-curriculum" id="run-detail-curriculum"></div>
     <dl class="run-detail-fields" id="run-detail-fields"></dl>
@@ -1929,6 +1932,63 @@ function renderFilenameWarning(item) {{
     ${{relatedHtml ? '<ul class="run-detail-warning-list">' + relatedHtml + '</ul>' : ''}}
   `;
 }}
+function renderLineageComparison(item) {{
+  const box = document.getElementById('run-lineage-comparison');
+  if (!box) return;
+  const comparison = item?.lineage_comparison || null;
+  box.className = 'run-lineage-comparison';
+  if (!comparison) {{
+    box.innerHTML = `
+      <h3>Prompt / Run Comparison</h3>
+      <p class="lineage-empty">No linked comparison yet. Add a Superseded By key in card metadata to compare this asset with a local rerun.</p>
+    `;
+    return;
+  }}
+  if (comparison.status !== 'linked') {{
+    box.className = 'run-lineage-comparison lineage-comparison-missing';
+    box.innerHTML = `
+      <h3>Prompt / Run Comparison</h3>
+      <p class="lineage-empty">${{studioEscapeHtml(comparison.message || 'Comparison target unavailable.')}}</p>
+      <code>${{studioEscapeHtml(comparison.target_key || '')}}</code>
+    `;
+    return;
+  }}
+  const changedRows = (comparison.changes || []).filter(row => row.changed);
+  const steadyRows = (comparison.changes || []).filter(row => !row.changed);
+  const rows = [...changedRows, ...steadyRows].map(row => `
+    <tr class="${{row.changed ? 'lineage-changed' : 'lineage-steady'}}">
+      <th>${{studioEscapeHtml(row.label || row.field || '')}}</th>
+      <td>${{studioEscapeHtml(row.before || '')}}</td>
+      <td>${{studioEscapeHtml(row.after || '')}}</td>
+    </tr>
+  `).join('');
+  const targetBits = [comparison.target_project, comparison.target_run_id].filter(Boolean).join(' / ');
+  box.className = 'run-lineage-comparison lineage-comparison-linked';
+  box.innerHTML = `
+    <div class="lineage-comparison-head">
+      <div>
+        <h3>Prompt / Run Comparison</h3>
+        <p>Compared with ${{studioEscapeHtml(comparison.target_title || comparison.target_key || 'linked rerun')}}</p>
+        ${{targetBits ? '<small>' + studioEscapeHtml(targetBits) + '</small>' : ''}}
+      </div>
+      <span>${{changedRows.length}} changed</span>
+    </div>
+    <table>
+      <thead><tr><th>Field</th><th>This card</th><th>Superseding card</th></tr></thead>
+      <tbody>${{rows || '<tr><td colspan="3">No visible prompt or setting changes.</td></tr>'}}</tbody>
+    </table>
+  `;
+  if (Number.isInteger(comparison.target_index)) {{
+    const action = document.createElement('button');
+    action.type = 'button';
+    action.textContent = 'Open Superseding Card';
+    action.addEventListener('click', () => {{
+      const target = LIBRARY[comparison.target_index];
+      if (target) showRunDetail(target);
+    }});
+    box.appendChild(action);
+  }}
+}}
 function openRunDetail(event, idx) {{
   if (event) event.stopPropagation();
   const item = LIBRARY[idx];
@@ -1955,6 +2015,7 @@ function showRunDetail(item) {{
   }}
 
   renderFilenameWarning(item);
+  renderLineageComparison(item);
   renderRunDecisionSummary(detail, item);
   renderCurriculumContext(item);
   renderDetailFields(detail, item);
