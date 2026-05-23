@@ -21,6 +21,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
 from lib import extra_outputs
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,10 @@ CSV_COLUMNS = [
     "caption",
     "tags",
     "approval_status",
+    "metadata_states",
+    "export_status",
+    "publish_status",
+    "superseded_by",
     "source_prompt",
     "style",
     "model",
@@ -57,6 +62,10 @@ class AssetEntry:
     caption: str
     tags: list[str] = field(default_factory=list)
     approval_status: str = ""
+    metadata_states: list[str] = field(default_factory=list)
+    export_status: str = ""
+    publish_status: str = ""
+    superseded_by: str = ""
     source_prompt: str = ""
     style: str = ""
     model: str = ""
@@ -72,6 +81,7 @@ class AssetEntry:
     def to_csv_row(self) -> dict[str, str]:
         d = self.to_dict()
         d["tags"] = ",".join(self.tags)
+        d["metadata_states"] = ",".join(self.metadata_states)
         return d
 
 
@@ -287,11 +297,48 @@ def _project_roots(output_root: Path | None = None) -> dict[str, Path]:
     return roots
 
 
+def _archive_metadata_key(entry: AssetEntry, output_root: Path) -> str:
+    path = Path(entry.path)
+    resolved = path if path.is_absolute() else REPO_ROOT / path
+
+    try:
+        return resolved.resolve().relative_to(output_root.resolve()).as_posix()
+    except ValueError:
+        pass
+
+    if not path.is_absolute() and path.parts and path.parts[0] == output_root.name:
+        return Path(*path.parts[1:]).as_posix()
+
+    if entry.source == "approved":
+        return f"{entry.project}/approved/{path.name}"
+    if entry.source_run:
+        return f"{entry.project}/{entry.source_run}/{path.name}"
+    return path.as_posix()
+
+
+def _status_from_states(states: list[str], choices: set[str]) -> str:
+    return ",".join(state for state in states if state in choices)
+
+
+def _apply_archive_metadata(entries: list[AssetEntry], output_root: Path) -> None:
+    metadata = load_archive_metadata(archive_metadata_path(output_root))
+    for entry in entries:
+        item = metadata_for_key(metadata, _archive_metadata_key(entry, output_root))
+        states = item.get("states", [])
+        if not isinstance(states, list):
+            states = []
+        entry.metadata_states = [str(state).strip() for state in states if str(state).strip()]
+        entry.export_status = _status_from_states(entry.metadata_states, {"canva", "notion"})
+        entry.publish_status = _status_from_states(entry.metadata_states, {"deployed", "published"})
+        entry.superseded_by = str(item.get("superseded_by") or "").strip()
+
+
 def collect(output_root: Path | None = None, *, scope: str = "curated") -> list[AssetEntry]:
     """Walk projects and build registry entries without writing the local cache."""
     if scope not in {"curated", "all-runs"}:
         raise ValueError("scope must be 'curated' or 'all-runs'")
 
+    output_root = Path(output_root) if output_root else DEFAULT_OUTPUT_ROOT
     indexed_at = datetime.now().isoformat(timespec="seconds")
     roots = _project_roots(output_root)
 
@@ -346,6 +393,7 @@ def collect(output_root: Path | None = None, *, scope: str = "curated") -> list[
             logger.warning("Skipping project %s due to error: %s", project, e)
             continue
 
+    _apply_archive_metadata(all_entries, output_root)
     return all_entries
 
 
@@ -393,6 +441,7 @@ def export(format: str = "csv") -> Path:
     """Export the persisted registry as CSV or JSON. Returns the file path."""
     fmt = format.lower()
     entries = _load_registry()
+    _apply_archive_metadata(entries, DEFAULT_OUTPUT_ROOT)
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     if fmt == "csv":
