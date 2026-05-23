@@ -185,31 +185,54 @@ checks the portal in Chromium. It verifies the home page, mode navigation,
 Teach/Curriculum Atlas rendering, usage and readiness APIs, search, run detail,
 metadata save, feedback save, evaluation save, run decision summary, rating
 filters, desktop and mobile overflow, and mobile lazy image loading after
-scroll. The quality lane also checks concept
-graph rendering, Review Queue behavior, lineage/copy affordances, focusable
-mode controls, reduced-motion CSS, absence of `transition: all`, and a clean
-browser console. Screenshots are not pixel-snapshotted, but the smoke now
-records visual baseline metrics for desktop Review, desktop Teach, and mobile
-captures, including dimensions, luminance, contrast distribution, color variety,
-and saturation, so blank pages and major layout/theme regressions fail without
-creating brittle image fixtures.
+scroll. The quality lane also checks concept graph rendering, Review Queue
+behavior, lineage/copy affordances, focusable mode controls, reduced-motion
+CSS, absence of `transition: all`, and a clean browser console. The default
+smoke does not save or analyze screenshots, so it stays fast and avoids
+accidental generated artifacts.
 
-For human visual review, opt into saved screenshots with an explicit artifact
-directory:
+Use the explicit visual baseline modes only when reviewing portal layout drift.
+They capture desktop Review, desktop Teach, and mobile Review screenshots and
+record coarse metrics: dimensions, luminance, contrast distribution, color
+variety, and saturation. The manifest at
+`docs/portal-visual-baselines.json` stores reviewed metric ranges, not
+pixel-perfect image fixtures.
+
+For human visual review, opt into saved screenshots:
 
 ```bash
-RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals npm run e2e:portal
+RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals \
+  node scripts/portal-e2e-smoke.mjs --visual-baseline=review
 ```
 
 The run writes named PNGs for desktop Review, desktop Teach, and mobile Review:
 `portal-desktop-review.png`, `portal-desktop-teach.png`, and
 `portal-mobile-review.png`. The JSON output includes
-`visual_artifacts.directory` and `visual_artifacts.files` with those saved
-paths, while `screenshots` continues to report the metric inputs used by the
-smoke. These files are scratch review artifacts; compare them across runs, but
-do not commit generated screenshots.
+`visual_artifacts.directory`, `visual_artifacts.files`, and `screenshots` with
+the metric inputs used by the review. These files are scratch review artifacts;
+compare them across runs, but do not commit generated screenshots.
+
+After the screenshots are visually reviewed, refresh the coarse manifest:
+
+```bash
+RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals \
+  node scripts/portal-e2e-smoke.mjs --visual-baseline=refresh
+```
+
+Commit only the reviewed `docs/portal-visual-baselines.json` changes. Then run
+the check mode before handing off:
+
+```bash
+RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals \
+  node scripts/portal-e2e-smoke.mjs --visual-baseline=check
+```
+
+Check mode fails with the capture name, metric drift reason, and screenshot
+artifact path. Use `node scripts/portal-e2e-smoke.mjs --self-test-baselines` to
+exercise baseline parsing and drift failure messaging without launching the
+browser.
 
 `RAFIKI_E2E_KEEP_TMP=1 npm run e2e:portal` still keeps the entire disposable
-workspace for debugging. When `RAFIKI_E2E_ARTIFACT_DIR` is not set, the same
-named visual artifacts are copied under the kept temp directory at
-`visual-artifacts/`.
+workspace for debugging. For visual modes without `RAFIKI_E2E_ARTIFACT_DIR`,
+the named visual artifacts are copied under the kept temp directory at
+`visual-artifacts/`; default smoke runs still stay screenshot-free.
