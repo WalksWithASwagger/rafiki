@@ -2,6 +2,11 @@
   "name": "rafiki",
   "version": "1.1.0",
   "description": "Local-first AI image generation and review workflow with a CLI, portal, and HTML-to-image rendering",
+  "packageManager": "npm@11.12.1",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
   "main": "index.js",
   "repository": {
     "type": "git",
@@ -24,7 +29,8 @@
     "e2e:portal": "node scripts/portal-e2e-smoke.mjs",
     "smoke:dry-run": "python3 scripts/dry-run-smoke.py",
     "pack:check": "npm pack --dry-run",
-    "docs:check": "python3 scripts/check-doc-links.py"
+    "docs:check": "python3 scripts/check-doc-links.py",
+    "verify": "npm test && npm run docs:check && npm run smoke:dry-run && npm run pack:check"
   },
   "files": [
     "index.js",

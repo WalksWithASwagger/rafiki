@@ -17,6 +17,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import server as server_module
+from lib import usage
 from lib.server import _RafikiHandler
 
 
@@ -46,6 +47,7 @@ def server(tmp_path, monkeypatch):
     # Default: clear creds. Individual tests can re-set with monkeypatch.
     monkeypatch.delenv("PORTAL_USERNAME", raising=False)
     monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
+    monkeypatch.setattr(usage, "USAGE_LOG_PATH", tmp_path / "usage-log.json")
 
     Handler = _make_handler_class(tmp_path)
     try:

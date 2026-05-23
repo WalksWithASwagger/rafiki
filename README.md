@@ -35,6 +35,8 @@ install dependencies, run locally. Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ### 1. Clone and install
 
+Requires Node.js 20+ with npm 10+ and Python 3.11+.
+
 ```bash
 git clone https://github.com/WalksWithASwagger/rafiki.git
 cd rafiki
