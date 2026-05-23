@@ -13,6 +13,10 @@ output/
 # Generated outputs (large files, regenerable)
 outputs/
 
+# Local thumbnail/cache artifacts (regenerable)
+.rafiki-cache/
+**/.rafiki-cache/
+
 # Notion exporter idempotency log (per-project, local state)
 output/*/.notion-exported.json
 
