@@ -127,7 +127,10 @@ Success criteria:
   filenames, disk usage, and cleanup risk. Done as
   `python generate.py archive-health`.
 - Add optional thumbnail/cache generation so huge archives stay fast without
-  mutating originals.
+  mutating originals. Done as `archive-thumbnails`, `library --thumbnail-cache`,
+  and `view --thumbnail-cache`; all cache files live under git-ignored
+  `.rafiki-cache/`, and generated HTML still keeps original image paths for
+  lightbox/download/detail/export flows.
 
 ## Phase 5: Make The Archive Useful To Agents
 
@@ -154,8 +157,9 @@ Success criteria:
    feedback notes live in `output/feedback.json`, and card metadata lives in
    `output/archive-metadata.json`.
 5. Add archive health and cleanup reports. Done.
-6. Add registry export state from `output/archive-metadata.json`.
-7. Add MCP wrappers once the local contracts are stable.
+6. Add optional thumbnail/cache generation for large local archives. Done.
+7. Add registry export state from `output/archive-metadata.json`.
+8. Add MCP wrappers once the local contracts are stable.
 
 ## Non-Goals
 

@@ -36,6 +36,7 @@ the rest.
 5. **Browse the full local archive**:
    ```bash
    python generate.py library
+   python generate.py library --thumbnail-cache
    python generate.py serve --open
    ```
    The master library scans every `run-*` image across `output/` and configured
@@ -58,6 +59,17 @@ the rest.
    `output/feedback.json`, save evaluation decisions/scores to
    `output/evaluations.json`, show a run-level decision summary, and stage a
    revision back into Prompt Studio.
+   Thumbnail caching is opt-in. `library --thumbnail-cache` writes preview
+   images under `output/.rafiki-cache/thumbnails/` and points grid cards at
+   those previews while keeping each card's original image path for lightbox,
+   download, detail, approval, and export state. You can prebuild the same
+   cache without rewriting viewers:
+   ```bash
+   python generate.py archive-thumbnails --output-dir output --width 480
+   python generate.py view rap-week-1 --thumbnail-cache --all-runs
+   ```
+   `.rafiki-cache/` is git-ignored and can be deleted at any time; rerun the
+   command to rebuild it.
 6. **Check archive health before cleanup**:
    ```bash
    python generate.py archive-health
@@ -136,6 +148,10 @@ or trace it later:
   images, ratings, feedback, evaluations, archive metadata, manifests, or
   approved sets. The `--cleanup-report` view is also advisory only; candidate
   runs still require a separate `clean --keep-approved --dry-run` review.
+- **Thumbnail/cache paths are explicit.** Default library and viewer rebuilds
+  continue to reference original images directly. Use `archive-thumbnails`,
+  `library --thumbnail-cache`, or `view --thumbnail-cache` when a large local
+  archive needs lighter preview images.
 
 ## Where this lives
 
@@ -143,4 +159,5 @@ or trace it later:
 - Full archive viewer — `generate.py library`, `generate.py serve`
 - Archive curation logic — `lib/archive.py`
 - Archive health report — `lib/archive_health.py`
+- Thumbnail cache helper — `lib/thumbnail_cache.py`
 - Tests — `tests/test_archive.py`, `tests/test_archive_health.py`

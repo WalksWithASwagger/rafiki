@@ -9,6 +9,7 @@ from typing import Any
 from lib.archive_metadata import archive_metadata_path, load_archive_metadata
 from lib.evaluations import evaluations_path, load_evaluations
 from lib.feedback import load_feedback
+from lib.thumbnail_cache import thumbnail_cache_stats
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
@@ -225,6 +226,7 @@ def archive_health_report(output_root: Path) -> dict[str, Any]:
         "missing_images": missing_images,
         "duplicate_filenames": duplicate_filenames,
         "orphaned": orphaned,
+        "thumbnail_cache": thumbnail_cache_stats(output_root),
         "cleanup_report": _cleanup_report(cleanup_runs, orphaned, duplicate_filenames),
         "recommendations": _recommendations(missing_images, malformed_runs, orphaned, duplicate_filenames),
     }

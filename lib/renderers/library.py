@@ -18,6 +18,7 @@ from lib.renderers.library_atlas import _atlas_panel_html
 from lib.renderers.library_styles import _library_extra_css
 from lib.styles import get_default_style, load_styles
 from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
+from lib.thumbnail_cache import DEFAULT_WIDTH, build_thumbnail_cache
 
 
 def _scan_root(root: Path, project_name: str, virtual_prefix: str, output_root: Path | None = None) -> list[dict]:
@@ -293,7 +294,14 @@ def _records_from_registry(output_root: Path) -> list[dict]:
     return records
 
 
-def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Path:
+def generate_library_viewer(
+    output_root: Path,
+    open_browser: bool = False,
+    *,
+    thumbnail_cache: bool = False,
+    thumbnail_width: int = DEFAULT_WIDTH,
+    force_thumbnails: bool = False,
+) -> Path:
     """Scan output_root + any extra-outputs and build output_root/library.html."""
     output_root = Path(output_root)
     extra_roots = load_extra_outputs()
@@ -321,6 +329,13 @@ def generate_library_viewer(output_root: Path, open_browser: bool = False) -> Pa
                     records.append(rec)
 
     _apply_archive_metadata(records, output_root)
+    if thumbnail_cache:
+        build_thumbnail_cache(
+            output_root,
+            records,
+            width=thumbnail_width,
+            force=force_thumbnails,
+        )
     records.sort(key=lambda r: r["timestamp"], reverse=True)
 
     html = _render_library(records, output_root=output_root)
@@ -2559,7 +2574,7 @@ LIBRARY.forEach((item, i) => {{
     <div class="img-wrap" style="aspect-ratio:${{arCss}}">
       <span class="img-num">${{String(i + 1).padStart(2, '0')}}</span>
       ${{item.ok
-        ? '<img src="' + resolveAssetSrc(item.file) + '" alt="" loading="lazy">'
+        ? '<img src="' + resolveAssetSrc(item.thumbnail_file || item.file) + '" alt="" loading="lazy">'
         : '<div class="missing-img">not generated</div>'}}
     </div>
     <div class="card-meta-row">

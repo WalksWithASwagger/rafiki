@@ -4,12 +4,18 @@ import json
 from datetime import datetime
 from pathlib import Path
 
+from lib.thumbnail_cache import DEFAULT_WIDTH, build_thumbnail_cache
+
 
 def generate_viewer(
     output_dir: Path,
     items: list[dict],
     title: str = "Rafiki — Image Batch",
     run_meta: dict | None = None,
+    *,
+    thumbnail_cache: bool = False,
+    thumbnail_width: int = DEFAULT_WIDTH,
+    force_thumbnails: bool = False,
 ) -> Path:
     """Generate a single-run HTML viewer alongside the batch output images."""
     output_dir = Path(output_dir)
@@ -32,10 +38,22 @@ def generate_viewer(
             "name": item.get("name", "Untitled"),
             "prompt": item.get("prompt", ""),
             "file": rel,
+            "source_path": str(out),
             "ok": out.exists(),
             "aspect_ratio": item.get("aspect_ratio") or aspect_ratio,
             "error": item.get("error", ""),
         })
+
+    if thumbnail_cache:
+        build_thumbnail_cache(
+            output_dir.parent.parent,
+            js_items,
+            html_dir=output_dir,
+            width=thumbnail_width,
+            force=force_thumbnails,
+        )
+    for item in js_items:
+        item.pop("source_path", None)
 
     project = output_dir.parent.name
     run_id = output_dir.name
@@ -45,7 +63,13 @@ def generate_viewer(
     return viewer_path
 
 
-def generate_comparison_viewer(project_dir: Path) -> Path:
+def generate_comparison_viewer(
+    project_dir: Path,
+    *,
+    thumbnail_cache: bool = False,
+    thumbnail_width: int = DEFAULT_WIDTH,
+    force_thumbnails: bool = False,
+) -> Path:
     """Scan all run-* subdirs and generate a multi-run comparison viewer."""
     project_dir = Path(project_dir)
 
@@ -58,7 +82,23 @@ def generate_comparison_viewer(project_dir: Path) -> Path:
             images = []
             for img in data.get("images", []):
                 img_path = rjp.parent / img["file"]
-                images.append({**img, "ok": img_path.exists()})
+                images.append({
+                    **img,
+                    "ok": img_path.exists(),
+                    "source_path": str(img_path),
+                    "file": str(Path(rjp.parent.name) / img["file"]),
+                })
+            if thumbnail_cache:
+                build_thumbnail_cache(
+                    project_dir.parent,
+                    images,
+                    html_dir=project_dir,
+                    width=thumbnail_width,
+                    force=force_thumbnails,
+                )
+            for image in images:
+                image["file"] = Path(str(image["file"])).name
+                image.pop("source_path", None)
             runs.append({
                 "id": rjp.parent.name,
                 "dir": rjp.parent.name,
@@ -972,7 +1012,7 @@ ITEMS.forEach((item, i) => {
     <div class="img-wrap" style="aspect-ratio:${arCss}">
       <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
       ${item.ok
-        ? `<img src="${item.file}" alt="" loading="lazy">`
+        ? `<img src="${item.thumbnail_file || item.file}" alt="" loading="lazy">`
         : `<div class="missing-img">${missingMsg}</div>`}
     </div>
     <div class="card-prompt"></div>
@@ -1055,7 +1095,7 @@ function showRun(ri) {
       <div class="img-wrap" style="aspect-ratio:${arCss}">
         <span class="img-num">${String(i + 1).padStart(2, '0')}</span>
         ${item.ok
-          ? `<img src="${run.dir}/${item.file}" alt="" loading="lazy">`
+          ? `<img src="${item.thumbnail_file || (run.dir + '/' + item.file)}" alt="" loading="lazy">`
           : `<div class="missing-img">${missingMsg}</div>`}
       </div>
       <div class="card-prompt"></div>
@@ -1116,7 +1156,7 @@ function buildCompareTable() {
       cell.innerHTML = `
         <div class="img-wrap" style="aspect-ratio:${runArCss}">
           ${img && img.ok
-            ? `<img src="${run.dir}/${img.file}" loading="lazy">`
+            ? `<img src="${img.thumbnail_file || (run.dir + '/' + img.file)}" loading="lazy">`
             : `<div class="missing-img">${missingMsg}</div>`}
         </div>
         <div class="run-badge">${run.model || 'Run ' + (ri+1)}</div>

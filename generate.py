@@ -24,6 +24,7 @@ Usage:
     python generate.py approve <project> [--run <run-id>]
     python generate.py clean <project> [--keep-approved] [--older-than 30d] [--dry-run]
     python generate.py archive-health [--json]
+    python generate.py archive-thumbnails [--output-dir output] [--width 480]
 
     # Start the generative portal with persistent ratings + search:
     python generate.py serve [--port 7433] [--open]
@@ -88,6 +89,13 @@ def _cmd_library(argv: list[str]) -> None:
         help="Root output directory (default: output/ next to generate.py)",
     )
     p.add_argument("--open", action="store_true", help="Open in browser after building")
+    p.add_argument(
+        "--thumbnail-cache",
+        action="store_true",
+        help="Build/use local thumbnails under output/.rafiki-cache/ for library grid previews",
+    )
+    p.add_argument("--thumbnail-width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--rebuild-thumbnails", action="store_true", help="Regenerate thumbnails even if cached")
     args = p.parse_args(argv)
 
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
@@ -96,7 +104,13 @@ def _cmd_library(argv: list[str]) -> None:
         sys.exit(1)
 
     from lib.renderers.library import generate_library_viewer, _records_from_registry
-    lp = generate_library_viewer(output_root, open_browser=args.open)
+    lp = generate_library_viewer(
+        output_root,
+        open_browser=args.open,
+        thumbnail_cache=args.thumbnail_cache,
+        thumbnail_width=args.thumbnail_width,
+        force_thumbnails=args.rebuild_thumbnails,
+    )
 
     all_records = _records_from_registry(output_root)
 
@@ -105,6 +119,10 @@ def _cmd_library(argv: list[str]) -> None:
     projects = {r["project"] for r in all_records}
     print(f"Library: {lp}")
     print(f"Images:  {ok}/{total} present  ({len(projects)} projects)")
+    if args.thumbnail_cache:
+        from lib.thumbnail_cache import thumbnail_cache_stats
+        cache = thumbnail_cache_stats(output_root)
+        print(f"Thumbnails: {cache['files']} cached at {cache['path']}")
 
 
 def _cmd_view(argv: list[str]) -> None:
@@ -125,6 +143,13 @@ def _cmd_view(argv: list[str]) -> None:
         "--approved", action="store_true",
         help="Build viewer from output/<project>/approved/ instead of run-*/",
     )
+    p.add_argument(
+        "--thumbnail-cache",
+        action="store_true",
+        help="Build/use local thumbnails under output/.rafiki-cache/ for viewer grid previews",
+    )
+    p.add_argument("--thumbnail-width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--rebuild-thumbnails", action="store_true", help="Regenerate thumbnails even if cached")
     args = p.parse_args(argv)
 
     if args.approved:
@@ -167,13 +192,30 @@ def _cmd_view(argv: list[str]) -> None:
                     if data.get("prompt_file")
                     else project_dir.name.replace("-", " ").title()
                 )
-                generate_viewer(output_dir=run_dir, items=items, title=title, run_meta=data)
+                generate_viewer(
+                    output_dir=run_dir,
+                    items=items,
+                    title=title,
+                    run_meta=data,
+                    thumbnail_cache=args.thumbnail_cache,
+                    thumbnail_width=args.thumbnail_width,
+                    force_thumbnails=args.rebuild_thumbnails,
+                )
                 print(f"  Rebuilt {run_dir.name}/viewer.html")
             except Exception as e:
                 print(f"  Error rebuilding {run_dir.name}: {e}", file=sys.stderr)
 
-    vp = generate_comparison_viewer(project_dir)
+    vp = generate_comparison_viewer(
+        project_dir,
+        thumbnail_cache=args.thumbnail_cache,
+        thumbnail_width=args.thumbnail_width,
+        force_thumbnails=args.rebuild_thumbnails,
+    )
     print(f"Viewer:  {vp}")
+    if args.thumbnail_cache:
+        from lib.thumbnail_cache import thumbnail_cache_stats
+        cache = thumbnail_cache_stats(project_dir.parent)
+        print(f"Thumbnails: {cache['files']} cached at {cache['path']}")
 
     # Print a quick on-disk summary
     run_json_paths = sorted(project_dir.glob("run-*/run.json"))
@@ -513,8 +555,50 @@ def _cmd_archive_health(argv: list[str]) -> None:
         f"Cleanup candidates: {cleanup['candidate_runs']} run(s), "
         f"{cleanup['candidate_bytes']} bytes; risky runs: {cleanup['risky_runs']}"
     )
+    cache = report["thumbnail_cache"]
+    print(f"Thumbnail cache: {cache['files']} file(s), {cache['disk_bytes']} bytes at {cache['path']}")
     for rec in report["recommendations"]:
         print(f"- {rec}")
+
+
+def _cmd_archive_thumbnails(argv: list[str]) -> None:
+    """Build optional local thumbnails without changing originals or viewers."""
+    p = argparse.ArgumentParser(
+        prog="generate.py archive-thumbnails",
+        description="Build local preview thumbnails under output/.rafiki-cache/ for large archives.",
+    )
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument("--width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--force", action="store_true", help="Regenerate thumbnails even if cached")
+    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    if not output_root.exists():
+        print(f"Error: output dir not found: {output_root}")
+        sys.exit(1)
+
+    from lib.renderers.library import _records_from_registry
+    from lib.thumbnail_cache import build_thumbnail_cache
+
+    records = _records_from_registry(output_root)
+    summary = build_thumbnail_cache(output_root, records, width=args.width, force=args.force)
+    if args.json_output:
+        print(json.dumps(summary, indent=2))
+        return
+
+    print(f"Thumbnail cache: {summary['path']}")
+    print(
+        f"Images: {summary['checked']} checked  "
+        f"created={summary['created']} reused={summary['reused']} failed={summary['failed']}"
+    )
+    if summary["failed"]:
+        print("Errors:")
+        for error in summary["errors"]:
+            print(f"- {error['file']}: {error['error']}")
 
 
 def _print_archive_cleanup_report(report: dict) -> None:
@@ -794,6 +878,9 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "archive-health":
         _cmd_archive_health(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "archive-thumbnails":
+        _cmd_archive_thumbnails(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "social-expand":
         _cmd_social_expand(sys.argv[2:])
