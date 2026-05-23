@@ -9,10 +9,10 @@
 
 **Not duplicated here (already first-class in Rafiki):** [`../kk-kb/`](../kk-kb/README.md) — HOPECODE batch, GNI, Web Summit zine, MAC femme, Wikipedia Five Futures, diagram teaching kit, etc.
 
-**Refresh this mirror** (from a machine with both repos; default `KB_ROOT=../kk-ai-ecosystem` next to Rafiki):
+**Refresh this mirror** (from a machine with both repos). The script defaults to `KB_ROOT=../kk-ai-ecosystem` (sibling of Rafiki), but on this machine `kk-ai-ecosystem` lives under `notion-local/`, so pass `KB_ROOT` explicitly:
 
 ```bash
-cd /path/to/rafiki && chmod +x ./scripts/sync-kb-image-prompt-mirror.sh
+cd /Users/kk/Code/rafiki && chmod +x ./scripts/sync-kb-image-prompt-mirror.sh
 KB_ROOT=~/Code/notion-local/kk-ai-ecosystem ./scripts/sync-kb-image-prompt-mirror.sh
 ```
 

@@ -70,3 +70,30 @@ styles:
     description: "Maximalist punk collage — black/white halftone + blood red + hot pink/magenta, dripping paint type, fire and photographic objects embedded in chaos"
     suffix: |
       Style guidelines: Maximalist punk zine-collage aesthetic built on four colors: BLACK, WHITE halftone, BLOOD RED/CRIMSON, and HOT PINK/MAGENTA (neon, saturated — this is the key accent that separates this style from plain BWR zine). No other colors. Background alternates between pitch black and aged off-white torn paper. Typography treatments: MASSIVE dripping-paint display letters in red or hot pink, stencil-cut spray typography in contrast color, small torn-paper typewriter fragments at irregular angles (often partially legible), ransom-note cut letters, margin scrawl in marker — all layered at wildly different scales simultaneously. Photographic elements: high-contrast black-and-white halftone photography of physical objects (hands, boots, fire, tools, faces) treated with risograph/silkscreen grain before embedding — objects look photographically real but distressed into the collage. Texture: worn paper, xerox artifact, spray paint bleed, risograph misregistration, ink drip, coffee stain, torn edge with visible fiber. Collage density: MAXIMUM — at least 4–5 overlapping layers; small illegible text fragments scattered everywhere like wheat-paste wall. Energy: confrontational, urgent, visceral, political. NOT polished. NOT designed. Assembled with rage and love on a bedroom floor at midnight. Compare: more chaotic and color-saturated than the BWR zine style, more physical and photographic than flat stencil work. Every image should feel like it belongs stapled to a telephone pole outside a basement punk show.
+
+  # --- KK signature protest-sign styles (data-center "both hands full" series) ---
+  # Type-forward poster artwork, NOT a photo of a sign, NOT cartoon, NOT art-history pastiche.
+
+  kk-blocks:
+    name: "KK Megacolor Block-Stack"
+    description: "Stacked neon color-panel rows, each word its own clashing color, halftone + chromatic glitch — type-forward poster"
+    suffix: |
+      Style guidelines: Full-bleed protest-poster artwork — NOT a photo, no wall, no drop shadow; type and color fill the entire frame edge to edge. Massive bold geometric blocky sans-serif capitals, each word or line set inside its own rectangular color panel, panels stacked in horizontal bands across the whole poster. Vivid clashing neon palette — electric blue, acid green, hot magenta/pink, orange — high saturation, adjacent panels in different clashing colors. Halftone dot texture over the flat color, slight risograph overprint misregistration, RGB chromatic glitch offset on the letter edges. If the line clearly calls for an emblem, render it only as a bold flat geometric icon — absolutely NO cartoon faces, NO cute mascots, NO illustration, NO photo. Loud, designed, readable; rave-flyer / neo-brutalist screenprint energy.
+
+  kk-cmyk:
+    name: "KK CMYK Slab-Glitch"
+    description: "Process yellow/cyan/magenta + black, fat condensed slab caps in stacked bands, halftone + RGB offset"
+    suffix: |
+      Style guidelines: Full-bleed protest-poster artwork — NOT a photo, bleeds to all four edges. Enormous fat CONDENSED slab / gothic capitals filling the frame, stacked tight in horizontal bands. Strict CMYK process palette ONLY — process yellow, process cyan, process magenta, and black — with words and bands alternating between these four colors. Heavy halftone dot screens, visible CMYK channel misregistration, RGB chromatic glitch offset on letter edges, ink-on-newsprint print texture. Very high contrast, punchy, mass-print screenprint energy. NO cartoon, NO illustration, NO photo. Loud, designed, perfectly readable.
+
+  kk-glitch:
+    name: "KK Datamosh Hard-Glitch"
+    description: "Pixel-sort, RGB split, scanlines, cyan/magenta/black/white — corrupted-signal cyberpunk type"
+    suffix: |
+      Style guidelines: Full-bleed protest-poster artwork — NOT a photo, bleeds to all four edges. Heavy blocky / condensed capitals shattered by digital glitch: pixel-sort smears, datamosh, RGB channel split, horizontal scanlines and tracking errors, JPEG/compression artifacts, broken and stuttering letterforms that nonetheless stay LEGIBLE. Palette: electric cyan, hot magenta, black and white, with occasional acid-yellow; hard split color fields behind the type. Corrupted-signal, cyberpunk-error, datamosh energy. NO cartoon, NO illustration, NO photo. Loud, designed, readable.
+
+  kk-acid:
+    name: "KK Acid-Riso Distress"
+    description: "Hot orange/red/yellow tritone, gritty riso grain, painterly distress, split zones — sun-faded hardcore gig poster"
+    suffix: |
+      Style guidelines: Full-bleed protest-poster artwork — NOT a photo, bleeds to all four edges. Massive heavy CONDENSED gothic / grotesque capitals filling the frame, often split into two stacked color zones. Hot limited tritone palette — acid yellow, hot orange, and blood red over black (a tight 2–3 colour risograph pairing, not rainbow). Gritty risograph grain, heavy halftone, painterly eroded / distressed ink texture, subtle cyan RGB glitch edge on the type. Sun-faded, sweat-soaked hardcore gig-poster / punk-flyer heat. NO cartoon, NO illustration, NO photo. Loud, designed, readable.
