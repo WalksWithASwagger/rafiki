@@ -71,8 +71,13 @@ checkout when you need copy-paste commands for your own client.
 - `rafiki_registry_search`: search the persisted asset registry by title,
   caption, and tags.
 - `rafiki_registry_export`: export the registry to CSV or JSON.
+- `rafiki_archive_health`: report missing images, malformed manifests,
+  duplicate filenames, sidecar orphans, and cleanup guidance without writing
+  files.
 - `rafiki_viewer_rebuild`: rebuild project, run, or approved viewers without
   regenerating images.
+- `rafiki_library_rebuild`: check or rebuild the master `library.html` archive
+  viewer without regenerating images.
 - `rafiki_render`: render one HTML file or a directory of HTML files to PNG.
 - `rafiki_canva_export`: build a Canva bulk-upload bundle from approved or
   latest-run images.
@@ -80,9 +85,10 @@ checkout when you need copy-paste commands for your own client.
   Notion gallery database.
 - `rafiki_run`: run supported fallback CLI workflows without a shell.
 
-Typed workflow tools return stable JSON with `success`, `tool`, `dry_run`,
-`mutating`, and `external` fields, plus workflow-specific paths, URLs, counts,
-stdout/stderr, or error details.
+Typed workflow tools return stable JSON with `success`, `ok`, `tool`,
+`dry_run`, `mutating`, and `external` fields, plus workflow-specific paths,
+URLs, counts, stdout/stderr, or error details. `success` is kept for existing
+clients; new clients should read `ok`.
 
 ## Typed Workflow Examples
 
@@ -100,6 +106,14 @@ Asset registry:
 {"format": "json", "dry_run": true}
 ```
 
+Archive health:
+
+`rafiki_archive_health`:
+
+```json
+{"output_root": "/absolute/path/to/output", "cleanup_report": true}
+```
+
 Viewers:
 
 `rafiki_viewer_rebuild`:
@@ -112,6 +126,18 @@ Viewers:
 
 ```json
 {"project": "rap-all-weeks", "approved": true}
+```
+
+`rafiki_library_rebuild`:
+
+```json
+{"output_root": "/absolute/path/to/output", "dry_run": true}
+```
+
+`rafiki_library_rebuild`:
+
+```json
+{"output_root": "/absolute/path/to/output", "dry_run": false}
 ```
 
 HTML rendering:
@@ -194,10 +220,15 @@ Render-only bridge calls execute:
 node /path/to/rafiki/index.js <args...>
 ```
 
-Typed tools mark local writes and external calls explicitly. For example,
-registry export, viewer rebuild, render, and Canva export are local mutations
-when `dry_run` is false; Notion export is external and only mutates remote
-Notion state plus the local export log when `dry_run` is false.
+Typed tools mark local writes and external calls explicitly. `rafiki_archive_health`
+is always read-only and returns `mutating: false`. Registry export, viewer
+rebuild, library rebuild, render, and Canva export are local mutations when
+`dry_run` is false. Notion export is external and only mutates remote Notion
+state plus the local export log when `dry_run` is false.
+
+Dry-run wrappers do not stamp archive metadata or write generated outputs.
+They only report the paths, URLs, counts, commands, and errors a real run would
+use when the underlying workflow exposes enough information to preview safely.
 
 Some fallback CLI workflows still mutate local state or external systems:
 `approve`, `billing import`, `clean`, `deploy`, `regen`, and `social-expand`.
