@@ -14,6 +14,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from common import (  # noqa: E402
+    contract_linear_prefixes,
     extract_issue_reference,
     extract_linear_keys,
     load_contract,
@@ -80,7 +81,13 @@ def check_traceability(
     issue_prefix = rules["github_only_issue_prefix"]
     linear_keys = [
         key
-        for key in extract_linear_keys(pr_title, pr_body, head_ref, issue_body)
+        for key in extract_linear_keys(
+            pr_title,
+            pr_body,
+            head_ref,
+            issue_body,
+            prefixes=contract_linear_prefixes(contract),
+        )
         if not key.startswith(f"{issue_prefix.rstrip('-').upper()}-")
     ]
     linear_key = linear_keys[0] if len(linear_keys) == 1 else None

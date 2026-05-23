@@ -16,6 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from common import (  # noqa: E402
+    contract_linear_prefixes,
     extract_linear_keys,
     load_contract,
     read_text_arg,
@@ -149,7 +150,14 @@ def resolve_linear_keys(
     issue_prefix = contract["pr_requirements"]["github_only_issue_prefix"].rstrip("-").upper() + "-"
     return [
         key
-        for key in extract_linear_keys(issue_title, issue_body, pr_title, pr_body, head_ref)
+        for key in extract_linear_keys(
+            issue_title,
+            issue_body,
+            pr_title,
+            pr_body,
+            head_ref,
+            prefixes=contract_linear_prefixes(contract),
+        )
         if not key.startswith(issue_prefix)
     ]
 
@@ -228,6 +236,9 @@ def sync_linear_issue(
     }
     if not sync_config["enabled"]:
         payload["status"] = "disabled"
+        return payload
+    if not payload["linear_keys"]:
+        payload["status"] = "github-only"
         return payload
     if len(payload["linear_keys"]) != 1:
         payload.update(
@@ -309,20 +320,21 @@ def main() -> int:
     else:
         client = None
     if client is None and contract["linear_sync"]["enabled"]:
+        linear_keys = resolve_linear_keys(
+            contract,
+            args.issue_title,
+            read_text_arg(args.issue_file),
+            args.pr_title,
+            read_text_arg(args.pr_body_file),
+            args.head_ref,
+        )
         payload = {
             "ok": True,
             "event": args.event,
-            "status": "missing-token",
+            "status": "missing-token" if linear_keys else "github-only",
             "comment": "",
             "linear_key": None,
-            "linear_keys": resolve_linear_keys(
-                contract,
-                args.issue_title,
-                read_text_arg(args.issue_file),
-                args.pr_title,
-                read_text_arg(args.pr_body_file),
-                args.head_ref,
-            ),
+            "linear_keys": linear_keys,
             "state_changed": False,
             "comment_backfilled": False,
         }
