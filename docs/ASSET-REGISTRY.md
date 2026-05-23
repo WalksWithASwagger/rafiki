@@ -22,6 +22,10 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | `caption` | str | `viewer-data.json` → `run.json` `prompt` |
 | `tags` | list[str] | `viewer-data.json` + `run.json` tags + `aspect_ratio` |
 | `approval_status` | str | `approved` when sourced from `approved/`, otherwise `unapproved` |
+| `metadata_states` | list[str] | local `output/archive-metadata.json` states keyed by `project/run/file` or `project/approved/file` |
+| `export_status` | str | comma-separated `canva`/`notion` states from `metadata_states` |
+| `publish_status` | str | comma-separated `deployed`/`published` states from `metadata_states` |
+| `superseded_by` | str | local `output/archive-metadata.json` supersession target |
 | `source_prompt` | str | approval index prompt → `run.json` image prompt |
 | `style` | str | `run.json` |
 | `model` | str | `run.json` |
@@ -30,6 +34,11 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | `source_run` | str | source run id when known |
 | `indexed_at` | str (ISO) | timestamp of `index()` call |
 | `path` | str | image path, repo-root-relative when possible |
+
+CSV exports use the same stable state columns: `approval_status`,
+`metadata_states`, `export_status`, `publish_status`, and `superseded_by`.
+Registry export reads archive metadata but does not stamp or mutate
+`output/archive-metadata.json`.
 
 ## CLI
 

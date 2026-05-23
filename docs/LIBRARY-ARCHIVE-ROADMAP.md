@@ -31,7 +31,7 @@ Rafiki already has most of the pieces:
 | Evaluations | `output/evaluations.json`, `lib/evaluations.py`, `lib/server.py` | Decision, score, use case, rationale, next-step state keyed by `project/run-id/file`. |
 | Archive health | `lib/archive_health.py`, `generate.py archive-health` | Read-only report for missing images, malformed manifests, duplicate filenames, sidecar orphans, disk usage, cleanup risk, and advisory cleanup candidates. |
 | Approved archive | `lib/archive.py`, `generate.py approve`, `generate.py clean` | Promotes starred assets into `approved/` and supports conservative cleanup. |
-| Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache. |
+| Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache with approval status plus read-only archive metadata state fields. |
 | External roots | `config/extra-outputs*.json` | Lets the portal include generated outputs outside the repo. |
 | Curriculum context | `config/curriculum-atlas.json`, `lib/renderers/library_atlas.py` | Teach mode maps archive assets into programs/modules, facilitator notes, critique criteria, concept links, evaluation summaries, and a Cohort Story Mode rail. |
 
@@ -53,6 +53,10 @@ Success criteria:
   archive card.
 - `generate.py registry index --all-runs` can persist the complete archive
   metadata to `data/asset-registry.json`.
+- Registry JSON and CSV exports include archive sidecar state from
+  `output/archive-metadata.json`: `metadata_states`, derived `export_status`
+  and `publish_status`, and `superseded_by`, alongside approval state from the
+  approved archive/index.
 - The default `generate.py registry index` remains curated for downstream CSV,
   Notion, and Canva workflows that should not export every draft.
 
