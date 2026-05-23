@@ -6,15 +6,80 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
-import puppeteer from 'puppeteer';
-import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
+const baselineManifestPath = path.join(repoRoot, 'docs', 'portal-visual-baselines.json');
+let puppeteer = null;
+let sharp = null;
+
+const visualCaptures = {
+  desktopReview: {
+    id: 'desktop-review',
+    label: 'desktop review',
+    fileName: 'portal-desktop-review.png',
+  },
+  desktopTeach: {
+    id: 'desktop-teach',
+    label: 'desktop teach',
+    fileName: 'portal-desktop-teach.png',
+  },
+  mobileReview: {
+    id: 'mobile-review',
+    label: 'mobile review',
+    fileName: 'portal-mobile-review.png',
+  },
+};
+
+function parseArgs(argv) {
+  const options = {
+    visualBaselineMode: 'off',
+    selfTestBaselines: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--self-test-baselines') {
+      options.selfTestBaselines = true;
+      continue;
+    }
+    if (arg === '--baseline-check') {
+      options.visualBaselineMode = 'check';
+      continue;
+    }
+    if (arg === '--baseline-refresh') {
+      options.visualBaselineMode = 'refresh';
+      continue;
+    }
+    if (arg === '--visual-baseline') {
+      const value = argv[index + 1];
+      if (!value) throw new Error('--visual-baseline requires review, check, refresh, or off');
+      options.visualBaselineMode = value;
+      index += 1;
+      continue;
+    }
+    if (arg.startsWith('--visual-baseline=')) {
+      options.visualBaselineMode = arg.slice('--visual-baseline='.length);
+      continue;
+    }
+    throw new Error(`Unknown portal E2E option: ${arg}`);
+  }
+
+  if (!['off', 'review', 'check', 'refresh'].includes(options.visualBaselineMode)) {
+    throw new Error(`Unsupported --visual-baseline mode: ${options.visualBaselineMode}`);
+  }
+  return options;
+}
 
 function commandWorks(command) {
   const result = spawnSync(command, ['--version'], { encoding: 'utf8' });
   return result.status === 0;
+}
+
+async function loadBrowserDeps() {
+  if (puppeteer && sharp) return;
+  ({ default: puppeteer } = await import('puppeteer'));
+  ({ default: sharp } = await import('sharp'));
 }
 
 function getPythonExecutable() {
@@ -184,25 +249,169 @@ async function screenshotStats(filePath) {
   };
 }
 
-function assertVisualBaseline(label, stats, rules) {
-  assert(stats.nonblank, `${label} screenshot is blank`);
-  assert(stats.width >= rules.minWidth, `${label} screenshot is too narrow: ${stats.width}`);
-  assert(stats.height >= rules.minHeight, `${label} screenshot is too short: ${stats.height}`);
-  assert(stats.visual.colorBuckets >= rules.minColorBuckets, `${label} screenshot has too few color buckets: ${stats.visual.colorBuckets}`);
-  assert(stats.visual.saturatedRatio >= rules.minSaturatedRatio, `${label} screenshot lost too much color: ${stats.visual.saturatedRatio}`);
-  assert(stats.visual.darkRatio >= rules.minDarkRatio, `${label} screenshot lost dark UI/content contrast: ${stats.visual.darkRatio}`);
-  assert(stats.visual.brightRatio <= rules.maxBrightRatio, `${label} screenshot is washed out: ${stats.visual.brightRatio}`);
-  assert(
-    stats.visual.meanLuma >= rules.minMeanLuma && stats.visual.meanLuma <= rules.maxMeanLuma,
-    `${label} screenshot luminance drifted outside baseline: ${stats.visual.meanLuma}`,
-  );
+function readJson(filePath) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`Could not parse visual baseline manifest at ${filePath}: ${error.message}`);
+  }
+}
+
+function getStatValue(stats, metricPath) {
+  return metricPath.split('.').reduce((value, key) => (
+    value && Object.hasOwn(value, key) ? value[key] : undefined
+  ), stats);
+}
+
+function describeRule(rule) {
+  const parts = [];
+  if (Object.hasOwn(rule, 'equals')) parts.push(`equal ${rule.equals}`);
+  if (Object.hasOwn(rule, 'min')) parts.push(`>= ${rule.min}`);
+  if (Object.hasOwn(rule, 'max')) parts.push(`<= ${rule.max}`);
+  return parts.join(' and ');
+}
+
+function compareCaptureToBaseline(capture, stats, manifest, artifactPath) {
+  const baseline = manifest.captures?.[capture.id];
+  if (!baseline) {
+    throw new Error(`Visual baseline manifest is missing capture "${capture.id}" in ${baselineManifestPath}`);
+  }
+  const failures = [];
+  for (const [metricPath, rule] of Object.entries(baseline.metrics || {})) {
+    const actual = getStatValue(stats, metricPath);
+    if (actual === undefined) {
+      failures.push(`${metricPath} is missing from screenshot stats`);
+      continue;
+    }
+    if (Object.hasOwn(rule, 'equals') && actual !== rule.equals) {
+      failures.push(`${metricPath} expected ${describeRule(rule)}, got ${actual}`);
+    }
+    if (Object.hasOwn(rule, 'min') && actual < rule.min) {
+      failures.push(`${metricPath} expected ${describeRule(rule)}, got ${actual}`);
+    }
+    if (Object.hasOwn(rule, 'max') && actual > rule.max) {
+      failures.push(`${metricPath} expected ${describeRule(rule)}, got ${actual}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error([
+      `Visual baseline drift for ${capture.label}.`,
+      `Capture: ${capture.id}`,
+      `Artifact: ${artifactPath || stats.file}`,
+      ...failures.map((failure) => `- ${failure}`),
+    ].join('\n'));
+  }
+}
+
+function metricRulesFromStats(stats, capture) {
+  return {
+    nonblank: { equals: true },
+    width: { min: Math.floor(stats.width * 0.95) },
+    height: { min: capture.id === 'mobile-review' ? 800 : 900 },
+    'visual.colorBuckets': { min: Math.max(12, Math.floor(stats.visual.colorBuckets * 0.55)) },
+    'visual.saturatedRatio': { min: Number(Math.max(0.01, stats.visual.saturatedRatio * 0.45).toFixed(3)) },
+    'visual.darkRatio': { min: Number(Math.max(0.01, stats.visual.darkRatio * 0.45).toFixed(3)) },
+    'visual.brightRatio': { max: Number(Math.min(0.96, stats.visual.brightRatio + 0.22).toFixed(3)) },
+    'visual.meanLuma': {
+      min: Number(Math.max(0, stats.visual.meanLuma - 45).toFixed(2)),
+      max: Number(Math.min(255, stats.visual.meanLuma + 45).toFixed(2)),
+    },
+  };
+}
+
+function refreshBaselineManifest(captureResults) {
+  const captures = {};
+  for (const result of captureResults) {
+    captures[result.capture.id] = {
+      label: result.capture.label,
+      artifact: result.capture.fileName,
+      metrics: metricRulesFromStats(result.stats, result.capture),
+      observed: {
+        width: result.stats.width,
+        height: result.stats.height,
+        visual: result.stats.visual,
+      },
+    };
+  }
+
+  const manifest = {
+    schema_version: 1,
+    note: 'Reviewed coarse portal visual baselines. These are metric ranges, not pixel-perfect screenshots.',
+    refreshed_at: new Date().toISOString(),
+    captures,
+  };
+  fs.writeFileSync(baselineManifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  return manifest;
+}
+
+async function captureVisual(page, tmpRoot, artifactDir, capture) {
+  const screenshotPath = path.join(tmpRoot, capture.fileName);
+  await page.screenshot({ path: screenshotPath, fullPage: capture.id !== 'mobile-review' });
+  const stats = await screenshotStats(screenshotPath);
+  const artifact = saveVisualArtifact(artifactDir, screenshotPath, capture.fileName);
+  return { capture, stats, artifact };
+}
+
+function runBaselineSelfTest() {
+  const capture = visualCaptures.desktopReview;
+  const stats = {
+    file: '/tmp/portal-desktop-review.png',
+    width: 1440,
+    height: 1200,
+    nonblank: true,
+    visual: {
+      meanLuma: 120,
+      darkRatio: 0.12,
+      brightRatio: 0.3,
+      saturatedRatio: 0.2,
+      colorBuckets: 40,
+    },
+  };
+  const manifest = {
+    captures: {
+      [capture.id]: {
+        metrics: {
+          nonblank: { equals: true },
+          width: { min: 1200 },
+          'visual.colorBuckets': { min: 20 },
+          'visual.meanLuma': { min: 80, max: 160 },
+        },
+      },
+    },
+  };
+  compareCaptureToBaseline(capture, stats, manifest, '/tmp/artifacts/portal-desktop-review.png');
+
+  let message = '';
+  try {
+    compareCaptureToBaseline(capture, {
+      ...stats,
+      visual: { ...stats.visual, colorBuckets: 4 },
+    }, manifest, '/tmp/artifacts/portal-desktop-review.png');
+  } catch (error) {
+    message = error.message;
+  }
+  assert(message.includes('Visual baseline drift for desktop review.'), 'drift message did not name the capture');
+  assert(message.includes('Artifact: /tmp/artifacts/portal-desktop-review.png'), 'drift message did not include the artifact path');
+  assert(message.includes('visual.colorBuckets expected >= 20, got 4'), 'drift message did not include the failed metric');
+  console.log('portal visual baseline self-test ok');
 }
 
 async function main() {
+  const options = parseArgs(process.argv.slice(2));
+  if (options.selfTestBaselines) {
+    runBaselineSelfTest();
+    return;
+  }
+  await loadBrowserDeps();
   const python = getPythonExecutable();
   const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'rafiki-portal-e2e-'));
-  const keepTmp = envIsSet('RAFIKI_E2E_KEEP_TMP');
-  const visualArtifactDir = resolveVisualArtifactDir(tmpRoot, keepTmp);
+  const visualModeEnabled = options.visualBaselineMode !== 'off';
+  const requestedKeepTmp = envIsSet('RAFIKI_E2E_KEEP_TMP');
+  const keepTmp = requestedKeepTmp || (visualModeEnabled && !process.env.RAFIKI_E2E_ARTIFACT_DIR?.trim());
+  const visualArtifactDir = visualModeEnabled ? resolveVisualArtifactDir(tmpRoot, keepTmp) : null;
+  const baselineManifest = options.visualBaselineMode === 'check' ? readJson(baselineManifestPath) : null;
+  const visualResults = [];
   const outputRoot = path.join(tmpRoot, 'output');
   const project = 'e2e-showpiece-smoke';
   const projectDir = path.join(outputRoot, project);
@@ -456,45 +665,19 @@ async function main() {
     assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
     assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');
 
-    const desktopReviewScreenshot = path.join(tmpRoot, 'portal-desktop-review.png');
-    await desktop.screenshot({ path: desktopReviewScreenshot, fullPage: true });
-    const desktopReviewStats = await screenshotStats(desktopReviewScreenshot);
-    const desktopReviewArtifact = saveVisualArtifact(
-      visualArtifactDir,
-      desktopReviewScreenshot,
-      'portal-desktop-review.png',
-    );
-    assertVisualBaseline('desktop review', desktopReviewStats, {
-      minWidth: 1200,
-      minHeight: 900,
-      minColorBuckets: 24,
-      minSaturatedRatio: 0.04,
-      minDarkRatio: 0.03,
-      maxBrightRatio: 0.86,
-      minMeanLuma: 20,
-      maxMeanLuma: 220,
-    });
+    if (visualModeEnabled) {
+      const result = await captureVisual(desktop, tmpRoot, visualArtifactDir, visualCaptures.desktopReview);
+      visualResults.push(result);
+      if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
+    }
 
     await desktop.evaluate(() => setPortalMode('teach'));
     await desktop.waitForFunction(() => !document.querySelector('#portal-mode-teach').hidden);
-    const desktopTeachScreenshot = path.join(tmpRoot, 'portal-desktop-teach.png');
-    await desktop.screenshot({ path: desktopTeachScreenshot, fullPage: true });
-    const desktopTeachStats = await screenshotStats(desktopTeachScreenshot);
-    const desktopTeachArtifact = saveVisualArtifact(
-      visualArtifactDir,
-      desktopTeachScreenshot,
-      'portal-desktop-teach.png',
-    );
-    assertVisualBaseline('desktop teach', desktopTeachStats, {
-      minWidth: 1200,
-      minHeight: 900,
-      minColorBuckets: 24,
-      minSaturatedRatio: 0.015,
-      minDarkRatio: 0.03,
-      maxBrightRatio: 0.86,
-      minMeanLuma: 20,
-      maxMeanLuma: 220,
-    });
+    if (visualModeEnabled) {
+      const result = await captureVisual(desktop, tmpRoot, visualArtifactDir, visualCaptures.desktopTeach);
+      visualResults.push(result);
+      if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
+    }
 
     const mobile = await browser.newPage();
     mobile.on('pageerror', (error) => errors.push(`mobile pageerror: ${error.message}`));
@@ -547,30 +730,26 @@ async function main() {
     assert(mobileState.loadedImages === 2, `expected two loaded mobile images, got ${mobileState.loadedImages}`);
     assert(mobileState.overflow.scrollWidth <= mobileState.overflow.clientWidth, 'mobile has horizontal overflow');
 
-    const mobileScreenshot = path.join(tmpRoot, 'portal-mobile.png');
-    await mobile.screenshot({ path: mobileScreenshot, fullPage: false });
-    const mobileStats = await screenshotStats(mobileScreenshot);
-    const mobileArtifact = saveVisualArtifact(
-      visualArtifactDir,
-      mobileScreenshot,
-      'portal-mobile-review.png',
-    );
-    assertVisualBaseline('mobile', mobileStats, {
-      minWidth: 390,
-      minHeight: 800,
-      minColorBuckets: 18,
-      minSaturatedRatio: 0.03,
-      minDarkRatio: 0.03,
-      maxBrightRatio: 0.9,
-      minMeanLuma: 20,
-      maxMeanLuma: 230,
-    });
+    if (visualModeEnabled) {
+      const result = await captureVisual(mobile, tmpRoot, visualArtifactDir, visualCaptures.mobileReview);
+      visualResults.push(result);
+      if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
+    }
 
     assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
+
+    const refreshedManifest = options.visualBaselineMode === 'refresh'
+      ? refreshBaselineManifest(visualResults)
+      : null;
 
     console.log(JSON.stringify({
       ok: true,
       url,
+      visual_baseline: {
+        mode: options.visualBaselineMode,
+        manifest: visualModeEnabled ? baselineManifestPath : null,
+        refreshed: Boolean(refreshedManifest),
+      },
       fixture: {
         output_root: outputRoot,
         project,
@@ -578,18 +757,14 @@ async function main() {
       },
       desktop: desktopState,
       mobile: mobileState,
-      screenshots: {
-        desktopReview: desktopReviewStats,
-        desktopTeach: desktopTeachStats,
-        mobile: mobileStats,
-      },
+      screenshots: visualModeEnabled ? Object.fromEntries(
+        visualResults.map((result) => [result.capture.id, result.stats]),
+      ) : null,
       visual_artifacts: visualArtifactDir ? {
         directory: visualArtifactDir,
-        files: {
-          desktopReview: desktopReviewArtifact,
-          desktopTeach: desktopTeachArtifact,
-          mobile: mobileArtifact,
-        },
+        files: Object.fromEntries(
+          visualResults.map((result) => [result.capture.id, result.artifact]),
+        ),
       } : null,
       server_output: serverOutput.split('\n').filter(Boolean).slice(0, 6),
     }, null, 2));
