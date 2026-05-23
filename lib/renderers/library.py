@@ -435,6 +435,10 @@ def _studio_panel_html(style_names: list[str], default_style: str, model_options
         <span>Dry run</span>
       </label>
       <button id="studio-submit" class="studio-submit" type="submit">Run</button>
+      <button id="studio-retry" class="studio-inline-btn" type="button" onclick="retryStudioRun()" disabled>Retry Last</button>
+      <button id="studio-restage" class="studio-inline-btn" type="button" onclick="restageStudioPayload()" disabled>Restage Last</button>
+      <button id="studio-cancel" class="studio-inline-btn" type="button" onclick="cancelStudioWait()" disabled>Stop Waiting</button>
+      <button id="studio-reset" class="studio-inline-btn" type="button" onclick="resetStudioStatus()">Reset Status</button>
     </div>
     <div class="studio-status" id="studio-status" aria-live="polite"></div>
   </form>
@@ -2246,6 +2250,98 @@ function setStudioStatus(kind, html) {{
   status.className = 'studio-status studio-status-' + kind;
   status.innerHTML = html;
 }}
+let _lastStudioPayload = null;
+let _studioAbortController = null;
+let _studioRunning = false;
+function studioSetButtonState(state) {{
+  _studioRunning = state === 'pending';
+  const submit = document.getElementById('studio-submit');
+  const retry = document.getElementById('studio-retry');
+  const restage = document.getElementById('studio-restage');
+  const cancel = document.getElementById('studio-cancel');
+  if (submit) {{
+    submit.disabled = _studioRunning;
+    submit.textContent = _studioRunning ? 'Running...' : 'Run';
+  }}
+  if (retry) retry.disabled = _studioRunning || !_lastStudioPayload;
+  if (restage) restage.disabled = _studioRunning || !_lastStudioPayload;
+  if (cancel) cancel.disabled = !_studioRunning;
+}}
+function studioStatusActions() {{
+  const disabled = _lastStudioPayload ? '' : ' disabled';
+  return '<div class="studio-links">'
+    + '<button type="button" class="studio-inline-btn" onclick="retryStudioRun()"' + disabled + '>Retry Last</button>'
+    + '<button type="button" class="studio-inline-btn" onclick="restageStudioPayload()"' + disabled + '>Restage Last</button>'
+    + '<button type="button" class="studio-inline-btn" onclick="resetStudioStatus()">Reset Status</button>'
+    + '</div>';
+}}
+function studioErrorMessage(data, fallback) {{
+  const parts = [];
+  if (data?.error) parts.push(data.error);
+  if (data?.detail && data.detail !== data.error) parts.push(data.detail);
+  return parts.filter(Boolean).join(': ') || fallback;
+}}
+function buildStudioPayload() {{
+  const mode = document.getElementById('studio-mode')?.value || 'single';
+  const project = document.getElementById('studio-project')?.value.trim() || 'studio';
+  const payload = {{
+    mode,
+    project,
+    model: document.getElementById('studio-model')?.value || 'gemini-2.5-flash-image',
+    style: document.getElementById('studio-style')?.value.trim() || '',
+    aspect_ratio: document.getElementById('studio-ar')?.value || '16:9',
+    quality: document.getElementById('studio-quality')?.value || 'high',
+    resolution: document.getElementById('studio-resolution')?.value || '1K',
+    reference_image: document.getElementById('studio-reference')?.value.trim() || '',
+    dry_run: document.getElementById('studio-dry-run')?.checked || false,
+  }};
+  if (mode === 'single') {{
+    payload.name = document.getElementById('studio-name')?.value.trim() || '';
+    payload.prompt = document.getElementById('studio-prompt')?.value.trim() || '';
+    if (!payload.prompt) throw new Error('A prompt is required for single-prompt mode.');
+  }} else {{
+    payload.prompt_file = document.getElementById('studio-prompt-file')?.value.trim() || '';
+    payload.workers = parseInt(document.getElementById('studio-workers')?.value || '1', 10) || 1;
+    if (!payload.prompt_file) throw new Error('A Markdown prompt file path is required for batch mode.');
+  }}
+  return payload;
+}}
+function applyStudioPayload(payload) {{
+  if (!payload) return;
+  const setValue = (id, value) => {{ const el = document.getElementById(id); if (el) el.value = value || ''; }};
+  const setChecked = (id, value) => {{ const el = document.getElementById(id); if (el) el.checked = Boolean(value); }};
+  setValue('studio-mode', payload.mode || 'single');
+  syncStudioMode();
+  setValue('studio-project', payload.project || 'studio');
+  setValue('studio-model', payload.model || 'gemini-2.5-flash-image');
+  setValue('studio-style', payload.style || '');
+  setValue('studio-ar', payload.aspect_ratio || '16:9');
+  setValue('studio-quality', payload.quality || 'high');
+  setValue('studio-resolution', payload.resolution || '1K');
+  setValue('studio-reference', payload.reference_image || '');
+  setChecked('studio-dry-run', payload.dry_run);
+  setValue('studio-name', payload.name || '');
+  setValue('studio-prompt', payload.prompt || '');
+  setValue('studio-prompt-file', payload.prompt_file || '');
+  setValue('studio-workers', String(payload.workers || 1));
+}}
+function restageStudioPayload() {{
+  if (!_lastStudioPayload) return;
+  applyStudioPayload(_lastStudioPayload);
+  setPortalMode('generate');
+  setStudioStatus('info', 'Previous payload restored in Prompt Studio. Review it, then run when ready.');
+  studioSetButtonState('restaged');
+}}
+function resetStudioStatus() {{
+  setStudioStatus('info', 'Status reset. No provider cancellation was requested.');
+  studioSetButtonState('reset');
+}}
+function cancelStudioWait() {{
+  if (!_studioAbortController) return;
+  _studioAbortController.abort();
+  setStudioStatus('info', 'Stopped waiting in this browser. Rafiki cannot cancel a provider job already handed off; check the output folder before retrying.');
+  studioSetButtonState('reset');
+}}
 function setPortalActionStatus(kind, html) {{
   const status = document.getElementById('portal-action-status');
   if (!status) return;
@@ -2337,39 +2433,25 @@ async function submitPortalAction(event) {{
 }}
 async function submitStudio(event) {{
   event.preventDefault();
-  const mode = document.getElementById('studio-mode')?.value || 'single';
-  const project = document.getElementById('studio-project')?.value.trim() || 'studio';
-  const payload = {{
-    mode,
-    project,
-    model: document.getElementById('studio-model')?.value || 'gemini-2.5-flash-image',
-    style: document.getElementById('studio-style')?.value.trim() || '',
-    aspect_ratio: document.getElementById('studio-ar')?.value || '16:9',
-    quality: document.getElementById('studio-quality')?.value || 'high',
-    resolution: document.getElementById('studio-resolution')?.value || '1K',
-    reference_image: document.getElementById('studio-reference')?.value.trim() || '',
-    dry_run: document.getElementById('studio-dry-run')?.checked || false,
-  }};
-  if (mode === 'single') {{
-    payload.name = document.getElementById('studio-name')?.value.trim() || '';
-    payload.prompt = document.getElementById('studio-prompt')?.value.trim() || '';
-    if (!payload.prompt) {{
-      setStudioStatus('error', 'A prompt is required for single-prompt mode.');
-      return;
-    }}
-  }} else {{
-    payload.prompt_file = document.getElementById('studio-prompt-file')?.value.trim() || '';
-    payload.workers = parseInt(document.getElementById('studio-workers')?.value || '1', 10) || 1;
-    if (!payload.prompt_file) {{
-      setStudioStatus('error', 'A Markdown prompt file path is required for batch mode.');
-      return;
-    }}
+  let payload;
+  try {{
+    payload = buildStudioPayload();
+  }} catch (err) {{
+    setStudioStatus('error', studioEscapeHtml(err?.message || 'Prompt Studio payload is incomplete.') + studioStatusActions());
+    studioSetButtonState('failure');
+    return;
   }}
-  const submit = document.getElementById('studio-submit');
-  if (submit) {{
-    submit.disabled = true;
-    submit.textContent = mode === 'single' ? 'Generating…' : 'Running batch…';
-  }}
+  await runStudioPayload(payload);
+}}
+async function retryStudioRun() {{
+  if (!_lastStudioPayload || _studioRunning) return;
+  applyStudioPayload(_lastStudioPayload);
+  await runStudioPayload(_lastStudioPayload);
+}}
+async function runStudioPayload(payload) {{
+  _lastStudioPayload = JSON.parse(JSON.stringify(payload));
+  _studioAbortController = new AbortController();
+  studioSetButtonState('pending');
   setStudioStatus(
     'busy',
     payload.dry_run
@@ -2381,11 +2463,13 @@ async function submitStudio(event) {{
       method: 'POST',
       headers: {{'Content-Type': 'application/json'}},
       body: JSON.stringify(payload),
+      signal: _studioAbortController.signal,
     }});
     const data = await resp.json().catch(() => ({{error: 'Invalid server response'}}));
     if (!resp.ok || !data.ok) {{
-      const msg = data.error || data.detail || 'Generation failed.';
-      setStudioStatus('error', studioEscapeHtml(msg));
+      const msg = studioErrorMessage(data, 'Generation failed.');
+      setStudioStatus('error', studioEscapeHtml(msg) + studioStatusActions());
+      studioSetButtonState('failure');
       return;
     }}
     const links = [];
@@ -2399,13 +2483,18 @@ async function submitStudio(event) {{
       data.all_ok ? 'success' : 'info',
       `${{summary}} in <code>${{studioEscapeHtml(data.project)}}</code> · run <code>${{studioEscapeHtml(data.run_id)}}</code><div class="studio-links">${{links.join('')}}</div>`
     );
+    studioSetButtonState('success');
   }} catch (err) {{
-    setStudioStatus('error', studioEscapeHtml(err?.message || 'Request failed.'));
-  }} finally {{
-    if (submit) {{
-      submit.disabled = false;
-      submit.textContent = 'Run';
+    if (err?.name === 'AbortError') {{
+      setStudioStatus('info', 'Stopped waiting in this browser. Rafiki cannot cancel a provider job already handed off; check the output folder before retrying.' + studioStatusActions());
+      studioSetButtonState('reset');
+    }} else {{
+      setStudioStatus('error', studioEscapeHtml(err?.message || 'Request failed.') + studioStatusActions());
+      studioSetButtonState('failure');
     }}
+  }} finally {{
+    _studioAbortController = null;
+    if (_studioRunning) studioSetButtonState('reset');
   }}
 }}
 (function() {{

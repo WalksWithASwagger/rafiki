@@ -526,3 +526,29 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
     assert ":focus-visible" in html
     assert "prefers-reduced-motion" in html
     assert "transition: all" not in html
+
+
+def test_library_viewer_renders_prompt_studio_status_retry_and_reset_hooks(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    _write_run(
+        output_root / "studio-hooks" / "run-20260510-120000",
+        "studio.png",
+        "Studio Asset",
+        "studio prompt",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="studio-retry"' in html
+    assert 'id="studio-restage"' in html
+    assert 'id="studio-cancel"' in html
+    assert 'id="studio-reset"' in html
+    assert "let _lastStudioPayload = null" in html
+    assert "function studioSetButtonState(state)" in html
+    assert "function studioErrorMessage(data, fallback)" in html
+    assert "function retryStudioRun()" in html
+    assert "function restageStudioPayload()" in html
+    assert "function cancelStudioWait()" in html
+    assert "No provider cancellation was requested" in html
+    assert "Rafiki cannot cancel a provider job already handed off" in html
+    assert "signal: _studioAbortController.signal" in html
