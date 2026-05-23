@@ -99,6 +99,9 @@ Success criteria:
 - Add card-level evaluation and a run-level decision summary. Done in Run
   Detail with decision, score, use case, rationale, next step, badges, and
   per-run counts.
+- Add a first prompt/run comparison for reruns and superseded assets. Done in
+  Run Detail from local manifests plus `output/archive-metadata.json`
+  `superseded_by`; missing targets render as a calm no-data state.
 
 ## Phase 4: Make Cleanup Safe
 

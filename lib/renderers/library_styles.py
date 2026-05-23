@@ -41,6 +41,7 @@ def _library_extra_css() -> str:
 .btn-rate:focus-visible,
 .lineage-copy:focus-visible,
 .run-detail-close:focus-visible,
+.run-lineage-comparison button:focus-visible,
 .atlas-filter-banner button:focus-visible,
 .atlas-module button:focus-visible,
 .atlas-unmapped button:focus-visible,
@@ -709,9 +710,96 @@ a:focus-visible {
   padding: 0.75rem;
   margin: 0 0 1rem;
 }
+.run-lineage-comparison {
+  border: 1px solid rgba(124,106,247,0.24);
+  background: rgba(124,106,247,0.075);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin: 0 0 1rem;
+}
+.lineage-comparison-missing {
+  border-color: rgba(255,193,94,0.24);
+  background: rgba(255,193,94,0.07);
+}
+.lineage-comparison-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.run-lineage-comparison h3,
 .run-decision-summary h3 {
   margin: 0 0 0.55rem;
   font-size: 0.82rem;
+}
+.lineage-comparison-head h3 {
+  margin-bottom: 0.2rem;
+}
+.run-lineage-comparison p,
+.run-lineage-comparison small,
+.lineage-empty {
+  color: var(--dim);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  margin: 0;
+}
+.run-lineage-comparison code {
+  display: block;
+  color: var(--teal);
+  font-size: 0.68rem;
+  margin-top: 0.45rem;
+  overflow-wrap: anywhere;
+}
+.lineage-comparison-head span {
+  align-self: flex-start;
+  border: 1px solid rgba(124,106,247,0.28);
+  border-radius: 999px;
+  color: #d7c7ff;
+  background: rgba(124,106,247,0.12);
+  font-size: 0.66rem;
+  padding: 0.22rem 0.45rem;
+  white-space: nowrap;
+}
+.run-lineage-comparison table {
+  border-collapse: collapse;
+  margin-top: 0.55rem;
+  width: 100%;
+}
+.run-lineage-comparison th,
+.run-lineage-comparison td {
+  border-top: 1px solid rgba(255,255,255,0.075);
+  color: var(--dim);
+  font-size: 0.68rem;
+  line-height: 1.35;
+  max-width: 13rem;
+  overflow-wrap: anywhere;
+  padding: 0.38rem 0.25rem;
+  text-align: left;
+  vertical-align: top;
+}
+.run-lineage-comparison thead th {
+  color: var(--ink);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+}
+.run-lineage-comparison tbody th {
+  color: var(--ink);
+}
+.lineage-changed td {
+  color: #d7c7ff;
+}
+.run-lineage-comparison button {
+  border: 1px solid rgba(0,200,180,0.24);
+  background: rgba(0,200,180,0.08);
+  color: var(--teal);
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 0.65rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.72rem;
+}
+.run-lineage-comparison button:hover {
+  border-color: var(--teal);
 }
 .run-decision-chip-row {
   display: flex;

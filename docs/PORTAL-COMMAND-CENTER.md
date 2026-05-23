@@ -31,8 +31,9 @@ archive, and uses the same generation path as the CLI.
   - manual one-off billing entry form for exact charges
   - deployment readiness for local public sharing and static Vercel deploys
 - **Run Detail** shows manifest metadata, direct viewer links, filename
-  warnings, durable card metadata, per-card feedback, card evaluation, and a
-  run-level decision summary.
+  warnings, prompt/run comparisons for superseded assets, durable card
+  metadata, per-card feedback, card evaluation, and a run-level decision
+  summary.
 
 ## Local State
 
@@ -112,6 +113,17 @@ when Rafiki can map the exported source back to run images. Static deploys map
 their run manifest, and project-root viewers through every `run-*` manifest in
 that project. Custom viewer directories that do not map to local run images
 return an explicit `unmapped` reason instead of silently stamping nothing.
+
+## Prompt And Run Comparison
+
+When a card's metadata has `superseded_by`, Run Detail renders a read-only
+comparison against that local archive card. The first slice compares title,
+prompt, model, style, aspect ratio, run id, and archive metadata state from the
+already-indexed `output/<project>/run-*/run.json` manifests plus
+`output/archive-metadata.json`. If the target key is not present in the current
+archive, the panel keeps the original card readable and shows a clear missing
+target state instead of guessing. Cards without a linked target show an empty
+state that points operators back to the `superseded_by` metadata field.
 
 ## Curriculum Atlas
 
