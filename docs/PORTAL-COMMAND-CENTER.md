@@ -11,7 +11,9 @@ archive, and uses the same generation path as the CLI.
   badges, feedback badges, evaluation badges, keyboard review, and the run
   detail panel.
 - **Generate** contains Prompt Studio and launches single-prompt or Markdown
-  batch runs through `/api/regen`.
+  batch runs through `/api/regen`. It keeps the latest submitted payload in the
+  browser so failed or reset runs can be retried directly or restored into the
+  form for review before another attempt.
 - **Curate** exposes local action helpers such as approve starred, Canva export,
   Notion dry run, registry export, and static deploy helper.
 - **Spend** contains local spend, billing imports, usage, and deploy readiness.
@@ -86,6 +88,18 @@ It does not deploy, call provider APIs, or expose secret values.
 4. Use **Dry Run** to validate the revision payload without provider spend.
 5. Run the staged prompt when ready; the new output lands in the same
    `output/<project>/run-*` archive.
+
+## Prompt Studio Run Status
+
+Prompt Studio distinguishes pending, success, failure, and reset states in the
+status line. Server and provider errors stay visible as sanitized text so the
+operator can retry with the useful failure reason still on screen. **Retry
+Last** resubmits the last payload exactly as sent, while **Restage Last** puts
+that payload back into the form for edits before a new run.
+
+**Stop Waiting** only aborts the current browser request. It does not claim to
+cancel provider work that may already have been handed off, so operators should
+check the run folder before spending on a retry.
 
 ## Card Evaluation
 

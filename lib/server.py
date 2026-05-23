@@ -213,6 +213,27 @@ def _refresh_registry_after_generation(result, *, output_root: Path, dry_run: bo
     return registry.refresh_cache(output_root=output_root, reason="portal-generation")
 
 
+def _safe_error_text(value: object) -> str:
+    text = str(value or "").strip()
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+    text = re.sub(
+        r"(?i)\b([A-Z0-9_-]*(?:api[_-]?key|token|secret|password))(\s*[=:]\s*)([^\s,;]+)",
+        r"\1\2[redacted]",
+        text,
+    )
+    text = re.sub(
+        r"(?i)\b(authorization\s*:\s*bearer\s+)([A-Za-z0-9._~+/=-]+)",
+        r"\1[redacted]",
+        text,
+    )
+    text = re.sub(
+        r"(?i)\b(bearer\s+)(sk-[A-Za-z0-9_-]+|secret_[A-Za-z0-9_-]+|[A-Za-z0-9._~+/=-]{20,})",
+        r"\1[redacted]",
+        text,
+    )
+    return text[:2000]
+
+
 def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("request body must be a JSON object")
@@ -673,14 +694,14 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._respond(
                 400,
                 "application/json",
-                json.dumps({"error": str(e)}).encode("utf-8"),
+                json.dumps({"error": _safe_error_text(e)}).encode("utf-8"),
             )
             return
         except Exception as e:
             self._respond(
                 500,
                 "application/json",
-                json.dumps({"error": "generation failed", "detail": str(e)}).encode("utf-8"),
+                json.dumps({"error": "generation failed", "detail": _safe_error_text(e)}).encode("utf-8"),
             )
             return
 

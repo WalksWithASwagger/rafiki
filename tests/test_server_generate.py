@@ -212,3 +212,20 @@ def test_run_portal_job_accepts_brand_reference_role(tmp_path, monkeypatch):
 
     assert result["ok"] is True
     assert captured["reference_role"] == "brand"
+
+
+def test_safe_error_text_preserves_provider_message_without_control_chars():
+    text = server._safe_error_text("provider said nope\x00\ntry a smaller prompt")
+
+    assert text == "provider said nope\ntry a smaller prompt"
+
+
+def test_safe_error_text_redacts_common_secret_shapes():
+    text = server._safe_error_text(
+        "provider failed: OPENAI_API_KEY=sk-test-secret Authorization: Bearer secret_token_123"
+    )
+
+    assert "sk-test-secret" not in text
+    assert "secret_token_123" not in text
+    assert "OPENAI_API_KEY=[redacted]" in text
+    assert "Authorization: Bearer [redacted]" in text
