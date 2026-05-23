@@ -105,6 +105,23 @@ Automation must stop and leave `needs-human` when the next step depends on:
 `needs-human` and `blocked` are sticky. `blocked` is for external dependencies;
 `needs-human` is for judgment or access.
 
+## Workspace Hygiene Report
+
+Run the workspace hygiene report before pruning branches or worktrees in a busy
+Rafiki checkout:
+
+```bash
+npm run workspace:hygiene -- --repo .
+python3 scripts/workspace_hygiene.py --repo /path/to/rafiki
+```
+
+The report is read-only. It lists dirty versus clean worktrees, gone upstreams,
+branches that are attached to active worktrees, dependency/cache bulk hints, and
+cleanup risk labels. `safe-to-review` means "worth human inspection"; it is not
+approval to delete. Dirty worktrees, checked-out branches, local-only branches,
+branches ahead of upstream, locked worktrees, and gone upstreams remain
+human-gated until a maintainer explicitly approves the cleanup.
+
 ## Pause Controls
 
 Either control stops new dev-loop work:
@@ -156,4 +173,10 @@ For agents running the loop end to end:
 - `meta/routines/auto-merge-gate.prompt.md` — guarded review/repair/merge
 - `.claude/skills/github-issue-writer/SKILL.md`
 - `.claude/skills/github-pr-reviewer/SKILL.md`
+- `.agents/skills/github-issue-writer/SKILL.md`
+- `.agents/skills/github-pr-reviewer/SKILL.md`
 - `.claude/commands/agentic-intake.md`
+
+Keep `.claude/skills/` as the Claude Code surface and `.agents/skills/` as the
+Codex surface. The issue-writer and PR-reviewer routines should stay equivalent
+across both directories so agents do not receive different delivery guidance.

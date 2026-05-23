@@ -23,6 +23,8 @@ Usage:
     # Curate approved set + clean old runs (see docs/ARCHIVE.md):
     python generate.py approve <project> [--run <run-id>]
     python generate.py clean <project> [--keep-approved] [--older-than 30d] [--dry-run]
+    python generate.py archive-health [--json]
+    python generate.py archive-thumbnails [--output-dir output] [--width 480]
 
     # Start the generative portal with persistent ratings + search:
     python generate.py serve [--port 7433] [--open]
@@ -87,6 +89,13 @@ def _cmd_library(argv: list[str]) -> None:
         help="Root output directory (default: output/ next to generate.py)",
     )
     p.add_argument("--open", action="store_true", help="Open in browser after building")
+    p.add_argument(
+        "--thumbnail-cache",
+        action="store_true",
+        help="Build/use local thumbnails under output/.rafiki-cache/ for library grid previews",
+    )
+    p.add_argument("--thumbnail-width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--rebuild-thumbnails", action="store_true", help="Regenerate thumbnails even if cached")
     args = p.parse_args(argv)
 
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
@@ -94,31 +103,26 @@ def _cmd_library(argv: list[str]) -> None:
         print(f"Error: output dir not found: {output_root}")
         sys.exit(1)
 
-    from lib.renderers.library import generate_library_viewer, load_extra_outputs, _scan_root
-    lp = generate_library_viewer(output_root, open_browser=args.open)
+    from lib.renderers.library import generate_library_viewer, _records_from_registry
+    lp = generate_library_viewer(
+        output_root,
+        open_browser=args.open,
+        thumbnail_cache=args.thumbnail_cache,
+        thumbnail_width=args.thumbnail_width,
+        force_thumbnails=args.rebuild_thumbnails,
+    )
 
-    # Count across output_root + extra_roots (mirrors library generator logic)
-    seen: set[str] = set()
-    all_records: list[dict] = []
-    extra_roots = load_extra_outputs()
-    for project_name, extra_root in extra_roots.items():
-        if extra_root.exists():
-            for rec in _scan_root(extra_root, project_name, project_name):
-                seen.add(rec["file"])
-                all_records.append(rec)
-    for proj_dir in sorted(output_root.iterdir()):
-        if not proj_dir.is_dir():
-            continue
-        for rec in _scan_root(proj_dir, proj_dir.name, proj_dir.name):
-            if rec["file"] not in seen:
-                seen.add(rec["file"])
-                all_records.append(rec)
+    all_records = _records_from_registry(output_root)
 
     total = len(all_records)
     ok = sum(1 for r in all_records if r["ok"])
     projects = {r["project"] for r in all_records}
     print(f"Library: {lp}")
     print(f"Images:  {ok}/{total} present  ({len(projects)} projects)")
+    if args.thumbnail_cache:
+        from lib.thumbnail_cache import thumbnail_cache_stats
+        cache = thumbnail_cache_stats(output_root)
+        print(f"Thumbnails: {cache['files']} cached at {cache['path']}")
 
 
 def _cmd_view(argv: list[str]) -> None:
@@ -139,6 +143,13 @@ def _cmd_view(argv: list[str]) -> None:
         "--approved", action="store_true",
         help="Build viewer from output/<project>/approved/ instead of run-*/",
     )
+    p.add_argument(
+        "--thumbnail-cache",
+        action="store_true",
+        help="Build/use local thumbnails under output/.rafiki-cache/ for viewer grid previews",
+    )
+    p.add_argument("--thumbnail-width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--rebuild-thumbnails", action="store_true", help="Regenerate thumbnails even if cached")
     args = p.parse_args(argv)
 
     if args.approved:
@@ -181,13 +192,30 @@ def _cmd_view(argv: list[str]) -> None:
                     if data.get("prompt_file")
                     else project_dir.name.replace("-", " ").title()
                 )
-                generate_viewer(output_dir=run_dir, items=items, title=title, run_meta=data)
+                generate_viewer(
+                    output_dir=run_dir,
+                    items=items,
+                    title=title,
+                    run_meta=data,
+                    thumbnail_cache=args.thumbnail_cache,
+                    thumbnail_width=args.thumbnail_width,
+                    force_thumbnails=args.rebuild_thumbnails,
+                )
                 print(f"  Rebuilt {run_dir.name}/viewer.html")
             except Exception as e:
                 print(f"  Error rebuilding {run_dir.name}: {e}", file=sys.stderr)
 
-    vp = generate_comparison_viewer(project_dir)
+    vp = generate_comparison_viewer(
+        project_dir,
+        thumbnail_cache=args.thumbnail_cache,
+        thumbnail_width=args.thumbnail_width,
+        force_thumbnails=args.rebuild_thumbnails,
+    )
     print(f"Viewer:  {vp}")
+    if args.thumbnail_cache:
+        from lib.thumbnail_cache import thumbnail_cache_stats
+        cache = thumbnail_cache_stats(project_dir.parent)
+        print(f"Thumbnails: {cache['files']} cached at {cache['path']}")
 
     # Print a quick on-disk summary
     run_json_paths = sorted(project_dir.glob("run-*/run.json"))
@@ -353,7 +381,12 @@ def _cmd_registry(argv: list[str]) -> None:
     )
     sub = p.add_subparsers(dest="action", required=True)
 
-    sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
+    sp_index = sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
+    sp_index.add_argument(
+        "--all-runs",
+        action="store_true",
+        help="Index every run-* image instead of the curated approved/latest-run scope",
+    )
 
     sp_search = sub.add_parser("search", help="Search registry by title/caption/tags")
     sp_search.add_argument("query", help="Substring to match (case-insensitive)")
@@ -368,7 +401,7 @@ def _cmd_registry(argv: list[str]) -> None:
     from lib.registry import index as registry_index, search as registry_search, export as registry_export
 
     if args.action == "index":
-        entries = registry_index()
+        entries = registry_index(scope="all-runs" if args.all_runs else "curated")
         projects = sorted({e.project for e in entries})
         print(f"Indexed {len(entries)} assets across {len(projects)} project(s).")
         return
@@ -392,6 +425,217 @@ def _cmd_registry(argv: list[str]) -> None:
         path = registry_export(format=args.format)
         print(f"Exported registry: {path}")
         return
+
+
+def _refresh_registry_after_mutation(output_root: Path, *, reason: str) -> dict[str, object]:
+    from lib import registry
+
+    return registry.refresh_cache(output_root=output_root, reason=reason)
+
+
+def _approval_output_root(project: str, output_dir: str | None) -> Path:
+    if output_dir:
+        return Path(output_dir).expanduser().resolve()
+    project_path = Path(project).expanduser()
+    if project_path.is_absolute():
+        return project_path.parent.resolve()
+    return (Path(__file__).parent / "output").resolve()
+
+
+def _approval_project_dir(project: str, output_root: Path) -> Path:
+    project_path = Path(project).expanduser()
+    if project_path.is_absolute():
+        return project_path.resolve()
+    return output_root / project
+
+
+def _cmd_billing(argv: list[str]) -> None:
+    """Import or summarize local provider billing exports."""
+    p = argparse.ArgumentParser(
+        prog="generate.py billing",
+        description="Import provider billing CSV/JSON into local gitignored spend ledger.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+
+    sp_import = sub.add_parser("import", help="Import .csv, .json, or .jsonl billing rows")
+    sp_import.add_argument("source", help="Billing export file")
+    sp_import.add_argument("--provider", default="", help="Provider override, e.g. OpenAI or Gemini")
+    sp_import.add_argument("--label", default="", help="Friendly source label stored with each row")
+    sp_import.add_argument("--state", default=None, help="Override billing ledger path")
+    sp_import.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+
+    sp_summary = sub.add_parser("summary", help="Summarize imported billing ledger")
+    sp_summary.add_argument("--state", default=None, help="Override billing ledger path")
+    sp_summary.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+
+    args = p.parse_args(argv)
+
+    from lib.billing import import_billing_file, summarize_billing_imports
+
+    state_path = Path(args.state) if getattr(args, "state", None) else None
+    if args.action == "import":
+        try:
+            result = import_billing_file(
+                Path(args.source),
+                state_path=state_path,
+                provider=args.provider,
+                label=args.label,
+            )
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        if args.json_output:
+            print(json.dumps(result, indent=2))
+            return
+        print(
+            f"Billing import: {result['imported']} imported, "
+            f"{result['duplicates']} duplicate(s), {result['skipped']} skipped"
+        )
+        print(f"Ledger: {result['path']}")
+        return
+
+    summary = summarize_billing_imports(state_path)
+    if args.json_output:
+        print(json.dumps(summary, indent=2))
+        return
+    print(f"Billing ledger: {summary['path']}")
+    print(f"Imported: {summary['entries']} row(s)")
+    print(f"USD total: ${summary['amount']:.2f}")
+    for provider in summary["by_provider"]:
+        print(f"  {provider['provider']}: ${provider['amount']:.2f} ({provider['entries']} row(s))")
+
+
+def _cmd_archive_health(argv: list[str]) -> None:
+    """Report archive health without mutating generated outputs."""
+    p = argparse.ArgumentParser(
+        prog="generate.py archive-health",
+        description="Read-only report for missing images, malformed runs, sidecar orphans, duplicates, and disk usage.",
+    )
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+    p.add_argument(
+        "--cleanup-report",
+        action="store_true",
+        help="Print the conservative cleanup report grouped by project and run",
+    )
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    from lib.archive_health import archive_health_report
+
+    report = archive_health_report(output_root)
+    if args.json_output:
+        print(json.dumps(report, indent=2))
+        return
+    if args.cleanup_report:
+        _print_archive_cleanup_report(report)
+        return
+
+    summary = report["summary"]
+    print(f"Archive health: {output_root}")
+    print(
+        f"Runs: {summary['runs']}  Images: {summary['present_images']}/"
+        f"{summary['manifest_images']} present  Disk: {summary['disk_bytes']} bytes"
+    )
+    print(
+        f"Missing: {summary['missing_images']}  Malformed runs: {len(report['malformed_runs'])}  "
+        f"Duplicate filename groups: {summary['duplicate_filename_groups']}"
+    )
+    print(
+        f"Orphans: ratings={summary['orphaned_ratings']} "
+        f"feedback={summary['orphaned_feedback']} "
+        f"evaluations={summary['orphaned_evaluations']} "
+        f"metadata={summary['orphaned_metadata']}"
+    )
+    cleanup = report["cleanup_report"]["summary"]
+    print(
+        f"Cleanup candidates: {cleanup['candidate_runs']} run(s), "
+        f"{cleanup['candidate_bytes']} bytes; risky runs: {cleanup['risky_runs']}"
+    )
+    cache = report["thumbnail_cache"]
+    print(f"Thumbnail cache: {cache['files']} file(s), {cache['disk_bytes']} bytes at {cache['path']}")
+    for rec in report["recommendations"]:
+        print(f"- {rec}")
+
+
+def _cmd_archive_thumbnails(argv: list[str]) -> None:
+    """Build optional local thumbnails without changing originals or viewers."""
+    p = argparse.ArgumentParser(
+        prog="generate.py archive-thumbnails",
+        description="Build local preview thumbnails under output/.rafiki-cache/ for large archives.",
+    )
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument("--width", type=int, default=480, help="Thumbnail max width in pixels")
+    p.add_argument("--force", action="store_true", help="Regenerate thumbnails even if cached")
+    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
+    if not output_root.exists():
+        print(f"Error: output dir not found: {output_root}")
+        sys.exit(1)
+
+    from lib.renderers.library import _records_from_registry
+    from lib.thumbnail_cache import build_thumbnail_cache
+
+    records = _records_from_registry(output_root)
+    summary = build_thumbnail_cache(output_root, records, width=args.width, force=args.force)
+    if args.json_output:
+        print(json.dumps(summary, indent=2))
+        return
+
+    print(f"Thumbnail cache: {summary['path']}")
+    print(
+        f"Images: {summary['checked']} checked  "
+        f"created={summary['created']} reused={summary['reused']} failed={summary['failed']}"
+    )
+    if summary["failed"]:
+        print("Errors:")
+        for error in summary["errors"]:
+            print(f"- {error['file']}: {error['error']}")
+
+
+def _print_archive_cleanup_report(report: dict) -> None:
+    cleanup = report["cleanup_report"]
+    summary = cleanup["summary"]
+    print(f"Archive cleanup report: {report['output_root']}")
+    print(f"Policy: {cleanup['policy']}")
+    print(
+        f"Candidates: {summary['candidate_runs']} run(s), "
+        f"{summary['candidate_images']} image(s), {summary['candidate_bytes']} bytes"
+    )
+    print(
+        f"Review before cleanup: {summary['risky_runs']} run(s), "
+        f"{summary['sidecar_orphan_groups']} sidecar orphan group(s), "
+        f"{summary['duplicate_filename_groups']} duplicate filename group(s)"
+    )
+
+    for project in cleanup["projects"]:
+        project_summary = project["summary"]
+        print(
+            f"\n{project['project']}: {project_summary['candidate_runs']} candidate / "
+            f"{project_summary['risky_runs']} review"
+        )
+        for run in project["runs"]:
+            print(
+                f"  [{run['action']}:{run['risk_level']}] {run['run']} "
+                f"{run['approved_images']}/{run['image_count']} approved, "
+                f"{run['disk_bytes']} bytes"
+            )
+            print(f"    {run['reason']}")
+        for command in project["suggested_commands"]:
+            print(f"    next: {command}")
+
+    if cleanup["sidecar_orphans"]:
+        print("\nSidecar orphans:")
+        for orphan in cleanup["sidecar_orphans"]:
+            print(f"  {orphan['collection']}: {orphan['count']} key(s)")
 
 
 def _cmd_deploy(argv: list[str]) -> None:
@@ -535,11 +779,21 @@ def _cmd_approve(argv: list[str]) -> None:
     p.add_argument("project", help="Project name under output/ (or absolute path)")
     p.add_argument("--run", default=None,
                    help="Run id to approve from (default: latest run)")
+    p.add_argument(
+        "--output-dir",
+        default=None,
+        help="Root output directory for relative projects (default: output/ next to generate.py)",
+    )
     args = p.parse_args(argv)
 
     from lib.archive import approve as _approve
-    n = _approve(args.project, run=args.run)
-    print(f"Approved {n} image(s) → output/{args.project}/approved/")
+    output_root = _approval_output_root(args.project, args.output_dir)
+    n = _approve(args.project, run=args.run, output_root=output_root)
+    approved_dir = _approval_project_dir(args.project, output_root) / "approved"
+    print(f"Approved {n} image(s) → {approved_dir}/")
+    if n > 0:
+        refresh = _refresh_registry_after_mutation(output_root, reason="approve")
+        print(f"Registry refreshed: {refresh['registry_path']} ({refresh['registry_count']} assets)")
 
 
 def _parse_days(spec: str) -> int:
@@ -618,6 +872,15 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "registry":
         _cmd_registry(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "billing":
+        _cmd_billing(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "archive-health":
+        _cmd_archive_health(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "archive-thumbnails":
+        _cmd_archive_thumbnails(sys.argv[2:])
         return
     if len(sys.argv) > 1 and sys.argv[1] == "social-expand":
         _cmd_social_expand(sys.argv[2:])
@@ -835,8 +1098,15 @@ def main() -> None:
             invocation_source="python-cli",
         )
 
+        registry_refresh = None
+        if result.success and not args.dry_run:
+            registry_refresh = _refresh_registry_after_mutation(
+                result.project_dir.parent,
+                reason="batch-generation",
+            )
+
         if args.json_output:
-            _real_stdout.write(json.dumps({
+            payload = {
                 "success": result.success,
                 "mode": "batch",
                 "dry_run": args.dry_run,
@@ -851,7 +1121,15 @@ def main() -> None:
                 "style": style or "none",
                 "global_reference_images": global_reference_images,
                 "images": result.images,
-            }, indent=2) + "\n")
+            }
+            if registry_refresh:
+                payload["registry"] = registry_refresh
+            _real_stdout.write(json.dumps(payload, indent=2) + "\n")
+        elif registry_refresh:
+            print(
+                f"Registry refreshed: {registry_refresh['registry_path']} "
+                f"({registry_refresh['registry_count']} assets)"
+            )
 
         sys.exit(0 if result.success else 1)
 

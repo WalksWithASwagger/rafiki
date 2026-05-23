@@ -23,7 +23,7 @@ jobs:
           node-version: 20
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -37,6 +37,9 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Run portal E2E smoke
+        run: npm run e2e:portal
 
       - name: Check documentation links
         run: npm run docs:check

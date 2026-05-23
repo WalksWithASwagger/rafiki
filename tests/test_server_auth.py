@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import inspect
+import json
 import sys
 import threading
 import urllib.error
@@ -31,6 +32,10 @@ def _make_handler_class(tmp_path: Path) -> type:
 
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
+    Handler.feedback_file = output_root / "feedback.json"
+    Handler.evaluations_file = output_root / "evaluations.json"
+    Handler.archive_metadata_file = output_root / "archive-metadata.json"
+    Handler.billing_imports_file = tmp_path / "billing-imports.json"
     Handler.extra_roots = {}
     return Handler
 
@@ -69,6 +74,19 @@ def _get(url: str, auth: tuple[str, str] | None = None):
         return e
 
 
+def _post_json(url: str, payload: dict):
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        return urllib.request.urlopen(req, timeout=5)
+    except urllib.error.HTTPError as e:
+        return e
+
+
 def test_no_credentials_serves_freely(server, monkeypatch):
     monkeypatch.delenv("PORTAL_USERNAME", raising=False)
     monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
@@ -76,6 +94,131 @@ def test_no_credentials_serves_freely(server, monkeypatch):
     # state beyond what the fixture provides.
     resp = _get(f"{server}/api/ratings")
     assert resp.status == 200
+
+
+def test_favicon_request_is_quiet_no_content(server):
+    resp = _get(f"{server}/favicon.ico")
+
+    assert resp.status == 204
+    assert resp.read() == b""
+
+
+def test_feedback_endpoint_persists_review_notes(server):
+    resp = _post_json(
+        f"{server}/api/feedback",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "status": "needs-change",
+            "note": "Too dark",
+            "change_request": "Add warmer light",
+        },
+    )
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["feedback"]["status"] == "needs-change"
+
+    saved = json.loads(_get(f"{server}/api/feedback").read().decode("utf-8"))
+    assert saved["items"]["demo/run-1/01-hero.png"]["note"] == "Too dark"
+
+
+def test_evaluations_endpoint_persists_review_decision(server):
+    resp = _post_json(
+        f"{server}/api/evaluations",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "decision": "approve",
+            "score": 5,
+            "use_case": "homepage hero",
+            "rationale": "Strong, legible, and on-brand.",
+            "next_step": "Export with the launch bundle.",
+        },
+    )
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["evaluation"]["decision"] == "approve"
+    assert payload["evaluation"]["score"] == 5
+
+    saved = json.loads(_get(f"{server}/api/evaluations").read().decode("utf-8"))
+    entry = saved["items"]["demo/run-1/01-hero.png"]
+    assert entry["use_case"] == "homepage hero"
+    assert entry["next_step"] == "Export with the launch bundle."
+
+
+def test_archive_metadata_endpoint_persists_card_state(server):
+    resp = _post_json(
+        f"{server}/api/archive-metadata",
+        {
+            "key": "demo/run-1/01-hero.png",
+            "title": "Homepage Hero",
+            "tags": "homepage, keeper",
+            "states": ["canva", "published"],
+            "superseded_by": "demo/run-2/01-hero.png",
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["metadata"]["title"] == "Homepage Hero"
+
+    saved = json.loads(_get(f"{server}/api/archive-metadata").read().decode("utf-8"))
+    entry = saved["items"]["demo/run-1/01-hero.png"]
+    assert entry["tags"] == ["homepage", "keeper"]
+    assert entry["states"] == ["canva", "published"]
+    assert entry["superseded_by"] == "demo/run-2/01-hero.png"
+
+
+def test_usage_endpoint_returns_local_summary(server):
+    payload = json.loads(_get(f"{server}/api/usage").read().decode("utf-8"))
+
+    assert payload["usage_log"]["entries"] == 0
+    assert payload["archive"]["projects"] == 0
+    assert payload["archive"]["known_cost"]["currency"] == "USD"
+    assert payload["archive"]["estimated_cost"]["currency"] == "USD"
+    assert payload["provider_billing"]["entries"] == 0
+
+
+def test_billing_import_endpoint_persists_manual_entry(server):
+    resp = _post_json(
+        f"{server}/api/billing-imports",
+        {
+            "provider": "OpenAI",
+            "model": "gpt-image-2",
+            "amount": 12.34,
+            "note": "May image billing",
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["imported"] == 1
+
+    saved = json.loads(_get(f"{server}/api/billing-imports").read().decode("utf-8"))
+    assert saved["entries"] == 1
+    assert saved["amount"] == 12.34
+    assert saved["by_provider"] == [{"provider": "OpenAI", "amount": 12.34, "entries": 1}]
+
+    usage = json.loads(_get(f"{server}/api/usage").read().decode("utf-8"))
+    assert usage["archive"]["spend"]["basis"] == "provider_billing_imports"
+    assert usage["archive"]["spend"]["amount"] == 12.34
+
+
+def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):
+    monkeypatch.setenv("PORTAL_USERNAME", "team")
+    monkeypatch.setenv("PORTAL_PASSWORD", "s3cret")
+    monkeypatch.setenv("GEMINI_API_KEY", "secret-gemini")
+
+    payload = json.loads(
+        _get(f"{server}/api/deploy-readiness?public=true", auth=("team", "s3cret")).read().decode("utf-8")
+    )
+
+    assert payload["public"] is True
+    checks = {check["key"]: check for check in payload["checks"]}
+    assert checks["portal_auth"]["ok"] is True
+    assert checks["gemini_key"]["ok"] is True
+    assert "secret" not in json.dumps(payload)
 
 
 def test_credentials_set_unauth_returns_401(server, monkeypatch):

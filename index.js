@@ -13,13 +13,45 @@
  *   (bin alias: npx image-gen …)
  */
 
-// Load environment variables from .env file
-require('dotenv').config({ quiet: true });
-
-const { Command } = require('commander');
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+
+const CORE_NODE_DEPENDENCIES = [
+  'commander',
+  'dotenv',
+  'chalk',
+];
+
+const BROWSER_NODE_DEPENDENCIES = [
+  'puppeteer',
+  'sharp',
+];
+
+function resolveLocalModule(moduleName) {
+  try {
+    require.resolve(moduleName, { paths: [__dirname] });
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+function missingLocalModules(moduleNames) {
+  return moduleNames.filter(moduleName => !resolveLocalModule(moduleName));
+}
+
+function loadDotenvIfAvailable() {
+  try {
+    require('dotenv').config({ quiet: true });
+  } catch (err) {
+    // Doctor must still run when Node dependencies are missing.
+  }
+}
+
+function formatList(items) {
+  return items.join(', ');
+}
 
 /**
  * Prefer ./.venv so `npx rafiki` works on PEP 668–managed Pythons.
@@ -41,7 +73,18 @@ function getPythonExecutable() {
 let chalk;
 async function loadChalk() {
   if (!chalk) {
-    chalk = (await import('chalk')).default;
+    try {
+      chalk = (await import('chalk')).default;
+    } catch (err) {
+      const plain = value => value;
+      chalk = {
+        cyan: plain,
+        gray: plain,
+        green: plain,
+        red: plain,
+        yellow: plain,
+      };
+    }
   }
   return chalk;
 }
@@ -84,6 +127,10 @@ function resolveChromeExecutablePath() {
 }
 
 async function runDoctor(c) {
+  loadDotenvIfAvailable();
+
+  const missingCoreNodeDeps = missingLocalModules(CORE_NODE_DEPENDENCIES);
+  const missingBrowserNodeDeps = missingLocalModules(BROWSER_NODE_DEPENDENCIES);
   const pythonBin = process.env.RAFIKI_DOCTOR_PYTHON || getPythonExecutable();
   const pythonVersion = spawnSync(pythonBin, ['--version'], { encoding: 'utf8' });
   const pythonOk = pythonVersion.status === 0;
@@ -180,33 +227,57 @@ async function runDoctor(c) {
     detail: '',
     actions: [],
   };
-  let puppeteer;
-  try {
-    puppeteer = require('puppeteer');
-    require('sharp');
-    const chromeExecutablePath = resolveChromeExecutablePath();
-    if (chromeExecutablePath) {
+  if (missingBrowserNodeDeps.length > 0) {
+    browserStatus = {
+      level: 'warn',
+      detail: `missing ${formatList(missingBrowserNodeDeps)}`,
+      actions: [
+        'Install Node packages from the repo root: `npm install`.',
+        'For HTML rendering, confirm `puppeteer` and `sharp` install successfully, then re-run `npm run doctor`.',
+      ],
+    };
+  } else {
+    let puppeteer;
+    try {
+      puppeteer = require('puppeteer');
+      require('sharp');
+    } catch (err) {
+      browserStatus = {
+        level: 'warn',
+        detail: `browser rendering dependencies could not load: ${err.message}`,
+        actions: [
+          'Install Node packages from the repo root: `npm install`.',
+          'If the native `sharp` package failed to load, reinstall dependencies for this machine, then re-run `npm run doctor`.',
+        ],
+      };
+    }
+
+    const chromeExecutablePath = browserStatus.level === 'ok' ? resolveChromeExecutablePath() : undefined;
+    if (browserStatus.level === 'ok' && chromeExecutablePath) {
       browserStatus.detail = `puppeteer and sharp installed; Chrome/Chromium at ${chromeExecutablePath}`;
-    } else {
-      const bundledPath = puppeteer.executablePath();
+    } else if (browserStatus.level === 'ok') {
+      let bundledPath;
+      let browserLookupError = '';
+      try {
+        bundledPath = puppeteer.executablePath();
+      } catch (err) {
+        browserLookupError = err.message;
+      }
       if (bundledPath && fs.existsSync(bundledPath)) {
         browserStatus.detail = `puppeteer and sharp installed; Puppeteer browser at ${bundledPath}`;
       } else {
         browserStatus = {
           level: 'warn',
-          detail: 'puppeteer and sharp installed, but no Chrome/Chromium executable was found',
+          detail: browserLookupError
+            ? `puppeteer and sharp installed, but Puppeteer could not find a browser: ${browserLookupError}`
+            : 'puppeteer and sharp installed, but no Chrome/Chromium executable was found',
           actions: [
-            'Install Chrome/Chromium, set `PUPPETEER_EXECUTABLE_PATH`, or run `npx puppeteer browsers install chrome`.',
+            'Install Chrome/Chromium or set `PUPPETEER_EXECUTABLE_PATH=/path/to/chrome`.',
+            'If you prefer Puppeteer-managed Chrome, run `npx puppeteer browsers install chrome`.',
           ],
         };
       }
     }
-  } catch (err) {
-    browserStatus = {
-      level: 'warn',
-      detail: `browser rendering dependencies are unavailable: ${err.message}`,
-      actions: ['Run `npm install` before using `rafiki --render` or `--render-dir`.'],
-    };
   }
 
   const hasGoogleKey = Boolean(process.env.GOOGLE_API_KEY);
@@ -226,10 +297,16 @@ async function runDoctor(c) {
 
   addDiagnostic('ok', 'Node.js', process.version);
   addDiagnostic(
+    missingCoreNodeDeps.length === 0 ? 'ok' : 'fail',
+    'Node deps',
+    missingCoreNodeDeps.length === 0 ? 'core CLI dependencies installed' : `missing ${formatList(missingCoreNodeDeps)}`,
+    missingCoreNodeDeps.length === 0 ? [] : ['Install Node dependencies from the repo root: `npm install`, then re-run `npm run doctor`.']
+  );
+  addDiagnostic(
     pythonOk ? 'ok' : 'fail',
     'Python',
     pythonOk ? (pythonVersion.stdout || pythonVersion.stderr).trim() : pythonVersion.error?.message || 'not available',
-    pythonOk ? [] : ['Install Python 3 and ensure `python3` is on PATH, or create `.venv` in the repo root.']
+    pythonOk ? [] : ['Install Python 3 and ensure `python3` is on PATH, or set `RAFIKI_DOCTOR_PYTHON=/path/to/python`.']
   );
   if (pythonOk) {
     addDiagnostic(
@@ -237,7 +314,7 @@ async function runDoctor(c) {
       'Python deps',
       pythonDepsCheckError || (missingPythonDeps.length === 0 ? 'core requirements installed' : `missing ${missingPythonDeps.join(', ')}`),
       missingPythonDeps.length > 0 || pythonDepsCheckError
-        ? ['Install Python dependencies: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`.']
+        ? ['Install Python dependencies from the repo root: `python3 -m venv .venv && .venv/bin/python -m pip install -r requirements.txt`.']
         : []
     );
   }
@@ -245,7 +322,7 @@ async function runDoctor(c) {
     envFileExists ? 'ok' : 'warn',
     '.env file',
     envFileExists ? envFilePath : 'optional; shell environment will be used',
-    envFileExists ? [] : ['Create `.env` from `.env.example` if you want local provider keys loaded automatically.']
+    envFileExists ? [] : ['Optional: copy `.env.example` to `.env` and edit it, or continue using exported shell variables.']
   );
   addDiagnostic(
     hasGoogleKey || hasOpenAIKey ? 'ok' : 'warn',
@@ -253,7 +330,7 @@ async function runDoctor(c) {
     providerDetails,
     hasGoogleKey || hasOpenAIKey
       ? []
-      : ['Add `GOOGLE_API_KEY` for Gemini or `OPENAI_API_KEY` for OpenAI image generation.']
+      : ['Add `GOOGLE_API_KEY` for Gemini or `OPENAI_API_KEY` for OpenAI image generation; dry-run, render, and review workflows can still run without provider keys.']
   );
   addDiagnostic(
     mcpStatus.serverExists && mcpStatus.serverCompiles && mcpStatus.sdkImports ? 'ok' : 'warn',
@@ -263,7 +340,7 @@ async function runDoctor(c) {
       : mcpStatus.error || (mcpStatus.serverExists ? 'mcp_server.py is present but MCP is not ready' : 'mcp_server.py is missing'),
     mcpStatus.serverExists && mcpStatus.serverCompiles && mcpStatus.sdkImports
       ? []
-      : ['Install Python dependencies from `requirements.txt`, then re-run `rafiki doctor`.']
+      : ['Install Python dependencies from `requirements.txt`, then re-run `npm run doctor`.']
   );
   addDiagnostic(
     browserStatus.level,
@@ -311,6 +388,20 @@ async function runDoctor(c) {
 
   process.exit(criticalIssues.length > 0 ? 1 : 0);
 }
+
+if (process.argv.includes('--doctor')) {
+  loadChalk()
+    .then(c => runDoctor(c))
+    .catch(err => {
+      console.error(`Doctor failed before diagnostics could run: ${err.message}`);
+      process.exit(1);
+    });
+  return;
+}
+
+loadDotenvIfAvailable();
+
+const { Command } = require('commander');
 
 const program = new Command();
 const DEFAULT_IMAGE_MODEL = 'gemini-2.5-flash-image';

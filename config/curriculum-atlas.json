@@ -1,0 +1,312 @@
+{
+  "version": 1,
+  "programs": [
+    {
+      "id": "rap",
+      "title": "Responsible AI Program",
+      "summary": "Four-week Responsible AI learning arc for foundations, ethics, societal impact, human agency, and capstone practice.",
+      "project_patterns": ["rap", "responsible-ai", "responsible ai"],
+      "asset_query": ["ai", "ethics", "responsible"],
+      "competencies": ["AI foundations", "AI ethics", "human agency", "output evaluation"],
+      "modules": [
+        {
+          "id": "rap-foundations",
+          "title": "Foundations",
+          "level": "foundation",
+          "objective": "Explain what AI systems are, where they show up, and how to evaluate their limits.",
+          "competencies": ["AI foundations", "critical evaluation"],
+          "asset_query": ["foundation", "responsible ai", "ai literacy", "systems"],
+          "facilitator_notes": [
+            "Start with the visible system boundary before discussing model capability.",
+            "Ask learners to name what evidence they would need before trusting the output."
+          ],
+          "discussion_prompts": [
+            "Where does the human decision enter this workflow?",
+            "What would make this visual misleading for a beginner?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "foundation-clarity",
+              "label": "Foundation clarity",
+              "prompt": "Does the image explain the AI concept without hiding uncertainty?",
+              "scale": "needs-work / useful / teachable"
+            },
+            {
+              "id": "human-agency",
+              "label": "Human agency",
+              "prompt": "Does the image show where people direct, evaluate, or override the system?",
+              "scale": "missing / partial / clear"
+            }
+          ],
+          "concept_links": [
+            {"concept": "AI literacy", "relation": "prepares_for", "target": "AI ethics"},
+            {"concept": "System boundary", "relation": "supports", "target": "Output evaluation"}
+          ]
+        },
+        {
+          "id": "rap-ethics",
+          "title": "Ethics And Impact",
+          "level": "core",
+          "objective": "Connect generated examples to bias, privacy, transparency, and community impact decisions.",
+          "competencies": ["AI ethics", "community impact"],
+          "asset_query": ["ethics", "bias", "privacy", "impact", "community"],
+          "facilitator_notes": [
+            "Keep the conversation grounded in who benefits, who is exposed, and who can contest the output.",
+            "Use image candidates as critique objects, not as proof that the concept is solved."
+          ],
+          "discussion_prompts": [
+            "What harm could this image normalize if published without context?",
+            "Who should review this before it becomes a teaching asset?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "ethical-safety",
+              "label": "Ethical safety",
+              "prompt": "Does the image surface risk, bias, and affected communities without sensationalizing them?",
+              "scale": "risky / usable with context / safe to teach"
+            },
+            {
+              "id": "community-context",
+              "label": "Community context",
+              "prompt": "Does the image avoid generic AI symbolism when a community-specific frame is needed?",
+              "scale": "generic / partial / contextual"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Bias", "relation": "depends_on", "target": "Data provenance"},
+            {"concept": "Privacy", "relation": "constrains", "target": "Public sharing"}
+          ]
+        },
+        {
+          "id": "rap-capstone",
+          "title": "Capstone Practice",
+          "level": "applied",
+          "objective": "Use a visual artifact to defend a responsible AI decision and identify the next human checkpoint.",
+          "competencies": ["decision making", "facilitation", "output evaluation"],
+          "asset_query": ["capstone", "rubric", "evaluation", "checkpoint", "facilitator"],
+          "facilitator_notes": [
+            "Have learners annotate the asset with the decision it supports and the decision it cannot make.",
+            "Require one next action: publish, revise, block, or gather missing evidence."
+          ],
+          "discussion_prompts": [
+            "What would you change before using this with a real audience?",
+            "Which criterion matters most for this asset: clarity, safety, accessibility, or brand fit?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "decision-readiness",
+              "label": "Decision readiness",
+              "prompt": "Does the asset support a clear responsible AI decision and next checkpoint?",
+              "scale": "unclear / reviewable / ready"
+            },
+            {
+              "id": "teaching-transfer",
+              "label": "Teaching transfer",
+              "prompt": "Can a learner apply the idea to a new scenario after seeing this asset?",
+              "scale": "unlikely / maybe / yes"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Output evaluation", "relation": "leads_to", "target": "Capstone decision"},
+            {"concept": "Human checkpoint", "relation": "guards", "target": "Publish readiness"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "upgrade-ai",
+      "title": "Upgrade AI",
+      "summary": "Marketing, newsletter, podcast, and training visuals that turn AI practice into teachable public formats.",
+      "project_patterns": ["upgrade", "upgrade-ai", "newsletter", "podcast"],
+      "asset_query": ["training", "newsletter", "podcast", "marketing"],
+      "competencies": ["practical prompting", "content systems", "workflow design"],
+      "modules": [
+        {
+          "id": "upgrade-practical-prompting",
+          "title": "Practical Prompting",
+          "level": "foundation",
+          "objective": "Translate a work goal into useful prompt inputs, constraints, and review criteria.",
+          "competencies": ["prompt direction", "workflow design"],
+          "asset_query": ["prompt", "workflow", "training", "hands-on"],
+          "facilitator_notes": [
+            "Ask learners to separate intent, constraints, examples, and review criteria before generating.",
+            "Treat the first output as a diagnostic for prompt quality."
+          ],
+          "discussion_prompts": [
+            "Which missing constraint would most improve this generation?",
+            "What would you tell the model to preserve in a rerun?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "prompt-fit",
+              "label": "Prompt fit",
+              "prompt": "Does the output reflect the stated intent and constraints?",
+              "scale": "miss / partial / strong"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Prompt direction", "relation": "feeds", "target": "Review criteria"}
+          ]
+        },
+        {
+          "id": "upgrade-publishing-system",
+          "title": "Publishing System",
+          "level": "applied",
+          "objective": "Turn generated assets into a repeatable newsletter, podcast, or campaign package.",
+          "competencies": ["content systems", "publishing"],
+          "asset_query": ["newsletter", "podcast", "campaign", "publishing"],
+          "facilitator_notes": [
+            "Review the asset as part of a package, not as a standalone image.",
+            "Check whether the image implies a promise the content does not deliver."
+          ],
+          "discussion_prompts": [
+            "Where should this asset appear in the campaign sequence?",
+            "What metadata would make it easier to reuse later?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "package-readiness",
+              "label": "Package readiness",
+              "prompt": "Can the asset move cleanly into a newsletter, podcast, or campaign bundle?",
+              "scale": "not yet / needs metadata / ready"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Publishing", "relation": "requires", "target": "Archive metadata"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hopecode",
+      "title": "HOPECODE",
+      "summary": "Knowledge gardens, power maps, relationship maps, values, skill trees, and anti-corporate systems thinking.",
+      "project_patterns": ["hopecode", "hope-code"],
+      "asset_query": ["garden", "map", "values", "power", "relationship"],
+      "competencies": ["systems thinking", "values mapping", "community practice"],
+      "modules": [
+        {
+          "id": "hopecode-knowledge-garden",
+          "title": "Knowledge Garden",
+          "level": "core",
+          "objective": "Map concepts, people, values, and artifacts as a living learning system.",
+          "competencies": ["systems thinking", "concept mapping"],
+          "asset_query": ["garden", "knowledge", "concept", "atlas"],
+          "facilitator_notes": [
+            "Invite learners to add missing relationships rather than only critique the image composition.",
+            "Use the visual as a shared map for surfacing hidden assumptions."
+          ],
+          "discussion_prompts": [
+            "Which concept is central, and which concept is only nearby?",
+            "What relationship is missing from this map?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "map-legibility",
+              "label": "Map legibility",
+              "prompt": "Can a learner follow the relationships without a facilitator narrating every node?",
+              "scale": "confusing / usable / clear"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Knowledge garden", "relation": "contains", "target": "Concept map"},
+            {"concept": "Concept map", "relation": "supports", "target": "Facilitation"}
+          ]
+        },
+        {
+          "id": "hopecode-power-map",
+          "title": "Power And Relationship Maps",
+          "level": "applied",
+          "objective": "Use visual mapping to reason about influence, trust, dependency, and care.",
+          "competencies": ["power mapping", "relationship mapping"],
+          "asset_query": ["power", "relationship", "network", "trust", "care"],
+          "facilitator_notes": [
+            "Ask where power is formal, informal, inherited, or contested.",
+            "Do not let the map flatten care relationships into generic network lines."
+          ],
+          "discussion_prompts": [
+            "Who is missing from the map?",
+            "Which relationship would change the next action?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "relationship-accuracy",
+              "label": "Relationship accuracy",
+              "prompt": "Does the image distinguish influence, dependency, trust, and care?",
+              "scale": "flattened / partly distinct / distinct"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Power map", "relation": "reveals", "target": "Decision risk"},
+            {"concept": "Care", "relation": "balances", "target": "Influence"}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bcai-ecosystem",
+      "title": "BC AI Ecosystem",
+      "summary": "Community, subgroup, event, and ecosystem diagrams for explaining the regional AI field.",
+      "project_patterns": ["bcai", "bc-ai", "bc ai", "ecosystem", "community"],
+      "asset_query": ["ecosystem", "community", "subgroup", "event"],
+      "competencies": ["ecosystem literacy", "community building", "stakeholder mapping"],
+      "modules": [
+        {
+          "id": "bcai-community-map",
+          "title": "Community Map",
+          "level": "foundation",
+          "objective": "Identify communities, subgroups, and stakeholder relationships in the BC AI ecosystem.",
+          "competencies": ["stakeholder mapping", "ecosystem literacy"],
+          "asset_query": ["community", "subgroup", "ecosystem", "network"],
+          "facilitator_notes": [
+            "Review whether the visual helps someone orient inside the ecosystem quickly.",
+            "Flag any subgroup or community representation that needs owner review."
+          ],
+          "discussion_prompts": [
+            "Which stakeholder relationship is easiest to understand?",
+            "Which relationship needs more context before publication?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "ecosystem-orientation",
+              "label": "Ecosystem orientation",
+              "prompt": "Does the image make the community structure easier to navigate?",
+              "scale": "no / somewhat / yes"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Ecosystem literacy", "relation": "depends_on", "target": "Stakeholder mapping"}
+          ]
+        },
+        {
+          "id": "bcai-event-story",
+          "title": "Event Story",
+          "level": "applied",
+          "objective": "Turn event visuals into a coherent learning or public recap sequence.",
+          "competencies": ["event synthesis", "public communication"],
+          "asset_query": ["event", "recap", "meetup", "workshop", "story"],
+          "facilitator_notes": [
+            "Use event assets to reconstruct what changed for participants, not only what happened.",
+            "Check whether any public recap claim needs a human approval gate."
+          ],
+          "discussion_prompts": [
+            "What is the learning arc across this event sequence?",
+            "Which image should become the public recap anchor?"
+          ],
+          "critique_criteria": [
+            {
+              "id": "recap-fit",
+              "label": "Recap fit",
+              "prompt": "Does the asset support a truthful and useful event story?",
+              "scale": "weak / usable / anchor"
+            }
+          ],
+          "concept_links": [
+            {"concept": "Event story", "relation": "produces", "target": "Public recap"},
+            {"concept": "Approval gate", "relation": "guards", "target": "Public communication"}
+          ]
+        }
+      ]
+    }
+  ]
+}

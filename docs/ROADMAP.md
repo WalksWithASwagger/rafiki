@@ -1,6 +1,11 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-17
+Last reviewed: 2026-05-23
+
+Latest audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
+
+That audit is a dated snapshot. The active roadmap below reflects the later
+lineage comparison and Curriculum Atlas story-mode work on `main`.
 
 This roadmap is the maintainers' working plan for Rafiki. It is intentionally
 forward-looking: current product surface lives in `README.md` and the per-area
@@ -25,16 +30,16 @@ image generation platform.
 | Area | Primary files | Current state |
 |---|---|---|
 | Node CLI | `index.js`, `package.json` | `rafiki` and `image-gen` bins delegate image generation to Python and handle Puppeteer HTML rendering. |
-| Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, deploy, exports, scheduled regen, and portal startup. |
+| Python CLI | `generate.py` | Main command surface for generation, viewer rebuilds, archive cleanup, registry, billing imports, deploy, exports, scheduled regen, and portal startup. |
 | Core generation | `lib/core.py`, `lib/batch.py`, `lib/providers/` | Multi-provider image generation with run isolation, reference images, style composition, and parallel batch support. |
-| Local portal | `lib/server.py`, `lib/renderers/library.py` | Local library, ratings API, prompt studio, auth for public binding, and run browsing. |
+| Local portal | `lib/server.py`, `lib/renderers/library.py`, `lib/renderers/library_atlas.py` | Local library with all-runs archive browsing, review queue, lineage chips, filters, keyboard review, run detail panel, ratings, feedback, evaluations, archive metadata and billing APIs, pricing-profile/imported spend summary, deploy readiness, revision staging, prompt studio, auth for public binding, Teach mode, and run browsing. |
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
-| Asset operations | `lib/archive.py`, `lib/registry.py`, `lib/exporters/` | Approved-image curation, searchable registry cache, Canva bundle export, Notion export, and Vercel deploy helper. |
+| Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/`, `scripts/workspace_hygiene.py` | Approved-image curation, read-only archive health and workspace hygiene reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
-| Agent access | `mcp_server.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients. |
-| Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for agents and maintainers. |
+| Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
+| Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | ~157 Python test functions across product and agentic suites, plus CI for Python tests and `npm pack --dry-run`. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 231 collected Python tests across product and agentic suites, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes
 
@@ -71,6 +76,7 @@ Goal: make Rafiki safe and understandable outside this machine.
 | P1 | Add a public quickstart fixture. | A tiny sample `image-prompts.md` and dry-run workflow can be used without private prompt libraries. |
 | P1 | Add docs lint or link smoke check. | Broken internal links are caught before release. |
 | P1 | Expand `npm run doctor`. | Doctor checks MCP dependency, .env presence, Chrome/Puppeteer status, and gives precise remediation. |
+| Shipped | Add safe workspace hygiene reporting. | `npm run workspace:hygiene -- --repo .` reports dirty worktrees, gone upstreams, branches attached to worktrees, dependency/cache bulk hints, and human-gated cleanup risk without deleting anything. |
 
 ## Phase 2: Workflow Reliability
 
@@ -79,20 +85,28 @@ Goal: make common creative workflows hard to break.
 | Priority | Work | Success criteria |
 |---|---|---|
 | P0 | Add cross-surface regression tests. | The same generation options are verified through Python CLI, Node CLI, portal job helper, and MCP wrapper. |
+| Shipped | Add agent-facing dry-run smoke. | `npm run smoke:dry-run` proves Node CLI dry-run generation, MCP `rafiki_status`, MCP tool listing, MCP `rafiki_run`, and archive-health JSON on a disposable output root without provider spend. |
 | P1 | Split `generate.py` subcommands into command modules when touched. | New command work does not make the dispatcher larger. |
 | P1 | Strengthen run manifests. | `run.json` records provider, model, style, prompt file, reference images, CLI/tool source, timings, and error states consistently. |
-| P1 | Add cost and throughput estimates. | Usage and run summaries can answer "what did this run cost and how long did it take?" |
-| P2 | Make cleanup safer. | `clean` can report reclaimable disk space and defaults to dry-run in docs. |
+| Shipped | Add cost and throughput summaries. | The portal now summarizes local manifest cost amounts, pricing-profile estimates, unpriced image counts, run duration, model mix, failed images, and recent runs. |
+| Shipped | Make cleanup safer to inspect. | `archive-health --cleanup-report` groups cleanup candidates and risky runs by project/run, reports approved coverage and candidate bytes, and suggests dry-run `clean --keep-approved` commands without mutating outputs. |
 
 ## Phase 3: Registry-Backed Asset Library
 
 Goal: make the asset registry the source of truth for browsing, search, and
 exports.
 
+Status: the P0 library/archive foundation is shipped. The registry now feeds
+the master library, and `generate.py library` / `generate.py serve` show every
+historical `run-*` image while keeping curated registry/export scopes available.
+
 | Priority | Work | Success criteria |
 |---|---|---|
-| P0 | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
-| P1 | Add approval/export state to registry entries. | Registry can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
+| Shipped | Connect the library viewer to registry metadata. | Library cards can show titles, captions, tags, approval status, and source prompt without custom per-viewer logic. |
+| Shipped | Make the master library a complete local archive. | `generate.py library` and the portal scan every historical `run-*` image, while curated registry/export flows stay available for approved/latest assets. |
+| Shipped | Add durable archive metadata state. | `output/archive-metadata.json` stores title overrides, tags, export/publish markers, and superseded links; library cards merge that state into badges and search, and successful portal Canva/Notion/deploy actions stamp matching source cards automatically. |
+| Shipped | Add read-only archive health reporting. | `python generate.py archive-health` reports missing images, malformed run manifests, duplicate filenames, sidecar orphans, disk usage, cleanup risk, and advisory cleanup candidates without mutating outputs. |
+| P1 | Add approval/export state to registry exports. | Registry exports can answer which assets are approved, exported to Notion/Canva, deployed, or stale. |
 | P1 | Add registry refresh hooks after generation and curation. | Common workflows do not require the operator to remember `registry index`. |
 | P2 | Consider SQLite after JSON limits are clear. | Migration only happens if JSON search/export becomes too slow or awkward. |
 
@@ -103,10 +117,20 @@ Goal: make the local portal the best default interface for review and curation.
 | Priority | Work | Success criteria |
 |---|---|---|
 | P0 | Surface run status and errors better in the portal. | A failed generation shows useful error state and next action, not just missing images. |
-| P1 | Add curation actions from the UI. | Starred assets can be promoted to `approved/` without leaving the portal. |
-| P1 | Add export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable where assets are reviewed. |
-| P2 | Add prompt diffing between runs. | Operators can compare prompt and setting changes across regenerations. |
+| Shipped | Add local spend and feedback surfaces. | The portal shows local spend/run summaries, persists per-card feedback to `output/feedback.json`, and can stage feedback-driven reruns into Prompt Studio. |
+| Shipped | Add card-level evaluation state. | Run Detail writes decisions, 1-5 scores, use cases, rationale, and next steps to `output/evaluations.json`; cards show evaluation badges and Run Detail summarizes decisions across the current run. |
+| Shipped | Add pricing-profile spend estimates. | `config/pricing.json` estimates fixed-price image outputs locally while leaving token-priced or unknown models unpriced until manifests include usage. |
+| Shipped | Add local provider billing imports. | CSV/JSON/manual billing rows land in `data/billing-imports.json`, appear in the portal, and take precedence as the spend display total when present. |
+| Shipped | Expand curation state from the UI. | Per-card metadata now makes title overrides, tags, exported/published state, and superseded links durable and visible while reviewing. |
+| Shipped | Split portal into modes and seed Curriculum Atlas. | Review is the image-first default; Generate, Curate, Spend, and Teach are distinct modes; Teach reads `config/curriculum-atlas.json`, renders a concept graph and Cohort Story Mode rail, and can filter matching archive cards back in Review. |
+| Shipped | Add review ritual affordances. | Cards now expose lineage chips and copy-prompt actions, while Review Queue combines unreviewed cards, feedback attention, missing evaluation, missing export state, and Atlas-unmapped assets. |
+| Shipped | Add portal accessibility guardrails. | The portal has explicit `:focus-visible` treatment, reduced-motion CSS, no `transition: all` in renderer CSS, and E2E assertions for those guardrails. |
+| Shipped | Expand export actions from the UI. | Canva bundle, Notion dry-run/export, registry export, and deploy helper are discoverable from the portal; successful Canva, Notion, and static deploy actions stamp archive metadata automatically when their source maps back to run images, including approved, run-level, and project-root static viewers. |
+| Shipped | Connect evaluation to curriculum. | Run Detail shows matched Atlas modules, matching terms, critique criteria, and discussion prompts beside the evaluation form; Teach mode summarizes module decision counts and average scores from `output/evaluations.json`. |
+| Shipped | Add prompt/run comparison for superseded assets. | Run Detail compares title, prompt, model, style, aspect ratio, run id, and archive metadata state for cards linked through `superseded_by`. |
+| P2 | Broaden lineage comparison coverage. | Operators can compare more rerun/export chains even when they are not linked through a superseded-card relationship. |
 | P2 | Improve long-running job behavior. | Portal generation has clearer progress, cancellation, and retry affordances while remaining local-first. |
+| Shipped | Add portal browser E2E smoke. | `npm run e2e:portal` creates a disposable dry-run archive, starts the portal, and verifies desktop/mobile review flows in Chromium. |
 
 ## Phase 5: Agent And Automation Layer
 
@@ -125,8 +149,8 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Priority | Work | Success criteria |
 |---|---|---|
-| P1 | Harden static viewer deploy flow. | `deploy` can publish a known viewer dir, report URL, and fail cleanly without Vercel installed. |
-| P1 | Document secure team review patterns. | Local public portal with auth and static deploy options are clearly distinguished. |
+| Shipped | Harden static viewer deploy flow. | `deploy` can publish a known viewer dir, report URL, fail cleanly without Vercel installed, and expose read-only readiness checks. |
+| Shipped | Document secure team review patterns. | Local public portal with auth, readiness checks, and static deploy options are clearly distinguished. |
 | P2 | Add self-contained export presets. | Operators can choose "small review file" vs "full quality archive" without tuning flags each time. |
 | P2 | Explore CDN-backed approved assets. | Only after registry metadata and export state are reliable locally. |
 
@@ -134,6 +158,7 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 | Area | Current state | Next step |
 |---|---|---|
+| Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, links Run Detail evaluation context to matched modules, summarizes module evaluation decisions/scores, and exposes a per-program Cohort Story Mode rail. | Validate the story rail in real review sessions, then add presentation/export controls and richer learner-journey metadata. |
 | BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
@@ -148,17 +173,21 @@ Before declaring a roadmap phase done:
 - `npm test`
 - `npm run pack:check`
 - `npm run doctor`
-- MCP smoke: list tools and call `rafiki_status`
-- At least one dry-run generation path through CLI or MCP
+- `npm run smoke:dry-run`
+- `npm run e2e:portal`
+- `python generate.py archive-health --json`
+- `python generate.py archive-health --cleanup-report`
 - Docs checked for stale "known gap" claims
 - Git status reviewed for unrelated local artifacts
 
 ## Near-Term Execution Order
 
-1. Add MCP and CLI dry-run smoke tests.
-2. Make registry metadata feed the library viewer.
-3. Add portal curation/export actions.
-4. Expand doctor remediation for package and browser setup.
+1. Add approval/export state to registry exports so CSV/JSON exports reflect the local curation sidecar.
+2. Add direct MCP wrappers for the stable registry, archive-health, viewer rebuild, export dry-run, and render dry-run workflows.
+3. Expand portal visual quality checks with optional reviewed baseline/diff artifacts for Review, Teach, and mobile views.
+4. Improve failed-generation status, retry, and cancellation UX in the portal.
+5. Add registry refresh hooks after generation and curation workflows.
+6. Add an optional thumbnail/cache path for large local archives.
 
 ## Non-Goals For Now
 

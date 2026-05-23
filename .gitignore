@@ -3,6 +3,7 @@
 
 # macOS / local scratch
 .DS_Store
+/rafiki/
 
 # One-off local renders (regenerable)
 output.png
@@ -11,6 +12,10 @@ output/
 
 # Generated outputs (large files, regenerable)
 outputs/
+
+# Local thumbnail/cache artifacts (regenerable)
+.rafiki-cache/
+**/.rafiki-cache/
 
 # Notion exporter idempotency log (per-project, local state)
 output/*/.notion-exported.json
@@ -24,6 +29,7 @@ node_modules/
 
 # Usage tracking (local data)
 data/usage-log.json
+data/billing-imports.json
 
 # Asset registry — local cache, regenerable via `generate.py registry index`
 data/asset-registry.json

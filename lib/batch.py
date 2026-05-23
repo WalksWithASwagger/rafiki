@@ -14,27 +14,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.core import generate_image
+from lib.pricing import estimate_image_cost, load_pricing_profile, provider_for_model
 
 
-def _provider_for_model(model: str) -> str | None:
-    if model.startswith("gemini"):
-        return "Gemini"
-    if model.startswith(("gpt-image", "dall-e")):
-        return "OpenAI"
-    return None
-
-
-def _cost_estimate_for_model(model: str) -> dict:
-    provider = _provider_for_model(model)
-    return {
-        "currency": "USD",
-        "amount": None,
-        "estimated": False,
-        "basis": "not_estimated",
-        "provider": provider,
-        "model": model,
-        "note": "Rafiki does not bundle provider pricing; use provider billing exports for exact cost.",
-    }
+def _cost_estimate_for_model(
+    model: str,
+    *,
+    resolution: str,
+    dry_run: bool,
+    pricing_profile: dict,
+) -> dict:
+    return estimate_image_cost(
+        model=model,
+        provider=provider_for_model(model),
+        resolution=resolution,
+        dry_run=dry_run,
+        pricing_profile=pricing_profile,
+    )
 
 
 def _iso_now() -> datetime:
@@ -105,6 +101,7 @@ def run_batch(
     """
     project_dir = Path(project_dir)
     project_dir.mkdir(parents=True, exist_ok=True)
+    pricing_profile = load_pricing_profile()
 
     run_started = _iso_now()
     run_start_monotonic = time.monotonic()
@@ -123,6 +120,8 @@ def run_batch(
     run_meta = {
         "model": model,
         "aspect_ratio": aspect_ratio,
+        "resolution": resolution,
+        "quality": quality,
         "style": style or "none",
         "prompt_file": prompt_file,
         "prompt_source": prompt_file or "inline",
@@ -153,13 +152,18 @@ def run_batch(
             "resolution":  resolution,
             "quality":     item.get("quality") or quality,
             "style":       task_style,
-            "provider":    _provider_for_model(task_model),
+            "provider":    provider_for_model(task_model),
             "reference_image": ref_paths[i] if i < len(ref_paths) else None,
             "reference_images": global_reference_images,
             "reference_role": reference_role,
             "composition_references": composition_references,
             "dry_run":    dry_run,
-            "cost_estimate": _cost_estimate_for_model(task_model),
+            "cost_estimate": _cost_estimate_for_model(
+                task_model,
+                resolution=resolution,
+                dry_run=dry_run,
+                pricing_profile=pricing_profile,
+            ),
         })
 
     task_providers = sorted({t["provider"] for t in tasks if t.get("provider")})
@@ -171,12 +175,16 @@ def run_batch(
     if len(task_models) > 1:
         run_meta["models"] = task_models
     run_meta["cost_estimate"] = {
-        "currency": "USD",
+        "currency": pricing_profile.get("currency", "USD"),
         "amount": None,
         "estimated": False,
         "basis": "not_estimated",
         "image_count": len(tasks),
-        "note": "Per-image provider pricing is not bundled; use provider billing exports for exact cost.",
+        "estimated_images": 0,
+        "unestimated_images": len(tasks),
+        "pricing_profile": pricing_profile.get("path", ""),
+        "pricing_updated_at": pricing_profile.get("updated_at", ""),
+        "note": "Provider billing exports remain the source of truth for exact account spend.",
     }
 
     total = len(tasks)
@@ -212,10 +220,19 @@ def run_batch(
         if not task["dry_run"] and ok and not Path(task["output_path"]).exists():
             ok = False
             error_msg = error_msg or "API returned success but file was not written"
+        cost_estimate = dict(task["cost_estimate"])
+        if not ok:
+            cost_estimate.update({
+                "amount": None,
+                "estimated": False,
+                "basis": "failed_no_output_image_estimate",
+                "note": "No output-image estimate is recorded for failed image generation.",
+            })
         finished_at = _iso_now()
         duration_seconds = round(time.monotonic() - start, 3)
         return {
             **task,
+            "cost_estimate": cost_estimate,
             "ok": ok,
             "state": "succeeded" if ok else "failed",
             "error": error_msg,
@@ -283,11 +300,14 @@ def run_batch(
             "state":            r["state"],
             "model":            r["model"],
             "aspect_ratio":     r["aspect_ratio"],
+            "resolution":       r["resolution"],
+            "quality":          r["quality"],
             "style":            r["style"] or "none",
             "cost_estimate":    r["cost_estimate"],
             "started_at":       r["started_at"],
             "finished_at":      r["finished_at"],
             "duration_seconds": r["duration_seconds"],
+            "dry_run":          r["dry_run"],
         }
         if r.get("provider"):
             rec["provider"] = r["provider"]
@@ -298,9 +318,24 @@ def run_batch(
             rec["error"] = r["error"]
         return rec
 
+    image_records = [_img_record(r) for r in final]
+    cost_amounts = [
+        rec["cost_estimate"].get("amount")
+        for rec in image_records
+        if isinstance(rec.get("cost_estimate"), dict)
+        and isinstance(rec["cost_estimate"].get("amount"), (int, float))
+    ]
+    run_meta["cost_estimate"].update({
+        "amount": round(sum(float(amount) for amount in cost_amounts), 6) if cost_amounts else None,
+        "estimated": bool(cost_amounts),
+        "basis": "sum_per_image_estimates" if cost_amounts else "not_estimated",
+        "estimated_images": len(cost_amounts),
+        "unestimated_images": len(image_records) - len(cost_amounts),
+    })
+
     (run_dir / "run.json").write_text(
         json.dumps(
-            {**run_meta, "images": [_img_record(r) for r in final]},
+            {**run_meta, "images": image_records},
             indent=2,
             ensure_ascii=False,
         ),

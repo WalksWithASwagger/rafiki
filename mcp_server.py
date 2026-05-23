@@ -10,7 +10,9 @@ Tools:
   rafiki_usage          Show local generation usage
   rafiki_registry_search Search the asset registry
   rafiki_registry_export Export the asset registry
+  rafiki_archive_health Report archive health
   rafiki_viewer_rebuild Rebuild a project viewer
+  rafiki_library_rebuild Rebuild the master library viewer
   rafiki_render         Render HTML to PNG through the Node CLI
   rafiki_canva_export   Export a Canva upload bundle
   rafiki_notion_export  Dry-run or export approved images to Notion
@@ -64,10 +66,12 @@ from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.usage import load_usage_log
 
 _CLI_SUBCOMMANDS = {
+    "archive-health",
     "view",
     "library",
     "link-projects",
     "approve",
+    "billing",
     "canva-export",
     "clean",
     "deploy",
@@ -90,6 +94,7 @@ _CLI_TOP_LEVEL_FLAGS = {
 _CLI_BLOCKED_SUBCOMMANDS = {"serve"}
 _CLI_MUTATING_SUBCOMMANDS = {
     "approve",
+    "billing",
     "canva-export",
     "clean",
     "deploy",
@@ -174,6 +179,7 @@ def _path_info(path: Path) -> dict[str, str]:
 def _error_payload(tool: str, error: str, **extra: Any) -> str:
     return _json({
         "success": False,
+        "ok": False,
         "tool": tool,
         "error": error,
         **extra,
@@ -201,6 +207,7 @@ def _run_command(
     except subprocess.TimeoutExpired as e:
         return {
             "success": False,
+            "ok": False,
             "timeout": True,
             "timeout_seconds": timeout,
             "command": command,
@@ -220,6 +227,7 @@ def _run_command(
 
     return {
         "success": proc.returncode == 0,
+        "ok": proc.returncode == 0,
         "exit_code": proc.returncode,
         "command": command,
         "cwd": str(_ROOT),
@@ -260,17 +268,20 @@ def _validate_cli_args(args: list[str]) -> tuple[bool, str]:
 def _run_generate_py(args: list[str], timeout_seconds: int) -> dict:
     ok, error = _validate_cli_args(args)
     if not ok:
-        return {"success": False, "error": error, "args": args}
+        return {"success": False, "ok": False, "error": error, "args": args}
 
     if args[0] in {"--render", "--render-dir"}:
         return _run_node_rafiki(args, timeout_seconds, mutating=True)
 
     command = [sys.executable, str(_ROOT / "generate.py"), *args]
     action = args[0]
+    mutating = action in _CLI_MUTATING_SUBCOMMANDS
+    if action == "billing" and len(args) > 1 and args[1] == "summary":
+        mutating = False
     return _run_command(
         command,
         timeout_seconds,
-        mutating=action in _CLI_MUTATING_SUBCOMMANDS,
+        mutating=mutating,
     )
 
 
@@ -293,6 +304,40 @@ def _resolve_project_dir(project: str, output_root: str = "") -> Path:
         return project_path.resolve(strict=False)
     root = Path(output_root) if output_root else _ROOT / "output"
     return (root / project).resolve(strict=False)
+
+
+def _default_output_root(output_root: str = "") -> Path:
+    return Path(output_root).resolve(strict=False) if output_root else (_ROOT / "output").resolve(strict=False)
+
+
+def _library_preview(output_root: str = "") -> dict:
+    root = _default_output_root(output_root)
+    if not root.is_dir():
+        return {
+            "success": False,
+            "ok": False,
+            "error": f"Output root not found: {root}",
+            "output_root": str(root),
+            "library_path": str(root / "library.html"),
+        }
+
+    from lib.renderers.library import _records_from_registry
+
+    records = _records_from_registry(root)
+    projects = {record.get("project", "") for record in records if record.get("project")}
+    present = sum(1 for record in records if record.get("ok"))
+    library_path = root / "library.html"
+    return {
+        "success": True,
+        "ok": True,
+        "output_root": str(root),
+        "library_path": str(library_path),
+        "library_url": _file_url(library_path),
+        "project_count": len(projects),
+        "image_count": len(records),
+        "present_image_count": present,
+        "missing_image_count": len(records) - present,
+    }
 
 
 def _viewer_preview(
@@ -426,7 +471,9 @@ def rafiki_status() -> str:
             "rafiki_usage",
             "rafiki_registry_search",
             "rafiki_registry_export",
+            "rafiki_archive_health",
             "rafiki_viewer_rebuild",
+            "rafiki_library_rebuild",
             "rafiki_render",
             "rafiki_canva_export",
             "rafiki_notion_export",
@@ -499,6 +546,7 @@ def rafiki_generate(
     )
     result: dict = {
         "success": success,
+        "ok": success,
         "output_path": output_path,
         "model": resolved_model,
         "aspect_ratio": resolved_aspect_ratio,
@@ -579,7 +627,7 @@ def rafiki_batch(
             reference_images=reference_images,
         )
     except ValueError as e:
-        return _json({"success": False, "error": str(e)})
+        return _json({"success": False, "ok": False, "error": str(e)})
 
     result = _capture(
         run_batch,
@@ -603,6 +651,7 @@ def rafiki_batch(
 
     return json.dumps({
         "success": result.success,
+        "ok": result.success,
         "mode": "batch",
         "dry_run": dry_run,
         "generated": result.success_count,
@@ -657,6 +706,7 @@ def rafiki_registry_search(query: str, limit: int = 20) -> str:
     results = [entry.to_dict() for entry in registry.search(query)[:safe_limit]]
     return _json({
         "success": True,
+        "ok": True,
         "tool": "rafiki_registry_search",
         "query": query,
         "limit": safe_limit,
@@ -693,6 +743,7 @@ def rafiki_registry_export(format: str = "csv", dry_run: bool = False) -> str:
     if dry_run:
         return _json({
             "success": True,
+            "ok": True,
             "tool": "rafiki_registry_export",
             "format": fmt,
             "dry_run": True,
@@ -715,6 +766,7 @@ def rafiki_registry_export(format: str = "csv", dry_run: bool = False) -> str:
         )
     return _json({
         "success": True,
+        "ok": True,
         "tool": "rafiki_registry_export",
         "format": fmt,
         "dry_run": False,
@@ -723,6 +775,55 @@ def rafiki_registry_export(format: str = "csv", dry_run: bool = False) -> str:
         "count": len(entries),
         **_path_info(exported),
     })
+
+
+@mcp.tool()
+def rafiki_archive_health(
+    output_root: str = "",
+    cleanup_report: bool = False,
+) -> str:
+    """Report output archive health without mutating generated files.
+
+    Args:
+        output_root: Optional output root; defaults to repo output/.
+        cleanup_report: Include the full conservative cleanup report.
+    """
+    from lib.archive_health import archive_health_report
+
+    root = _default_output_root(output_root)
+    report = archive_health_report(root)
+    summary = report.get("summary", {})
+    payload = {
+        "success": bool(report.get("ok", False)),
+        "ok": bool(report.get("ok", False)),
+        "tool": "rafiki_archive_health",
+        "dry_run": True,
+        "mutating": False,
+        "external": False,
+        "output_root": str(root),
+        "project_count": summary.get("projects", 0),
+        "run_count": summary.get("runs", 0),
+        "manifest_image_count": summary.get("manifest_images", 0),
+        "present_image_count": summary.get("present_images", 0),
+        "missing_image_count": summary.get("missing_images", 0),
+        "malformed_run_count": len(report.get("malformed_runs", [])),
+        "duplicate_filename_group_count": summary.get("duplicate_filename_groups", 0),
+        "orphaned_sidecar_count": (
+            summary.get("orphaned_ratings", 0)
+            + summary.get("orphaned_feedback", 0)
+            + summary.get("orphaned_evaluations", 0)
+            + summary.get("orphaned_metadata", 0)
+        ),
+        "summary": summary,
+        "errors": {
+            "missing_images": report.get("missing_images", []),
+            "malformed_runs": report.get("malformed_runs", []),
+        },
+        "recommendations": report.get("recommendations", []),
+    }
+    if cleanup_report:
+        payload["cleanup_report"] = report.get("cleanup_report", {})
+    return _json(payload)
 
 
 @mcp.tool()
@@ -757,6 +858,7 @@ def rafiki_viewer_rebuild(
         "external": False,
         **preview,
     }
+    base["ok"] = bool(base.get("success"))
     if dry_run or not preview.get("success"):
         return _json(base)
 
@@ -772,6 +874,7 @@ def rafiki_viewer_rebuild(
         "tool": "rafiki_viewer_rebuild",
         "mutating": True,
         "external": False,
+        "ok": bool(run.get("success")),
     })
 
 
@@ -806,6 +909,7 @@ def rafiki_render(
     args = ["--render", str(targets[0])] if html_path else ["--render-dir", html_dir]
     base = {
         "success": True,
+        "ok": True,
         "tool": "rafiki_render",
         "dry_run": dry_run,
         "mutating": not dry_run,
@@ -820,7 +924,43 @@ def rafiki_render(
         return _json(base)
 
     run = _run_node_rafiki(args, timeout_seconds, mutating=True)
-    return _json({**base, **run, "tool": "rafiki_render"})
+    return _json({**base, **run, "tool": "rafiki_render", "ok": bool(run.get("success"))})
+
+
+@mcp.tool()
+def rafiki_library_rebuild(
+    output_root: str = "",
+    dry_run: bool = False,
+    timeout_seconds: int = 300,
+) -> str:
+    """Rebuild output/library.html without regenerating images.
+
+    Args:
+        output_root: Optional output root; defaults to repo output/.
+        dry_run: Preview path and counts without writing library.html.
+        timeout_seconds: Seconds before the CLI subprocess is stopped.
+    """
+    preview = _library_preview(output_root)
+    base = {
+        "tool": "rafiki_library_rebuild",
+        "dry_run": dry_run,
+        "mutating": not dry_run,
+        "external": False,
+        **preview,
+    }
+    if dry_run or not preview.get("success"):
+        return _json(base)
+
+    args = ["library", "--output-dir", preview["output_root"]]
+    run = _run_generate_py(args, timeout_seconds)
+    return _json({
+        **base,
+        **run,
+        "tool": "rafiki_library_rebuild",
+        "mutating": True,
+        "external": False,
+        "ok": bool(run.get("success")),
+    })
 
 
 @mcp.tool()
@@ -853,6 +993,7 @@ def rafiki_canva_export(
         "external": False,
         **preview,
     }
+    base["ok"] = bool(base.get("success"))
     if dry_run or not preview.get("success"):
         return _json(base)
 
@@ -880,6 +1021,7 @@ def rafiki_canva_export(
     return _json({
         **base,
         "success": True,
+        "ok": True,
         "result_path": str(result.resolve(strict=False)),
         "result_url": _file_url(result),
     })
@@ -926,6 +1068,7 @@ def rafiki_notion_export(
 
     return _json({
         "success": not result["errors"],
+        "ok": not result["errors"],
         "tool": "rafiki_notion_export",
         "project": project,
         "database_id": database_id or "",
@@ -942,7 +1085,8 @@ def rafiki_run(args: list[str], timeout_seconds: int = 900) -> str:
     """Run a supported Rafiki CLI workflow through generate.py.
 
     Use this for workflows not covered by the direct tools, such as:
-    ['library'], ['approve', 'project'], ['clean', 'project', '--dry-run'],
+    ['library'], ['archive-health', '--json'], ['approve', 'project'],
+    ['billing', 'summary', '--json'], ['clean', 'project', '--dry-run'],
     ['social-expand', 'project', '--dry-run'], or ['regen', '--dry-run'].
     Prefer the typed wrappers for registry, viewer rebuild, render, Canva export,
     and Notion export workflows.

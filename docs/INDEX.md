@@ -26,6 +26,13 @@ deeper operating docs by surface area.
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
+- [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
+  summary, mode navigation, feedback, evaluation, archive metadata state,
+  revision staging, Curriculum Atlas surface, and API endpoints.
+- [Work Plan 2026-05-21](WORKPLAN-2026-05-21.md) - dated snapshot after the
+  quality-polish PR; use the roadmap for the live queue.
+- [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
+  estimate rules, and source-of-truth boundaries.
 
 ## Registries, Archives, And Libraries
 
@@ -33,6 +40,10 @@ deeper operating docs by surface area.
   re-indexing guidance for external or generated assets.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,
   `index.json` schema, and storage location.
+- [Library And Archive Roadmap](LIBRARY-ARCHIVE-ROADMAP.md) - build plan for
+  the all-runs image archive, portal curation, cleanup, and agent access.
+- [Curriculum Atlas](CURRICULUM-ATLAS.md) - local program/module/objective
+  scaffold that links generated archive images to teaching surfaces.
 - [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rule for
   `prompts/kk-kb/` vs the legacy `kk-ai-ecosystem` copies.
 
@@ -44,8 +55,8 @@ deeper operating docs by surface area.
   idempotency, and database targeting.
 - [Social-Post Expansion](SOCIAL-EXPANSION.md) - platform constraints, source
   preference, environment requirements, and output format.
-- [Deployment](DEPLOYMENT.md) - static hosting setup, deploy commands, and
-  caveats.
+- [Deployment](DEPLOYMENT.md) - static hosting setup, readiness checks, deploy
+  commands, and caveats.
 - [Delivery Pipeline](DELIVERY-PIPELINE.md) - canonical agentic delivery
   contract: labels, required issue shape, branch/PR traceability, Linear sync,
   pause controls, verification gates, and local commands.

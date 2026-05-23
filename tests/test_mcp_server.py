@@ -60,7 +60,9 @@ def test_typed_workflow_tools_are_registered():
     assert {
         "rafiki_registry_search",
         "rafiki_registry_export",
+        "rafiki_archive_health",
         "rafiki_viewer_rebuild",
+        "rafiki_library_rebuild",
         "rafiki_render",
         "rafiki_canva_export",
         "rafiki_notion_export",
@@ -154,6 +156,7 @@ def test_batch_rejects_mismatched_reference_images(tmp_path):
     )
 
     assert payload["success"] is False
+    assert payload["ok"] is False
     assert "reference_images has 3 path(s) but 2 prompt(s)" in payload["error"]
 
 
@@ -161,6 +164,7 @@ def test_run_rejects_non_rafiki_invocations():
     payload = json.loads(mcp_server.rafiki_run(["python3", "-c", "print('nope')"]))
 
     assert payload["success"] is False
+    assert payload["ok"] is False
     assert "unsupported Rafiki CLI invocation" in payload["error"]
 
 
@@ -170,6 +174,30 @@ def test_run_usage_smoke():
     assert payload["success"] is True
     assert payload["exit_code"] == 0
     assert "Total images generated:" in payload["stdout"]
+
+
+def test_run_billing_summary_bridge(tmp_path):
+    state = tmp_path / "billing-imports.json"
+
+    payload = json.loads(mcp_server.rafiki_run(["billing", "summary", "--state", str(state), "--json"]))
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["mutating"] is False
+    summary = json.loads(payload["stdout"])
+    assert summary["entries"] == 0
+
+
+def test_run_archive_health_bridge(tmp_path):
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+
+    payload = json.loads(mcp_server.rafiki_run(["archive-health", "--output-dir", str(output_root), "--json"]))
+
+    assert payload["success"] is True
+    assert payload["mutating"] is False
+    assert payload["json"]["ok"] is True
+    assert payload["json"]["summary"]["projects"] == 0
 
 
 def test_registry_search_wrapper_returns_structured_matches(tmp_path, monkeypatch):
@@ -209,6 +237,47 @@ def test_registry_export_wrapper_dry_run_reports_path_and_count(tmp_path, monkey
     assert not (tmp_path / "data" / "asset-registry.csv").exists()
 
 
+def test_archive_health_wrapper_reports_read_only_counts(tmp_path):
+    output_root = tmp_path / "output"
+    run_dir = output_root / "healthy-project" / "run-20260101-100000"
+    _write_run(
+        run_dir,
+        [{"name": "Hero", "prompt": "a hero", "file": "hero.png"}],
+    )
+
+    payload = json.loads(mcp_server.rafiki_archive_health(output_root=str(output_root)))
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["dry_run"] is True
+    assert payload["mutating"] is False
+    assert payload["project_count"] == 1
+    assert payload["run_count"] == 1
+    assert payload["manifest_image_count"] == 1
+    assert payload["present_image_count"] == 1
+    assert payload["errors"] == {"missing_images": [], "malformed_runs": []}
+
+
+def test_archive_health_wrapper_reports_missing_image_errors(tmp_path):
+    output_root = tmp_path / "output"
+    run_dir = output_root / "broken-project" / "run-20260101-100000"
+    run_dir.mkdir(parents=True)
+    (run_dir / "run.json").write_text(
+        json.dumps({
+            "images": [{"name": "Missing", "prompt": "gone", "file": "missing.png"}],
+        }),
+        encoding="utf-8",
+    )
+
+    payload = json.loads(mcp_server.rafiki_archive_health(output_root=str(output_root)))
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["mutating"] is False
+    assert payload["missing_image_count"] == 1
+    assert payload["errors"]["missing_images"][0]["path"].endswith("missing.png")
+
+
 def test_viewer_rebuild_wrapper_dry_run_reports_viewer_paths(tmp_path):
     project = tmp_path / "output" / "viewer-project"
     run_dir = project / "run-20260101-100000"
@@ -226,6 +295,7 @@ def test_viewer_rebuild_wrapper_dry_run_reports_viewer_paths(tmp_path):
     )
 
     assert payload["success"] is True
+    assert payload["ok"] is True
     assert payload["dry_run"] is True
     assert payload["mutating"] is False
     assert payload["run_count"] == 1
@@ -235,6 +305,60 @@ def test_viewer_rebuild_wrapper_dry_run_reports_viewer_paths(tmp_path):
     assert not (project / "viewer.html").exists()
 
 
+def test_viewer_rebuild_wrapper_reports_missing_project_error(tmp_path):
+    payload = json.loads(
+        mcp_server.rafiki_viewer_rebuild(
+            project="missing-project",
+            output_root=str(tmp_path / "output"),
+            dry_run=True,
+        )
+    )
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["mutating"] is False
+    assert "Project not found" in payload["error"]
+
+
+def test_library_rebuild_wrapper_dry_run_reports_library_path(tmp_path):
+    output_root = tmp_path / "output"
+    run_dir = output_root / "library-project" / "run-20260101-100000"
+    _write_run(
+        run_dir,
+        [{"name": "Hero", "prompt": "a hero", "file": "hero.png"}],
+    )
+
+    payload = json.loads(
+        mcp_server.rafiki_library_rebuild(
+            output_root=str(output_root),
+            dry_run=True,
+        )
+    )
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["dry_run"] is True
+    assert payload["mutating"] is False
+    assert payload["library_path"] == str(output_root.resolve() / "library.html")
+    assert payload["project_count"] == 1
+    assert payload["image_count"] == 1
+    assert not (output_root / "library.html").exists()
+
+
+def test_library_rebuild_wrapper_reports_missing_output_root_error(tmp_path):
+    payload = json.loads(
+        mcp_server.rafiki_library_rebuild(
+            output_root=str(tmp_path / "missing-output"),
+            dry_run=True,
+        )
+    )
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["mutating"] is False
+    assert "Output root not found" in payload["error"]
+
+
 def test_render_wrapper_dry_run_reports_png_targets(tmp_path):
     html = tmp_path / "card.html"
     html.write_text("<html><body>Card</body></html>", encoding="utf-8")
@@ -242,6 +366,7 @@ def test_render_wrapper_dry_run_reports_png_targets(tmp_path):
     payload = json.loads(mcp_server.rafiki_render(html_path=str(html), dry_run=True))
 
     assert payload["success"] is True
+    assert payload["ok"] is True
     assert payload["dry_run"] is True
     assert payload["mutating"] is False
     assert payload["count"] == 1
@@ -266,6 +391,7 @@ def test_canva_export_wrapper_dry_run_reports_bundle_plan(tmp_path):
     )
 
     assert payload["success"] is True
+    assert payload["ok"] is True
     assert payload["dry_run"] is True
     assert payload["mutating"] is False
     assert payload["image_count"] == 1
@@ -292,6 +418,7 @@ def test_notion_export_wrapper_dry_run_uses_exporter_without_api(tmp_path):
     )
 
     assert payload["success"] is True
+    assert payload["ok"] is True
     assert payload["dry_run"] is True
     assert payload["mutating"] is False
     assert payload["external"] is True

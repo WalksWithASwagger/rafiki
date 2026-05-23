@@ -91,6 +91,27 @@ def test_linear_sync_backfills_pr_comment_when_attachment_is_missing():
     assert client.comments
 
 
+def test_linear_sync_treats_no_linear_key_as_github_only():
+    client = FakeLinearClient(issue_fixture())
+
+    result = sync_linear_issue(
+        contract=CONTRACT,
+        event="pr-open",
+        pr_title="Refresh roadmap truth",
+        pr_body="Refs #141\n",
+        head_ref="codex/issue-141-roadmap-truth",
+        issue_body="Relevant files: docs/WORKPLAN-2026-05-21.md\n",
+        pr_url="https://github.com/WalksWithASwagger/rafiki/pull/149",
+        client=client,
+    )
+
+    assert result["ok"]
+    assert result["status"] == "github-only"
+    assert result["linear_keys"] == []
+    assert client.updated_states == []
+    assert client.comments == []
+
+
 def test_linear_sync_returns_handoff_when_linear_key_is_ambiguous():
     client = FakeLinearClient(issue_fixture())
 

@@ -25,6 +25,8 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── commands/                # Slash commands (e.g. /agentic-intake)
 │   └── skills/                  # Local skills: rafiki, github-issue-writer/,
 │                                #   github-pr-reviewer/
+├── .agents/
+│   └── skills/                  # Codex skill mirrors for Rafiki issue and PR work
 ├── .company-os/
 │   └── project.yaml             # Company-OS project manifest (loops, memory, validation)
 ├── agentic/
@@ -41,6 +43,11 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── prompts.py               # parse_image_prompts_md()
 │   ├── styles.py                # Style suffix resolution + composition
 │   ├── usage.py                 # Usage log (full prompt, model, style, ok/error)
+│   ├── billing.py               # Local provider billing imports (CSV/JSON/manual)
+│   ├── pricing.py               # Public pricing-profile loader + local cost estimates
+│   ├── feedback.py              # Local archive feedback notes + change requests
+│   ├── evaluations.py           # Local card decisions, scores, and next steps
+│   ├── archive_metadata.py      # Local title/tag/export-state sidecar
 │   ├── archive.py               # approved/ curation + clean
 │   ├── registry.py              # Asset registry index/search/export
 │   ├── regen.py                 # Scheduled regeneration runner
@@ -51,7 +58,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── providers/               # Gemini + OpenAI image providers
 │   ├── renderers/               # Per-run viewer, comparison viewer, library viewer
 │   ├── exporters/               # Canva bundle + Notion gallery exporters
-│   └── deploy/                  # Vercel static viewer deploy helper
+│   └── deploy/                  # Vercel static viewer deploy helper + readiness checks
 ├── scripts/
 │   ├── check-doc-links.py       # `npm run docs:check`
 │   ├── run-pytest.js            # `npm test` wrapper
@@ -74,10 +81,15 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── assets/                      # Reference images, KB-import mirrors (private — not packaged)
 ├── config/
 │   ├── extra-outputs.json.example
+│   ├── pricing.json             # Public model pricing profile for local estimates
 │   └── scheduled-regen.json.example  # Local config templates (real files are gitignored)
-├── data/                        # usage-log.json + asset-registry.* (gitignored)
+├── data/                        # usage-log.json, billing-imports.json,
+│                                #   asset-registry.* (gitignored)
 ├── output/                      # Generated images + viewers (gitignored)
 │   ├── ratings.json             # star/reject map, written by the portal
+│   ├── feedback.json            # local card notes/change requests, written by the portal
+│   ├── evaluations.json         # local card decisions/scores, written by the portal
+│   ├── archive-metadata.json    # local title overrides, tags, export/publish state
 │   ├── <project>/run-*/         # Per-project run trees with run.json + viewer.html
 │   ├── <project>/approved/      # Curated keepers + index.json + viewer.html
 │   └── library.html             # Master library — built by `generate.py library`
@@ -94,6 +106,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
     ├── DOCTOR.md
     ├── CHROME-PUPPETEER.md
     ├── PRESENTATION-VIEWER.md
+    ├── PORTAL-COMMAND-CENTER.md
     ├── ASSET-REGISTRY.md
     ├── ARCHIVE.md
     ├── kb-mirror-policy.md

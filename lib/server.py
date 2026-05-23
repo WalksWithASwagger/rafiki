@@ -11,7 +11,7 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from lib.batch import run_batch
 from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
@@ -183,8 +183,8 @@ def _prompt_name_from_text(prompt: str) -> str:
     return compact[:60] if compact else "Prompt Studio"
 
 
-def _result_payload(result, *, mode: str, project: str) -> dict:
-    return {
+def _result_payload(result, *, mode: str, project: str, registry_refresh: dict | None = None) -> dict:
+    payload = {
         "ok": True,
         "all_ok": result.success,
         "mode": mode,
@@ -200,6 +200,38 @@ def _result_payload(result, *, mode: str, project: str) -> dict:
         "library_url": "/",
         "images": result.images,
     }
+    if registry_refresh:
+        payload["registry"] = registry_refresh
+    return payload
+
+
+def _refresh_registry_after_generation(result, *, output_root: Path, dry_run: bool) -> dict | None:
+    if dry_run or not result.success:
+        return None
+    from lib import registry
+
+    return registry.refresh_cache(output_root=output_root, reason="portal-generation")
+
+
+def _safe_error_text(value: object) -> str:
+    text = str(value or "").strip()
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
+    text = re.sub(
+        r"(?i)\b([A-Z0-9_-]*(?:api[_-]?key|token|secret|password))(\s*[=:]\s*)([^\s,;]+)",
+        r"\1\2[redacted]",
+        text,
+    )
+    text = re.sub(
+        r"(?i)\b(authorization\s*:\s*bearer\s+)([A-Za-z0-9._~+/=-]+)",
+        r"\1[redacted]",
+        text,
+    )
+    text = re.sub(
+        r"(?i)\b(bearer\s+)(sk-[A-Za-z0-9_-]+|secret_[A-Za-z0-9_-]+|[A-Za-z0-9._~+/=-]{20,})",
+        r"\1[redacted]",
+        text,
+    )
+    return text[:2000]
 
 
 def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
@@ -253,7 +285,8 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
             prompt_file="",
             invocation_source="portal",
         )
-        return _result_payload(result, mode=mode, project=project)
+        refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
+        return _result_payload(result, mode=mode, project=project, registry_refresh=refresh)
 
     prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
     prompts = parse_image_prompts_md(prompt_file)
@@ -282,12 +315,17 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         prompt_file=str(prompt_file),
         invocation_source="portal",
     )
-    return _result_payload(result, mode=mode, project=project)
+    refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
+    return _result_payload(result, mode=mode, project=project, registry_refresh=refresh)
 
 
 class _RafikiHandler(BaseHTTPRequestHandler):
     output_root: Path
     ratings_file: Path
+    feedback_file: Path
+    evaluations_file: Path
+    archive_metadata_file: Path
+    billing_imports_file: Path
     extra_roots: dict[str, Path]  # project_name → real dir
 
     def log_message(self, fmt, *args):  # suppress noisy access log
@@ -327,15 +365,30 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         if not self._check_auth():
             return
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
         if path in ("/", ""):
             self._serve_library()
+        elif path == "/favicon.ico":
+            self._respond(204, "image/x-icon", b"")
         elif path.startswith("/output/"):
             self._serve_static(path[len("/output/"):])
         elif path == "/api/actions":
             self._serve_actions()
         elif path == "/api/ratings":
             self._serve_ratings()
+        elif path == "/api/feedback":
+            self._serve_feedback()
+        elif path == "/api/evaluations":
+            self._serve_evaluations()
+        elif path == "/api/archive-metadata":
+            self._serve_archive_metadata()
+        elif path == "/api/usage":
+            self._serve_usage()
+        elif path == "/api/deploy-readiness":
+            self._serve_deploy_readiness(parsed.query)
+        elif path == "/api/billing-imports":
+            self._serve_billing_imports()
         elif path == "/api/runs":
             self._serve_runs()
         else:
@@ -347,6 +400,14 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path == "/api/ratings":
             self._update_ratings()
+        elif path == "/api/feedback":
+            self._update_feedback()
+        elif path == "/api/evaluations":
+            self._update_evaluation()
+        elif path == "/api/archive-metadata":
+            self._update_archive_metadata()
+        elif path == "/api/billing-imports":
+            self._update_billing_imports()
         elif path == "/api/regen":
             self._regen()
         elif path == "/api/actions":
@@ -395,6 +456,53 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         ratings = _load_ratings(self.ratings_file)
         self._respond(200, "application/json", json.dumps(ratings).encode())
 
+    def _serve_feedback(self):
+        from lib.feedback import load_feedback
+
+        self._respond(200, "application/json", json.dumps(load_feedback(self.feedback_file)).encode())
+
+    def _serve_evaluations(self):
+        from lib.evaluations import load_evaluations
+
+        self._respond(200, "application/json", json.dumps(load_evaluations(self.evaluations_file)).encode())
+
+    def _serve_archive_metadata(self):
+        from lib.archive_metadata import load_archive_metadata
+
+        self._respond(200, "application/json", json.dumps(load_archive_metadata(self.archive_metadata_file)).encode())
+
+    def _serve_usage(self):
+        from lib.usage import summarize_usage
+
+        summary = summarize_usage(
+            self.output_root,
+            extra_roots=self.extra_roots,
+            billing_import_path=self.billing_imports_file,
+        )
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
+    def _serve_billing_imports(self):
+        from lib.billing import summarize_billing_imports
+
+        summary = summarize_billing_imports(self.billing_imports_file)
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
+    def _serve_deploy_readiness(self, query: str = ""):
+        from lib.deploy.readiness import check_deploy_readiness
+
+        params = parse_qs(query)
+        project = (params.get("project") or [""])[0].strip()
+        viewer_raw = (params.get("viewer_dir") or [""])[0].strip()
+        viewer_dir = Path(viewer_raw).expanduser() if viewer_raw else None
+        public = (params.get("public") or [""])[0].strip().lower() in _TRUE_VALUES
+        summary = check_deploy_readiness(
+            output_root=self.output_root,
+            project=project,
+            viewer_dir=viewer_dir,
+            public=public,
+        )
+        self._respond(200, "application/json", json.dumps(summary).encode())
+
     def _serve_actions(self):
         from lib.portal_actions import discover_actions
 
@@ -417,6 +525,99 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             ratings[key] = value
         self.ratings_file.write_text(json.dumps(ratings, indent=2), encoding="utf-8")
         self._respond(200, "application/json", b'{"ok":true}')
+
+    def _update_feedback(self):
+        from lib.feedback import update_feedback
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = update_feedback(self.feedback_file, payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "feedback update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _update_evaluation(self):
+        from lib.evaluations import update_evaluation
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = update_evaluation(self.evaluations_file, payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "evaluation update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _update_archive_metadata(self):
+        from lib.archive_metadata import update_archive_metadata
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = update_archive_metadata(self.archive_metadata_file, payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "archive metadata update failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _update_billing_imports(self):
+        from lib.billing import append_billing_entries
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            if not isinstance(payload, dict):
+                raise ValueError("request body must be a JSON object")
+            rows = payload.get("entries")
+            if rows is None:
+                rows = [payload]
+            if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
+                raise ValueError("entries must be an array of objects")
+            result = append_billing_entries(
+                self.billing_imports_file,
+                rows,
+                provider=_coerce_str(payload.get("provider"), field="provider"),
+                label=_coerce_str(payload.get("label"), field="label"),
+                source="portal",
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "billing import failed", "detail": str(e)}).encode("utf-8"),
+            )
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     def _serve_runs(self):
         from lib.renderers.library import load_extra_outputs, _scan_root
@@ -493,14 +694,14 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._respond(
                 400,
                 "application/json",
-                json.dumps({"error": str(e)}).encode("utf-8"),
+                json.dumps({"error": _safe_error_text(e)}).encode("utf-8"),
             )
             return
         except Exception as e:
             self._respond(
                 500,
                 "application/json",
-                json.dumps({"error": "generation failed", "detail": str(e)}).encode("utf-8"),
+                json.dumps({"error": "generation failed", "detail": _safe_error_text(e)}).encode("utf-8"),
             )
             return
 
@@ -560,6 +761,10 @@ def serve(
     from lib.renderers.library import load_extra_outputs
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
+    feedback_file = output_root / "feedback.json"
+    evaluations_file = output_root / "evaluations.json"
+    archive_metadata_file = output_root / "archive-metadata.json"
+    billing_imports_file = REPO_ROOT / "data" / "billing-imports.json"
     extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
 
     class Handler(_RafikiHandler):
@@ -567,6 +772,10 @@ def serve(
 
     Handler.output_root = output_root
     Handler.ratings_file = ratings_file
+    Handler.feedback_file = feedback_file
+    Handler.evaluations_file = evaluations_file
+    Handler.archive_metadata_file = archive_metadata_file
+    Handler.billing_imports_file = billing_imports_file
     Handler.extra_roots = extra_roots
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"

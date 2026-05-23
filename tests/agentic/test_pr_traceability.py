@@ -36,6 +36,19 @@ def test_traceability_accepts_github_only_branch_contract():
     assert result["linear_key"] is None
 
 
+def test_traceability_ignores_dated_doc_filenames_for_github_only_work():
+    result = check_traceability(
+        contract=CONTRACT,
+        pr_title="Refresh roadmap truth",
+        pr_body="## Related Issues\n\nRefs #141\n",
+        head_ref="codex/issue-141-roadmap-truth",
+        issue_body="Relevant files: docs/WORKPLAN-2026-05-21.md\n",
+    )
+
+    assert result["ok"]
+    assert result["linear_keys"] == []
+
+
 def test_traceability_flags_missing_linear_pr_fields():
     result = check_traceability(
         contract=CONTRACT,
