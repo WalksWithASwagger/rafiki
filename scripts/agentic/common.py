@@ -40,14 +40,17 @@ def normalize_linear_key(value: str) -> str:
     return value.upper()
 
 
-def extract_linear_keys(*texts: str | None) -> list[str]:
+def extract_linear_keys(*texts: str | None, prefixes: set[str] | None = None) -> list[str]:
     keys: list[str] = []
     seen: set[str] = set()
+    allowed_prefixes = {prefix.upper() for prefix in prefixes or set()}
     for text in texts:
         if not text:
             continue
         for match in LINEAR_KEY_PATTERN.finditer(text):
             key = normalize_linear_key(match.group(1))
+            if allowed_prefixes and key.split("-", 1)[0] not in allowed_prefixes:
+                continue
             if key in seen:
                 continue
             seen.add(key)
@@ -58,6 +61,13 @@ def extract_linear_keys(*texts: str | None) -> list[str]:
 def extract_linear_key(*texts: str | None) -> str | None:
     keys = extract_linear_keys(*texts)
     return keys[0] if keys else None
+
+
+def contract_linear_prefixes(contract: dict[str, Any]) -> set[str]:
+    team = str(contract.get("repo", {}).get("linear_team", "")).strip()
+    if not team:
+        return set()
+    return {team.split("-", 1)[0].upper()}
 
 
 def extract_issue_reference(

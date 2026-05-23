@@ -1,6 +1,6 @@
 # Rafiki Library And Archive Roadmap
 
-Last reviewed: 2026-05-20
+Last reviewed: 2026-05-23
 
 ## Goal
 
@@ -33,6 +33,7 @@ Rafiki already has most of the pieces:
 | Approved archive | `lib/archive.py`, `generate.py approve`, `generate.py clean` | Promotes starred assets into `approved/` and supports conservative cleanup. |
 | Registry cache | `lib/registry.py`, `generate.py registry` | Local searchable/exportable metadata cache. |
 | External roots | `config/extra-outputs*.json` | Lets the portal include generated outputs outside the repo. |
+| Curriculum context | `config/curriculum-atlas.json`, `lib/renderers/library_atlas.py` | Teach mode maps archive assets into programs/modules, facilitator notes, critique criteria, concept links, evaluation summaries, and a Cohort Story Mode rail. |
 
 The missing product-level behavior was archive completeness: the registry and
 library leaned toward curated/latest assets, not every historical `run-*`.
@@ -129,7 +130,9 @@ Expose stable, machine-readable archive contracts.
 Success criteria:
 
 - Add direct MCP wrappers for archive search, image lookup, approval-state
-  updates, and export prep.
+  updates, and export prep. Next active slice: typed wrappers for registry
+  search/export, archive health, viewer rebuild checks, and dry-run-safe export
+  helpers.
 - Return stable JSON with absolute image paths, source prompts, run metadata,
   approval state, and safe mutation flags.
 - Add recipe prompts for common agent jobs: "find unused good assets",
@@ -145,7 +148,8 @@ Success criteria:
    feedback notes live in `output/feedback.json`, and card metadata lives in
    `output/archive-metadata.json`.
 5. Add archive health and cleanup reports. Done.
-6. Add MCP wrappers once the local contracts are stable.
+6. Add registry export state from `output/archive-metadata.json`.
+7. Add MCP wrappers once the local contracts are stable.
 
 ## Non-Goals
 

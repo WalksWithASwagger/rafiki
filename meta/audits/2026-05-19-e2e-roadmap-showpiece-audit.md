@@ -1,5 +1,10 @@
 # Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)
 
+Historical note, 2026-05-23: this audit remains useful as a dated snapshot, but
+the live roadmap has moved on. `main` now includes prompt/run comparison for
+superseded assets and a Curriculum Atlas Cohort Story Mode rail. Use
+`docs/ROADMAP.md` for the current execution order.
+
 ## Scope
 
 This pass stepped back from implementation work to test the current Rafiki
@@ -29,8 +34,8 @@ Commands and checks run:
 - `npm run pack:check`: passed; dry-run package now includes the E2E smoke
   script, dry-run smoke script, and contains 90 files.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm test`: passed in the
-  original audit with 199 tests. The 2026-05-21 follow-up passes 218 tests with
-  one upstream Python 3.14 deprecation warning.
+  original audit with 199 tests. Follow-up work later collected 231 Python
+  tests; see `docs/ROADMAP.md` for the current test/CI summary.
 - `PATH=/Users/kk/Code/rafiki/.venv/bin:$PATH npm run doctor`: passed;
   0 critical issues and expected local provider-key warnings.
 - `npm run e2e:portal`: added and passed; it creates a disposable fixture
@@ -238,9 +243,9 @@ modules, prompts, outputs, and competencies:
 - visual assets
 - recommended interactive view
 
-The portal now has the first learning-world view and card-level evaluation
-state. Remaining work is richer learner journeys, cohort/story presentation
-mode, and evaluation links to curriculum criteria.
+The portal now has the first learning-world view, card-level evaluation state,
+and a Cohort Story Mode rail. Remaining work is richer learner journeys,
+presentation/export controls, and evaluation links to curriculum criteria.
 
 ### 4. Add Signature Interactive Views
 

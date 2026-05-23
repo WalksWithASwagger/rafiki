@@ -29,8 +29,8 @@ deeper operating docs by surface area.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, mode navigation, feedback, evaluation, archive metadata state,
   revision staging, Curriculum Atlas surface, and API endpoints.
-- [Work Plan 2026-05-21](WORKPLAN-2026-05-21.md) - next execution lanes after
-  the quality-polish PR.
+- [Work Plan 2026-05-21](WORKPLAN-2026-05-21.md) - dated snapshot after the
+  quality-polish PR; use the roadmap for the live queue.
 - [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
   estimate rules, and source-of-truth boundaries.
 
