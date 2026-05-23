@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib.batch import BatchResult
-from lib import server
+from lib import registry, server
 
 
 def _fake_batch_result(project_dir: Path, *, success_count: int = 1, total: int = 1) -> BatchResult:
@@ -110,6 +111,53 @@ def test_run_portal_job_batch_uses_prompt_file_and_derived_project(tmp_path, mon
     assert result["ok"] is True
     assert result["all_ok"] is False
     assert result["project"] == "launch-images"
+    assert "registry" not in result
+
+
+def test_run_portal_job_success_refreshes_registry_cache(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    data_dir = tmp_path / "data"
+    monkeypatch.setattr(registry, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(registry, "DATA_DIR", data_dir)
+    monkeypatch.setattr(registry, "REGISTRY_JSON", data_dir / "asset-registry.json")
+    monkeypatch.setattr(registry, "REGISTRY_CSV", data_dir / "asset-registry.csv")
+    monkeypatch.setattr(registry, "_load_extra_roots", lambda: {})
+
+    def fake_run_batch(**kwargs):
+        result = _fake_batch_result(kwargs["project_dir"])
+        result.run_dir.mkdir(parents=True)
+        image_path = result.run_dir / "01-hero.png"
+        image_path.write_bytes(b"\x89PNG\r\n\x1a\nfakepngdata")
+        (result.run_dir / "run.json").write_text(
+            json.dumps(
+                {
+                    "model": "gpt-image-2",
+                    "aspect_ratio": "16:9",
+                    "style": "none",
+                    "run_id": result.run_id,
+                    "images": [{"name": "Hero", "prompt": "caption", "file": image_path.name}],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return result
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    result = server._run_portal_job(
+        {
+            "mode": "single",
+            "project": "Studio",
+            "prompt": "A vivid local-first archive card",
+        },
+        output_root=output_root,
+    )
+
+    assert result["ok"] is True
+    assert result["all_ok"] is True
+    assert result["registry"]["registry_refreshed"] is True
+    assert result["registry"]["registry_count"] == 1
+    assert (data_dir / "asset-registry.json").exists()
 
 
 def test_run_portal_job_rejects_mismatched_reference_images(tmp_path, monkeypatch):

@@ -134,13 +134,16 @@ def _approve_starred(payload: dict[str, Any], *, output_root: Path, dry_run: boo
     approved_dir = project_dir / "approved"
     if approved_dir.exists():
         viewer_path = str(archive.build_approved_viewer(project, output_root=output_root))
-    return {
+    result = {
         "project": project_dir.name,
         "run": run or "latest",
         "approved_count": approved_count,
         "approved_dir": str(approved_dir.resolve(strict=False)),
         "viewer_path": viewer_path,
     }
+    if approved_count > 0:
+        result.update(_refresh_registry(output_root, reason="approve-starred"))
+    return result
 
 
 def _canva_export(payload: dict[str, Any], *, output_root: Path, dry_run: bool) -> dict[str, Any]:
@@ -175,13 +178,15 @@ def _canva_export(payload: dict[str, Any], *, output_root: Path, dry_run: bool) 
         source_label=source.name,
         state="canva",
     )
-    return {
+    result_payload = {
         "project": project,
         "source": source.name,
         "image_count": image_count,
         "result_path": str(result.resolve(strict=False)),
         **metadata,
     }
+    result_payload.update(_refresh_registry_after_metadata_change(output_root, metadata, reason="canva-export"))
+    return result_payload
 
 
 def _notion_export(payload: dict[str, Any], *, output_root: Path, dry_run: bool) -> dict[str, Any]:
@@ -208,13 +213,15 @@ def _notion_export(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
             source_label=str(result.get("source") or ""),
             state="notion",
         )
-    return {
+    result_payload = {
         "project": project,
         "database_id": database_id or "",
         "force": force,
         **result,
         **metadata,
     }
+    result_payload.update(_refresh_registry_after_metadata_change(output_root, metadata, reason="notion-export"))
+    return result_payload
 
 
 def _registry_export(payload: dict[str, Any], *, output_root: Path, dry_run: bool) -> dict[str, Any]:
@@ -233,12 +240,13 @@ def _registry_export(payload: dict[str, Any], *, output_root: Path, dry_run: boo
             "path": str(path.resolve(strict=False)),
         }
 
-    entries = registry.index(output_root=output_root)
+    refresh = registry.refresh_cache(output_root=output_root, reason="registry-export")
     path = registry.export(format=fmt)
     return {
         "format": fmt,
-        "count": len(entries),
+        "count": refresh["registry_count"],
         "path": str(path.resolve(strict=False)),
+        **refresh,
     }
 
 
@@ -278,7 +286,7 @@ def _static_deploy(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
         keys=source_map["keys"],
         state="deployed",
     )
-    return {
+    result_payload = {
         "project": project,
         "prod": prod,
         "viewer_dir": str(resolved_dir.resolve(strict=False)),
@@ -288,6 +296,8 @@ def _static_deploy(payload: dict[str, Any], *, output_root: Path, dry_run: bool)
         "metadata_unmapped": not source_map["mapped"],
         **metadata,
     }
+    result_payload.update(_refresh_registry_after_metadata_change(output_root, metadata, reason="static-deploy"))
+    return result_payload
 
 
 def _project_dir(output_root: Path, project: str) -> Path:
@@ -295,6 +305,23 @@ def _project_dir(output_root: Path, project: str) -> Path:
     if candidate.is_absolute():
         return candidate
     return output_root / project
+
+
+def _refresh_registry(output_root: Path, *, reason: str) -> dict[str, Any]:
+    from lib import registry
+
+    return registry.refresh_cache(output_root=output_root, reason=reason)
+
+
+def _refresh_registry_after_metadata_change(
+    output_root: Path,
+    metadata: dict[str, Any],
+    *,
+    reason: str,
+) -> dict[str, Any]:
+    if metadata.get("metadata_stamped", 0) <= 0:
+        return {}
+    return _refresh_registry(output_root, reason=reason)
 
 
 def _resolve_run_dir(project_dir: Path, run: str | None) -> Path:

@@ -7,10 +7,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+import generate
 import mcp_server
-from lib import server
+from lib import registry, server
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 
 
 def _prompt_file(tmp_path: Path) -> Path:
@@ -31,6 +33,28 @@ def _prompt_file(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return path
+
+
+def _write_png(path: Path) -> None:
+    path.write_bytes(PNG_HEADER + b"fakepngdata")
+
+
+def _write_run(directory: Path, images: list[dict]) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    for image in images:
+        _write_png(directory / image["file"])
+    (directory / "run.json").write_text(
+        json.dumps(
+            {
+                "model": "gpt-image-2",
+                "aspect_ratio": "16:9",
+                "style": "bcai",
+                "run_id": directory.name.removeprefix("run-"),
+                "images": images,
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _batch_options(output_dir: Path) -> list[str]:
@@ -97,6 +121,16 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=True,
     )
+
+
+def _isolate_registry_cache(tmp_path: Path, monkeypatch) -> Path:
+    data_dir = tmp_path / "data"
+    monkeypatch.setattr(registry, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(registry, "DATA_DIR", data_dir)
+    monkeypatch.setattr(registry, "REGISTRY_JSON", data_dir / "asset-registry.json")
+    monkeypatch.setattr(registry, "REGISTRY_CSV", data_dir / "asset-registry.csv")
+    monkeypatch.setattr(registry, "_load_extra_roots", lambda: {})
+    return data_dir
 
 
 def _assert_batch_json_contract(payload: dict, output_dir: Path) -> None:
@@ -181,6 +215,36 @@ def test_python_cli_batch_dry_run_json_contract(tmp_path: Path) -> None:
 
     assert "[DRY RUN]" in proc.stderr
     _assert_batch_json_contract(payload, output_dir)
+
+
+def test_python_cli_approve_refreshes_registry_cache(tmp_path: Path, monkeypatch, capsys) -> None:
+    data_dir = _isolate_registry_cache(tmp_path, monkeypatch)
+    output_root = tmp_path / "output"
+    run_dir = output_root / "demo" / "run-20260101-100000"
+    _write_run(run_dir, [{"name": "Hero", "prompt": "caption", "file": "hero.png"}])
+    (output_root / "ratings.json").write_text(
+        json.dumps({"demo/run-20260101-100000/hero.png": "star"}),
+        encoding="utf-8",
+    )
+
+    generate._cmd_approve(
+        [
+            "demo",
+            "--run",
+            "20260101-100000",
+            "--output-dir",
+            str(output_root),
+        ]
+    )
+
+    out = capsys.readouterr().out
+    payload = json.loads((data_dir / "asset-registry.json").read_text(encoding="utf-8"))
+    assert "Approved 1 image" in out
+    assert "Registry refreshed:" in out
+    assert len(payload) == 1
+    assert payload[0]["id"] == "demo-hero"
+    assert payload[0]["source"] == "approved"
+    assert payload[0]["path"].endswith("/demo/approved/hero.png")
 
 
 def test_node_cli_batch_dry_run_json_contract(tmp_path: Path) -> None:

@@ -16,6 +16,17 @@ from lib import portal_actions, registry
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 
 
+@pytest.fixture(autouse=True)
+def registry_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    data_dir = tmp_path / "data"
+    monkeypatch.setattr(registry, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(registry, "DATA_DIR", data_dir)
+    monkeypatch.setattr(registry, "REGISTRY_JSON", data_dir / "asset-registry.json")
+    monkeypatch.setattr(registry, "REGISTRY_CSV", data_dir / "asset-registry.csv")
+    monkeypatch.setattr(registry, "_load_extra_roots", lambda: {})
+    return data_dir
+
+
 def _write_png(path: Path) -> None:
     path.write_bytes(PNG_HEADER + b"fakepngdata")
 
@@ -63,7 +74,10 @@ def test_mutating_action_requires_explicit_confirmation(tmp_path):
         )
 
 
-def test_approve_starred_promotes_assets_and_rebuilds_viewer(tmp_path):
+def test_approve_starred_promotes_assets_rebuilds_viewer_and_refreshes_registry(
+    tmp_path,
+    registry_cache_dir,
+):
     output_root = tmp_path / "output"
     run_dir = output_root / "demo" / "run-20260101-100000"
     _write_run(
@@ -91,12 +105,15 @@ def test_approve_starred_promotes_assets_and_rebuilds_viewer(tmp_path):
     assert result["mutating"] is True
     assert result["external"] is False
     assert result["approved_count"] == 1
+    assert result["registry_refreshed"] is True
+    assert result["registry_count"] == 1
     assert (output_root / "demo" / "approved" / "hero.png").exists()
     assert (output_root / "demo" / "approved" / "viewer.html").exists()
     assert not (output_root / "demo" / "approved" / "alt.png").exists()
+    assert (registry_cache_dir / "asset-registry.json").exists()
 
 
-def test_canva_export_dry_run_reports_plan_without_writing(tmp_path):
+def test_canva_export_dry_run_reports_plan_without_writing(tmp_path, registry_cache_dir):
     output_root = tmp_path / "output"
     approved = output_root / "demo" / "approved"
     _write_run(approved, [{"name": "Hero", "prompt": "a hero", "file": "hero.png"}])
@@ -113,6 +130,7 @@ def test_canva_export_dry_run_reports_plan_without_writing(tmp_path):
     assert result["image_count"] == 1
     assert result["result_path"].endswith("canva-export.zip")
     assert not (output_root / "demo" / "canva-export").exists()
+    assert not (registry_cache_dir / "asset-registry.json").exists()
 
 
 def test_canva_export_stamps_archive_metadata_for_source_cards(tmp_path):
@@ -133,6 +151,7 @@ def test_canva_export_stamps_archive_metadata_for_source_cards(tmp_path):
     entry = metadata["items"]["demo/run-20260101-100000/hero.png"]
     assert result["metadata_state"] == "canva"
     assert result["metadata_stamped"] == 1
+    assert result["registry_refreshed"] is True
     assert entry["states"] == ["canva"]
 
 
@@ -196,6 +215,7 @@ def test_notion_export_stamps_archive_metadata_after_success(tmp_path, monkeypat
     entry = metadata["items"]["demo/run-20260101-100000/hero.png"]
     assert result["metadata_state"] == "notion"
     assert result["metadata_stamped"] == 1
+    assert result["registry_refreshed"] is True
     assert entry["states"] == ["notion"]
 
 

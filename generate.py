@@ -385,6 +385,28 @@ def _cmd_registry(argv: list[str]) -> None:
         return
 
 
+def _refresh_registry_after_mutation(output_root: Path, *, reason: str) -> dict[str, object]:
+    from lib import registry
+
+    return registry.refresh_cache(output_root=output_root, reason=reason)
+
+
+def _approval_output_root(project: str, output_dir: str | None) -> Path:
+    if output_dir:
+        return Path(output_dir).expanduser().resolve()
+    project_path = Path(project).expanduser()
+    if project_path.is_absolute():
+        return project_path.parent.resolve()
+    return (Path(__file__).parent / "output").resolve()
+
+
+def _approval_project_dir(project: str, output_root: Path) -> Path:
+    project_path = Path(project).expanduser()
+    if project_path.is_absolute():
+        return project_path.resolve()
+    return output_root / project
+
+
 def _cmd_billing(argv: list[str]) -> None:
     """Import or summarize local provider billing exports."""
     p = argparse.ArgumentParser(
@@ -673,11 +695,21 @@ def _cmd_approve(argv: list[str]) -> None:
     p.add_argument("project", help="Project name under output/ (or absolute path)")
     p.add_argument("--run", default=None,
                    help="Run id to approve from (default: latest run)")
+    p.add_argument(
+        "--output-dir",
+        default=None,
+        help="Root output directory for relative projects (default: output/ next to generate.py)",
+    )
     args = p.parse_args(argv)
 
     from lib.archive import approve as _approve
-    n = _approve(args.project, run=args.run)
-    print(f"Approved {n} image(s) → output/{args.project}/approved/")
+    output_root = _approval_output_root(args.project, args.output_dir)
+    n = _approve(args.project, run=args.run, output_root=output_root)
+    approved_dir = _approval_project_dir(args.project, output_root) / "approved"
+    print(f"Approved {n} image(s) → {approved_dir}/")
+    if n > 0:
+        refresh = _refresh_registry_after_mutation(output_root, reason="approve")
+        print(f"Registry refreshed: {refresh['registry_path']} ({refresh['registry_count']} assets)")
 
 
 def _parse_days(spec: str) -> int:
@@ -979,8 +1011,15 @@ def main() -> None:
             invocation_source="python-cli",
         )
 
+        registry_refresh = None
+        if result.success and not args.dry_run:
+            registry_refresh = _refresh_registry_after_mutation(
+                result.project_dir.parent,
+                reason="batch-generation",
+            )
+
         if args.json_output:
-            _real_stdout.write(json.dumps({
+            payload = {
                 "success": result.success,
                 "mode": "batch",
                 "dry_run": args.dry_run,
@@ -995,7 +1034,15 @@ def main() -> None:
                 "style": style or "none",
                 "global_reference_images": global_reference_images,
                 "images": result.images,
-            }, indent=2) + "\n")
+            }
+            if registry_refresh:
+                payload["registry"] = registry_refresh
+            _real_stdout.write(json.dumps(payload, indent=2) + "\n")
+        elif registry_refresh:
+            print(
+                f"Registry refreshed: {registry_refresh['registry_path']} "
+                f"({registry_refresh['registry_count']} assets)"
+            )
 
         sys.exit(0 if result.success else 1)
 
