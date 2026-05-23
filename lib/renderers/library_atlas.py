@@ -84,6 +84,77 @@ def _atlas_teaching_html(module: dict) -> str:
     return "".join(blocks)
 
 
+def _atlas_evaluation_text(asset_count: int, evaluation: dict) -> str:
+    evaluated = int(evaluation.get("evaluated_count") or 0)
+    average = evaluation.get("average_score")
+    text = f"{evaluated}/{asset_count} evaluated"
+    if average:
+        text += f" · avg {average}"
+    return text
+
+
+def _atlas_story_rail_html(program: dict) -> str:
+    steps = program.get("story_steps") if isinstance(program.get("story_steps"), list) else []
+    if not steps:
+        return """
+        <div class="atlas-teaching-block atlas-story-rail">
+          <h5>Cohort Story Mode</h5>
+          <p>No story steps configured yet.</p>
+        </div>
+        """
+
+    rows = []
+    for step in steps:
+        program_id = json.dumps(step.get("program_id") or program.get("id") or "")
+        module_id = json.dumps(step.get("module_id") or "")
+        asset_count = int(step.get("asset_count") or 0)
+        evaluation = step.get("evaluation_summary") if isinstance(step.get("evaluation_summary"), dict) else {}
+        notes = _atlas_list_html(
+            "Facilitator Notes",
+            step.get("facilitator_notes") or [],
+            "atlas-facilitator-notes",
+        )
+        prompts = _atlas_list_html(
+            "Discussion Prompts",
+            step.get("discussion_prompts") or [],
+            "atlas-discussion-prompts",
+        )
+        rows.append(
+            """
+            <div class="atlas-story-step">
+              <div>
+                <span>Step {sequence}</span>
+                <h4>{title}</h4>
+                <p>{objective}</p>
+                <div class="atlas-evaluation-summary">{assets} asset{asset_plural} · {evaluation}</div>
+                {notes}
+                {prompts}
+              </div>
+              <button type="button" onclick='focusAtlasModule({program_id}, {module_id})'{disabled}>Review</button>
+            </div>
+            """.format(
+                sequence=int(step.get("sequence") or 0),
+                title=escape(str(step.get("title") or "Untitled module")),
+                objective=escape(str(step.get("objective") or "")),
+                assets=asset_count,
+                asset_plural="" if asset_count == 1 else "s",
+                evaluation=escape(_atlas_evaluation_text(asset_count, evaluation)),
+                notes=notes,
+                prompts=prompts,
+                program_id=program_id,
+                module_id=module_id,
+                disabled=" disabled" if asset_count == 0 else "",
+            )
+        )
+
+    return """
+    <div class="atlas-teaching-block atlas-story-rail">
+      <h5>Cohort Story Mode</h5>
+      <div class="atlas-modules">{rows}</div>
+    </div>
+    """.format(rows="".join(rows))
+
+
 def _atlas_concept_graph_html(atlas: dict) -> str:
     links = []
     for program in atlas.get("programs", []):
@@ -175,11 +246,7 @@ def _atlas_panel_html(atlas: dict) -> str:
             competencies = ", ".join(module.get("competencies") or [])
             asset_count = int(module.get("asset_count") or 0)
             evaluation = module.get("evaluation_summary") if isinstance(module.get("evaluation_summary"), dict) else {}
-            evaluated = int(evaluation.get("evaluated_count") or 0)
-            average = evaluation.get("average_score")
-            evaluation_text = f"{evaluated}/{asset_count} evaluated"
-            if average:
-                evaluation_text += f" · avg {average}"
+            evaluation_text = _atlas_evaluation_text(asset_count, evaluation)
             modules.append(
                 """
                 <div class="atlas-module" data-program-id="{program_id_attr}" data-module-id="{module_id_attr}">
@@ -223,6 +290,7 @@ def _atlas_panel_html(atlas: dict) -> str:
                 </div>
               </div>
               <div class="atlas-competencies">{competencies}</div>
+              {story_rail}
               <div class="atlas-modules">{modules}</div>
             </article>
             """.format(
@@ -232,6 +300,7 @@ def _atlas_panel_html(atlas: dict) -> str:
                 asset_count=int(program.get("asset_count") or 0),
                 asset_plural="" if int(program.get("asset_count") or 0) == 1 else "s",
                 competencies=escape(competencies),
+                story_rail=_atlas_story_rail_html(program),
                 modules="".join(modules),
             )
         )

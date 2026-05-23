@@ -43,6 +43,7 @@ def _library_extra_css() -> str:
 .run-detail-close:focus-visible,
 .run-lineage-comparison button:focus-visible,
 .atlas-filter-banner button:focus-visible,
+.atlas-story-step button:focus-visible,
 .atlas-module button:focus-visible,
 .atlas-unmapped button:focus-visible,
 .curriculum-context-card button:focus-visible,
@@ -103,6 +104,7 @@ a:focus-visible {
   display: none !important;
 }
 .atlas-filter-banner button,
+.atlas-story-step button,
 .atlas-module button,
 .atlas-unmapped button {
   border: 1px solid rgba(0,200,180,0.28);
@@ -116,10 +118,12 @@ a:focus-visible {
   white-space: nowrap;
 }
 .atlas-filter-banner button:hover,
+.atlas-story-step button:hover,
 .atlas-module button:hover,
 .atlas-unmapped button:hover {
   border-color: var(--teal);
 }
+.atlas-story-step button:disabled,
 .atlas-module button:disabled,
 .atlas-unmapped button:disabled {
   cursor: default;
@@ -147,12 +151,14 @@ a:focus-visible {
 .atlas-heading h2,
 .atlas-unmapped h3,
 .atlas-program h3,
+.atlas-story-step h4,
 .atlas-module h4 {
   margin: 0;
 }
 .atlas-heading p,
 .atlas-unmapped p,
 .atlas-program p,
+.atlas-story-step p,
 .atlas-module p {
   margin: 0.25rem 0 0;
   color: var(--dim);
@@ -262,7 +268,8 @@ a:focus-visible {
   gap: 0.5rem;
   margin-top: 0.8rem;
 }
-.atlas-module {
+.atlas-module,
+.atlas-story-step {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -272,7 +279,8 @@ a:focus-visible {
   padding: 0.7rem;
   background: rgba(0,0,0,0.10);
 }
-.atlas-module span {
+.atlas-module span,
+.atlas-story-step span {
   display: block;
   color: var(--dim);
   font-size: 0.68rem;
@@ -1396,7 +1404,8 @@ a:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
   }
-  .atlas-module {
+  .atlas-module,
+  .atlas-story-step {
     flex-direction: column;
   }
   .atlas-concept-link {

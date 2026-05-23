@@ -69,6 +69,7 @@ def build_curriculum_atlas(
             "summary": str(program.get("summary") or ""),
             "competencies": _clean_list(program.get("competencies")),
             "modules": modules,
+            "story_steps": _story_steps_for(program, modules),
             "asset_indices": sorted(program_indices),
             "asset_count": len(program_indices),
             "evaluation_summary": _evaluation_summary(sorted(program_indices), records, evaluation_items),
@@ -156,6 +157,34 @@ def _evaluation_summary(asset_indices: list[int], records: list[dict], evaluatio
         "decision_counts": counts,
         "average_score": average_score,
     }
+
+
+def _story_steps_for(program: dict, modules: list[dict]) -> list[dict]:
+    program_id = str(program.get("id") or "")
+    steps = []
+    for index, module in enumerate(modules, start=1):
+        module_id = str(module.get("id") or "")
+        asset_indices = list(module.get("asset_indices") or [])
+        evaluation = module.get("evaluation_summary")
+        steps.append({
+            "sequence": index,
+            "program_id": program_id,
+            "module_id": module_id,
+            "title": str(module.get("title") or "Untitled module"),
+            "objective": str(module.get("objective") or ""),
+            "facilitator_notes": list(module.get("facilitator_notes") or []),
+            "discussion_prompts": list(module.get("discussion_prompts") or []),
+            "asset_indices": asset_indices,
+            "asset_count": len(asset_indices),
+            "evaluation_summary": dict(evaluation) if isinstance(evaluation, dict) else {},
+            "review_action": {
+                "type": "focusAtlasModule",
+                "program_id": program_id,
+                "module_id": module_id,
+                "enabled": bool(asset_indices),
+            },
+        })
+    return steps
 
 
 def _clean_criteria(value: object) -> list[dict]:

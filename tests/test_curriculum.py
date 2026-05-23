@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from lib import curriculum
+from lib.renderers.library_atlas import _atlas_panel_html
 
 
 def test_load_curriculum_atlas_normalizes_missing_file(tmp_path: Path):
@@ -87,6 +88,35 @@ def test_build_curriculum_atlas_links_modules_and_unmapped_assets():
         "relation": "depends_on",
         "target": "Accountability",
     }]
+    assert atlas["programs"][0]["story_steps"] == [{
+        "sequence": 1,
+        "program_id": "rap",
+        "module_id": "ethics",
+        "title": "Ethics",
+        "objective": "Evaluate bias and accountability.",
+        "facilitator_notes": ["Ask where a human checkpoint belongs."],
+        "discussion_prompts": ["Who is affected if the image is wrong?"],
+        "asset_indices": [0],
+        "asset_count": 1,
+        "evaluation_summary": {
+            "asset_count": 1,
+            "evaluated_count": 0,
+            "unreviewed_count": 1,
+            "decision_counts": {
+                "approve": 0,
+                "revise": 0,
+                "reject": 0,
+                "reference": 0,
+            },
+            "average_score": None,
+        },
+        "review_action": {
+            "type": "focusAtlasModule",
+            "program_id": "rap",
+            "module_id": "ethics",
+            "enabled": True,
+        },
+    }]
     assert atlas["unmapped_asset_indices"] == [1]
 
 
@@ -169,3 +199,107 @@ def test_build_curriculum_atlas_summarizes_evaluations_by_module():
         "reference": 0,
     }
     assert summary["average_score"] == 4.0
+
+
+def test_build_curriculum_atlas_derives_empty_story_steps_gracefully():
+    config = {
+        "programs": [
+            {
+                "id": "empty",
+                "modules": [],
+            },
+            {
+                "id": "rap",
+                "project_patterns": ["rap"],
+                "modules": [{
+                    "id": "draft",
+                    "title": "Draft Review",
+                    "objective": "Review the first cohort draft.",
+                    "asset_query": ["draft"],
+                    "facilitator_notes": ["Invite one improvement before critique."],
+                    "discussion_prompts": ["What would make this usable in class?"],
+                }],
+            },
+        ],
+    }
+    records = [{
+        "project": "studio",
+        "title": "Unmapped Card",
+        "prompt": "No matching curriculum terms.",
+    }]
+
+    atlas = curriculum.build_curriculum_atlas(records, config)
+
+    empty_program = atlas["programs"][0]
+    assert empty_program["story_steps"] == []
+
+    step = atlas["programs"][1]["story_steps"][0]
+    assert step["sequence"] == 1
+    assert step["module_id"] == "draft"
+    assert step["asset_indices"] == []
+    assert step["asset_count"] == 0
+    assert step["evaluation_summary"]["asset_count"] == 0
+    assert step["review_action"] == {
+        "type": "focusAtlasModule",
+        "program_id": "rap",
+        "module_id": "draft",
+        "enabled": False,
+    }
+    assert atlas["unmapped_asset_indices"] == [0]
+
+
+def test_atlas_panel_renders_story_mode_review_actions():
+    atlas = {
+        "summary": {
+            "programs": 1,
+            "modules": 2,
+            "linked_assets": 1,
+            "unmapped_assets": 0,
+        },
+        "programs": [{
+            "id": "rap",
+            "title": "RAP",
+            "summary": "Responsible AI cohort path.",
+            "competencies": [],
+            "asset_count": 1,
+            "modules": [],
+            "story_steps": [
+                {
+                    "sequence": 1,
+                    "program_id": "rap",
+                    "module_id": "intro",
+                    "title": "Shared Language",
+                    "objective": "Build a common language for critique.",
+                    "facilitator_notes": ["Invite a quick visual read."],
+                    "discussion_prompts": ["What does the image make easier to explain?"],
+                    "asset_indices": [0],
+                    "asset_count": 1,
+                    "evaluation_summary": {"evaluated_count": 0, "average_score": None},
+                },
+                {
+                    "sequence": 2,
+                    "program_id": "rap",
+                    "module_id": "empty",
+                    "title": "Empty Module",
+                    "objective": "Hold the place gracefully.",
+                    "asset_indices": [],
+                    "asset_count": 0,
+                    "evaluation_summary": {"evaluated_count": 0, "average_score": None},
+                },
+            ],
+        }],
+        "unmapped_asset_indices": [],
+    }
+
+    html = _atlas_panel_html(atlas)
+
+    assert "Cohort Story Mode" in html
+    assert "Step 1" in html
+    assert "Shared Language" in html
+    assert "Build a common language for critique." in html
+    assert "Invite a quick visual read." in html
+    assert "What does the image make easier to explain?" in html
+    assert "1 asset · 0/1 evaluated" in html
+    assert 'focusAtlasModule("rap", "intro")' in html
+    assert 'focusAtlasModule("rap", "empty")\' disabled' in html
+    assert "Matching asset indices" not in html
