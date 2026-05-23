@@ -183,8 +183,8 @@ def _prompt_name_from_text(prompt: str) -> str:
     return compact[:60] if compact else "Prompt Studio"
 
 
-def _result_payload(result, *, mode: str, project: str) -> dict:
-    return {
+def _result_payload(result, *, mode: str, project: str, registry_refresh: dict | None = None) -> dict:
+    payload = {
         "ok": True,
         "all_ok": result.success,
         "mode": mode,
@@ -200,6 +200,17 @@ def _result_payload(result, *, mode: str, project: str) -> dict:
         "library_url": "/",
         "images": result.images,
     }
+    if registry_refresh:
+        payload["registry"] = registry_refresh
+    return payload
+
+
+def _refresh_registry_after_generation(result, *, output_root: Path, dry_run: bool) -> dict | None:
+    if dry_run or not result.success:
+        return None
+    from lib import registry
+
+    return registry.refresh_cache(output_root=output_root, reason="portal-generation")
 
 
 def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
@@ -253,7 +264,8 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
             prompt_file="",
             invocation_source="portal",
         )
-        return _result_payload(result, mode=mode, project=project)
+        refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
+        return _result_payload(result, mode=mode, project=project, registry_refresh=refresh)
 
     prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
     prompts = parse_image_prompts_md(prompt_file)
@@ -282,7 +294,8 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         prompt_file=str(prompt_file),
         invocation_source="portal",
     )
-    return _result_payload(result, mode=mode, project=project)
+    refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
+    return _result_payload(result, mode=mode, project=project, registry_refresh=refresh)
 
 
 class _RafikiHandler(BaseHTTPRequestHandler):

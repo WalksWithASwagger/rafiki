@@ -8,8 +8,9 @@ as a complete local archive. Pulls metadata from run.json (canonical) and
 merges optional title/caption/tags from a sibling viewer-data.json when
 present.
 
-The on-disk registry is a local cache (gitignored) — regenerate with
-`generate.py registry index` after a batch run or curation.
+The on-disk registry is a local cache (gitignored). Successful generation and
+curation workflows refresh the curated cache automatically; rebuild manually
+with `generate.py registry index --all-runs` when you need every run.
 """
 
 from __future__ import annotations
@@ -407,6 +408,22 @@ def index(output_root: Path | None = None, *, scope: str = "curated") -> list[As
         encoding="utf-8",
     )
     return all_entries
+
+
+def refresh_cache(
+    output_root: Path | None = None,
+    *,
+    scope: str = "curated",
+    reason: str = "",
+) -> dict[str, object]:
+    entries = index(output_root=output_root, scope=scope)
+    return {
+        "registry_refreshed": True,
+        "registry_count": len(entries),
+        "registry_scope": scope,
+        "registry_reason": reason,
+        "registry_path": str(REGISTRY_JSON.resolve(strict=False)),
+    }
 
 
 def _load_registry() -> list[AssetEntry]:

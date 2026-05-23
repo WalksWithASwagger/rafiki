@@ -113,6 +113,10 @@ when Rafiki can map the exported source back to run images. Static deploys map
 their run manifest, and project-root viewers through every `run-*` manifest in
 that project. Custom viewer directories that do not map to local run images
 return an explicit `unmapped` reason instead of silently stamping nothing.
+When a portal action changes archive metadata, Rafiki also refreshes the
+curated `data/asset-registry.json` cache so search and registry exports reflect
+the new approval/export state without a manual re-index. Dry-runs and failed
+actions leave the registry cache untouched.
 
 ## Prompt And Run Comparison
 

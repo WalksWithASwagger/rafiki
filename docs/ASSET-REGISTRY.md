@@ -51,11 +51,28 @@ generate.py registry export --format csv    # → data/asset-registry.csv
 generate.py registry export --format json   # → data/asset-registry.json
 ```
 
-## When to re-index
+## Automatic vs manual refresh
 
-- After a batch run produces a new `run-*` dir
-- After moving/curating images into a project's `approved/` dir
-- Before exporting to Notion / Canva / a spreadsheet
+The curated registry cache refreshes automatically after successful non-dry-run
+local mutations that change the archive surface:
+
+- Python CLI batch generation and portal Prompt Studio generation
+- `generate.py approve` when it promotes at least one starred asset
+- Portal curation/export actions that stamp approval, Canva, Notion, or deploy
+  state back into `output/archive-metadata.json`
+- Portal **Registry Export**, which refreshes before writing CSV or JSON
+
+Dry-runs, failed generation runs, failed export actions, and no-op approvals do
+not mutate `data/asset-registry.json`.
+
+Run a manual refresh when files were changed outside Rafiki, when extra output
+roots changed, or when you want the complete archive instead of the curated
+approved/latest-run view:
+
+```bash
+generate.py registry index
+generate.py registry index --all-runs
+```
 
 ## Library viewer
 
