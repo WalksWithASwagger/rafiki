@@ -67,10 +67,12 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │                                #   pr_traceability, linear_sync, ensure_labels,
 │                                #   pr_review, repo_doctor, status_report,
 │                                #   provider_adapter, common)
-├── styles/                      # styles.yaml + per-style markdown guides:
+├── styles/                      # styles.yaml + per-style markdown guides
+│                                #   (run `npx rafiki --list-styles` for live truth):
 │                                #   kk, hopecode, bcai, futureproof-mythic,
 │                                #   bcai-ecosystem, upgrade, zine, gni, femme,
-│                                #   indigenomics, cmvan
+│                                #   indigenomics, cmvan, kk-blocks, kk-cmyk,
+│                                #   kk-glitch, kk-acid
 ├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/,
 │                                #   kk-kb/, kb-ecosystem-mirror/,
 │                                #   creative-mornings-vancouver-may-2026/, etc.

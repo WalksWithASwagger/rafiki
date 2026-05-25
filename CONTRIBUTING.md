@@ -32,6 +32,20 @@ python generate.py --help
 python generate.py serve --open
 ```
 
+## Deterministic Local Verification
+
+The committed test and portal smoke gates should pass from a stateful checkout:
+
+```bash
+npm test
+npm run e2e:portal
+```
+
+For deterministic tooling contexts outside the committed smoke script, set
+`RAFIKI_DISABLE_EXTRA_OUTPUTS=1` to ignore
+`config/extra-outputs.json` and `config/extra-outputs.local.json` for that
+process. Normal runtime commands include configured extra outputs by default.
+
 ## Contribution Guidelines
 
 - Do not commit secrets, tokens, or private local paths.
@@ -49,4 +63,3 @@ Before merging public-release work:
 - `python3 -m pytest -q`
 - `npm pack --dry-run`
 - sanity-check `README.md`, `SECURITY.md`, and `docs/SCOPE.md`
-

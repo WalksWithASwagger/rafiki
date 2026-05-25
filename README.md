@@ -249,7 +249,7 @@ Details: [docs/PROMPT-MEDIA-POLICY.md](docs/PROMPT-MEDIA-POLICY.md)
 Built-in styles are configured in `styles/styles.yaml` and can be composed
 with `+`.
 
-Examples:
+Examples (not exhaustive):
 
 - `kk`
 - `hopecode`

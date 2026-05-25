@@ -320,8 +320,8 @@ def test_viewer_rebuild_wrapper_reports_missing_project_error(tmp_path):
     assert "Project not found" in payload["error"]
 
 
-def test_library_rebuild_wrapper_dry_run_reports_library_path(tmp_path):
-    output_root = tmp_path / "output"
+def test_library_rebuild_wrapper_dry_run_reports_library_path(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
     run_dir = output_root / "library-project" / "run-20260101-100000"
     _write_run(
         run_dir,
