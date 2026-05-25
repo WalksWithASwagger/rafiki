@@ -209,6 +209,10 @@ CSS, absence of `transition: all`, and a clean browser console. The default
 smoke does not save or analyze screenshots, so it stays fast and avoids
 accidental generated artifacts.
 
+The smoke runs its fixture subprocesses with `RAFIKI_DISABLE_EXTRA_OUTPUTS=1`,
+so machine-local `config/extra-outputs.local.json` mappings do not affect the
+strict archive-count assertions.
+
 Use the explicit visual baseline modes only when reviewing portal layout drift.
 They capture desktop Review, desktop Teach, and mobile Review screenshots and
 record coarse metrics: dimensions, luminance, contrast distribution, color

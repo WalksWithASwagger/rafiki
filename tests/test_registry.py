@@ -56,6 +56,23 @@ def isolated_registry(tmp_path, monkeypatch):
     return tmp_path
 
 
+def test_disable_extra_outputs_env_ignores_config(isolated_registry, monkeypatch):
+    config_dir = isolated_registry / "config"
+    config_dir.mkdir()
+    external = isolated_registry / "external"
+    external.mkdir()
+    (config_dir / "extra-outputs.json").write_text(
+        json.dumps({"external": str(external)}),
+        encoding="utf-8",
+    )
+
+    assert extra_outputs.load_extra_outputs() == {"external": external}
+
+    monkeypatch.setenv("RAFIKI_DISABLE_EXTRA_OUTPUTS", "1")
+
+    assert extra_outputs.load_extra_outputs() == {}
+
+
 def _write_run_json(directory: Path, images: list[dict], **meta) -> None:
     payload = {
         "model": meta.get("model", "gpt-image-2"),

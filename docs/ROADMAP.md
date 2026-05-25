@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-05-24
 
 Latest audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
@@ -39,7 +39,7 @@ image generation platform.
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 231 collected Python tests across product and agentic suites, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 251 collected Python tests in this checkout as of 2026-05-24, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes
 
@@ -170,11 +170,11 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 
 Before declaring a roadmap phase done:
 
-- `npm test`
+- `npm test` (see `CONTRIBUTING.md` for the deterministic-local contract)
 - `npm run pack:check`
 - `npm run doctor`
 - `npm run smoke:dry-run`
-- `npm run e2e:portal`
+- `npm run e2e:portal` (see `docs/PORTAL-COMMAND-CENTER.md` for the extra-outputs isolation contract)
 - `python generate.py archive-health --json`
 - `python generate.py archive-health --cleanup-report`
 - Docs checked for stale "known gap" claims

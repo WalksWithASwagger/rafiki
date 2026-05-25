@@ -58,7 +58,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 
 ## 3. Style reference
 
-Eleven styles are registered in `styles/styles.yaml` and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`, `cmvan`.
+Fifteen styles are registered in `styles/styles.yaml` as of 2026-05-24 and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`, `cmvan`, `kk-blocks`, `kk-cmyk`, `kk-glitch`, `kk-acid`.
 
 ### kk
 
@@ -423,9 +423,9 @@ python generate.py -f prompts/bcai/ecosystem-diagrams.md \
 # List all registered styles
 python generate.py --list-styles
 
-# GNI cosmic — proxy with kk until gni style is registered
+# GNI cosmic
 python generate.py -p "Minimalist Venn diagram ML NLP GenAI, deep blue space gradient..." \
-  --style kk -m flash
+  --style gni -m flash
 ```
 
 ---

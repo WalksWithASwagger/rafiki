@@ -8,6 +8,7 @@ Local mappings override shared ones when the same project key appears in both.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -21,6 +22,9 @@ def extra_outputs_config_paths() -> list[Path]:
 
 
 def load_extra_outputs() -> dict[str, Path]:
+    if os.environ.get("RAFIKI_DISABLE_EXTRA_OUTPUTS") == "1":
+        return {}
+
     mappings: dict[str, Path] = {}
     for config_path in extra_outputs_config_paths():
         if not config_path.exists():

@@ -415,6 +415,14 @@ async function main() {
   const outputRoot = path.join(tmpRoot, 'output');
   const project = 'e2e-showpiece-smoke';
   const projectDir = path.join(outputRoot, project);
+  const smokeEnv = {
+    ...process.env,
+    RAFIKI_DISABLE_EXTRA_OUTPUTS: '1',
+    PYTHONUNBUFFERED: '1',
+    GOOGLE_API_KEY: '',
+    GEMINI_API_KEY: '',
+    OPENAI_API_KEY: '',
+  };
   const errors = [];
   let server = null;
   let browser = null;
@@ -435,7 +443,7 @@ async function main() {
       'square',
       '--dry-run',
       '--json',
-    ]);
+    ], { env: smokeEnv });
 
     const runDir = fs.readdirSync(projectDir)
       .filter((name) => name.startsWith('run-'))
@@ -452,20 +460,14 @@ async function main() {
       return writeFixtureImage(target, index, image.aspect_ratio || manifest.aspect_ratio || '1:1');
     }));
 
-    run(python, ['generate.py', 'library', '--output-dir', outputRoot]);
+    run(python, ['generate.py', 'library', '--output-dir', outputRoot], { env: smokeEnv });
 
     const port = await getFreePort();
     const url = `http://127.0.0.1:${port}/`;
     server = spawn(python, ['generate.py', 'serve', '--port', String(port), '--output-dir', outputRoot], {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: {
-        ...process.env,
-        PYTHONUNBUFFERED: '1',
-        GOOGLE_API_KEY: '',
-        GEMINI_API_KEY: '',
-        OPENAI_API_KEY: '',
-      },
+      env: smokeEnv,
     });
 
     let serverOutput = '';
