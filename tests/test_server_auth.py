@@ -2,91 +2,17 @@
 
 from __future__ import annotations
 
-import base64
 import inspect
 import json
 import sys
-import threading
-import urllib.error
-import urllib.request
-from http.server import HTTPServer
 from pathlib import Path
-
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import server as server_module
-from lib import usage as usage_module
 from lib.server import _RafikiHandler
-
-
-def _make_handler_class(tmp_path: Path) -> type:
-    """Build a concrete handler class with the class attrs the real server
-    sets in `serve()`."""
-    output_root = tmp_path / "output"
-    output_root.mkdir(exist_ok=True)
-    ratings_file = output_root / "ratings.json"
-
-    class Handler(_RafikiHandler):
-        pass
-
-    Handler.output_root = output_root
-    Handler.ratings_file = ratings_file
-    Handler.feedback_file = output_root / "feedback.json"
-    Handler.evaluations_file = output_root / "evaluations.json"
-    Handler.archive_metadata_file = output_root / "archive-metadata.json"
-    Handler.billing_imports_file = tmp_path / "billing-imports.json"
-    Handler.extra_roots = {}
-    return Handler
-
-
-@pytest.fixture
-def server(tmp_path, monkeypatch):
-    """Start a real HTTPServer on a random port in a thread; tear down after."""
-    # Default: clear creds. Individual tests can re-set with monkeypatch.
-    monkeypatch.delenv("PORTAL_USERNAME", raising=False)
-    monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
-    monkeypatch.setattr(usage_module, "USAGE_LOG_PATH", tmp_path / "usage-log.json")
-
-    Handler = _make_handler_class(tmp_path)
-    try:
-        httpd = HTTPServer(("127.0.0.1", 0), Handler)
-    except PermissionError:
-        pytest.skip("socket binding not permitted in this environment")
-    port = httpd.server_address[1]
-    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{port}"
-    finally:
-        httpd.shutdown()
-        httpd.server_close()
-        thread.join(timeout=2)
-
-
-def _get(url: str, auth: tuple[str, str] | None = None):
-    req = urllib.request.Request(url)
-    if auth is not None:
-        token = base64.b64encode(f"{auth[0]}:{auth[1]}".encode()).decode()
-        req.add_header("Authorization", f"Basic {token}")
-    try:
-        return urllib.request.urlopen(req, timeout=5)
-    except urllib.error.HTTPError as e:
-        return e
-
-
-def _post_json(url: str, payload: dict):
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        return urllib.request.urlopen(req, timeout=5)
-    except urllib.error.HTTPError as e:
-        return e
+from tests.server_harness import http_get as _get
+from tests.server_harness import http_post_json as _post_json
 
 
 def test_no_credentials_serves_freely(server, monkeypatch):
