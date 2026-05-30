@@ -90,6 +90,23 @@ A single high-detail scene: three torn journal pages (different hands, different
 
 **Best for:** Keynote or article art, Theory of Change / narrative about alignment without coordination
 
+### ED + AI / AI Education Meetup Logo Sprint
+
+Prompt packs for the May 2026 `ED + AI` identity exploration under the BC + AI
+ecosystem. The full sprint writeup is in
+[`docs/ED-AI-LOGO-SPRINT.md`](../../docs/ED-AI-LOGO-SPRINT.md).
+
+| File | Direction |
+|------|-----------|
+| [`ed-ai-logo-variations.md`](./ed-ai-logo-variations.md) | Original parent/child BC + AI logo lockups |
+| [`ed-ai-logo-brainstorm-round-2.md`](./ed-ai-logo-brainstorm-round-2.md) | Broad education + BC + AI logo brainstorm |
+| [`ed-ai-logo-pedagogy-underground-r3.md`](./ed-ai-logo-pedagogy-underground-r3.md) | Pedagogy Underground: care, commons, consent, repair |
+| [`ed-ai-logo-afrofuturist-geometry-r4.md`](./ed-ai-logo-afrofuturist-geometry-r4.md) | Afrofuturist geometry and repeating pattern exploration |
+| [`ed-ai-logo-art-director-rebrief-r5.md`](./ed-ai-logo-art-director-rebrief-r5.md) | Anti-corporate art-director rebrief |
+| [`ed-ai-logo-aurora-biolum-r6.md`](./ed-ai-logo-aurora-biolum-r6.md) | Aurora, bioluminescence, and parent-brand lockups |
+| [`ed-ai-logo-education-remix-r7.md`](./ed-ai-logo-education-remix-r7.md) | Remix from user-starred taste references |
+| [`ed-ai-logo-futureproof-mythic-r8.md`](./ed-ai-logo-futureproof-mythic-r8.md) | Futureproof-mythic education concepts |
+
 ## Writing BC AI Prompts
 
 When writing prompts for BC AI style, focus on:
