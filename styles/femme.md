@@ -2,7 +2,9 @@
 
 ## Overview
 
-The `femme` style is the abstract body-compute aesthetic developed for the Mind, AI & Consciousness (MAC) subgroup of BC+AI. It renders biological processes — hormonal cycles, cellular membranes, neural routing, ancestry — as computational metaphors. Quiet, intimate, embodied intelligence. Never representational, never clinical.
+The `femme` style is the abstract body-compute *art direction* within the Mind, AI & Consciousness (MAC) subgroup of BC+AI. It renders biological processes — hormonal cycles, cellular membranes, neural routing, ancestry — as computational metaphors. Quiet, intimate, embodied intelligence. Never representational, never clinical.
+
+**`femme` vs `mac`:** `femme` is the body-compute *theme*; `mac` (see `mac.md`) is the broader MAC *brand-identity tile system* (wordmark + colored topic kicker on near-black generative art). Use `mac` for episode/announcement tiles, `femme` for embodied themes, and compose `mac+femme` to frame body-compute art inside MAC tile branding.
 
 **Community use note:** These prompts use abstract body metaphors. Review outputs before publishing in community contexts. The avoid-clauses in the prompts below are load-bearing — enforce them. Do not use literal clinical, anatomical, or objectifying framing in public assets without community sign-off from MAC.
 

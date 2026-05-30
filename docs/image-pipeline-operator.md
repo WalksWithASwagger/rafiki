@@ -17,6 +17,8 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | **WAIFF punk zine slide deck** — BWR, xerox grain, ransom-note type; needs reference image | Rafiki CLI (single-prompt; file needs reformat for batch — see §5) | `--no-style` (prompts carry zine aesthetic) or `--style zine` | `pro` | `python generate.py -p "Chaotic punk zine cover..." --no-style -m pro --reference-image prompts/kk-kb/reference-collage-v2.png` |
 | **GNI cosmic editorial diagrams** — space-blue, orbital, orbit maps | Rafiki CLI | `--style gni` | `flash` / `pro` | `python generate.py -p "AI journalism toolkit — four orbiting quadrants: GenAI, NLP, ML, Predictive — radial nodes on deep space-blue" --style gni -m pro` |
 | **GNI sovereignty diagrams (gpt-image-1)** — 44-line .txt, HOPECODE prefix | gpt-image-1 Streamlit UI | HOPECODE prefix file | `gpt-image-1` | `cd tools/gpt-image-batch-ui && streamlit run diagram_gen_ui.py` (see §4) |
+| **MAC identity tiles** — dark consciousness-as-data episode, deepdive, and announcement graphics | Rafiki CLI | `--style mac` | `flash` / `gpt` | `python generate.py -f prompts/mac/launch-series.md -d output/mac-launch --style mac -m flash` — use background-only outputs when exact typography matters |
+| **MAC workshop tiles** — tactile riso/screenprint studio-session graphics | Rafiki CLI | `--style mac-workshop` | `pro` / `gpt` | `python generate.py -f prompts/mac/minimal-viable-consciousness.md -d output/mac-workshop-001 --style mac-workshop -m pro -r 1K` |
 | **MAC femme / body-compute** — abstract body-compute metaphors | Rafiki CLI | `--style femme` | `flash` | `python generate.py -p "Two braiding networks, warm and cool, selective membrane boundary..." --style femme -m flash` — enforce avoid-clauses; MAC community review before publishing |
 | **Indigenomics diagrams** — sovereignty-forward, ancestral wisdom + tech | Rafiki CLI | `--style indigenomics` | `flash` / `pro` | `python generate.py -p "Circular reciprocity flow diagram, braided organic-tech, navy and cedar and cyan..." --style indigenomics -m flash` — abstract motifs only; nation-specific symbols need governance review |
 | **Upgrade AI brand** — transformation/empowerment imagery | Rafiki CLI | `--style upgrade` | `flash` | `python generate.py -f prompts/upgrade/training-marketing.md -d output/upgrade --style upgrade` |
@@ -36,6 +38,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | `prompts/bcai/rap-marketing.md` | BC+AI ecosystem — RAP certification | `## N.` sections + `**Prompt:**` blockquotes | Yes | RAP brand colors embedded; use `--no-style` |
 | `prompts/bcai/rap-logo-variations.md` | BC+AI ecosystem — RAP logos | `## N.` sections + `**Prompt:**` blockquotes | Yes | Logo variants; use `--no-style` |
 | `prompts/bcai/rap-martin-revisions.md` | BC+AI ecosystem — RAP lecture revisions | `## N.` sections + `**Prompt:**` blockquotes | Yes | Martin revision pass for RAP Weeks 1-3; optional local reference via `--reference-images` |
+| `prompts/bcai/rap-youtube-thumbnails-2026-05-25.md` | BC+AI ecosystem — RAP YouTube thumbnails | `## N.` sections + `**Prompt:**` blockquotes | Yes | Source prompts for the committed thumbnail refresh under `assets/rap-youtube-thumbnails/`. |
 | `prompts/bcai/ecosystem-diagrams.md` | BC+AI ecosystem assets | `## N.` sections + `**Prompt:**` blockquotes | Yes | Mycelial network ecosystem diagrams |
 | `prompts/bcai/bcai-hopecode-visual-prompts.md` | BC+AI / HOPECODE community | `## N.` sections + `**Prompt:**` blockquotes | Yes | Also contains HOPECODE style preface block for single-prompt overrides |
 | `prompts/bcai/context-creator-field-journals.md` | BC+AI ecosystem | `## N.` sections + `**Prompt:**` blockquotes | Yes | Field journal visual series |
@@ -47,6 +50,10 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | `prompts/kk-kb/websummit-vancouver-kk-zine-image-prompts.md` | KK zine / resistance | `## N.` sections + `**Prompt:**` blockquotes | Yes | Web Summit Vancouver adjacent; HOPECODE/zine tone |
 | `prompts/kk-kb/ai-diagram-pipeline-teaching-kit.md` | Teaching / educational | `## N.` sections + `**Prompt:**` blockquotes | Yes | Pipeline diagrams for AI teaching contexts |
 | `prompts/kk-kb/custom-gpt-diagram-gardener-and-weaver.md` | BC+AI / HOPECODE | `## N.` sections + `**Prompt:**` blockquotes | Yes | Custom GPT workflow diagrams |
+| `prompts/mac/launch-series.md` | MAC identity launch tiles | `## N.` sections + `**Prompt:**` blockquotes | Yes | Background-only and text-baked square/story/wide variants for six invented MAC episode tiles. |
+| `prompts/mac/launch-series-text-flash.md` | MAC identity text-baked fallback | `## N.` sections + `**Prompt:**` blockquotes | Yes | Gemini flash fallback prompts when OpenAI billing or availability blocks `gpt-image-2`. |
+| `prompts/mac/minimal-viable-consciousness.md` | MAC Workshop 001 | `## N.` sections + `**Prompt:**` blockquotes | Yes | Workshop graphics for Minimum Viable Consciousness / adversarial-filter materials. |
+| `prompts/vancouver-ai/mission-30/*.md` | Vancouver AI Mission 30 badge iteration | `## N.` sections + `**Prompt:**` blockquotes | Yes | Print-clean, orca-shuttle, and recovery passes with local reference images under `reference/`. |
 | `prompts/kk-kb/femme-prompts-mac-image-repository.md` | MAC femme / body-compute | `### Subhead` (not `## N.`) — not parseable | No | Polished + short-variant format; paste prompts individually. **Review avoid-clauses before generating.** |
 | `prompts/kk-kb/gni-cosmic-diagram-style-guide.md` | GNI cosmic editorial | Style guide / reference snippets | No | Style reference, not a batch file; extract prompts individually |
 | `prompts/kk-kb/indigenomics-diagram-style-guide.md` | Indigenomics diagrams | Style guide reference | No | Style/context reference only |
@@ -58,7 +65,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 
 ## 3. Style reference
 
-Fifteen styles are registered in `styles/styles.yaml` as of 2026-05-24 and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `indigenomics`, `cmvan`, `kk-blocks`, `kk-cmyk`, `kk-glitch`, `kk-acid`.
+Seventeen styles are registered in `styles/styles.yaml` as of 2026-05-30 and available via `--list-styles`: `kk`, `hopecode`, `bcai`, `futureproof-mythic`, `bcai-ecosystem`, `upgrade`, `zine`, `gni`, `femme`, `mac`, `mac-workshop`, `indigenomics`, `cmvan`, `kk-blocks`, `kk-cmyk`, `kk-glitch`, `kk-acid`.
 
 ### kk
 
@@ -212,6 +219,42 @@ veils, capillary-like filaments reading as negotiation.
 **Composition:** Use alone. Does not compose cleanly with `zine` or `gni` — distinct tonal register.
 
 **Source:** `prompts/kk-kb/femme-prompts-mac-image-repository.md`, `styles/femme.md`
+
+---
+
+### mac
+
+**Description:** Mind, AI & Consciousness brand-identity tile system. Near-black scientific-sublime data art with one abstract focal form, clean negative space, MAC wordmark/title/kicker layout, and no literal glowing brains, robots, or circuit-board cliches.
+
+**When to use:** MAC episode tiles, deepdive covers, announcements, story covers, event headers, and slide backgrounds when the asset needs the outer MAC identity system.
+
+**Example prompt fragment:**
+```
+Dense particle field forming a luminous wave across darkness, emerald accent.
+No text, no wordmark, leave clean negative space top-left and bottom-left.
+```
+
+**Composition:** Prefer background-only generation plus template text when series consistency matters. Use `mac+femme` when body-compute art needs MAC tile framing.
+
+**Source:** `styles/mac.md`, `styles/refs/mac/`, `prompts/mac/launch-series.md`
+
+---
+
+### mac-workshop
+
+**Description:** Workshop-series variant of `mac`: the same dark generative-art DNA rendered as tactile risograph/screenprint, with heavy grain, coarse halftone, warm two-ink duotone, and slight overprint misregistration.
+
+**When to use:** Hands-on MAC workshop announcements, Luma/social tiles, slide headers, and field-notebook-style materials.
+
+**Example prompt fragment:**
+```
+Risograph art-print on deep near-black ground, warm orange/coral duotone,
+central adversarial filter gate, generous negative space, no glowing brains.
+```
+
+**Composition:** Keep the warm two-ink constraint intact. Use this when the material should feel like a studio-session print rather than polished digital identity art.
+
+**Source:** `styles/mac.md`, `prompts/mac/minimal-viable-consciousness.md`
 
 ---
 
