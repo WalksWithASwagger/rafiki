@@ -1,8 +1,8 @@
 # RAP YouTube Thumbnails — Week 1 + Playlist Refresh
 
 Reference assets for final compositing:
-- BC AI logo: `/Users/kk/Code/RAP/web/public/brand/bcai/bcai-logo-official.png`
-- RAP badge: `/Users/kk/Code/RAP/web/public/images/rap-program-badge.png`
+- BC AI logo: canonical BC AI brand asset from the RAP project.
+- RAP badge: canonical RAP program badge from the RAP project.
 
 Design intent: generate premium background plates only. Final text, BC AI logo, and RAP badge are composited afterward from canonical assets so the published thumbnails do not contain model-redrawn logos, fake shields, or garbled text.
 

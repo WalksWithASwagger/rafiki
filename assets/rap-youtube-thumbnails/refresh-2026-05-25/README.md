@@ -20,4 +20,4 @@ The background plates were generated from `prompts/bcai/rap-youtube-thumbnails-2
 - Nano Pro 1K: `gemini-3-pro-image-preview --resolution 1K`
 - OpenAI image gen 2: `gpt-image-2`
 
-The final thumbnails use the canonical BC AI logo and RAP program badge from `/Users/kk/Code/RAP`. Logos and text were composited after generation to avoid model-redrawn marks, duplicate shields, or garbled typography.
+The final thumbnails use the canonical BC AI logo and RAP program badge from the RAP project. Logos and text were composited after generation to avoid model-redrawn marks, duplicate shields, or garbled typography.
