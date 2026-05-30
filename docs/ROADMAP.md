@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-24
+Last reviewed: 2026-05-30
 
 Latest audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
@@ -38,7 +38,7 @@ image generation platform.
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
-| Prompt collections | `prompts/`, `styles/`, `assets/kb-import/` | Rich working examples and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
+| Prompt collections | `prompts/`, `styles/`, `assets/` | Rich working examples, private campaign assets, style references, and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 251 collected Python tests in this checkout as of 2026-05-24, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes
@@ -159,7 +159,9 @@ Goal: share review artifacts without turning Rafiki into a hosted product.
 | Area | Current state | Next step |
 |---|---|---|
 | Curriculum Atlas | `config/curriculum-atlas.json` maps programs, modules, objectives, competencies, facilitator notes, discussion prompts, critique criteria, concept links, and asset-matching terms into the portal's Teach mode; the portal now renders a first concept graph from `concept_links`, links Run Detail evaluation context to matched modules, summarizes module evaluation decisions/scores, and exposes a per-program Cohort Story Mode rail. | Validate the story rail in real review sessions, then add presentation/export controls and richer learner-journey metadata. |
-| BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, untracked Martin revisions. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
+| BC + AI / RAP | Rich prompt files, RAP viewer data, marketing/logos, YouTube thumbnail assets, and RAP section-cover assets. | Decide which pieces are public examples, then refresh viewer data and approved outputs. |
+| MAC | `mac`, `mac-workshop`, and `femme` styles cover identity tiles, workshop riso graphics, and body-compute art directions. | Visually review the new prompt/reference packs with MAC stakeholders before publishing event or episode assets. |
+| Vancouver AI | Mission 30 badge prompts and reference images exist for print-clean, orca-shuttle, and recovery iterations. | Pick a winning badge direction, then generate/export the final print-ready set. |
 | KK personal brand | Prompt files and style assets exist. | Add a README/runbook for the highest-value current series. |
 | The Upgrade | Newsletter, social, podcast prompt files exist. | Pick one repeatable series and run it through generation -> review -> approval -> export. |
 | KB ecosystem mirror | Large mirrored prompt tree exists. | Keep mirror policy current and add a freshness check or sync summary. |
