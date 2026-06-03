@@ -43,6 +43,7 @@
     "config/pricing.json",
     "config/extra-outputs.json",
     "config/extra-outputs.json.example",
+    "config/media-roots.json.example",
     "config/scheduled-regen.json.example",
     "examples/quickstart-image-prompts.md",
     ".env.example",

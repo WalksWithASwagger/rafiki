@@ -770,6 +770,270 @@ def _cmd_serve(argv: list[str]) -> None:
     serve(output_root=output_root, port=args.port, open_browser=args.open, public=args.public)
 
 
+def _cmd_media(argv: list[str]) -> None:
+    """Multimedia registry — index, search, export across configured roots."""
+    p = argparse.ArgumentParser(
+        prog="generate.py media",
+        description="Local multimedia registry for images, videos, audio, subjects, styles, and jobs.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+
+    sp_index = sub.add_parser("index", help="Rebuild data/media-registry.json")
+    sp_index.add_argument("--root", default="", help="Index one explicit root instead of configured roots")
+    sp_index.add_argument("--key", default="media-root", help="Root key when --root is used")
+    sp_index.add_argument("--importer", default="generic", choices=["generic", "alex-samuel"])
+    sp_index.add_argument("--dry-run", action="store_true", help="Print summary without writing the cache")
+    sp_index.add_argument("--json", action="store_true", dest="json_output")
+
+    sp_search = sub.add_parser("search", help="Search media registry")
+    sp_search.add_argument("query", nargs="?", default="", help="Substring to match")
+    sp_search.add_argument("--kind", default="", help="Filter by kind: image, video, audio, dataset, style")
+    sp_search.add_argument("--collection", default="", help="Filter by collection")
+    sp_search.add_argument("--json", action="store_true", dest="json_output")
+
+    sp_export = sub.add_parser("export", help="Export media registry to CSV or JSON")
+    sp_export.add_argument("--format", choices=["csv", "json"], default="csv")
+
+    args = p.parse_args(argv)
+    from lib import media_registry
+    from lib.media_roots import MediaRoot
+
+    if args.action == "index":
+        roots = None
+        if args.root:
+            roots = {
+                args.key: MediaRoot(
+                    key=args.key,
+                    path=Path(args.root).expanduser(),
+                    importer=args.importer,
+                )
+            }
+        payload = media_registry.index(roots=roots, write=not args.dry_run)
+        if args.json_output:
+            print(json.dumps(payload, indent=2))
+            return
+        summary = payload["summary"]
+        verb = "Would index" if args.dry_run else "Indexed"
+        print(
+            f"{verb} {summary['entries']} media entrie(s), "
+            f"{summary['subjects']} subject(s), {summary['styles']} style(s), "
+            f"{summary['video_edits']} video edit(s)."
+        )
+        if not args.dry_run:
+            print(f"Registry: {media_registry.MEDIA_REGISTRY_JSON}")
+        for warning in payload.get("warnings", []):
+            print(f"Warning: {warning}", file=sys.stderr)
+        return
+
+    if args.action == "search":
+        results = media_registry.search(args.query, kind=args.kind, collection=args.collection)
+        if args.json_output:
+            print(json.dumps([entry.to_dict() for entry in results], indent=2))
+            return
+        if not results:
+            print(f"No media matches for {args.query!r}.")
+            return
+        print(f"{len(results)} media match(es):")
+        for entry in results[:80]:
+            print(f"  [{entry.kind}/{entry.collection}] {entry.title}")
+            print(f"    id={entry.id} subject={entry.subject} project={entry.project}")
+            print(f"    {entry.path}")
+        if len(results) > 80:
+            print(f"  ...{len(results) - 80} more")
+        return
+
+    if args.action == "export":
+        path = media_registry.export(format=args.format)
+        print(f"Exported media registry: {path}")
+
+
+def _cmd_import(argv: list[str]) -> None:
+    """Import external pipeline metadata into Rafiki's media registry."""
+    p = argparse.ArgumentParser(
+        prog="generate.py import",
+        description="Import/index external local pipeline metadata without copying media.",
+    )
+    sub = p.add_subparsers(dest="importer", required=True)
+    sp_alex = sub.add_parser("alex-samuel", help="Index the alex-samuel portrait/video pipeline")
+    sp_alex.add_argument("--root", default="/Users/kk/Desktop/alex-samuel")
+    sp_alex.add_argument("--key", default="alex-samuel")
+    sp_alex.add_argument("--dry-run", action="store_true", help="Print summary without writing data/media-registry.json")
+    sp_alex.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    from lib import media_registry
+    from lib.media_roots import MediaRoot
+
+    root = MediaRoot(key=args.key, path=Path(args.root).expanduser(), importer=args.importer)
+    payload = media_registry.index(roots={args.key: root}, write=not args.dry_run)
+    if args.json_output:
+        print(json.dumps(payload, indent=2))
+        return
+    summary = payload["summary"]
+    verb = "Would import" if args.dry_run else "Imported"
+    print(
+        f"{verb} {summary['entries']} entries from {args.root}; "
+        f"subjects={summary['subjects']} styles={summary['styles']} video_edits={summary['video_edits']}"
+    )
+    if not args.dry_run:
+        print(f"Registry: {media_registry.MEDIA_REGISTRY_JSON}")
+    for warning in payload.get("warnings", []):
+        print(f"Warning: {warning}", file=sys.stderr)
+
+
+def _cmd_subjects(argv: list[str]) -> None:
+    """List or inspect indexed subject profiles."""
+    p = argparse.ArgumentParser(
+        prog="generate.py subjects",
+        description="Subject profiles imported from local media roots.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp_list = sub.add_parser("list", help="List indexed subjects")
+    sp_list.add_argument("--json", action="store_true", dest="json_output")
+    sp_show = sub.add_parser("show", help="Show one subject")
+    sp_show.add_argument("subject")
+    sp_show.add_argument("--json", action="store_true", dest="json_output")
+    sp_import = sub.add_parser("import", help="Refresh subjects by indexing a media root")
+    sp_import.add_argument("--root", default="/Users/kk/Desktop/alex-samuel")
+    sp_import.add_argument("--key", default="alex-samuel")
+    sp_import.add_argument("--importer", default="alex-samuel", choices=["alex-samuel", "generic"])
+    sp_import.add_argument("--dry-run", action="store_true")
+    args = p.parse_args(argv)
+
+    from lib import media_registry
+    from lib.media_roots import MediaRoot
+
+    if args.action == "import":
+        payload = media_registry.index(
+            roots={args.key: MediaRoot(key=args.key, path=Path(args.root).expanduser(), importer=args.importer)},
+            write=not args.dry_run,
+        )
+        print(f"Subjects: {payload['summary']['subjects']} ({'dry-run' if args.dry_run else media_registry.MEDIA_REGISTRY_JSON})")
+        return
+
+    profiles = media_registry.subjects()
+    if args.action == "show":
+        profiles = [profile for profile in profiles if profile.key == args.subject]
+        if not profiles:
+            print(f"No subject found: {args.subject}")
+            sys.exit(1)
+    if args.json_output:
+        print(json.dumps([profile.to_dict() for profile in profiles], indent=2))
+        return
+    for profile in profiles:
+        print(f"{profile.key}: {profile.display_name}")
+        print(f"  trigger={profile.trigger_word or '-'} prompt_suites={len(profile.prompt_suites)} models={len(profile.model_versions)}")
+
+
+def _cmd_train(argv: list[str]) -> None:
+    """Plan or launch subject LoRA training jobs."""
+    p = argparse.ArgumentParser(
+        prog="generate.py train",
+        description="Training workflows. Defaults to dry-run; pass --execute to call providers.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp_lora = sub.add_parser("lora", help="Plan or launch a Replicate FLUX LoRA training job")
+    sp_lora.add_argument("--subject", required=True)
+    sp_lora.add_argument("--output-dir", "-d", default=None)
+    sp_lora.add_argument("--input-images-url", default="", help="Provider-accessible dataset zip URL")
+    sp_lora.add_argument("--steps", type=int, default=1000)
+    sp_lora.add_argument("--lora-rank", type=int, default=16)
+    sp_lora.add_argument("--execute", action="store_true", help="Call Replicate instead of dry-run")
+    sp_lora.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    from lib.training import plan_lora_training
+
+    output_root = Path(args.output_dir) if args.output_dir else None
+    result = plan_lora_training(
+        subject=args.subject,
+        output_root=output_root,
+        execute=args.execute,
+        input_images_url=args.input_images_url,
+        steps=args.steps,
+        lora_rank=args.lora_rank,
+    )
+    if args.json_output:
+        print(json.dumps(result, indent=2))
+        return
+    status = result["job"]["status"]
+    print(f"LoRA training {status}: {result['job']['id']}")
+    print(f"Manifest: {result['manifest_path']}")
+
+
+def _cmd_video(argv: list[str]) -> None:
+    """Video generation and edit assembly workflows."""
+    p = argparse.ArgumentParser(
+        prog="generate.py video",
+        description="Video generation and assembly. Generation defaults to dry-run; pass --execute to call providers/renderers.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp_generate = sub.add_parser("generate", help="Plan or launch storyboard video generation")
+    sp_generate.add_argument("--storyboard", required=True)
+    sp_generate.add_argument("--output-dir", "-d", default=None)
+    sp_generate.add_argument("--model", default="wan-video/wan2.1-with-lora")
+    sp_generate.add_argument("--execute", action="store_true")
+    sp_generate.add_argument("--json", action="store_true", dest="json_output")
+    sp_assemble = sub.add_parser("assemble", help="Build an edit manifest or render an edit JSON")
+    sp_assemble.add_argument("--edit", required=True)
+    sp_assemble.add_argument("--output-dir", "-d", default=None)
+    sp_assemble.add_argument("--execute", action="store_true")
+    sp_assemble.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    from lib.video_jobs import assemble_video_edit, plan_video_generation
+
+    try:
+        if args.action == "generate":
+            result = plan_video_generation(
+                storyboard_path=Path(args.storyboard),
+                output_root=Path(args.output_dir) if args.output_dir else None,
+                execute=args.execute,
+                model=args.model,
+            )
+        else:
+            result = assemble_video_edit(
+                edit_path=Path(args.edit),
+                output_dir=Path(args.output_dir) if args.output_dir else None,
+                execute=args.execute,
+            )
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json_output:
+        print(json.dumps(result, indent=2))
+        return
+    print(f"Video {args.action}: {result['manifest']['status']}")
+    print(f"Manifest: {result['manifest_path']}")
+
+
+def _cmd_style(argv: list[str]) -> None:
+    """Style utilities."""
+    p = argparse.ArgumentParser(
+        prog="generate.py style",
+        description="Style profile and style-anchor utilities.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp_anchors = sub.add_parser("anchors", help="Read or derive a style profile from JSON")
+    sp_anchors.add_argument("--source", required=True)
+    sp_anchors.add_argument("--name", default="")
+    sp_anchors.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    from lib.style_anchors import style_profile_from_source
+
+    profile = style_profile_from_source(Path(args.source), name=args.name)
+    if args.json_output:
+        print(json.dumps(profile.to_dict(), indent=2))
+        return
+    print(f"{profile.name}")
+    print(f"  source: {profile.source}")
+    print(f"  suffix: {profile.suffix[:240]}")
+    if profile.negative_suffix:
+        print(f"  negative: {profile.negative_suffix[:240]}")
+
+
 def _cmd_approve(argv: list[str]) -> None:
     """Copy starred images from a run into output/<project>/approved/."""
     p = argparse.ArgumentParser(
@@ -884,6 +1148,24 @@ def main() -> None:
         return
     if len(sys.argv) > 1 and sys.argv[1] == "social-expand":
         _cmd_social_expand(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "media":
+        _cmd_media(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "import":
+        _cmd_import(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "subjects":
+        _cmd_subjects(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "train":
+        _cmd_train(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "video":
+        _cmd_video(sys.argv[2:])
+        return
+    if len(sys.argv) > 1 and sys.argv[1] == "style":
+        _cmd_style(sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(

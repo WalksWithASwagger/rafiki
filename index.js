@@ -401,6 +401,62 @@ if (process.argv.includes('--doctor')) {
 
 loadDotenvIfAvailable();
 
+const PYTHON_PASSTHROUGH_SUBCOMMANDS = new Set([
+  'archive-health',
+  'archive-thumbnails',
+  'billing',
+  'canva-export',
+  'clean',
+  'deploy',
+  'import',
+  'library',
+  'link-projects',
+  'media',
+  'notion-export',
+  'approve',
+  'regen',
+  'registry',
+  'serve',
+  'social-expand',
+  'style',
+  'subjects',
+  'train',
+  'video',
+]);
+
+if (PYTHON_PASSTHROUGH_SUBCOMMANDS.has(process.argv[2])) {
+  runPythonPassthrough(process.argv.slice(2));
+  return;
+}
+
+async function runPythonPassthrough(args) {
+  const c = await loadChalk();
+  console.log(c.cyan(`Rafiki — ${args[0]}...`));
+  const pythonScript = path.join(__dirname, 'generate.py');
+  const pythonBin = getPythonExecutable();
+  const proc = spawn(pythonBin, [pythonScript, ...args], {
+    stdio: 'inherit',
+    env: process.env
+  });
+
+  proc.on('close', (code) => {
+    if (code !== 0) {
+      console.log(c.red(`Process exited with code ${code}`));
+    }
+    process.exit(code);
+  });
+
+  proc.on('error', (err) => {
+    console.log(c.red(`Failed to start Python: ${err.message}`));
+    console.log(
+      c.yellow(
+        'Create .venv and install deps: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt'
+      )
+    );
+    process.exit(1);
+  });
+}
+
 const { Command } = require('commander');
 
 const program = new Command();

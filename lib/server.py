@@ -11,7 +11,7 @@ import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from lib.batch import run_batch
 from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
@@ -38,6 +38,13 @@ _MIME_MAP: dict[str, str] = {
     ".jpeg": "image/jpeg",
     ".webp": "image/webp",
     ".gif":  "image/gif",
+    ".mp4":  "video/mp4",
+    ".mov":  "video/quicktime",
+    ".m4v":  "video/mp4",
+    ".webm": "video/webm",
+    ".mp3":  "audio/mpeg",
+    ".wav":  "audio/wav",
+    ".m4a":  "audio/mp4",
     ".html": "text/html; charset=utf-8",
     ".json": "application/json",
     ".css":  "text/css",
@@ -326,7 +333,9 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     evaluations_file: Path
     archive_metadata_file: Path
     billing_imports_file: Path
+    video_selections_file: Path = REPO_ROOT / "data" / "video-selections.json"
     extra_roots: dict[str, Path]  # project_name → real dir
+    media_roots: dict[str, object] = {}
 
     def log_message(self, fmt, *args):  # suppress noisy access log
         pass
@@ -368,11 +377,27 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path = parsed.path
         if path in ("/", ""):
+            self._serve_suite()
+        elif path == "/library":
             self._serve_library()
         elif path == "/favicon.ico":
             self._respond(204, "image/x-icon", b"")
         elif path.startswith("/output/"):
             self._serve_static(path[len("/output/"):])
+        elif path.startswith("/media/"):
+            self._serve_media_file(path[len("/media/"):])
+        elif path == "/api/media":
+            self._serve_media(parsed.query)
+        elif path == "/api/media/subjects":
+            self._serve_media_subjects()
+        elif path == "/api/media/styles":
+            self._serve_media_styles()
+        elif path == "/api/media/video-edits":
+            self._serve_media_video_edits()
+        elif path == "/api/media/jobs":
+            self._serve_media_jobs()
+        elif path == "/api/media/selections":
+            self._serve_media_selections()
         elif path == "/api/actions":
             self._serve_actions()
         elif path == "/api/ratings":
@@ -412,6 +437,12 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._regen()
         elif path == "/api/actions":
             self._run_action()
+        elif path == "/api/media/selections":
+            self._update_media_selection()
+        elif path == "/api/jobs/train-lora":
+            self._run_train_lora()
+        elif path == "/api/jobs/video-generate":
+            self._run_video_generate()
         else:
             self._404()
 
@@ -421,6 +452,11 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         from lib.renderers.library import generate_library_viewer
         lib_path = generate_library_viewer(self.output_root)
         self._respond(200, "text/html; charset=utf-8", lib_path.read_bytes())
+
+    def _serve_suite(self):
+        from lib.renderers.media_suite import render_media_suite
+
+        self._respond(200, "text/html; charset=utf-8", render_media_suite())
 
     def _serve_static(self, rel_path: str):
         """Serve a file from output_root or, for registered projects, from
@@ -450,7 +486,95 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         if not target.exists() or not target.is_file():
             self._404()
             return
-        self._respond(200, _guess_mime(target.suffix), target.read_bytes())
+        self._respond_file(target)
+
+    def _serve_media_file(self, rel_path: str):
+        rel_path = unquote(rel_path).lstrip("/")
+        parts = rel_path.split("/", 1)
+        if len(parts) != 2:
+            self._404()
+            return
+        root_key, rest = parts
+        root = self.media_roots.get(root_key)
+        if root is None:
+            self._404()
+            return
+        root_path = Path(getattr(root, "path", "")).expanduser().resolve()
+        rest_path = Path(os.path.normpath(rest))
+        if rest_path.is_absolute() or ".git" in rest_path.parts or rest_path.name == ".env":
+            self._404()
+            return
+        target = (root_path / rest_path).resolve()
+        try:
+            target.relative_to(root_path)
+        except ValueError:
+            self._404()
+            return
+        if not target.exists() or not target.is_file():
+            self._404()
+            return
+        self._respond_file(target)
+
+    def _serve_media(self, query: str = ""):
+        from lib import media_registry
+
+        params = parse_qs(query)
+        refresh = (params.get("refresh") or [""])[0].strip().lower() in _TRUE_VALUES
+        if refresh:
+            data = media_registry.index()
+        else:
+            data = media_registry.load_registry()
+        q = (params.get("q") or [""])[0].strip().lower()
+        kind = (params.get("kind") or [""])[0].strip()
+        collection = (params.get("collection") or [""])[0].strip()
+        entries = []
+        for entry in data.get("entries", []):
+            if not isinstance(entry, dict):
+                continue
+            if kind and entry.get("kind") != kind:
+                continue
+            if collection and entry.get("collection") != collection:
+                continue
+            haystack = " ".join(str(entry.get(key, "")) for key in (
+                "title", "subject", "project", "kind", "collection", "prompt", "style", "model", "relative_path"
+            )).lower()
+            haystack += " " + " ".join(entry.get("tags") or []).lower()
+            if q and q not in haystack:
+                continue
+            entries.append(entry)
+        payload = {
+            "summary": data.get("summary", {}),
+            "entries": entries,
+            "collections": sorted({entry.get("collection", "") for entry in data.get("entries", []) if entry.get("collection")}),
+            "warnings": data.get("warnings", []),
+        }
+        self._respond(200, "application/json", json.dumps(payload).encode())
+
+    def _serve_media_subjects(self):
+        from lib import media_registry
+
+        payload = {"subjects": [subject.to_dict() for subject in media_registry.subjects()]}
+        self._respond(200, "application/json", json.dumps(payload).encode())
+
+    def _serve_media_styles(self):
+        from lib import media_registry
+
+        payload = {"styles": [style.to_dict() for style in media_registry.styles()]}
+        self._respond(200, "application/json", json.dumps(payload).encode())
+
+    def _serve_media_video_edits(self):
+        from lib import media_registry
+
+        payload = {"video_edits": [edit.to_dict() for edit in media_registry.video_edits()]}
+        self._respond(200, "application/json", json.dumps(payload).encode())
+
+    def _serve_media_jobs(self):
+        from lib.jobs import list_jobs
+
+        self._respond(200, "application/json", json.dumps({"jobs": list_jobs()}).encode())
+
+    def _serve_media_selections(self):
+        self._respond(200, "application/json", json.dumps(self._load_video_selections()).encode())
 
     def _serve_ratings(self):
         ratings = _load_ratings(self.ratings_file)
@@ -736,7 +860,147 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
         self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
+    def _update_media_selection(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            key = _coerce_str(payload.get("key"), field="key", required=True)
+            value = _coerce_str(payload.get("value"), field="value")
+            if value and value not in {"focus", "star", "exclude"}:
+                raise ValueError("value must be focus, star, exclude, or empty")
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception:
+            self._respond(400, "application/json", b'{"error":"bad request"}')
+            return
+
+        data = self._load_video_selections()
+        items = data.setdefault("items", {})
+        if value:
+            items[key] = value
+        else:
+            items.pop(key, None)
+        self.video_selections_file.parent.mkdir(parents=True, exist_ok=True)
+        self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        self._respond(200, "application/json", json.dumps({"ok": True, "items": items}).encode("utf-8"))
+
+    def _run_train_lora(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            subject = _coerce_str(payload.get("subject"), field="subject", required=True)
+            from lib.training import plan_lora_training
+
+            result = plan_lora_training(
+                subject=subject,
+                output_root=self.output_root,
+                execute=_coerce_bool(payload.get("execute")),
+                input_images_url=_coerce_str(payload.get("input_images_url"), field="input_images_url"),
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(500, "application/json", json.dumps({"error": "training job failed", "detail": _safe_error_text(e)}).encode("utf-8"))
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _run_video_generate(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            storyboard = _coerce_str(payload.get("storyboard"), field="storyboard", required=True)
+            from lib.video_jobs import plan_video_generation
+
+            result = plan_video_generation(
+                storyboard_path=Path(storyboard),
+                output_root=self.output_root,
+                execute=_coerce_bool(payload.get("execute")),
+                model=_coerce_str(payload.get("model"), field="model") or "wan-video/wan2.1-with-lora",
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(500, "application/json", json.dumps({"error": "video generation job failed", "detail": _safe_error_text(e)}).encode("utf-8"))
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _load_video_selections(self) -> dict:
+        if self.video_selections_file.exists():
+            try:
+                data = json.loads(self.video_selections_file.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+        else:
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        items = data.get("items")
+        if not isinstance(items, dict):
+            data["items"] = {}
+        data.setdefault("version", 1)
+        return data
+
     # ── Helpers ───────────────────────────────────────────────────────────────
+
+    def _respond_file(self, target: Path) -> None:
+        size = target.stat().st_size
+        mime = _guess_mime(target.suffix)
+        range_header = self.headers.get("Range", "")
+        if range_header.startswith("bytes="):
+            start, end = self._parse_byte_range(range_header, size)
+            if start is None:
+                self.send_response(416)
+                self.send_header("Content-Range", f"bytes */{size}")
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            with target.open("rb") as f:
+                f.seek(start)
+                body = f.read(end - start + 1)
+            self.send_response(206)
+            self.send_header("Content-Type", mime)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.send_header("Accept-Ranges", "bytes")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(size))
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        with target.open("rb") as f:
+            self.wfile.write(f.read())
+
+    def _parse_byte_range(self, header: str, size: int) -> tuple[int | None, int]:
+        raw = header.removeprefix("bytes=").split(",", 1)[0].strip()
+        start_raw, _, end_raw = raw.partition("-")
+        try:
+            if start_raw:
+                start = int(start_raw)
+                end = int(end_raw) if end_raw else size - 1
+            else:
+                suffix = int(end_raw)
+                start = max(size - suffix, 0)
+                end = size - 1
+        except ValueError:
+            return None, size - 1
+        if start < 0 or start >= size:
+            return None, size - 1
+        end = min(max(end, start), size - 1)
+        return start, end
 
     def _respond(self, status: int, content_type: str, body: bytes) -> None:
         self.send_response(status)
@@ -759,13 +1023,16 @@ def serve(
 ) -> None:
     """Start the Rafiki portal server and block until Ctrl-C."""
     from lib.renderers.library import load_extra_outputs
+    from lib.media_roots import load_media_roots
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
     feedback_file = output_root / "feedback.json"
     evaluations_file = output_root / "evaluations.json"
     archive_metadata_file = output_root / "archive-metadata.json"
     billing_imports_file = REPO_ROOT / "data" / "billing-imports.json"
+    video_selections_file = REPO_ROOT / "data" / "video-selections.json"
     extra_roots = {name: Path(p) for name, p in load_extra_outputs().items()}
+    media_roots = load_media_roots()
 
     class Handler(_RafikiHandler):
         pass
@@ -776,7 +1043,9 @@ def serve(
     Handler.evaluations_file = evaluations_file
     Handler.archive_metadata_file = archive_metadata_file
     Handler.billing_imports_file = billing_imports_file
+    Handler.video_selections_file = video_selections_file
     Handler.extra_roots = extra_roots
+    Handler.media_roots = media_roots
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"
     httpd = ThreadingHTTPServer((bind_host, port), Handler)
@@ -787,6 +1056,10 @@ def serve(
     if extra_roots:
         for name, path in extra_roots.items():
             print(f"  + {name} → {path}")
+    if media_roots:
+        print("Media roots:")
+        for name, root in media_roots.items():
+            print(f"  + {name} → {root.path} ({root.importer})")
 
     auth_on = _basic_auth_credentials() is not None
     if public and not auth_on:
