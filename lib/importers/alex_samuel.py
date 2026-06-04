@@ -39,6 +39,9 @@ def import_root(root: Path, *, root_key: str = "alex-samuel", indexed_at: str | 
     def add(entry: MediaEntry) -> None:
         if not entry.indexed_at:
             entry.indexed_at = indexed_at or ""
+        existing = entries.get(entry.id)
+        if existing and existing.source_manifest and not entry.source_manifest:
+            return
         entries[entry.id] = entry
 
     for subject in subjects:
@@ -56,16 +59,22 @@ def import_root(root: Path, *, root_key: str = "alex-samuel", indexed_at: str | 
 
     for path in _iter_known_json(root):
         rel = _rel(root, path)
-        if path.name == "predictions.json":
+        if _is_prediction_manifest(root, path):
             for entry in _entries_from_predictions(root, root_key, path, result.warnings):
                 add(entry)
+            if path.name != "predictions.json":
+                add(_entry_for_path(root, root_key, path, "evaluation", collection="evaluations"))
         elif path.name == "trainings.json":
             _merge_training_versions(root, path, subject_by_key, result.warnings)
             add(_entry_for_path(root, root_key, path, "training-manifest", collection="training"))
         elif path.name == "storyboard.json":
             add(_entry_for_path(root, root_key, path, "storyboard", collection="video", project=_project_from_video_path(root, path)))
+        elif path.name == "scenes.json" and rel.startswith("video_project/"):
+            add(_entry_for_path(root, root_key, path, "scene-manifest", collection="video", project=_project_from_video_path(root, path)))
         elif path.name == "shot_list.json":
             add(_entry_for_path(root, root_key, path, "shot-list", collection="video", project=_project_from_video_path(root, path)))
+        elif _is_video_edit_manifest(root, path):
+            add(_entry_for_path(root, root_key, path, "video-edit", collection="video", project=_project_from_video_path(root, path)))
         elif path.name.endswith(".json") and "prompt_suite" in path.name:
             subject = _subject_from_client_path(root, path)
             add(_entry_for_path(root, root_key, path, "prompt-suite", collection="prompts", subject=subject))
@@ -264,6 +273,13 @@ def _merge_training_versions(root: Path, path: Path, subjects: dict[str, Subject
         warnings.append(f"{_rel(root, path)}: ignored {malformed} malformed training run(s)")
 
 
+def _is_prediction_manifest(root: Path, path: Path) -> bool:
+    if path.name == "predictions.json":
+        return True
+    rel = _rel(root, path)
+    return rel.startswith("evals/") and (path.name == "results.json" or path.name.endswith("_results.json"))
+
+
 def _entries_from_predictions(root: Path, root_key: str, manifest: Path, warnings: list[str]) -> list[MediaEntry]:
     data = _read_json(manifest)
     predictions = data
@@ -292,8 +308,24 @@ def _entries_from_predictions(root: Path, root_key: str, manifest: Path, warning
             kind = "prediction"
         project = prediction.get("project") or _project_from_video_path(root, manifest)
         subject = prediction.get("subject") or _subject_for_path(root, manifest)
-        title = prediction.get("name") or prediction.get("shot_id") or prediction.get("key") or f"Prediction {idx + 1}"
-        model = str(prediction.get("model") or prediction.get("version") or "")
+        title = (
+            prediction.get("name")
+            or prediction.get("title")
+            or prediction.get("shot_id")
+            or prediction.get("key")
+            or prediction.get("prompt_key")
+            or prediction.get("prompt_id")
+            or f"Prediction {idx + 1}"
+        )
+        model = str(
+            prediction.get("model")
+            or prediction.get("version")
+            or prediction.get("model_version")
+            or prediction.get("version_id")
+            or prediction.get("version_ref")
+            or prediction.get("destination")
+            or ""
+        )
         provider = "replicate" if prediction.get("prediction_id") or prediction.get("urls") else ""
         entry = _entry_for_path(
             root,
@@ -332,7 +364,26 @@ def _entries_from_predictions(root: Path, root_key: str, manifest: Path, warning
 
 def _safe_prediction_metadata(prediction: dict[str, Any]) -> dict[str, Any]:
     metadata: dict[str, Any] = {}
-    for key in ("status", "metrics", "created_at", "completed_at", "urls"):
+    for key in (
+        "status",
+        "metrics",
+        "created_at",
+        "completed_at",
+        "urls",
+        "run_id",
+        "prompt_id",
+        "prompt_key",
+        "model_label",
+        "model_version",
+        "version_id",
+        "version_ref",
+        "destination",
+        "category",
+        "variation",
+        "web_url",
+        "output_url",
+        "error",
+    ):
         value = prediction.get(key)
         if value not in (None, ""):
             metadata[key] = value
@@ -344,6 +395,7 @@ def _resolve_prediction_output(root: Path, manifest: Path, prediction: dict[str,
         prediction.get("file"),
         prediction.get("path"),
         prediction.get("output_path"),
+        prediction.get("output_file"),
         prediction.get("local_path"),
     ]
     output = prediction.get("output")
@@ -388,7 +440,7 @@ def _output_url(prediction: dict[str, Any]) -> str:
                 return value
     if isinstance(output, str) and output.startswith(("http://", "https://")):
         return output
-    value = prediction.get("output_url") or prediction.get("url")
+    value = prediction.get("output_url") or prediction.get("url") or prediction.get("web_url")
     return value if isinstance(value, str) else ""
 
 
@@ -477,6 +529,9 @@ def _discover_style_anchors(root: Path, root_key: str) -> list[StyleProfile]:
 
 def _discover_video_edits(root: Path, root_key: str) -> list[VideoEdit]:
     edits: list[VideoEdit] = []
+    for path in _iter_known_json(root):
+        if _is_video_edit_manifest(root, path):
+            edits.append(_video_edit_from_manifest(root, root_key, path))
     for path in _iter_media_files(root):
         if path.suffix.lower() not in VIDEO_SUFFIXES:
             continue
@@ -495,3 +550,34 @@ def _discover_video_edits(root: Path, root_key: str) -> list[VideoEdit]:
             metadata={"relative_path": rel, "size_bytes": path.stat().st_size if path.exists() else 0},
         ))
     return sorted(edits, key=lambda edit: (edit.project, edit.title))
+
+
+def _is_video_edit_manifest(root: Path, path: Path) -> bool:
+    rel = _rel(root, path)
+    return rel.startswith("video_project/") and "/edits/" in rel and path.name.endswith("_edl.json")
+
+
+def _video_edit_from_manifest(root: Path, root_key: str, path: Path) -> VideoEdit:
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        data = {}
+    rel = _rel(root, path)
+    clips = [
+        {key: clip[key] for key in ("src", "in", "out", "t", "note") if key in clip}
+        for clip in data.get("edl", [])
+        if isinstance(clip, dict)
+    ]
+    metadata = {"relative_path": rel}
+    for key in ("cuts", "hollywood_used", "fallback_used"):
+        if key in data:
+            metadata[key] = data[key]
+    return VideoEdit(
+        id=_stable_id(root_key, rel, "video-edit", "video"),
+        project=_project_for_path(root, path),
+        title=str(data.get("name") or _title_from_path(path)),
+        root_key=root_key,
+        clips=clips,
+        effects_preset="edl",
+        source_manifest=str(path.resolve(strict=False)),
+        metadata=metadata,
+    )

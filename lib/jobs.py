@@ -32,6 +32,19 @@ def save_job(record: JobRecord, *, jobs_dir: Path | None = None) -> Path:
     return path
 
 
+def save_job_dict(record: dict[str, Any], *, jobs_dir: Path | None = None) -> Path:
+    job_id = str(record.get("id") or "").strip()
+    if not job_id:
+        raise ValueError("job id is required")
+    jobs_dir = jobs_dir or JOBS_DIR
+    jobs_dir.mkdir(parents=True, exist_ok=True)
+    payload = dict(record)
+    payload["updated_at"] = now_iso()
+    path = jobs_dir / f"{job_id}.json"
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
 def load_job(job_id: str, *, jobs_dir: Path | None = None) -> dict[str, Any] | None:
     jobs_dir = jobs_dir or JOBS_DIR
     path = jobs_dir / f"{job_id}.json"
@@ -42,6 +55,35 @@ def load_job(job_id: str, *, jobs_dir: Path | None = None) -> dict[str, Any] | N
     except Exception:
         return None
     return data if isinstance(data, dict) else None
+
+
+def update_job(job_id: str, updates: dict[str, Any], *, jobs_dir: Path | None = None) -> dict[str, Any]:
+    record = load_job(job_id, jobs_dir=jobs_dir)
+    if record is None:
+        raise ValueError(f"job not found: {job_id}")
+    record.update(updates)
+    save_job_dict(record, jobs_dir=jobs_dir)
+    return record
+
+
+def provider_cost_preview(
+    *,
+    provider: str,
+    model: str,
+    counts: dict[str, Any],
+    dry_run: bool,
+    note: str,
+) -> dict[str, Any]:
+    return {
+        "currency": "USD",
+        "amount": 0.0 if dry_run else None,
+        "estimated": dry_run,
+        "basis": "dry_run_no_provider_spend" if dry_run else "provider_billing_required",
+        "provider": provider,
+        "model": model,
+        "counts": counts,
+        "note": note,
+    }
 
 
 def list_jobs(*, jobs_dir: Path | None = None) -> list[dict[str, Any]]:

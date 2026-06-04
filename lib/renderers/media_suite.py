@@ -63,7 +63,7 @@ HTML = r"""<!doctype html>
     main { padding: 18px 20px 40px; }
     .toolbar {
       display: grid;
-      grid-template-columns: 130px minmax(220px, 1fr) 140px 140px auto;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 8px;
       margin-bottom: 14px;
     }
@@ -81,6 +81,73 @@ HTML = r"""<!doctype html>
       background: var(--panel);
       overflow: hidden;
       min-width: 0;
+    }
+    .subject-grid { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+    .subject-profile .body {
+      display: grid;
+      gap: 12px;
+    }
+    .subject-header {
+      display: flex;
+      gap: 10px;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .subject-actions, .subject-project-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .subject-actions a, .subject-project-links a {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      color: var(--accent);
+      min-height: 30px;
+      padding: 6px 8px;
+    }
+    .subject-section {
+      display: grid;
+      gap: 6px;
+      min-width: 0;
+    }
+    .subject-section h3 {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+    .subject-list {
+      display: grid;
+      gap: 4px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .subject-list li { overflow-wrap: anywhere; }
+    .subject-output-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+      gap: 8px;
+    }
+    .subject-output {
+      display: grid;
+      gap: 5px;
+      min-width: 0;
+    }
+    .subject-output-thumb {
+      aspect-ratio: 16 / 10;
+      background: #0a0b0d;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+    .subject-output-thumb img, .subject-output-thumb video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .thumb {
       width: 100%;
@@ -117,6 +184,8 @@ HTML = r"""<!doctype html>
     }
     .form .wide { grid-column: 1 / -1; }
     label { display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+    label.check { display: flex; align-items: center; gap: 8px; }
+    label.check input { min-height: 18px; width: 18px; }
     textarea { min-height: 120px; resize: vertical; }
     pre {
       margin: 0;
@@ -169,6 +238,9 @@ HTML = r"""<!doctype html>
         <select id="collection">
           <option value="">All collections</option>
         </select>
+        <select id="subject">
+          <option value="">All subjects</option>
+        </select>
         <button id="search" class="primary">Search</button>
       </div>
       <div id="summary" class="meta"></div>
@@ -176,7 +248,7 @@ HTML = r"""<!doctype html>
     </section>
 
     <section id="subjects" class="view">
-      <div id="subjectCards" class="grid"></div>
+      <div id="subjectCards" class="grid subject-grid"></div>
     </section>
 
     <section id="studio" class="view">
@@ -196,6 +268,8 @@ HTML = r"""<!doctype html>
         <div class="form">
           <label>Subject<input id="trainSubject" placeholder="kris"></label>
           <label>Dataset URL<input id="trainDataset"></label>
+          <label class="check"><input type="checkbox" id="trainExecute"> Execute provider call</label>
+          <label class="check"><input type="checkbox" id="trainConfirm"> Confirm execute spend</label>
           <button id="trainRun" class="warn">Dry Run</button>
         </div>
       </div>
@@ -203,6 +277,8 @@ HTML = r"""<!doctype html>
         <h2>Video Generation</h2>
         <div class="form">
           <label class="wide">Storyboard Path<input id="videoStoryboard" placeholder="/path/to/storyboard.json"></label>
+          <label class="check"><input type="checkbox" id="videoExecute"> Execute provider call</label>
+          <label class="check"><input type="checkbox" id="videoConfirm"> Confirm execute spend</label>
           <button id="videoRun" class="warn">Dry Run</button>
         </div>
       </div>
@@ -210,7 +286,7 @@ HTML = r"""<!doctype html>
     </section>
 
     <section id="jobs" class="view">
-      <table><thead><tr><th>Job</th><th>Status</th><th>Kind</th><th>Target</th></tr></thead><tbody id="jobRows"></tbody></table>
+      <table><thead><tr><th>Job</th><th>Status</th><th>Kind</th><th>Provider</th><th>Poll</th><th>Download</th><th>Last Checked</th><th>Target</th><th>Failure</th></tr></thead><tbody id="jobRows"></tbody></table>
     </section>
 
     <section id="styles" class="view">
@@ -218,8 +294,19 @@ HTML = r"""<!doctype html>
     </section>
 
     <section id="video" class="view">
+      <div class="panel">
+        <h2>Selection EDL</h2>
+        <div class="form">
+          <label>Include<select id="videoEdlInclude"><option value="focus,star">Focus + Star</option><option value="focus">Focus</option><option value="star">Star</option><option value="focus,star,exclude">All selection states</option></select></label>
+          <label>Default Import<select id="videoImportDefault"><option value="focus">Focus</option><option value="star">Star</option><option value="exclude">Exclude</option></select></label>
+          <button id="videoExport" class="primary">Export EDL</button>
+          <button id="videoImport" class="warn">Import</button>
+          <label class="wide">EDL JSON<textarea id="videoEdlJson"></textarea></label>
+        </div>
+      </div>
       <div class="toolbar">
         <input id="videoQ" placeholder="Filter clips">
+        <select id="videoSubject"><option value="">All subjects</option></select>
         <select id="videoProject"><option value="">All projects</option></select>
         <button id="videoSearch" class="primary">Search</button>
         <a href="/library">Image Library</a>
@@ -228,16 +315,27 @@ HTML = r"""<!doctype html>
     </section>
   </main>
   <script>
-    const state = { entries: [], subjects: [], styles: [], jobs: [], selections: {} };
+    const state = {
+      entries: [],
+      subjects: [],
+      styles: [],
+      jobs: [],
+      selections: {},
+      librarySubject: '',
+      videoSubject: '',
+      videoProject: '',
+      initialView: ''
+    };
     const $ = id => document.getElementById(id);
 
+    function activateView(view) {
+      const target = $(view) ? view : 'library';
+      document.querySelectorAll('#tabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === target));
+      document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === target));
+    }
+
     document.querySelectorAll('#tabs button[data-view]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#tabs button[data-view]').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        btn.classList.add('active');
-        $(btn.dataset.view).classList.add('active');
-      });
+      btn.addEventListener('click', () => activateView(btn.dataset.view));
     });
 
     $('refresh').addEventListener('click', () => loadAll(true));
@@ -245,10 +343,27 @@ HTML = r"""<!doctype html>
     $('viewMode').addEventListener('change', () => loadMedia(false));
     $('kind').addEventListener('change', () => loadMedia(false));
     $('collection').addEventListener('change', () => loadMedia(false));
+    $('subject').addEventListener('change', () => {
+      state.librarySubject = $('subject').value;
+      loadMedia(false);
+    });
+    $('videoSubject').addEventListener('change', () => {
+      state.videoSubject = $('videoSubject').value;
+      renderVideo();
+    });
+    $('videoProject').addEventListener('change', () => {
+      state.videoProject = $('videoProject').value;
+      renderVideo();
+    });
     $('videoSearch').addEventListener('click', renderVideo);
+    $('videoExport').addEventListener('click', exportVideoEdl);
+    $('videoImport').addEventListener('click', importVideoEdl);
     $('studioRun').addEventListener('click', runStudio);
     $('trainRun').addEventListener('click', runTraining);
     $('videoRun').addEventListener('click', runVideoGeneration);
+    $('subjectCards').addEventListener('click', handleSubjectQuickLink);
+
+    applyInitialParams();
 
     function mediaUrl(entry) {
       return '/media/' + encodeURIComponent(entry.root_key) + '/' + entry.relative_path.split('/').map(encodeURIComponent).join('/');
@@ -271,12 +386,26 @@ HTML = r"""<!doctype html>
       return JSON.parse(text || '{}');
     }
 
+    function applyInitialParams() {
+      const params = new URLSearchParams(window.location.search);
+      state.initialView = params.get('tab') || '';
+      state.librarySubject = params.get('subject') || '';
+      state.videoSubject = params.get('videoSubject') || '';
+      state.videoProject = params.get('videoProject') || '';
+      if (params.has('q')) $('q').value = params.get('q') || '';
+      if (params.has('view')) $('viewMode').value = params.get('view') || 'review';
+      if (params.has('kind')) $('kind').value = params.get('kind') || '';
+      if (params.has('collection')) $('collection').value = params.get('collection') || '';
+    }
+
     async function loadMedia(refresh) {
       const params = new URLSearchParams();
       params.set('view', $('viewMode').value);
       if ($('q').value) params.set('q', $('q').value);
       if ($('kind').value) params.set('kind', $('kind').value);
       if ($('collection').value) params.set('collection', $('collection').value);
+      const subject = state.librarySubject || $('subject').value;
+      if (subject) params.set('subject', subject);
       if (refresh) params.set('refresh', '1');
       const data = await getJson('/api/media?' + params.toString());
       state.entries = data.entries || [];
@@ -317,11 +446,126 @@ HTML = r"""<!doctype html>
     async function loadSubjects() {
       const data = await getJson('/api/media/subjects');
       state.subjects = data.subjects || [];
-      $('subjectCards').innerHTML = state.subjects.map(s => `<article class="card"><div class="body">
-        <div class="title">${escapeHtml(s.display_name)}</div>
-        <div class="meta">${escapeHtml(s.key)} · ${escapeHtml(s.trigger_word || '')}</div>
-        <div class="chips"><span class="chip">${s.prompt_suites.length} suites</span><span class="chip">${s.model_versions.length} models</span></div>
-      </div></article>`).join('');
+      $('subjectCards').innerHTML = state.subjects.length
+        ? state.subjects.map(subjectCardHtml).join('')
+        : '<div class="meta">No subjects indexed</div>';
+      renderSubjectFilterOptions();
+      renderVideoSubjectOptions();
+    }
+
+    function subjectCardHtml(subject) {
+      const quickLinks = subject.quick_links || {};
+      const models = subject.model_versions || [];
+      const outputs = subject.representative_outputs || [];
+      const projectLinks = quickLinks.video_projects || [];
+      return `<article class="card subject-profile"><div class="body">
+        <div class="subject-header">
+          <div>
+            <div class="title">${escapeHtml(subject.display_name || subject.key)}</div>
+            <div class="meta">${escapeHtml(subject.key || '')}${subject.trigger_word ? ' · ' + escapeHtml(subject.trigger_word) : ''}</div>
+          </div>
+          <div class="chips">
+            <span class="chip">${Number(subject.entry_count || 0)} indexed</span>
+            <span class="chip">${Number(subject.output_count || 0)} outputs</span>
+            <span class="chip">${models.length} models</span>
+          </div>
+        </div>
+        <div class="subject-actions">
+          <a href="${escapeAttr(quickLinks.library || '#')}" data-library-subject="${escapeAttr(subject.key || '')}">Library</a>
+          ${quickLinks.video_subject ? `<a href="${escapeAttr(quickLinks.video_subject)}" data-video-subject="${escapeAttr(subject.key || '')}">Video Lab</a>` : ''}
+        </div>
+        ${projectLinks.length ? `<div class="subject-project-links">${projectLinks.map(item => `<a href="${escapeAttr(item.href || '#')}" data-video-project="${escapeAttr(item.project || '')}">${escapeHtml(item.project || '')}</a>`).join('')}</div>` : ''}
+        <div class="subject-section">
+          <h3>Trigger Word</h3>
+          <div class="meta">${escapeHtml(subject.trigger_word || 'Not indexed')}</div>
+        </div>
+        <div class="subject-section">
+          <h3>Prompt Suites</h3>
+          ${listHtml(subject.prompt_suites || [], 'No prompt suites indexed')}
+        </div>
+        <div class="subject-section">
+          <h3>Album Roots</h3>
+          ${listHtml(subject.album_roots || [], 'No album roots indexed')}
+        </div>
+        <div class="subject-section">
+          <h3>Training Roots</h3>
+          ${listHtml(subject.training_roots || [], 'No training roots indexed')}
+        </div>
+        <div class="subject-section">
+          <h3>Model Versions</h3>
+          ${modelVersionsHtml(models)}
+        </div>
+        <div class="subject-section">
+          <h3>Top Outputs</h3>
+          ${subjectOutputsHtml(outputs)}
+        </div>
+      </div></article>`;
+    }
+
+    function listHtml(items, emptyText) {
+      if (!items.length) return `<div class="meta">${escapeHtml(emptyText)}</div>`;
+      return `<ul class="subject-list">${items.map(item => `<li class="meta" title="${escapeAttr(item)}">${escapeHtml(shortPath(item))}</li>`).join('')}</ul>`;
+    }
+
+    function modelVersionsHtml(models) {
+      if (!models.length) return '<div class="meta">No model versions indexed</div>';
+      return `<ul class="subject-list">${models.map(model => {
+        const title = [model.version, model.status].filter(Boolean).join(' · ') || 'Model version';
+        const detail = model.model || model.source_manifest || '';
+        return `<li><div>${escapeHtml(title)}</div><div class="meta">${escapeHtml(detail)}</div></li>`;
+      }).join('')}</ul>`;
+    }
+
+    function subjectOutputsHtml(outputs) {
+      if (!outputs.length) return '<div class="meta">No indexed outputs yet</div>';
+      return `<div class="subject-output-grid">${outputs.map(output => `<div class="subject-output">
+        <div class="subject-output-thumb">${entryMediaHtml(output)}</div>
+        <div class="meta">${escapeHtml(output.title || output.id || output.kind)}</div>
+      </div>`).join('')}</div>`;
+    }
+
+    function entryMediaHtml(entry) {
+      if (entry.root_key && entry.relative_path && entry.kind === 'image') {
+        return `<img src="${mediaUrl(entry)}" loading="lazy" alt="">`;
+      }
+      if (entry.root_key && entry.relative_path && entry.kind === 'video') {
+        return `<video src="${mediaUrl(entry)}" controls preload="metadata"></video>`;
+      }
+      if (entry.root_key && entry.relative_path && entry.kind === 'audio') {
+        return `<audio src="${mediaUrl(entry)}" controls></audio>`;
+      }
+      return `<span class="meta">${escapeHtml(entry.kind || 'media')}</span>`;
+    }
+
+    function shortPath(value) {
+      const text = String(value || '');
+      const parts = text.split('/').filter(Boolean);
+      return parts.slice(-4).join('/') || text;
+    }
+
+    function renderSubjectFilterOptions() {
+      const keys = subjectKeys();
+      const current = state.librarySubject || $('subject').value;
+      $('subject').innerHTML = '<option value="">All subjects</option>' + keys.map(key => `<option value="${escapeAttr(key)}">${escapeHtml(subjectLabel(key))}</option>`).join('');
+      if (current) $('subject').value = current;
+    }
+
+    function renderVideoSubjectOptions() {
+      const keys = subjectKeys();
+      const current = state.videoSubject || $('videoSubject').value;
+      $('videoSubject').innerHTML = '<option value="">All subjects</option>' + keys.map(key => `<option value="${escapeAttr(key)}">${escapeHtml(subjectLabel(key))}</option>`).join('');
+      if (current) $('videoSubject').value = current;
+    }
+
+    function subjectKeys() {
+      const fromSubjects = state.subjects.map(subject => subject.key).filter(Boolean);
+      const fromEntries = state.entries.map(entry => entry.subject).filter(Boolean);
+      return [...new Set([...fromSubjects, ...fromEntries])].sort();
+    }
+
+    function subjectLabel(key) {
+      const subject = state.subjects.find(item => item.key === key);
+      return subject ? (subject.display_name || key) : key;
     }
 
     async function loadStyles() {
@@ -338,8 +582,39 @@ HTML = r"""<!doctype html>
       const data = await getJson('/api/media/jobs');
       state.jobs = data.jobs || [];
       $('jobRows').innerHTML = state.jobs.map(j => `<tr>
-        <td>${escapeHtml(j.id)}</td><td>${escapeHtml(j.status)}</td><td>${escapeHtml(j.kind)}</td><td>${escapeHtml(j.target_output_dir || '')}</td>
+        <td>${escapeHtml(j.id)}</td>
+        <td>${escapeHtml(j.status)}</td>
+        <td>${escapeHtml(j.kind)}</td>
+        <td>${providerCell(j)}</td>
+        <td>${escapeHtml(j.polling_status || '')}</td>
+        <td>${escapeHtml(j.output_download_state || '')}</td>
+        <td>${escapeHtml(j.last_checked_at || '')}</td>
+        <td>${escapeHtml(j.target_output_dir || '')}<div class="meta">${escapeHtml(jobCostText(j))}</div></td>
+        <td>${escapeHtml(jobFailureText(j))}</td>
       </tr>`).join('');
+    }
+
+    function providerCell(job) {
+      const label = job.provider || 'provider';
+      if (!job.provider_url) return escapeHtml(label);
+      return `<a href="${escapeHtml(job.provider_url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`;
+    }
+
+    function jobCostText(job) {
+      const estimate = job.cost_estimate || {};
+      const counts = estimate.counts || {};
+      const parts = [];
+      if (estimate.basis) parts.push(estimate.basis);
+      if (counts.planned_provider_jobs !== undefined) parts.push(`${counts.planned_provider_jobs} planned job`);
+      if (counts.storyboard_scenes !== undefined) parts.push(`${counts.storyboard_scenes} scene`);
+      if (counts.steps !== undefined) parts.push(`${counts.steps} steps`);
+      return parts.join(' · ');
+    }
+
+    function jobFailureText(job) {
+      if (job.error) return job.error;
+      const details = job.failure_details || {};
+      return Object.keys(details).map(key => `${key}: ${details[key]}`).join(' · ');
     }
 
     async function loadSelections() {
@@ -349,14 +624,17 @@ HTML = r"""<!doctype html>
 
     function renderVideo() {
       const q = $('videoQ').value.toLowerCase();
-      const project = $('videoProject').value;
+      const subject = state.videoSubject || $('videoSubject').value;
+      const project = state.videoProject || $('videoProject').value;
       const videos = state.entries.filter(e => e.kind === 'video')
+        .filter(e => !subject || e.subject === subject)
         .filter(e => !project || e.project === project)
-        .filter(e => !q || [e.title, e.project, e.relative_path, e.prompt].join(' ').toLowerCase().includes(q));
+        .filter(e => !q || [e.title, e.subject, e.project, e.relative_path, e.prompt].join(' ').toLowerCase().includes(q));
       const projects = [...new Set(state.entries.filter(e => e.kind === 'video').map(e => e.project).filter(Boolean))].sort();
       const current = $('videoProject').value;
       $('videoProject').innerHTML = '<option value="">All projects</option>' + projects.map(p => `<option>${escapeHtml(p)}</option>`).join('');
-      $('videoProject').value = current;
+      $('videoProject').value = state.videoProject || current;
+      renderVideoSubjectOptions();
       $('videoCards').innerHTML = videos.slice(0, 160).map(videoCardHtml).join('');
       document.querySelectorAll('[data-select]').forEach(btn => btn.addEventListener('click', saveSelection));
     }
@@ -382,6 +660,78 @@ HTML = r"""<!doctype html>
       renderVideo();
     }
 
+    async function exportVideoEdl() {
+      const params = new URLSearchParams();
+      params.set('include', $('videoEdlInclude').value);
+      const result = await getJson('/api/media/selections/edl?' + params.toString());
+      $('videoEdlJson').value = JSON.stringify(result, null, 2);
+    }
+
+    async function importVideoEdl() {
+      const raw = $('videoEdlJson').value.trim();
+      if (!raw) return;
+      const result = await postJson('/api/media/selections/import', {
+        edl: JSON.parse(raw),
+        default_selection: $('videoImportDefault').value,
+        replace: true
+      });
+      state.selections = result.items || {};
+      renderVideo();
+    }
+
+    function handleSubjectQuickLink(event) {
+      const libraryLink = event.target.closest('[data-library-subject]');
+      if (libraryLink) {
+        event.preventDefault();
+        applyLibrarySubject(libraryLink.dataset.librarySubject || '', libraryLink.getAttribute('href') || '');
+        return;
+      }
+      const videoSubjectLink = event.target.closest('[data-video-subject]');
+      if (videoSubjectLink) {
+        event.preventDefault();
+        applyVideoSubject(videoSubjectLink.dataset.videoSubject || '', videoSubjectLink.getAttribute('href') || '');
+        return;
+      }
+      const videoProjectLink = event.target.closest('[data-video-project]');
+      if (videoProjectLink) {
+        event.preventDefault();
+        applyVideoProject(videoProjectLink.dataset.videoProject || '', videoProjectLink.getAttribute('href') || '');
+      }
+    }
+
+    async function applyLibrarySubject(subject, href) {
+      state.librarySubject = subject;
+      $('subject').value = subject;
+      $('viewMode').value = 'all';
+      activateView('library');
+      if (href) history.replaceState(null, '', href);
+      await loadMedia(false);
+    }
+
+    function applyVideoSubject(subject, href) {
+      state.videoSubject = subject;
+      $('videoSubject').value = subject;
+      activateView('video');
+      if (href) history.replaceState(null, '', href);
+      renderVideo();
+    }
+
+    async function applyVideoProject(project, href) {
+      state.videoSubject = '';
+      state.videoProject = project;
+      $('videoSubject').value = '';
+      $('videoProject').value = project;
+      activateView('video');
+      if (href) history.replaceState(null, '', href);
+      if (state.librarySubject) {
+        state.librarySubject = '';
+        $('subject').value = '';
+        await loadMedia(false);
+      } else {
+        renderVideo();
+      }
+    }
+
     async function runStudio() {
       const result = await postJson('/api/regen', {
         mode: 'single',
@@ -396,17 +746,33 @@ HTML = r"""<!doctype html>
     }
 
     async function runTraining() {
+      const execute = $('trainExecute').checked;
+      const confirmExecute = $('trainConfirm').checked;
+      if (execute && (!confirmExecute || !window.confirm('Execute LoRA training through Replicate?'))) {
+        $('studioOut').textContent = 'Training execute mode needs explicit confirmation.';
+        return;
+      }
       const result = await postJson('/api/jobs/train-lora', {
         subject: $('trainSubject').value,
-        input_images_url: $('trainDataset').value
+        input_images_url: $('trainDataset').value,
+        execute,
+        confirm_execute: confirmExecute
       });
       $('studioOut').textContent = JSON.stringify(result, null, 2);
       loadJobs();
     }
 
     async function runVideoGeneration() {
+      const execute = $('videoExecute').checked;
+      const confirmExecute = $('videoConfirm').checked;
+      if (execute && (!confirmExecute || !window.confirm('Execute video generation through Replicate?'))) {
+        $('studioOut').textContent = 'Video execute mode needs explicit confirmation.';
+        return;
+      }
       const result = await postJson('/api/jobs/video-generate', {
-        storyboard: $('videoStoryboard').value
+        storyboard: $('videoStoryboard').value,
+        execute,
+        confirm_execute: confirmExecute
       });
       $('studioOut').textContent = JSON.stringify(result, null, 2);
       loadJobs();
@@ -416,10 +782,15 @@ HTML = r"""<!doctype html>
       return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
     }
 
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
     async function loadAll(refresh=false) {
       await loadMedia(refresh);
       await Promise.all([loadSubjects(), loadStyles(), loadJobs(), loadSelections()]);
       renderVideo();
+      if (state.initialView) activateView(state.initialView);
     }
     loadAll(false).catch(err => { $('summary').textContent = err.message; });
   </script>

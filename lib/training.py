@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from lib.jobs import write_manifest
+from lib.jobs import provider_cost_preview, write_manifest
 from lib.media_registry import subjects as registry_subjects
 from lib.providers import replicate_provider
 
@@ -40,6 +40,21 @@ def plan_lora_training(
         "steps": steps,
         "lora_rank": lora_rank,
     }
+    count_preview = {
+        "planned_provider_jobs": 1,
+        "network_calls": 1 if execute else 0,
+        "training_runs": 1,
+        "steps": steps,
+        "lora_rank": lora_rank,
+        "dataset_urls": 1 if input_images_url else 0,
+    }
+    cost_estimate = provider_cost_preview(
+        provider="Replicate",
+        model=trainer_model,
+        counts=count_preview,
+        dry_run=not execute,
+        note="Replicate LoRA training spend is not estimated locally; use provider billing for exact charges.",
+    )
     provider_response = replicate_provider.run_training(
         destination,
         trainer_model,
@@ -56,6 +71,7 @@ def plan_lora_training(
         execute=execute,
         endpoint="trainings",
         provider_response=provider_response,
+        cost_estimate=cost_estimate,
     )
     manifest = {
         "version": 1,
@@ -67,6 +83,8 @@ def plan_lora_training(
         "trainer_version": trainer_version,
         "destination": destination,
         "request": request_input,
+        "count_preview": count_preview,
+        "cost_estimate": cost_estimate,
         "job": job.to_dict(),
         "profile": profile,
         "created_at": job.created_at,

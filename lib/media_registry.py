@@ -9,6 +9,7 @@ from dataclasses import MISSING
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from lib.importers import alex_samuel
 from lib.media_roots import MediaRoot, load_media_roots
@@ -30,10 +31,11 @@ KIND_PRIORITY = {
     "evaluation": 6,
     "video-edit": 7,
     "storyboard": 8,
-    "shot-list": 9,
-    "model-version": 10,
-    "training-manifest": 11,
-    "dataset": 12,
+    "scene-manifest": 9,
+    "shot-list": 10,
+    "model-version": 11,
+    "training-manifest": 12,
+    "dataset": 13,
 }
 COLLECTION_PRIORITY = {
     "predictions": 0,
@@ -173,6 +175,8 @@ def filter_entry_dicts(
     query: str = "",
     kind: str = "",
     collection: str = "",
+    subject: str = "",
+    project: str = "",
     view: str = "",
 ) -> list[dict[str, Any]]:
     q = query.strip().lower()
@@ -186,6 +190,10 @@ def filter_entry_dicts(
         if kind and entry.get("kind") != kind:
             continue
         if collection and entry.get("collection") != collection:
+            continue
+        if subject and entry.get("subject") != subject:
+            continue
+        if project and entry.get("project") != project:
             continue
         haystack = " ".join([
             str(entry.get("title", "")),
@@ -263,6 +271,16 @@ def subjects(registry_path: Path | None = None) -> list[SubjectProfile]:
     return [_subject_from_dict(item) for item in data.get("subjects", []) if isinstance(item, dict)]
 
 
+def subject_profiles(registry_path: Path | None = None, *, output_limit: int = 6) -> list[dict[str, Any]]:
+    data = load_registry(registry_path)
+    entries = [item for item in data.get("entries", []) if isinstance(item, dict)]
+    return [
+        _subject_profile_payload(item, entries, output_limit=output_limit)
+        for item in data.get("subjects", [])
+        if isinstance(item, dict)
+    ]
+
+
 def styles(registry_path: Path | None = None) -> list[StyleProfile]:
     data = load_registry(registry_path)
     return [_style_from_dict(item) for item in data.get("styles", []) if isinstance(item, dict)]
@@ -295,6 +313,72 @@ def _summary(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _items_for_root(data: dict[str, Any], key: str, root_key: str) -> list[dict[str, Any]]:
     return [item for item in data.get(key, []) if isinstance(item, dict) and item.get("root_key") == root_key]
+
+
+def _subject_profile_payload(
+    subject: dict[str, Any],
+    entries: list[dict[str, Any]],
+    *,
+    output_limit: int,
+) -> dict[str, Any]:
+    key = str(subject.get("key") or "")
+    subject_entries = [entry for entry in entries if str(entry.get("subject") or "") == key]
+    output_entries = [entry for entry in subject_entries if _is_representative_subject_output(entry)]
+    video_entries = [entry for entry in subject_entries if entry.get("kind") == "video"]
+    projects = sorted({str(entry.get("project") or "") for entry in subject_entries if entry.get("project")})
+    video_projects = sorted({str(entry.get("project") or "") for entry in video_entries if entry.get("project")})
+
+    payload = dict(subject)
+    payload.setdefault("trigger_word", "")
+    payload.setdefault("prompt_suites", [])
+    payload.setdefault("album_roots", [])
+    payload.setdefault("training_roots", [])
+    payload.setdefault("model_versions", [])
+    payload.setdefault("metadata", {})
+    payload["entry_count"] = len(subject_entries)
+    payload["output_count"] = len(output_entries)
+    payload["video_count"] = len(video_entries)
+    payload["projects"] = projects
+    payload["representative_outputs"] = [
+        _subject_entry_summary(entry)
+        for entry in sort_entry_dicts(output_entries)[:output_limit]
+    ]
+    payload["quick_links"] = {
+        "library": _suite_href(tab="library", view="all", subject=key),
+        "video_subject": _suite_href(tab="video", videoSubject=key) if video_entries else "",
+        "video_projects": [
+            {"project": project, "href": _suite_href(tab="video", videoProject=project)}
+            for project in video_projects
+        ],
+    }
+    return payload
+
+
+def _is_representative_subject_output(entry: dict[str, Any]) -> bool:
+    return str(entry.get("kind") or "") in {"image", "video", "audio", "prediction"}
+
+
+def _subject_entry_summary(entry: dict[str, Any]) -> dict[str, Any]:
+    keys = [
+        "id",
+        "kind",
+        "collection",
+        "root_key",
+        "relative_path",
+        "path",
+        "subject",
+        "project",
+        "title",
+        "prompt",
+        "provider",
+        "model",
+        "source_url",
+    ]
+    return {key: entry.get(key, "") for key in keys}
+
+
+def _suite_href(**params: str) -> str:
+    return "/?" + urlencode({key: value for key, value in params.items() if value})
 
 
 def _entry_sort_key(entry: dict[str, Any]) -> tuple[Any, ...]:

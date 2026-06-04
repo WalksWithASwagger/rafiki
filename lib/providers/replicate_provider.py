@@ -10,10 +10,12 @@ from pathlib import Path
 from time import sleep
 from typing import Any
 
-from lib.jobs import new_job_id, now_iso, save_job
+from lib.jobs import load_job, new_job_id, now_iso, save_job, update_job
 from lib.media_types import JobRecord
 
 REPLICATE_API_BASE = "https://api.replicate.com/v1"
+_FAILED_STATUSES = {"failed", "canceled", "cancelled"}
+_TERMINAL_STATUSES = {"succeeded", *_FAILED_STATUSES}
 
 
 class ReplicateError(RuntimeError):
@@ -38,19 +40,35 @@ def create_job(
     execute: bool = False,
     endpoint: str = "predictions",
     provider_response: dict[str, Any] | None = None,
+    cost_estimate: dict[str, Any] | None = None,
+    jobs_dir: Path | None = None,
 ) -> JobRecord:
     created_at = now_iso()
     response = provider_response or {}
+    lifecycle = _job_lifecycle(response, execute=execute, checked_at=created_at)
     record = JobRecord(
         id=new_job_id(kind),
         kind=kind,
         provider="replicate",
         status=_job_status(response, execute=execute),
         target_output_dir=str(target_output_dir.resolve(strict=False)),
-        cost_estimate={"basis": "provider", "currency": "USD", "amount": None},
+        cost_estimate=cost_estimate or {
+            "basis": "provider_billing_required",
+            "currency": "USD",
+            "amount": None,
+            "estimated": False,
+            "provider": "Replicate",
+            "model": model,
+            "note": "Replicate billing remains the source of truth for paid job spend.",
+        },
         created_at=created_at,
         updated_at=created_at,
         manifest_path=str(manifest_path.resolve(strict=False)),
+        provider_url=lifecycle["provider_url"],
+        polling_status=lifecycle["polling_status"],
+        output_download_state=lifecycle["output_download_state"],
+        failure_details=lifecycle["failure_details"],
+        last_checked_at=lifecycle["last_checked_at"],
         request={
             "model": model,
             "input": redact_request(input),
@@ -60,7 +78,7 @@ def create_job(
         error=_job_error(response),
         provider_response=response,
     )
-    save_job(record)
+    save_job(record, jobs_dir=jobs_dir)
     return record
 
 
@@ -116,6 +134,80 @@ def poll_resource(
         sleep(max(0.1, interval_seconds))
     last["polling_error"] = "max attempts exceeded"
     return last
+
+
+def poll_job(
+    job_id: str,
+    *,
+    jobs_dir: Path | None = None,
+    execute: bool = False,
+    interval_seconds: float = 2,
+    max_attempts: int = 120,
+) -> dict[str, Any]:
+    record = load_job(job_id, jobs_dir=jobs_dir)
+    if record is None:
+        raise ValueError(f"job not found: {job_id}")
+    provider_url = str(record.get("provider_url") or _provider_url(record.get("provider_response")))
+    if not provider_url:
+        raise ValueError(f"job has no provider URL: {job_id}")
+    provider_response = poll_resource(
+        provider_url,
+        execute=execute,
+        interval_seconds=interval_seconds,
+        max_attempts=max_attempts,
+    )
+    return capture_job_provider_response(job_id, provider_response, jobs_dir=jobs_dir)
+
+
+def capture_job_provider_response(
+    job_id: str,
+    provider_response: dict[str, Any],
+    *,
+    jobs_dir: Path | None = None,
+    output_download_state: str = "",
+) -> dict[str, Any]:
+    record = load_job(job_id, jobs_dir=jobs_dir)
+    if record is None:
+        raise ValueError(f"job not found: {job_id}")
+    request = record.get("request") if isinstance(record.get("request"), dict) else {}
+    execute = bool(request.get("execute"))
+    checked_at = now_iso()
+    lifecycle = _job_lifecycle(provider_response, execute=execute, checked_at=checked_at)
+    if output_download_state:
+        lifecycle["output_download_state"] = output_download_state
+    return update_job(
+        job_id,
+        {
+            **lifecycle,
+            "status": _job_status(provider_response, execute=execute),
+            "error": _job_error(provider_response),
+            "provider_response": provider_response,
+        },
+        jobs_dir=jobs_dir,
+    )
+
+
+def capture_job_output_download(
+    job_id: str,
+    download_result: dict[str, Any],
+    *,
+    jobs_dir: Path | None = None,
+) -> dict[str, Any]:
+    status = str(download_result.get("status") or "").lower()
+    if status == "downloaded":
+        state = "downloaded"
+    elif status == "dry-run":
+        state = "dry-run"
+    else:
+        state = "failed" if download_result.get("error") else "pending"
+    updates: dict[str, Any] = {
+        "output_download_state": state,
+        "last_checked_at": now_iso(),
+        "output_download": download_result,
+    }
+    if download_result.get("error"):
+        updates["failure_details"] = {"download_error": str(download_result.get("error"))[:2000]}
+    return update_job(job_id, updates, jobs_dir=jobs_dir)
 
 
 def download_output(url: str, output_path: Path, *, execute: bool = False) -> dict[str, Any]:
@@ -198,7 +290,7 @@ def _job_status(provider_response: dict[str, Any], *, execute: bool) -> str:
     if not execute:
         return "dry-run"
     status = str(provider_response.get("status") or "").lower()
-    if status in {"failed", "canceled", "cancelled"}:
+    if status in _FAILED_STATUSES:
         return "failed"
     if status == "succeeded":
         return "succeeded"
@@ -206,6 +298,70 @@ def _job_status(provider_response: dict[str, Any], *, execute: bool) -> str:
 
 
 def _job_error(provider_response: dict[str, Any]) -> str:
-    if str(provider_response.get("status") or "").lower() != "failed":
+    status = str(provider_response.get("status") or "").lower()
+    if status not in _FAILED_STATUSES and not provider_response.get("error"):
         return ""
     return str(provider_response.get("error") or provider_response.get("logs") or "")[:2000]
+
+
+def _job_lifecycle(provider_response: dict[str, Any], *, execute: bool, checked_at: str) -> dict[str, Any]:
+    return {
+        "provider_url": _provider_url(provider_response),
+        "polling_status": _polling_status(provider_response, execute=execute),
+        "output_download_state": _output_download_state(provider_response, execute=execute),
+        "failure_details": _failure_details(provider_response),
+        "last_checked_at": checked_at,
+    }
+
+
+def _provider_url(provider_response: object) -> str:
+    if not isinstance(provider_response, dict):
+        return ""
+    urls = provider_response.get("urls")
+    if isinstance(urls, dict):
+        for key in ("get", "web", "stream"):
+            value = urls.get(key)
+            if isinstance(value, str) and value:
+                return value
+    for key in ("url", "prediction_url", "training_url"):
+        value = provider_response.get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+def _polling_status(provider_response: dict[str, Any], *, execute: bool) -> str:
+    if not execute:
+        return "not-started"
+    status = str(provider_response.get("status") or "").lower()
+    if provider_response.get("polling_error"):
+        return "polling-timeout"
+    if status in _TERMINAL_STATUSES:
+        return status
+    return status or "queued"
+
+
+def _output_download_state(provider_response: dict[str, Any], *, execute: bool) -> str:
+    if not execute:
+        return "not-started"
+    status = str(provider_response.get("status") or "").lower()
+    if status in _FAILED_STATUSES:
+        return "blocked"
+    output = provider_response.get("output")
+    if status == "succeeded":
+        return "available" if output else "none"
+    return "pending"
+
+
+def _failure_details(provider_response: dict[str, Any]) -> dict[str, Any]:
+    status = str(provider_response.get("status") or "").lower()
+    if status not in _FAILED_STATUSES and not provider_response.get("error") and not provider_response.get("polling_error"):
+        return {}
+    details: dict[str, Any] = {}
+    if status:
+        details["status"] = status
+    for key in ("error", "logs", "polling_error"):
+        value = provider_response.get(key)
+        if value:
+            details[key] = str(value)[:2000]
+    return details

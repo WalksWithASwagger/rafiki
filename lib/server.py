@@ -129,6 +129,13 @@ def _coerce_workers(value: object) -> int:
     return min(workers, 8)
 
 
+def _confirmed_execute(payload: dict, *, label: str) -> bool:
+    execute = _coerce_bool(payload.get("execute"))
+    if execute and not _coerce_bool(payload.get("confirm_execute")):
+        raise ValueError(f"{label} execute mode requires confirm_execute=true")
+    return execute
+
+
 def _normalise_aspect_ratio(value: object) -> str:
     text = _coerce_str(value, field="aspect_ratio") if value is not None else "16:9"
     if not text:
@@ -334,6 +341,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     archive_metadata_file: Path
     billing_imports_file: Path
     video_selections_file: Path = REPO_ROOT / "data" / "video-selections.json"
+    media_registry_file: Path | None = None
     extra_roots: dict[str, Path]  # project_name → real dir
     media_roots: dict[str, object] = {}
 
@@ -396,6 +404,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_media_video_edits()
         elif path == "/api/media/jobs":
             self._serve_media_jobs()
+        elif path == "/api/media/selections/edl":
+            self._serve_media_selection_edl(parsed.query)
         elif path == "/api/media/selections":
             self._serve_media_selections()
         elif path == "/api/actions":
@@ -437,6 +447,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._regen()
         elif path == "/api/actions":
             self._run_action()
+        elif path == "/api/media/selections/import":
+            self._import_media_selection_edl()
         elif path == "/api/media/selections":
             self._update_media_selection()
         elif path == "/api/jobs/train-lora":
@@ -521,15 +533,30 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         params = parse_qs(query)
         refresh = (params.get("refresh") or [""])[0].strip().lower() in _TRUE_VALUES
         incremental = (params.get("incremental") or [""])[0].strip().lower() in _TRUE_VALUES
+        registry_path = self._media_registry_path()
         if refresh:
-            data = media_registry.index(incremental=incremental)
+            data = media_registry.index(
+                roots=self.media_roots or None,
+                registry_path=registry_path,
+                incremental=incremental,
+            )
         else:
-            data = media_registry.load_registry()
+            data = media_registry.load_registry(registry_path)
         q = (params.get("q") or [""])[0].strip()
         kind = (params.get("kind") or [""])[0].strip()
         collection = (params.get("collection") or [""])[0].strip()
+        subject = (params.get("subject") or [""])[0].strip()
+        project = (params.get("project") or [""])[0].strip()
         view = (params.get("view") or ["review"])[0].strip()
-        entries = media_registry.filter_entry_dicts(data, query=q, kind=kind, collection=collection, view=view)
+        entries = media_registry.filter_entry_dicts(
+            data,
+            query=q,
+            kind=kind,
+            collection=collection,
+            subject=subject,
+            project=project,
+            view=view,
+        )
         payload = {
             "summary": data.get("summary", {}),
             "entries": entries,
@@ -544,7 +571,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     def _serve_media_subjects(self):
         from lib import media_registry
 
-        payload = {"subjects": [subject.to_dict() for subject in media_registry.subjects()]}
+        payload = {"subjects": media_registry.subject_profiles()}
         self._respond(200, "application/json", json.dumps(payload).encode())
 
     def _serve_media_styles(self):
@@ -566,6 +593,31 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
     def _serve_media_selections(self):
         self._respond(200, "application/json", json.dumps(self._load_video_selections()).encode())
+
+    def _serve_media_selection_edl(self, query: str = ""):
+        from lib import media_registry
+        from lib.video_jobs import export_video_selection_edl
+
+        params = parse_qs(query)
+        include = [
+            item.strip()
+            for raw in params.get("include", [])
+            for item in raw.split(",")
+            if item.strip()
+        ]
+        project = (params.get("project") or [""])[0].strip()
+        try:
+            registry = media_registry.load_registry(self._media_registry_path())
+            edl = export_video_selection_edl(
+                selections=self._load_video_selections(),
+                registry=registry,
+                selection_values=include or None,
+                project=project,
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        self._respond(200, "application/json", json.dumps(edl).encode("utf-8"))
 
     def _serve_ratings(self):
         ratings = _load_ratings(self.ratings_file)
@@ -877,6 +929,45 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
         self._respond(200, "application/json", json.dumps({"ok": True, "items": items}).encode("utf-8"))
 
+    def _import_media_selection_edl(self):
+        from lib import media_registry
+        from lib.video_jobs import import_video_selection_payload
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            if not isinstance(payload, dict):
+                raise ValueError("request body must be a JSON object")
+            source = payload.get("edl") if isinstance(payload.get("edl"), dict) else payload
+            default_selection = _coerce_str(payload.get("default_selection"), field="default_selection") or "focus"
+            replace = True if "replace" not in payload else _coerce_bool(payload.get("replace"))
+            registry = media_registry.load_registry(self._media_registry_path())
+            imported = import_video_selection_payload(
+                source,
+                registry=registry,
+                default_selection=default_selection,
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "selection import failed", "detail": _safe_error_text(e)}).encode("utf-8"),
+            )
+            return
+
+        data = self._load_video_selections()
+        items = {} if replace else dict(data.get("items") or {})
+        items.update(imported["items"])
+        data["items"] = items
+        self.video_selections_file.parent.mkdir(parents=True, exist_ok=True)
+        self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        imported["items"] = items
+        self._respond(200, "application/json", json.dumps(imported).encode("utf-8"))
+
     def _run_train_lora(self):
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length)
@@ -888,7 +979,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             result = plan_lora_training(
                 subject=subject,
                 output_root=self.output_root,
-                execute=_coerce_bool(payload.get("execute")),
+                execute=_confirmed_execute(payload, label="training"),
                 input_images_url=_coerce_str(payload.get("input_images_url"), field="input_images_url"),
             )
         except ValueError as e:
@@ -910,7 +1001,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             result = plan_video_generation(
                 storyboard_path=Path(storyboard),
                 output_root=self.output_root,
-                execute=_coerce_bool(payload.get("execute")),
+                execute=_confirmed_execute(payload, label="video generation"),
                 model=_coerce_str(payload.get("model"), field="model") or "wan-video/wan2.1-with-lora",
             )
         except ValueError as e:
@@ -936,6 +1027,9 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             data["items"] = {}
         data.setdefault("version", 1)
         return data
+
+    def _media_registry_path(self) -> Path | None:
+        return self.media_registry_file
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -1047,6 +1141,7 @@ def serve(
     Handler.archive_metadata_file = archive_metadata_file
     Handler.billing_imports_file = billing_imports_file
     Handler.video_selections_file = video_selections_file
+    Handler.media_registry_file = REPO_ROOT / "data" / "media-registry.json"
     Handler.extra_roots = extra_roots
     Handler.media_roots = media_roots
 

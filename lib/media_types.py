@@ -62,6 +62,11 @@ class JobRecord:
     updated_at: str = ""
     error: str = ""
     manifest_path: str = ""
+    provider_url: str = ""
+    polling_status: str = ""
+    output_download_state: str = ""
+    failure_details: dict[str, Any] = field(default_factory=dict)
+    last_checked_at: str = ""
     request: dict[str, Any] = field(default_factory=dict)
     provider_response: dict[str, Any] = field(default_factory=dict)
 
