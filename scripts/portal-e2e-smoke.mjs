@@ -464,6 +464,7 @@ async function main() {
 
     const port = await getFreePort();
     const url = `http://127.0.0.1:${port}/`;
+    const libraryUrl = `${url}library`;
     server = spawn(python, ['generate.py', 'serve', '--port', String(port), '--output-dir', outputRoot], {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -490,13 +491,34 @@ async function main() {
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
+    const suite = await browser.newPage();
+    suite.on('pageerror', (error) => errors.push(`suite pageerror: ${error.message}`));
+    suite.on('console', (msg) => {
+      if (['error', 'warning'].includes(msg.type())) errors.push(`suite console ${msg.type()}: ${msg.text()}`);
+    });
+    await suite.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
+    await suite.goto(url, { waitUntil: 'networkidle0' });
+    await suite.waitForSelector('#tabs button[data-view="library"]', { timeout: 5000 });
+    const suiteState = await suite.evaluate(() => ({
+      title: document.title,
+      activeView: document.querySelector('.view.active')?.id || '',
+      tabs: Array.from(document.querySelectorAll('#tabs button[data-view]')).map((button) => button.dataset.view),
+      legacyHref: document.querySelector('a[href="/library"]')?.getAttribute('href') || '',
+      summary: document.querySelector('#summary')?.textContent?.trim() || '',
+    }));
+    assert(suiteState.title === 'Rafiki Suite', `unexpected suite title: ${suiteState.title}`);
+    assert(suiteState.activeView === 'library', `expected suite Library view by default, got ${suiteState.activeView}`);
+    assert(['library', 'subjects', 'studio', 'jobs', 'styles', 'video'].every((tab) => suiteState.tabs.includes(tab)), 'suite tabs did not render');
+    assert(suiteState.legacyHref === '/library', 'suite did not link to the legacy image library');
+    await suite.close();
+
     const desktop = await browser.newPage();
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
     desktop.on('console', (msg) => {
       if (['error', 'warning'].includes(msg.type())) errors.push(`desktop console ${msg.type()}: ${msg.text()}`);
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
-    await desktop.goto(url, { waitUntil: 'networkidle0' });
+    await desktop.goto(libraryUrl, { waitUntil: 'networkidle0' });
     await desktop.waitForSelector('.card', { timeout: 5000 });
 
     const desktopState = await desktop.evaluate(async () => {
@@ -687,7 +709,7 @@ async function main() {
       if (['error', 'warning'].includes(msg.type())) errors.push(`mobile console ${msg.type()}: ${msg.text()}`);
     });
     await mobile.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true });
-    await mobile.goto(url, { waitUntil: 'networkidle0' });
+    await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
     await mobile.waitForSelector('.card', { timeout: 5000 });
 
     const mobileState = await mobile.evaluate(async () => {
@@ -757,6 +779,7 @@ async function main() {
         project,
         run_id: path.basename(runDir),
       },
+      suite: suiteState,
       desktop: desktopState,
       mobile: mobileState,
       screenshots: visualModeEnabled ? Object.fromEntries(
