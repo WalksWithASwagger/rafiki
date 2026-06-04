@@ -1057,7 +1057,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Length", str(len(body)))
                 self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
                 self.send_header("Accept-Ranges", "bytes")
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self._send_same_origin_cors()
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 self.wfile.write(body)
@@ -1070,7 +1070,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", mime)
             self.send_header("Content-Length", str(size))
             self.send_header("Accept-Ranges", "bytes")
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self._send_same_origin_cors()
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             with target.open("rb") as f:
@@ -1096,12 +1096,22 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         end = min(max(end, start), size - 1)
         return start, end
 
+    def _send_same_origin_cors(self) -> None:
+        origin = self.headers.get("Origin")
+        if not origin:
+            return
+        parsed = urlparse(origin)
+        if parsed.scheme != "http" or parsed.netloc != self.headers.get("Host", ""):
+            return
+        self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Vary", "Origin")
+
     def _respond(self, status: int, content_type: str, body: bytes) -> None:
         try:
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self._send_same_origin_cors()
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(body)
@@ -1145,6 +1155,10 @@ def serve(
     Handler.extra_roots = extra_roots
     Handler.media_roots = media_roots
 
+    auth_on = _basic_auth_credentials() is not None
+    if public and not auth_on:
+        raise ValueError("--public requires both PORTAL_USERNAME and PORTAL_PASSWORD")
+
     bind_host = "0.0.0.0" if public else "127.0.0.1"
     httpd = ThreadingHTTPServer((bind_host, port), Handler)
     display_host = "localhost" if not public else "0.0.0.0"
@@ -1159,13 +1173,7 @@ def serve(
         for name, root in media_roots.items():
             print(f"  + {name} → {root.path} ({root.importer})")
 
-    auth_on = _basic_auth_credentials() is not None
-    if public and not auth_on:
-        print(
-            "WARNING: --public bound to 0.0.0.0 with NO authentication. "
-            "Set PORTAL_USERNAME and PORTAL_PASSWORD to enable Basic auth."
-        )
-    elif auth_on:
+    if auth_on:
         print("Auth: Basic (PORTAL_USERNAME / PORTAL_PASSWORD)")
 
     print("Ctrl-C to stop.")

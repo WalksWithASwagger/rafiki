@@ -17,7 +17,8 @@ control plane. Provider API keys stay on the operator's machine.
 If you expose the portal beyond localhost:
 
 - use `--public` intentionally
-- set both `PORTAL_USERNAME` and `PORTAL_PASSWORD`
+- set both `PORTAL_USERNAME` and `PORTAL_PASSWORD` (`--public` refuses to start
+  without them)
 - prefer a strong generated password
 - avoid exposing the portal directly to the public internet
 
@@ -30,4 +31,3 @@ If you discover a security problem:
 - do not include live secrets in a public issue
 - prefer private disclosure through GitHub security reporting if available
 - otherwise contact the repository owner directly before publishing details
-

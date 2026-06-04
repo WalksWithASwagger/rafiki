@@ -302,7 +302,8 @@ python generate.py link-projects
 
 - Provider keys belong in your shell environment or an untracked `.env`
 - `python generate.py serve` binds to `127.0.0.1` by default
-- If you use `--public`, set both `PORTAL_USERNAME` and `PORTAL_PASSWORD`
+- `--public` refuses to start unless both `PORTAL_USERNAME` and
+  `PORTAL_PASSWORD` are set
 - Rafiki is a local-first tool, not a hosted multi-user platform
 
 Read:
