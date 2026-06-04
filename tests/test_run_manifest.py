@@ -86,6 +86,25 @@ def test_run_manifest_records_provenance_and_timing(tmp_path):
     assert data["images"][1]["duration_seconds"] >= 0
 
 
+def test_run_manifest_uses_shared_prompt_aspect_override(tmp_path):
+    result = batch_module.run_batch(
+        prompts=[
+            {"name": "July", "prompt": "july prompt", "aspect_ratio": "1:1"},
+            {"name": "August", "prompt": "august prompt", "aspect_ratio": "1:1"},
+        ],
+        project_dir=tmp_path / "images",
+        model="gemini-2.5-flash-image",
+        aspect_ratio="16:9",
+        dry_run=True,
+        generate_viewer_html=False,
+    )
+
+    data = _manifest(result.run_dir)
+
+    assert data["aspect_ratio"] == "1:1"
+    assert [image["aspect_ratio"] for image in data["images"]] == ["1:1", "1:1"]
+
+
 def test_run_manifest_records_item_failure_state_and_error(tmp_path, monkeypatch):
     def fake_generate_image(**kwargs):
         return "bad" not in kwargs["prompt"]

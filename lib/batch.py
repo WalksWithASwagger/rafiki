@@ -166,6 +166,12 @@ def run_batch(
             ),
         })
 
+    task_aspect_ratios = sorted({t["aspect_ratio"] for t in tasks if t.get("aspect_ratio")})
+    if len(task_aspect_ratios) == 1:
+        run_meta["aspect_ratio"] = task_aspect_ratios[0]
+    elif task_aspect_ratios:
+        run_meta["aspect_ratios"] = task_aspect_ratios
+
     task_providers = sorted({t["provider"] for t in tasks if t.get("provider")})
     if len(task_providers) == 1:
         run_meta["provider"] = task_providers[0]
