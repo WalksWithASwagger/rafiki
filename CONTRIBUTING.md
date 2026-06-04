@@ -27,6 +27,8 @@ cp .env.example .env
 ```bash
 npm run doctor
 npm test
+npm audit --omit=dev --audit-level=moderate
+./.venv/bin/python -m pip_audit -r requirements.txt
 npm run pack:check
 python generate.py --help
 python generate.py serve --open
@@ -61,5 +63,6 @@ process. Normal runtime commands include configured extra outputs by default.
 Before merging public-release work:
 
 - `python3 -m pytest -q`
+- `python3 -m pip_audit -r requirements.txt`
 - `npm pack --dry-run`
 - sanity-check `README.md`, `SECURITY.md`, and `docs/SCOPE.md`

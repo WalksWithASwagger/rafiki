@@ -28,7 +28,7 @@ work together:
 - `--public` — bind to `0.0.0.0` (all interfaces) instead of loopback.
 - `PORTAL_USERNAME` + `PORTAL_PASSWORD` env vars — when **both** are set, the
   server requires HTTP Basic auth on every request (constant-time compare via
-  `secrets.compare_digest`). If only one is set, auth stays off.
+  `secrets.compare_digest`).
 
 Combining them is the recommended pattern for team review:
 
@@ -38,8 +38,8 @@ PORTAL_PASSWORD=$(openssl rand -hex 16) \
 python generate.py serve --public
 ```
 
-Running `--public` without credentials is allowed but prints a clear warning;
-the server will still start so you don't get locked out by a typo.
+Running `--public` without complete credentials is refused. Run without
+`--public` for solo localhost use.
 
 ## Prompt Studio
 

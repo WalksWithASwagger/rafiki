@@ -5,7 +5,10 @@ from __future__ import annotations
 import inspect
 import json
 import sys
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -16,6 +19,12 @@ from lib import video_jobs as video_jobs_module
 from lib.server import _RafikiHandler
 from tests.server_harness import http_get as _get
 from tests.server_harness import http_post_json as _post_json
+
+
+def _get_with_origin(url: str, origin: str):
+    req = urllib.request.Request(url)
+    req.add_header("Origin", origin)
+    return urllib.request.urlopen(req, timeout=5)
 
 
 def test_no_credentials_serves_freely(server, monkeypatch):
@@ -194,6 +203,39 @@ def test_video_generate_execute_passes_with_confirmation(server, monkeypatch):
     assert captured["execute"] is True
 
 
+def test_public_serve_requires_complete_credentials(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    output_root.mkdir()
+
+    for username, password in ((None, None), ("team", None), (None, "s3cret")):
+        if username is None:
+            monkeypatch.delenv("PORTAL_USERNAME", raising=False)
+        else:
+            monkeypatch.setenv("PORTAL_USERNAME", username)
+        if password is None:
+            monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
+        else:
+            monkeypatch.setenv("PORTAL_PASSWORD", password)
+
+        with pytest.raises(ValueError, match="--public requires both PORTAL_USERNAME and PORTAL_PASSWORD"):
+            server_module.serve(output_root=output_root, public=True)
+
+
+def test_same_origin_cors_echoes_origin(server):
+    resp = _get_with_origin(f"{server}/api/ratings", server)
+
+    assert resp.status == 200
+    assert resp.headers.get("Access-Control-Allow-Origin") == server
+    assert resp.headers.get("Vary") == "Origin"
+
+
+def test_cross_origin_cors_is_not_wildcard(server):
+    resp = _get_with_origin(f"{server}/api/ratings", "http://example.com")
+
+    assert resp.status == 200
+    assert resp.headers.get("Access-Control-Allow-Origin") is None
+
+
 def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):
     monkeypatch.setenv("PORTAL_USERNAME", "team")
     monkeypatch.setenv("PORTAL_PASSWORD", "s3cret")
@@ -249,7 +291,7 @@ def test_constant_time_compare_used():
 
 def test_only_one_env_var_set_disables_auth(server, monkeypatch):
     """Auth turns on only when BOTH PORTAL_USERNAME and PORTAL_PASSWORD are
-    set — partial config = off (warned by --public, but auth stays disabled)."""
+    set — partial config = off for localhost and refused for --public."""
     monkeypatch.setenv("PORTAL_USERNAME", "team")
     monkeypatch.delenv("PORTAL_PASSWORD", raising=False)
     resp = _get(f"{server}/api/ratings")
