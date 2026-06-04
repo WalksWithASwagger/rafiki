@@ -9,6 +9,7 @@ from pathlib import Path
 
 import pytest
 
+from lib import media_registry
 from lib.media_roots import MediaRoot
 from lib.server import _RafikiHandler
 
@@ -78,3 +79,38 @@ def test_media_selections_endpoint_persists_local_state(media_server: str) -> No
 
     saved = json.loads(_request(f"{media_server}/api/media/selections").read().decode("utf-8"))
     assert saved["items"]["media/demo/clip.mp4"] == "star"
+
+
+def test_media_endpoint_defaults_to_reviewable_entries(media_server: str, monkeypatch) -> None:
+    data = {
+        "summary": {"entries": 2},
+        "warnings": [],
+        "entries": [
+            {
+                "id": "dataset",
+                "kind": "dataset",
+                "collection": "albums",
+                "root_key": "demo",
+                "path": "/tmp/dataset.zip",
+                "relative_path": "dataset.zip",
+                "title": "Dataset",
+            },
+            {
+                "id": "image",
+                "kind": "image",
+                "collection": "predictions",
+                "root_key": "demo",
+                "path": "/tmp/image.png",
+                "relative_path": "image.png",
+                "title": "Image",
+            },
+        ],
+    }
+    monkeypatch.setattr(media_registry, "load_registry", lambda: data)
+
+    default_payload = json.loads(_request(f"{media_server}/api/media").read().decode("utf-8"))
+    all_payload = json.loads(_request(f"{media_server}/api/media?view=all").read().decode("utf-8"))
+
+    assert default_payload["view"] == "review"
+    assert [entry["id"] for entry in default_payload["entries"]] == ["image"]
+    assert {entry["id"] for entry in all_payload["entries"]} == {"dataset", "image"}

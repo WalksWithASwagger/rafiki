@@ -63,7 +63,7 @@ HTML = r"""<!doctype html>
     main { padding: 18px 20px 40px; }
     .toolbar {
       display: grid;
-      grid-template-columns: minmax(220px, 1fr) 140px 140px auto;
+      grid-template-columns: 130px minmax(220px, 1fr) 140px 140px auto;
       gap: 8px;
       margin-bottom: 14px;
     }
@@ -157,10 +157,14 @@ HTML = r"""<!doctype html>
   <main>
     <section id="library" class="view active">
       <div class="toolbar">
+        <select id="viewMode">
+          <option value="review">Reviewable</option>
+          <option value="all">All</option>
+        </select>
         <input id="q" placeholder="Search">
         <select id="kind">
           <option value="">All kinds</option>
-          <option>image</option><option>video</option><option>audio</option><option>dataset</option><option>prediction</option><option>style</option>
+          <option>image</option><option>video</option><option>audio</option><option>prediction</option><option>style</option><option>prompt-suite</option><option>dataset</option><option>model-version</option>
         </select>
         <select id="collection">
           <option value="">All collections</option>
@@ -238,6 +242,9 @@ HTML = r"""<!doctype html>
 
     $('refresh').addEventListener('click', () => loadAll(true));
     $('search').addEventListener('click', () => loadMedia(false));
+    $('viewMode').addEventListener('change', () => loadMedia(false));
+    $('kind').addEventListener('change', () => loadMedia(false));
+    $('collection').addEventListener('change', () => loadMedia(false));
     $('videoSearch').addEventListener('click', renderVideo);
     $('studioRun').addEventListener('click', runStudio);
     $('trainRun').addEventListener('click', runTraining);
@@ -266,13 +273,15 @@ HTML = r"""<!doctype html>
 
     async function loadMedia(refresh) {
       const params = new URLSearchParams();
+      params.set('view', $('viewMode').value);
       if ($('q').value) params.set('q', $('q').value);
       if ($('kind').value) params.set('kind', $('kind').value);
       if ($('collection').value) params.set('collection', $('collection').value);
       if (refresh) params.set('refresh', '1');
       const data = await getJson('/api/media?' + params.toString());
       state.entries = data.entries || [];
-      $('summary').textContent = `${state.entries.length} entries`;
+      const total = data.total_entries || (data.summary && data.summary.entries) || state.entries.length;
+      $('summary').textContent = `${state.entries.length} shown · ${total} indexed`;
       renderCollectionOptions(data.collections || []);
       renderCards();
       renderVideo();

@@ -57,10 +57,10 @@ def import_root(root: Path, *, root_key: str = "alex-samuel", indexed_at: str | 
     for path in _iter_known_json(root):
         rel = _rel(root, path)
         if path.name == "predictions.json":
-            for entry in _entries_from_predictions(root, root_key, path):
+            for entry in _entries_from_predictions(root, root_key, path, result.warnings):
                 add(entry)
         elif path.name == "trainings.json":
-            _merge_training_versions(root, path, subject_by_key)
+            _merge_training_versions(root, path, subject_by_key, result.warnings)
             add(_entry_for_path(root, root_key, path, "training-manifest", collection="training"))
         elif path.name == "storyboard.json":
             add(_entry_for_path(root, root_key, path, "storyboard", collection="video", project=_project_from_video_path(root, path)))
@@ -168,7 +168,9 @@ def _entry_for_path(
     title = title or _title_from_path(path)
     meta = dict(metadata or {})
     if path.exists() and path.is_file():
-        meta.setdefault("size_bytes", path.stat().st_size)
+        stat = path.stat()
+        meta.setdefault("size_bytes", stat.st_size)
+        meta.setdefault("mtime_ns", stat.st_mtime_ns)
     return MediaEntry(
         id=_stable_id(root_key, relative_path, kind, collection),
         kind=kind,
@@ -233,17 +235,21 @@ def _discover_subjects(root: Path, *, root_key: str) -> list[SubjectProfile]:
     return sorted(subjects.values(), key=lambda subject: subject.key)
 
 
-def _merge_training_versions(root: Path, path: Path, subjects: dict[str, SubjectProfile]) -> None:
+def _merge_training_versions(root: Path, path: Path, subjects: dict[str, SubjectProfile], warnings: list[str]) -> None:
     data = _read_json(path)
     runs = data.get("runs") if isinstance(data, dict) else None
     if not isinstance(runs, list):
+        warnings.append(f"{_rel(root, path)}: trainings manifest missing runs list")
         return
     subject = _subject_for_path(root, path)
     profile = subjects.get(subject)
     if not profile:
+        warnings.append(f"{_rel(root, path)}: trainings manifest has no subject profile")
         return
+    malformed = 0
     for run in runs:
         if not isinstance(run, dict):
+            malformed += 1
             continue
         version = run.get("model_version") or run.get("version") or run.get("training_response", {}).get("version")
         model = run.get("destination") or run.get("model") or run.get("training_response", {}).get("model")
@@ -254,21 +260,32 @@ def _merge_training_versions(root: Path, path: Path, subjects: dict[str, Subject
             "status": run.get("status") or run.get("training_response", {}).get("status", ""),
             "source_manifest": str(path.resolve(strict=False)),
         })
+    if malformed:
+        warnings.append(f"{_rel(root, path)}: ignored {malformed} malformed training run(s)")
 
 
-def _entries_from_predictions(root: Path, root_key: str, manifest: Path) -> list[MediaEntry]:
+def _entries_from_predictions(root: Path, root_key: str, manifest: Path, warnings: list[str]) -> list[MediaEntry]:
     data = _read_json(manifest)
     predictions = data
     if isinstance(data, dict):
         predictions = data.get("predictions") or data.get("items") or data.get("results") or []
     if not isinstance(predictions, list):
+        warnings.append(f"{_rel(root, manifest)}: predictions manifest is not a list")
         return []
 
     entries: list[MediaEntry] = []
+    malformed = 0
+    missing_local = 0
+    remote_only = 0
     for idx, prediction in enumerate(predictions):
         if not isinstance(prediction, dict):
+            malformed += 1
             continue
-        output_path = _resolve_prediction_output(root, manifest, prediction)
+        output_path, output_state = _resolve_prediction_output(root, manifest, prediction)
+        if output_path is None and output_state == "missing-local":
+            missing_local += 1
+        elif output_path is None and output_state == "remote-only":
+            remote_only += 1
         kind = "video" if output_path and output_path.suffix.lower() in VIDEO_SUFFIXES else "image"
         if output_path is None:
             output_path = manifest
@@ -303,6 +320,13 @@ def _entries_from_predictions(root: Path, root_key: str, manifest: Path) -> list
         if output_path == manifest:
             entry.id = _stable_id(root_key, f"{_rel(root, manifest)}#{idx}", kind, "predictions")
         entries.append(entry)
+    rel = _rel(root, manifest)
+    if malformed:
+        warnings.append(f"{rel}: ignored {malformed} malformed prediction row(s)")
+    if missing_local:
+        warnings.append(f"{rel}: {missing_local} prediction output(s) reference missing local files")
+    if remote_only:
+        warnings.append(f"{rel}: {remote_only} remote-only prediction output(s) indexed without local media")
     return entries
 
 
@@ -315,7 +339,7 @@ def _safe_prediction_metadata(prediction: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
-def _resolve_prediction_output(root: Path, manifest: Path, prediction: dict[str, Any]) -> Path | None:
+def _resolve_prediction_output(root: Path, manifest: Path, prediction: dict[str, Any]) -> tuple[Path | None, str]:
     candidates: list[Any] = [
         prediction.get("file"),
         prediction.get("path"),
@@ -330,21 +354,29 @@ def _resolve_prediction_output(root: Path, manifest: Path, prediction: dict[str,
     elif isinstance(output, str):
         candidates.append(output)
 
+    saw_remote = False
+    saw_local = False
     for candidate in candidates:
         if not isinstance(candidate, str) or not candidate:
             continue
         if candidate.startswith("http://") or candidate.startswith("https://"):
+            saw_remote = True
             continue
+        saw_local = True
         path = Path(candidate).expanduser()
         if not path.is_absolute():
             for base in (manifest.parent, root):
                 resolved = (base / path).resolve(strict=False)
                 if resolved.exists():
-                    return resolved
+                    return resolved, ""
             path = (manifest.parent / path).resolve(strict=False)
         if path.exists():
-            return path.resolve()
-    return None
+            return path.resolve(), ""
+    if saw_local:
+        return None, "missing-local"
+    if saw_remote or _output_url(prediction):
+        return None, "remote-only"
+    return None, ""
 
 
 def _output_url(prediction: dict[str, Any]) -> str:

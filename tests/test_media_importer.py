@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from lib import media_registry
 from lib.importers import alex_samuel
-from lib.media_registry import index, search
+from lib.media_registry import filter_entry_dicts, index, search
 from lib.media_roots import MediaRoot
 
 
@@ -82,3 +83,55 @@ def test_media_registry_indexes_and_searches_explicit_root(tmp_path: Path) -> No
     assert payload["summary"]["entries"] > 0
     assert registry_path.exists()
     assert any(result.kind == "style" for result in results)
+
+
+def test_alex_importer_warns_for_malformed_remote_and_missing_predictions(tmp_path: Path) -> None:
+    root = _alex_fixture(tmp_path)
+    _write_json(
+        root / "evals" / "experiments" / "kris" / "wave2" / "predictions.json",
+        [
+            "bad-row",
+            {"key": "missing", "prompt": "KRIS missing", "file": "outputs/nope.png"},
+            {"key": "remote", "prompt": "KRIS remote", "output": "https://example.com/remote.png"},
+        ],
+    )
+
+    result = alex_samuel.import_root(root, root_key="alex")
+
+    assert any("ignored 1 malformed prediction row" in warning for warning in result.warnings)
+    assert any("1 prediction output(s) reference missing local files" in warning for warning in result.warnings)
+    assert any("remote-only prediction output(s) indexed without local media" in warning for warning in result.warnings)
+
+
+def test_media_registry_review_view_prioritizes_reviewable_entries(tmp_path: Path) -> None:
+    root = _alex_fixture(tmp_path)
+    payload = index(
+        roots={"alex": MediaRoot(key="alex", path=root, importer="alex-samuel")},
+        registry_path=tmp_path / "media-registry.json",
+    )
+
+    review_entries = filter_entry_dicts(payload, view="review")
+    all_entries = filter_entry_dicts(payload, view="all")
+    dataset_entries = filter_entry_dicts(payload, kind="dataset", view="review")
+
+    assert review_entries
+    assert all(entry["kind"] in media_registry.REVIEWABLE_KINDS for entry in review_entries)
+    assert all_entries[0]["kind"] in media_registry.REVIEWABLE_KINDS
+    assert any(entry["kind"] == "dataset" for entry in all_entries)
+    assert any(entry["kind"] == "dataset" for entry in dataset_entries)
+
+
+def test_media_registry_incremental_reuses_unchanged_root(tmp_path: Path, monkeypatch) -> None:
+    root = _alex_fixture(tmp_path)
+    registry_path = tmp_path / "media-registry.json"
+    roots = {"alex": MediaRoot(key="alex", path=root, importer="alex-samuel")}
+    first = media_registry.index(roots=roots, registry_path=registry_path)
+
+    def fail_import(*args, **kwargs):
+        raise AssertionError("incremental index should reuse unchanged root")
+
+    monkeypatch.setattr(media_registry, "import_media_root", fail_import)
+    second = media_registry.index(roots=roots, registry_path=registry_path, incremental=True)
+
+    assert second["summary"]["entries"] == first["summary"]["entries"]
+    assert second["summary"]["reused_roots"] == ["alex"]

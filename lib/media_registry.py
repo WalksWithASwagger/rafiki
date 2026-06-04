@@ -19,6 +19,44 @@ DATA_DIR = REPO_ROOT / "data"
 MEDIA_REGISTRY_JSON = DATA_DIR / "media-registry.json"
 MEDIA_REGISTRY_CSV = DATA_DIR / "media-registry.csv"
 
+REVIEWABLE_KINDS = {"image", "video", "audio", "prediction", "style"}
+KIND_PRIORITY = {
+    "image": 0,
+    "video": 1,
+    "audio": 2,
+    "prediction": 3,
+    "style": 4,
+    "prompt-suite": 5,
+    "evaluation": 6,
+    "video-edit": 7,
+    "storyboard": 8,
+    "shot-list": 9,
+    "model-version": 10,
+    "training-manifest": 11,
+    "dataset": 12,
+}
+COLLECTION_PRIORITY = {
+    "predictions": 0,
+    "video": 1,
+    "delivery": 2,
+    "photos": 3,
+    "styles": 4,
+    "prompts": 5,
+    "evaluations": 6,
+    "albums": 7,
+    "training": 8,
+}
+ROOT_FINGERPRINT_SENTINELS = (
+    "clients",
+    "evals",
+    "video_project",
+    "festival_submission",
+    "prompts",
+    "training",
+    "training_v3",
+    "training_v4_captioned",
+)
+
 CSV_COLUMNS = [
     "id",
     "kind",
@@ -49,21 +87,59 @@ def index(
     roots: dict[str, MediaRoot] | None = None,
     registry_path: Path | None = None,
     write: bool = True,
+    incremental: bool = False,
 ) -> dict[str, Any]:
     roots = roots if roots is not None else load_media_roots()
     registry_path = registry_path or MEDIA_REGISTRY_JSON
     indexed_at = datetime.now().astimezone().isoformat(timespec="seconds")
-    results = [import_media_root(root, indexed_at=indexed_at) for root in roots.values()]
+    previous = load_registry(registry_path, rebuild_if_missing=False) if incremental and registry_path.exists() else {}
+    previous_fingerprints = previous.get("root_fingerprints") if isinstance(previous, dict) else {}
+    if not isinstance(previous_fingerprints, dict):
+        previous_fingerprints = {}
+
+    entries: list[dict[str, Any]] = []
+    subjects_payload: list[dict[str, Any]] = []
+    styles_payload: list[dict[str, Any]] = []
+    video_edits_payload: list[dict[str, Any]] = []
+    warnings: list[str] = []
+    root_fingerprints: dict[str, Any] = {}
+    reused_roots: list[str] = []
+    imported_roots: list[str] = []
+
+    for root in roots.values():
+        fingerprint = root_fingerprint(root)
+        root_fingerprints[root.key] = fingerprint
+        if incremental and fingerprint == previous_fingerprints.get(root.key):
+            entries.extend(_items_for_root(previous, "entries", root.key))
+            subjects_payload.extend(_items_for_root(previous, "subjects", root.key))
+            styles_payload.extend(_items_for_root(previous, "styles", root.key))
+            video_edits_payload.extend(_items_for_root(previous, "video_edits", root.key))
+            reused_roots.append(root.key)
+            continue
+
+        result = import_media_root(root, indexed_at=indexed_at)
+        entries.extend(entry.to_dict() for entry in result.entries)
+        subjects_payload.extend(subject.to_dict() for subject in result.subjects)
+        styles_payload.extend(style.to_dict() for style in result.styles)
+        video_edits_payload.extend(edit.to_dict() for edit in result.video_edits)
+        warnings.extend(result.warnings)
+        imported_roots.append(root.key)
 
     payload = {
         "version": 1,
         "indexed_at": indexed_at,
         "roots": [root.to_dict() for root in roots.values()],
-        "entries": [entry.to_dict() for result in results for entry in result.entries],
-        "subjects": [subject.to_dict() for result in results for subject in result.subjects],
-        "styles": [style.to_dict() for result in results for style in result.styles],
-        "video_edits": [edit.to_dict() for result in results for edit in result.video_edits],
-        "warnings": [warning for result in results for warning in result.warnings],
+        "root_fingerprints": root_fingerprints,
+        "entries": sort_entry_dicts(entries),
+        "subjects": subjects_payload,
+        "styles": styles_payload,
+        "video_edits": video_edits_payload,
+        "warnings": warnings,
+        "indexing": {
+            "incremental": incremental,
+            "reused_roots": reused_roots,
+            "imported_roots": imported_roots,
+        },
     }
     payload["summary"] = _summary(payload)
     if write:
@@ -88,29 +164,77 @@ def load_registry(path: Path | None = None, *, rebuild_if_missing: bool = True) 
 
 def search(query: str = "", *, kind: str = "", collection: str = "", registry_path: Path | None = None) -> list[MediaEntry]:
     data = load_registry(registry_path)
+    return [_entry_from_dict(item) for item in filter_entry_dicts(data, query=query, kind=kind, collection=collection)]
+
+
+def filter_entry_dicts(
+    data: dict[str, Any],
+    *,
+    query: str = "",
+    kind: str = "",
+    collection: str = "",
+    view: str = "",
+) -> list[dict[str, Any]]:
     q = query.strip().lower()
-    entries = [_entry_from_dict(item) for item in data.get("entries", []) if isinstance(item, dict)]
+    review_default = view == "review" and not (q or kind or collection)
     results = []
-    for entry in entries:
-        if kind and entry.kind != kind:
+    for entry in data.get("entries", []):
+        if not isinstance(entry, dict):
             continue
-        if collection and entry.collection != collection:
+        if review_default and entry.get("kind") not in REVIEWABLE_KINDS:
+            continue
+        if kind and entry.get("kind") != kind:
+            continue
+        if collection and entry.get("collection") != collection:
             continue
         haystack = " ".join([
-            entry.title,
-            entry.subject,
-            entry.project,
-            entry.kind,
-            entry.collection,
-            entry.prompt,
-            entry.style,
-            entry.model,
-            " ".join(entry.tags),
-            entry.relative_path,
+            str(entry.get("title", "")),
+            str(entry.get("subject", "")),
+            str(entry.get("project", "")),
+            str(entry.get("kind", "")),
+            str(entry.get("collection", "")),
+            str(entry.get("prompt", "")),
+            str(entry.get("style", "")),
+            str(entry.get("model", "")),
+            " ".join(str(tag) for tag in (entry.get("tags") or [])),
+            str(entry.get("relative_path", "")),
         ]).lower()
         if not q or q in haystack:
             results.append(entry)
-    return results
+    return sort_entry_dicts(results)
+
+
+def sort_entry_dicts(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(entries, key=_entry_sort_key)
+
+
+def root_fingerprint(root: MediaRoot) -> dict[str, Any]:
+    path = root.path.expanduser().resolve(strict=False)
+    markers = []
+    for marker_path in [path, *(path / name for name in ROOT_FINGERPRINT_SENTINELS)]:
+        if not marker_path.exists():
+            continue
+        try:
+            stat = marker_path.stat()
+        except OSError:
+            continue
+        try:
+            relative = marker_path.relative_to(path).as_posix()
+        except ValueError:
+            relative = marker_path.as_posix()
+        markers.append({
+            "path": relative or ".",
+            "mtime_ns": stat.st_mtime_ns,
+            "size": stat.st_size,
+        })
+    return {
+        "key": root.key,
+        "path": str(path),
+        "importer": root.importer,
+        "enabled": root.enabled,
+        "exists": path.exists(),
+        "markers": markers,
+    }
 
 
 def export(format: str = "csv", *, registry_path: Path | None = None, output_path: Path | None = None) -> Path:
@@ -158,12 +282,38 @@ def _summary(payload: dict[str, Any]) -> dict[str, Any]:
         by_collection[entry.get("collection", "")] = by_collection.get(entry.get("collection", ""), 0) + 1
     return {
         "entries": len(entries),
+        "reviewable_entries": sum(1 for entry in entries if entry.get("kind", "") in REVIEWABLE_KINDS),
         "subjects": len(payload.get("subjects") or []),
         "styles": len(payload.get("styles") or []),
         "video_edits": len(payload.get("video_edits") or []),
         "by_kind": by_kind,
         "by_collection": by_collection,
+        "reused_roots": (payload.get("indexing") or {}).get("reused_roots", []),
+        "imported_roots": (payload.get("indexing") or {}).get("imported_roots", []),
     }
+
+
+def _items_for_root(data: dict[str, Any], key: str, root_key: str) -> list[dict[str, Any]]:
+    return [item for item in data.get(key, []) if isinstance(item, dict) and item.get("root_key") == root_key]
+
+
+def _entry_sort_key(entry: dict[str, Any]) -> tuple[Any, ...]:
+    metadata = entry.get("metadata") if isinstance(entry.get("metadata"), dict) else {}
+    try:
+        mtime_ns = int(metadata.get("mtime_ns") or 0)
+    except (TypeError, ValueError):
+        mtime_ns = 0
+    kind = str(entry.get("kind") or "")
+    collection = str(entry.get("collection") or "")
+    return (
+        KIND_PRIORITY.get(kind, 99),
+        COLLECTION_PRIORITY.get(collection, 99),
+        -mtime_ns,
+        str(entry.get("subject") or ""),
+        str(entry.get("project") or ""),
+        str(entry.get("title") or ""),
+        str(entry.get("relative_path") or ""),
+    )
 
 
 def _entry_from_dict(item: dict[str, Any]) -> MediaEntry:
@@ -224,6 +374,6 @@ def _generic_import(root: MediaRoot, *, indexed_at: str | None = None) -> MediaI
                 relative_path=relative,
                 title=path.stem.replace("-", " ").replace("_", " ").title(),
                 indexed_at=indexed_at,
-                metadata={"size_bytes": path.stat().st_size},
+                metadata={"size_bytes": path.stat().st_size, "mtime_ns": path.stat().st_mtime_ns},
             ))
     return result

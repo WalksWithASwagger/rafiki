@@ -35,6 +35,7 @@ local state and ignored by git.
 ```bash
 python generate.py import alex-samuel --root /Users/kk/Desktop/alex-samuel
 python generate.py media index
+python generate.py media index --incremental
 python generate.py media search kris --kind video
 python generate.py subjects list
 python generate.py style anchors --source /path/to/style_anchors.json
@@ -54,3 +55,6 @@ The legacy image-only library remains available at `/library`.
 
 The suite serves external media through `/media/<root>/<relative-path>` and
 supports byte ranges for MP4 scrubbing.
+
+The current V1 hardening audit and phased workplan live in
+[V1 Hardening Audit And Workplan](V1-HARDENING-AUDIT-2026-06-04.md).

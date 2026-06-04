@@ -520,33 +520,24 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
         params = parse_qs(query)
         refresh = (params.get("refresh") or [""])[0].strip().lower() in _TRUE_VALUES
+        incremental = (params.get("incremental") or [""])[0].strip().lower() in _TRUE_VALUES
         if refresh:
-            data = media_registry.index()
+            data = media_registry.index(incremental=incremental)
         else:
             data = media_registry.load_registry()
-        q = (params.get("q") or [""])[0].strip().lower()
+        q = (params.get("q") or [""])[0].strip()
         kind = (params.get("kind") or [""])[0].strip()
         collection = (params.get("collection") or [""])[0].strip()
-        entries = []
-        for entry in data.get("entries", []):
-            if not isinstance(entry, dict):
-                continue
-            if kind and entry.get("kind") != kind:
-                continue
-            if collection and entry.get("collection") != collection:
-                continue
-            haystack = " ".join(str(entry.get(key, "")) for key in (
-                "title", "subject", "project", "kind", "collection", "prompt", "style", "model", "relative_path"
-            )).lower()
-            haystack += " " + " ".join(entry.get("tags") or []).lower()
-            if q and q not in haystack:
-                continue
-            entries.append(entry)
+        view = (params.get("view") or ["review"])[0].strip()
+        entries = media_registry.filter_entry_dicts(data, query=q, kind=kind, collection=collection, view=view)
         payload = {
             "summary": data.get("summary", {}),
             "entries": entries,
             "collections": sorted({entry.get("collection", "") for entry in data.get("entries", []) if entry.get("collection")}),
             "warnings": data.get("warnings", []),
+            "view": view,
+            "matched_entries": len(entries),
+            "total_entries": len(data.get("entries", [])),
         }
         self._respond(200, "application/json", json.dumps(payload).encode())
 
@@ -955,34 +946,43 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         if range_header.startswith("bytes="):
             start, end = self._parse_byte_range(range_header, size)
             if start is None:
-                self.send_response(416)
-                self.send_header("Content-Range", f"bytes */{size}")
-                self.send_header("Content-Length", "0")
-                self.end_headers()
+                try:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{size}")
+                    self.send_header("Content-Length", "0")
+                    self.end_headers()
+                except (BrokenPipeError, ConnectionResetError):
+                    pass
                 return
             with target.open("rb") as f:
                 f.seek(start)
                 body = f.read(end - start + 1)
-            self.send_response(206)
+            try:
+                self.send_response(206)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(len(body)))
+                self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+                self.send_header("Accept-Ranges", "bytes")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            return
+
+        try:
+            self.send_response(200)
             self.send_header("Content-Type", mime)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Content-Range", f"bytes {start}-{end}/{size}")
+            self.send_header("Content-Length", str(size))
             self.send_header("Accept-Ranges", "bytes")
             self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
-            self.wfile.write(body)
-            return
-
-        self.send_response(200)
-        self.send_header("Content-Type", mime)
-        self.send_header("Content-Length", str(size))
-        self.send_header("Accept-Ranges", "bytes")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-        with target.open("rb") as f:
-            self.wfile.write(f.read())
+            with target.open("rb") as f:
+                self.wfile.write(f.read())
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _parse_byte_range(self, header: str, size: int) -> tuple[int | None, int]:
         raw = header.removeprefix("bytes=").split(",", 1)[0].strip()
@@ -1003,13 +1003,16 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         return start, end
 
     def _respond(self, status: int, content_type: str, body: bytes) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", content_type)
-        self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Cache-Control", "no-cache")
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _404(self) -> None:
         self._respond(404, "application/json", b'{"error":"not found"}')

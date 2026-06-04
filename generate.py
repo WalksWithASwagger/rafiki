@@ -782,6 +782,7 @@ def _cmd_media(argv: list[str]) -> None:
     sp_index.add_argument("--root", default="", help="Index one explicit root instead of configured roots")
     sp_index.add_argument("--key", default="media-root", help="Root key when --root is used")
     sp_index.add_argument("--importer", default="generic", choices=["generic", "alex-samuel"])
+    sp_index.add_argument("--incremental", action="store_true", help="Reuse unchanged roots from existing cache")
     sp_index.add_argument("--dry-run", action="store_true", help="Print summary without writing the cache")
     sp_index.add_argument("--json", action="store_true", dest="json_output")
 
@@ -808,7 +809,7 @@ def _cmd_media(argv: list[str]) -> None:
                     importer=args.importer,
                 )
             }
-        payload = media_registry.index(roots=roots, write=not args.dry_run)
+        payload = media_registry.index(roots=roots, write=not args.dry_run, incremental=args.incremental)
         if args.json_output:
             print(json.dumps(payload, indent=2))
             return
@@ -819,6 +820,8 @@ def _cmd_media(argv: list[str]) -> None:
             f"{summary['subjects']} subject(s), {summary['styles']} style(s), "
             f"{summary['video_edits']} video edit(s)."
         )
+        if summary.get("reused_roots"):
+            print(f"Reused root(s): {', '.join(summary['reused_roots'])}")
         if not args.dry_run:
             print(f"Registry: {media_registry.MEDIA_REGISTRY_JSON}")
         for warning in payload.get("warnings", []):
@@ -857,6 +860,7 @@ def _cmd_import(argv: list[str]) -> None:
     sp_alex = sub.add_parser("alex-samuel", help="Index the alex-samuel portrait/video pipeline")
     sp_alex.add_argument("--root", default="/Users/kk/Desktop/alex-samuel")
     sp_alex.add_argument("--key", default="alex-samuel")
+    sp_alex.add_argument("--incremental", action="store_true", help="Reuse unchanged root metadata from existing cache")
     sp_alex.add_argument("--dry-run", action="store_true", help="Print summary without writing data/media-registry.json")
     sp_alex.add_argument("--json", action="store_true", dest="json_output")
     args = p.parse_args(argv)
@@ -865,7 +869,7 @@ def _cmd_import(argv: list[str]) -> None:
     from lib.media_roots import MediaRoot
 
     root = MediaRoot(key=args.key, path=Path(args.root).expanduser(), importer=args.importer)
-    payload = media_registry.index(roots={args.key: root}, write=not args.dry_run)
+    payload = media_registry.index(roots={args.key: root}, write=not args.dry_run, incremental=args.incremental)
     if args.json_output:
         print(json.dumps(payload, indent=2))
         return
@@ -875,6 +879,8 @@ def _cmd_import(argv: list[str]) -> None:
         f"{verb} {summary['entries']} entries from {args.root}; "
         f"subjects={summary['subjects']} styles={summary['styles']} video_edits={summary['video_edits']}"
     )
+    if summary.get("reused_roots"):
+        print(f"Reused root(s): {', '.join(summary['reused_roots'])}")
     if not args.dry_run:
         print(f"Registry: {media_registry.MEDIA_REGISTRY_JSON}")
     for warning in payload.get("warnings", []):
