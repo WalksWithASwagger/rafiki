@@ -10,6 +10,10 @@ Tools:
   rafiki_usage          Show local generation usage
   rafiki_registry_search Search the asset registry
   rafiki_registry_export Export the asset registry
+  rafiki_media_index   Index configured multimedia roots
+  rafiki_media_search  Search indexed multimedia assets
+  rafiki_subjects      List indexed subject profiles
+  rafiki_jobs          List local long-running job records
   rafiki_archive_health Report archive health
   rafiki_viewer_rebuild Rebuild a project viewer
   rafiki_library_rebuild Rebuild the master library viewer
@@ -70,15 +74,21 @@ _CLI_SUBCOMMANDS = {
     "view",
     "library",
     "link-projects",
+    "import",
     "approve",
     "billing",
     "canva-export",
     "clean",
     "deploy",
+    "media",
     "notion-export",
     "regen",
     "registry",
     "social-expand",
+    "style",
+    "subjects",
+    "train",
+    "video",
 }
 _CLI_TOP_LEVEL_FLAGS = {
     "--prompt",
@@ -101,6 +111,11 @@ _CLI_MUTATING_SUBCOMMANDS = {
     "notion-export",
     "regen",
     "social-expand",
+    "import",
+    "media",
+    "subjects",
+    "train",
+    "video",
 }
 
 mcp = FastMCP(
@@ -461,6 +476,7 @@ def rafiki_status() -> str:
         "env": {
             "GOOGLE_API_KEY": bool(os.environ.get("GOOGLE_API_KEY")),
             "OPENAI_API_KEY": bool(os.environ.get("OPENAI_API_KEY")),
+            "REPLICATE_API_TOKEN": bool(os.environ.get("REPLICATE_API_TOKEN")),
             "NOTION_API_KEY": bool(os.environ.get("NOTION_API_KEY")),
             "NOTION_DATABASE_ID": bool(os.environ.get("NOTION_DATABASE_ID")),
         },
@@ -471,6 +487,13 @@ def rafiki_status() -> str:
             "rafiki_usage",
             "rafiki_registry_search",
             "rafiki_registry_export",
+            "rafiki_media_index",
+            "rafiki_media_search",
+            "rafiki_subjects",
+            "rafiki_jobs",
+            "rafiki_train_lora",
+            "rafiki_video_generate",
+            "rafiki_style_anchors",
             "rafiki_archive_health",
             "rafiki_viewer_rebuild",
             "rafiki_library_rebuild",
@@ -774,6 +797,162 @@ def rafiki_registry_export(format: str = "csv", dry_run: bool = False) -> str:
         "external": False,
         "count": len(entries),
         **_path_info(exported),
+    })
+
+
+@mcp.tool()
+def rafiki_media_index(
+    root: str = "",
+    key: str = "alex-samuel",
+    importer: str = "alex-samuel",
+    dry_run: bool = True,
+) -> str:
+    """Index configured multimedia roots or one explicit local root."""
+    from lib import media_registry
+    from lib.media_roots import MediaRoot
+
+    if importer not in {"alex-samuel", "generic"}:
+        return _error_payload("rafiki_media_index", "importer must be alex-samuel or generic")
+    roots = None
+    if root:
+        roots = {key: MediaRoot(key=key, path=Path(root).expanduser(), importer=importer)}
+    payload = media_registry.index(roots=roots, write=not dry_run)
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_media_index",
+        "dry_run": dry_run,
+        "mutating": not dry_run,
+        "external": False,
+        "registry_path": str(media_registry.MEDIA_REGISTRY_JSON),
+        **payload,
+    })
+
+
+@mcp.tool()
+def rafiki_media_search(query: str = "", kind: str = "", collection: str = "", limit: int = 50) -> str:
+    """Search the multimedia registry for images, videos, audio, styles, and manifests."""
+    from lib import media_registry
+
+    safe_limit = max(1, min(int(limit), 200))
+    results = [entry.to_dict() for entry in media_registry.search(query, kind=kind, collection=collection)[:safe_limit]]
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_media_search",
+        "query": query,
+        "kind": kind,
+        "collection": collection,
+        "limit": safe_limit,
+        "count": len(results),
+        "mutating": False,
+        "external": False,
+        "results": results,
+    })
+
+
+@mcp.tool()
+def rafiki_subjects(subject: str = "") -> str:
+    """List indexed subject profiles, or return one subject when subject is passed."""
+    from lib import media_registry
+
+    profiles = [profile.to_dict() for profile in media_registry.subjects()]
+    if subject:
+        profiles = [profile for profile in profiles if profile.get("key") == subject]
+    return _json({
+        "success": bool(profiles) or not subject,
+        "ok": bool(profiles) or not subject,
+        "tool": "rafiki_subjects",
+        "subject": subject,
+        "count": len(profiles),
+        "mutating": False,
+        "external": False,
+        "subjects": profiles,
+    })
+
+
+@mcp.tool()
+def rafiki_jobs() -> str:
+    """List local dry-run/executed job records stored under data/jobs."""
+    from lib.jobs import list_jobs
+
+    jobs = list_jobs()
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_jobs",
+        "count": len(jobs),
+        "mutating": False,
+        "external": False,
+        "jobs": jobs,
+    })
+
+
+@mcp.tool()
+def rafiki_train_lora(
+    subject: str,
+    input_images_url: str = "",
+    execute: bool = False,
+    output_root: str = "",
+) -> str:
+    """Plan or launch a Replicate FLUX LoRA training job. Defaults to dry-run."""
+    from lib.training import plan_lora_training
+
+    result = plan_lora_training(
+        subject=subject,
+        input_images_url=input_images_url,
+        execute=execute,
+        output_root=Path(output_root) if output_root else None,
+    )
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_train_lora",
+        "mutating": True,
+        "external": execute,
+        **result,
+    })
+
+
+@mcp.tool()
+def rafiki_video_generate(
+    storyboard: str,
+    model: str = "wan-video/wan2.1-with-lora",
+    execute: bool = False,
+    output_root: str = "",
+) -> str:
+    """Plan or launch a storyboard video generation job. Defaults to dry-run."""
+    from lib.video_jobs import plan_video_generation
+
+    result = plan_video_generation(
+        storyboard_path=Path(storyboard),
+        model=model,
+        execute=execute,
+        output_root=Path(output_root) if output_root else None,
+    )
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_video_generate",
+        "mutating": True,
+        "external": execute,
+        **result,
+    })
+
+
+@mcp.tool()
+def rafiki_style_anchors(source: str, name: str = "") -> str:
+    """Read or derive a normalized style profile from a style-anchor JSON file."""
+    from lib.style_anchors import style_profile_from_source
+
+    profile = style_profile_from_source(Path(source), name=name)
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_style_anchors",
+        "mutating": False,
+        "external": False,
+        "style": profile.to_dict(),
     })
 
 

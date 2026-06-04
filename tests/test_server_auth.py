@@ -10,6 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import server as server_module
+from lib import training as training_module
+from lib import usage as usage_module
+from lib import video_jobs as video_jobs_module
 from lib.server import _RafikiHandler
 from tests.server_harness import http_get as _get
 from tests.server_harness import http_post_json as _post_json
@@ -131,6 +134,64 @@ def test_billing_import_endpoint_persists_manual_entry(server):
     usage = json.loads(_get(f"{server}/api/usage").read().decode("utf-8"))
     assert usage["archive"]["spend"]["basis"] == "provider_billing_imports"
     assert usage["archive"]["spend"]["amount"] == 12.34
+
+
+def test_train_lora_execute_requires_confirmation(server):
+    resp = _post_json(
+        f"{server}/api/jobs/train-lora",
+        {"subject": "kris", "execute": True},
+    )
+
+    assert resp.status == 400
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert "confirm_execute=true" in payload["error"]
+
+
+def test_train_lora_dry_run_is_default(server, monkeypatch):
+    captured: dict = {}
+
+    def fake_plan_lora_training(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True, "job": {"status": "dry-run"}}
+
+    monkeypatch.setattr(training_module, "plan_lora_training", fake_plan_lora_training)
+
+    resp = _post_json(
+        f"{server}/api/jobs/train-lora",
+        {"subject": "kris", "input_images_url": "https://example.com/data.zip"},
+    )
+
+    assert resp.status == 200
+    assert captured["execute"] is False
+
+
+def test_video_generate_execute_requires_confirmation(server):
+    resp = _post_json(
+        f"{server}/api/jobs/video-generate",
+        {"storyboard": "/tmp/storyboard.json", "execute": True},
+    )
+
+    assert resp.status == 400
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert "confirm_execute=true" in payload["error"]
+
+
+def test_video_generate_execute_passes_with_confirmation(server, monkeypatch):
+    captured: dict = {}
+
+    def fake_plan_video_generation(**kwargs):
+        captured.update(kwargs)
+        return {"ok": True, "job": {"status": "queued"}}
+
+    monkeypatch.setattr(video_jobs_module, "plan_video_generation", fake_plan_video_generation)
+
+    resp = _post_json(
+        f"{server}/api/jobs/video-generate",
+        {"storyboard": "/tmp/storyboard.json", "execute": True, "confirm_execute": True},
+    )
+
+    assert resp.status == 200
+    assert captured["execute"] is True
 
 
 def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):

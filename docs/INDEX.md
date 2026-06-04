@@ -44,6 +44,10 @@ deeper operating docs by surface area.
   external projects and the one-command refresh.
 - [Asset Registry](ASSET-REGISTRY.md) - registry schema, CLI indexing, and
   re-indexing guidance for external or generated assets.
+- [Personal Media Suite](PERSONAL-MEDIA-SUITE.md) - multimedia roots, Alex
+  importer, local media registry, suite portal, and dry-run job commands.
+- [V1 Hardening Audit And Workplan](V1-HARDENING-AUDIT-2026-06-04.md) -
+  current suite audit, risk areas, phased workplan, and verification cadence.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,
   `index.json` schema, and storage location.
 - [Library And Archive Roadmap](LIBRARY-ARCHIVE-ROADMAP.md) - build plan for

@@ -1,0 +1,11 @@
+{
+  "roots": [
+    {
+      "key": "alex-samuel",
+      "path": "/Users/kk/Desktop/alex-samuel",
+      "importer": "alex-samuel",
+      "enabled": true,
+      "description": "Alexandra Samuel / Kris portrait and video pipeline, indexed in place."
+    }
+  ]
+}

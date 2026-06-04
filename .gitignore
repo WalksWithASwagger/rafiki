@@ -35,6 +35,12 @@ data/billing-imports.json
 data/asset-registry.json
 data/asset-registry.csv
 
+# Multimedia registry, local jobs, and review sidecars
+data/media-registry.json
+data/media-registry.csv
+data/jobs/
+data/video-selections.json
+
 # Local Python environment (PEP 668–safe installs)
 .venv/
 
@@ -56,6 +62,9 @@ config/extra-outputs.local.json
 
 # Local loose-image import map (run-wrapper sources for non-standard outputs)
 config/loose-imports.local.json
+
+# Local multimedia roots (template: config/media-roots.json.example)
+config/media-roots.local.json
 
 # Local package artifacts
 *.tgz
