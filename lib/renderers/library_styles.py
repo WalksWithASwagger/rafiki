@@ -914,6 +914,7 @@ a:focus-visible {
   letter-spacing: 0.04em;
 }
 .run-detail-metadata input[type="text"],
+.run-detail-metadata select,
 .run-detail-evaluation input[type="text"],
 .run-detail-feedback select,
 .run-detail-evaluation select,

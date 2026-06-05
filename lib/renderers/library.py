@@ -923,6 +923,40 @@ def _render_library(records: list[dict], output_root: Path | None = None) -> str
         <span>Superseded By</span>
         <input id="metadata-superseded-by" type="text" placeholder="project/run/file">
       </label>
+      <label>
+        <span>Source Use Case</span>
+        <input id="metadata-source-use-case" type="text" placeholder="Keynote visual workflow">
+      </label>
+      <label>
+        <span>Source URL</span>
+        <input id="metadata-source-url" type="text" placeholder="https://...">
+      </label>
+      <label>
+        <span>Prompt Pack</span>
+        <input id="metadata-prompt-pack" type="text" placeholder="examples/keynote-visual-workflow-prompt-pack.md">
+      </label>
+      <label>
+        <span>Prompt Pack Section</span>
+        <input id="metadata-prompt-pack-section" type="text" placeholder="3. Review Gate">
+      </label>
+      <label>
+        <span>Artifact Review State</span>
+        <select id="metadata-artifact-review-state">
+          <option value="">None</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="regenerate">Regenerate</option>
+          <option value="manual-rebuild">Manual rebuild</option>
+        </select>
+      </label>
+      <label>
+        <span>Export Targets</span>
+        <input id="metadata-export-targets" type="text" placeholder="canva, deck, site">
+      </label>
+      <label>
+        <span>Downstream Uses</span>
+        <input id="metadata-downstream-uses" type="text" placeholder="slide, blog-post, guide">
+      </label>
       <div class="metadata-actions">
         <button type="button" onclick="saveMetadataForDetail(event)">Save Metadata</button>
       </div>
@@ -1484,7 +1518,22 @@ function metadataStatesForItem(item) {{
 }}
 function metadataStateLabel(item) {{
   const states = metadataStatesForItem(item);
-  return states.map(state => state.replace(/-/g, ' ')).join(', ');
+  const artifactReview = String((metadataForItem(item) || {{}}).artifact_review_state || '').trim();
+  const labels = states.map(state => state.replace(/-/g, ' '));
+  if (artifactReview) labels.push('artifact: ' + artifactReview.replace(/-/g, ' '));
+  return labels.join(', ');
+}}
+function metadataArtifactSearchText(item) {{
+  const entry = metadataForItem(item) || {{}};
+  return [
+    entry.source_use_case,
+    entry.source_url,
+    entry.prompt_pack,
+    entry.prompt_pack_section,
+    entry.artifact_review_state,
+    cleanList(entry.export_targets || []).join(' '),
+    cleanList(entry.downstream_uses || []).join(' '),
+  ].filter(Boolean).join(' ');
 }}
 function warningTextForItem(item) {{
   const warning = item?.filename_warning;
@@ -1508,6 +1557,7 @@ function searchTextForItem(item) {{
     (item.source || '') + ' ' +
     (item.approval_status || '') + ' ' +
     metadataStateLabel(item) + ' ' +
+    metadataArtifactSearchText(item) + ' ' +
     (item.superseded_by || '') + ' ' +
     evaluationSearchText(item) + ' ' +
     warningTextForItem(item)
@@ -1614,6 +1664,13 @@ function applyMetadataToItem(item, entry) {{
     item.name = item.title;
     item.metadata_states = cleanList(metadata.states || []);
     item.superseded_by = metadata.superseded_by || '';
+    item.source_use_case = metadata.source_use_case || '';
+    item.source_url = metadata.source_url || '';
+    item.prompt_pack = metadata.prompt_pack || '';
+    item.prompt_pack_section = metadata.prompt_pack_section || '';
+    item.artifact_review_state = metadata.artifact_review_state || '';
+    item.export_targets = cleanList(metadata.export_targets || []);
+    item.downstream_uses = cleanList(metadata.downstream_uses || []);
     item.tags = [...cleanList(item.base_tags || []), ...cleanList(metadata.tags || [])]
       .filter((tag, index, all) => tag && all.indexOf(tag) === index);
   }} else {{
@@ -1622,6 +1679,13 @@ function applyMetadataToItem(item, entry) {{
     item.name = item.base_name || item.title || '';
     item.metadata_states = [];
     item.superseded_by = '';
+    item.source_use_case = '';
+    item.source_url = '';
+    item.prompt_pack = '';
+    item.prompt_pack_section = '';
+    item.artifact_review_state = '';
+    item.export_targets = [];
+    item.downstream_uses = [];
     item.tags = cleanList(item.base_tags || item.tags || []);
   }}
 }}
@@ -1936,10 +2000,24 @@ function renderMetadata(item) {{
   const title = document.getElementById('metadata-title');
   const tags = document.getElementById('metadata-tags');
   const supersededBy = document.getElementById('metadata-superseded-by');
+  const sourceUseCase = document.getElementById('metadata-source-use-case');
+  const sourceUrl = document.getElementById('metadata-source-url');
+  const promptPack = document.getElementById('metadata-prompt-pack');
+  const promptPackSection = document.getElementById('metadata-prompt-pack-section');
+  const artifactReviewState = document.getElementById('metadata-artifact-review-state');
+  const exportTargets = document.getElementById('metadata-export-targets');
+  const downstreamUses = document.getElementById('metadata-downstream-uses');
   const msg = document.getElementById('metadata-status-message');
   if (title) title.value = entry.title || '';
   if (tags) tags.value = cleanList(entry.tags || []).join(', ');
   if (supersededBy) supersededBy.value = entry.superseded_by || '';
+  if (sourceUseCase) sourceUseCase.value = entry.source_use_case || '';
+  if (sourceUrl) sourceUrl.value = entry.source_url || '';
+  if (promptPack) promptPack.value = entry.prompt_pack || '';
+  if (promptPackSection) promptPackSection.value = entry.prompt_pack_section || '';
+  if (artifactReviewState) artifactReviewState.value = entry.artifact_review_state || '';
+  if (exportTargets) exportTargets.value = cleanList(entry.export_targets || []).join(', ');
+  if (downstreamUses) downstreamUses.value = cleanList(entry.downstream_uses || []).join(', ');
   const states = new Set(cleanList(entry.states || []));
   document.querySelectorAll('#metadata-state-grid input[type="checkbox"]').forEach(input => {{
     input.checked = states.has(input.value);
@@ -1991,6 +2069,13 @@ async function saveMetadataForDetail(event) {{
     tags: document.getElementById('metadata-tags')?.value || '',
     states,
     superseded_by: document.getElementById('metadata-superseded-by')?.value || '',
+    source_use_case: document.getElementById('metadata-source-use-case')?.value || '',
+    source_url: document.getElementById('metadata-source-url')?.value || '',
+    prompt_pack: document.getElementById('metadata-prompt-pack')?.value || '',
+    prompt_pack_section: document.getElementById('metadata-prompt-pack-section')?.value || '',
+    artifact_review_state: document.getElementById('metadata-artifact-review-state')?.value || '',
+    export_targets: document.getElementById('metadata-export-targets')?.value || '',
+    downstream_uses: document.getElementById('metadata-downstream-uses')?.value || '',
   }};
   setMetadataStatus('busy', 'Saving...');
   if (!SERVER_MODE) {{
@@ -2000,6 +2085,15 @@ async function saveMetadataForDetail(event) {{
     if (tags.length) localEntry.tags = tags;
     if (states.length) localEntry.states = states;
     if (payload.superseded_by.trim()) localEntry.superseded_by = payload.superseded_by.trim();
+    if (payload.source_use_case.trim()) localEntry.source_use_case = payload.source_use_case.trim();
+    if (payload.source_url.trim()) localEntry.source_url = payload.source_url.trim();
+    if (payload.prompt_pack.trim()) localEntry.prompt_pack = payload.prompt_pack.trim();
+    if (payload.prompt_pack_section.trim()) localEntry.prompt_pack_section = payload.prompt_pack_section.trim();
+    if (payload.artifact_review_state.trim()) localEntry.artifact_review_state = payload.artifact_review_state.trim();
+    const exportTargets = cleanList(payload.export_targets);
+    const downstreamUses = cleanList(payload.downstream_uses);
+    if (exportTargets.length) localEntry.export_targets = exportTargets;
+    if (downstreamUses.length) localEntry.downstream_uses = downstreamUses;
     if (Object.keys(localEntry).length) {{
       localEntry.updated_at = new Date().toISOString();
       ARCHIVE_METADATA[key] = localEntry;

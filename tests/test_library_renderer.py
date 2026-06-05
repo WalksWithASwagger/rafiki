@@ -506,6 +506,15 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
     assert "function stageWorkflowPromptPack(key)" in html
     assert "const WORKFLOW_TEMPLATES =" in html
     assert "Workflow batch staged as a dry run" in html
+    assert 'id="metadata-source-use-case"' in html
+    assert 'id="metadata-source-url"' in html
+    assert 'id="metadata-prompt-pack"' in html
+    assert 'id="metadata-prompt-pack-section"' in html
+    assert 'id="metadata-artifact-review-state"' in html
+    assert 'id="metadata-export-targets"' in html
+    assert 'id="metadata-downstream-uses"' in html
+    assert "function metadataArtifactSearchText(item)" in html
+    assert "artifact: " in html
     assert 'id="curriculum-atlas-panel"' in html
     assert "Responsible AI Program" in html
     assert "Facilitator Notes" in html

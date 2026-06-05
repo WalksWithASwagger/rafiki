@@ -614,7 +614,20 @@ async function main() {
 
       titleInput.value = 'E2E World-Class Smoke Card';
       tagsInput.value = 'e2e,showpiece';
+      document.querySelector('#metadata-source-use-case').value = 'Keynote visual workflow';
+      document.querySelector('#metadata-source-url').value = 'https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/';
+      document.querySelector('#metadata-prompt-pack').value = 'examples/keynote-visual-workflow-prompt-pack.md';
+      document.querySelector('#metadata-prompt-pack-section').value = 'Review Gate And Anti-Slop Selector';
+      document.querySelector('#metadata-artifact-review-state').value = 'manual-rebuild';
+      document.querySelector('#metadata-export-targets').value = 'canva, deck';
+      document.querySelector('#metadata-downstream-uses').value = 'slide, speaker-kit';
       await saveMetadataForDetail({ preventDefault() {}, stopPropagation() {} });
+      const metadataBadgeText = first.querySelector('.metadata-state-badge')?.textContent || '';
+      document.querySelector('#search').value = 'speaker-kit';
+      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
+      const artifactSearchVisible = countVisible();
+      document.querySelector('#search').value = '';
+      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
 
       feedbackStatus.value = 'keep';
       feedbackNote.value = 'Browser E2E note';
@@ -693,6 +706,8 @@ async function main() {
         searchVisible,
         detailOpen: document.querySelector('#run-detail-panel').getAttribute('aria-hidden') === 'false',
         metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
+        metadataBadgeText,
+        artifactSearchVisible,
         feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
         evaluationStatus: document.querySelector('#evaluation-status-message').textContent.trim(),
         runDecisionSummary: document.querySelector('#run-decision-summary')?.textContent || '',
@@ -764,6 +779,8 @@ async function main() {
     assert(desktopState.searchVisible === 1, `search should show one card, got ${desktopState.searchVisible}`);
     assert(desktopState.detailOpen, 'detail panel did not open');
     assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
+    assert(desktopState.metadataBadgeText.includes('artifact: manual rebuild'), 'artifact review state was not visible on the card metadata badge');
+    assert(desktopState.artifactSearchVisible === 1, `artifact metadata search should show one card, got ${desktopState.artifactSearchVisible}`);
     assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
     assert(desktopState.evaluationStatus === 'Saved', `evaluation save failed: ${desktopState.evaluationStatus}`);
     assert(desktopState.quality.evaluationBadges >= 1, 'evaluation badge did not render after save');
