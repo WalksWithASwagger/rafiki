@@ -26,6 +26,13 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | `export_status` | str | comma-separated `canva`/`notion` states from `metadata_states` |
 | `publish_status` | str | comma-separated `deployed`/`published` states from `metadata_states` |
 | `superseded_by` | str | local `output/archive-metadata.json` supersession target |
+| `source_use_case` | str | public-safe use case, talk, article, or campaign label from archive metadata |
+| `source_url` | str | optional public source URL from archive metadata |
+| `prompt_pack` | str | repo-relative prompt pack path or stable prompt-pack label from archive metadata |
+| `prompt_pack_section` | str | prompt-pack section or slide/asset beat from archive metadata |
+| `artifact_review_state` | str | `approved`, `rejected`, `regenerate`, or `manual-rebuild` from archive metadata |
+| `export_targets` | list[str] | intended export destinations such as `canva`, `deck`, or `site` |
+| `downstream_uses` | list[str] | artifact uses such as `slide`, `blog-post`, `guide`, or `speaker-kit` |
 | `source_prompt` | str | approval index prompt → `run.json` image prompt |
 | `style` | str | `run.json` |
 | `model` | str | `run.json` |
@@ -36,9 +43,9 @@ The registry is a **local cache** — `data/asset-registry.json` and
 | `path` | str | image path, repo-root-relative when possible |
 
 CSV exports use the same stable state columns: `approval_status`,
-`metadata_states`, `export_status`, `publish_status`, and `superseded_by`.
-Registry export reads archive metadata but does not stamp or mutate
-`output/archive-metadata.json`.
+`metadata_states`, `export_status`, `publish_status`, `superseded_by`, and the
+artifact-chain fields from `output/archive-metadata.json`. Registry export
+reads archive metadata but does not stamp or mutate that sidecar.
 
 ## CLI
 
@@ -86,5 +93,6 @@ draft.
 Library cards show registry-grade title, caption, tags, approval status, source
 prompt, model, style, and aspect ratio when those fields are available. The
 library also merges local card metadata from `output/archive-metadata.json`,
-which can override display titles, add review tags, and show export/publish
-states without changing the generated run manifests.
+which can override display titles, add review tags, show export/publish states,
+and carry artifact-chain provenance without changing the generated run
+manifests.

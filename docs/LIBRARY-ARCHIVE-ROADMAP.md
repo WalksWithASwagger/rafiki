@@ -26,7 +26,7 @@ Rafiki already has most of the pieces:
 |---|---|---|
 | Run manifests | `output/<project>/run-*/run.json` | Canonical source for generated image file, prompt, model, style, aspect ratio, and run metadata. |
 | Project viewers | `lib/renderers/viewer.py`, `generate.py view` | Per-project and per-run review pages. |
-| Master library | `lib/renderers/library.py`, `generate.py library`, `generate.py serve` | Cross-project portal with search, filters, ratings, Prompt Studio, and curation/export actions. |
+| Master library | `lib/renderers/library.py`, `generate.py library`, `generate.py serve` | Cross-project portal with search, filters, ratings, Workflow staging, Prompt Studio, and curation/export actions. |
 | Ratings | `output/ratings.json`, `lib/server.py` | Star/reject state keyed by `project/run-id/file`. |
 | Evaluations | `output/evaluations.json`, `lib/evaluations.py`, `lib/server.py` | Decision, score, use case, rationale, next-step state keyed by `project/run-id/file`. |
 | Archive health | `lib/archive_health.py`, `generate.py archive-health` | Read-only report for missing images, malformed manifests, duplicate filenames, sidecar orphans, disk usage, cleanup risk, and advisory cleanup candidates. |
@@ -88,9 +88,9 @@ Success criteria:
   portal, not only the CLI.
 - Record human notes, title overrides, tags, and publish/export status in a
   stable sidecar, not only browser local storage. Title overrides, tags,
-  export/publish states, and superseded links are now in
-  `output/archive-metadata.json`; notes and change requests remain in
-  `output/feedback.json`.
+  export/publish states, superseded links, and artifact-chain provenance fields
+  are now in `output/archive-metadata.json`; notes and change requests remain
+  in `output/feedback.json`.
 - Show whether each archive card has been approved, exported to Canva, exported
   to Notion, deployed, or superseded. Export/publish/superseded badges are now
   visible from archive metadata; successful portal Canva, Notion, and static

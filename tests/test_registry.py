@@ -233,6 +233,13 @@ def test_collect_merges_archive_metadata_state_read_only(isolated_registry):
             "metadata-project/run-20260201-000000/keeper.png": {
                 "states": ["canva", "published", "superseded"],
                 "superseded_by": "metadata-project/run-20260301-000000/keeper-v2.png",
+                "source_use_case": "Keynote visual workflow",
+                "source_url": "https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/",
+                "prompt_pack": "examples/keynote-visual-workflow-prompt-pack.md",
+                "prompt_pack_section": "3. Review Gate And Anti-Slop Selector",
+                "artifact_review_state": "manual-rebuild",
+                "export_targets": ["canva", "deck"],
+                "downstream_uses": ["slide", "blog-post"],
             }
         },
     }
@@ -247,6 +254,13 @@ def test_collect_merges_archive_metadata_state_read_only(isolated_registry):
     assert entries[0].export_status == "canva"
     assert entries[0].publish_status == "published"
     assert entries[0].superseded_by == "metadata-project/run-20260301-000000/keeper-v2.png"
+    assert entries[0].source_use_case == "Keynote visual workflow"
+    assert entries[0].source_url == "https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/"
+    assert entries[0].prompt_pack == "examples/keynote-visual-workflow-prompt-pack.md"
+    assert entries[0].prompt_pack_section == "3. Review Gate And Anti-Slop Selector"
+    assert entries[0].artifact_review_state == "manual-rebuild"
+    assert entries[0].export_targets == ["canva", "deck"]
+    assert entries[0].downstream_uses == ["slide", "blog-post"]
 
 
 def test_collect_defaults_archive_metadata_fields_when_no_metadata(isolated_registry):
@@ -264,6 +278,13 @@ def test_collect_defaults_archive_metadata_fields_when_no_metadata(isolated_regi
     assert entries[0].export_status == ""
     assert entries[0].publish_status == ""
     assert entries[0].superseded_by == ""
+    assert entries[0].source_use_case == ""
+    assert entries[0].source_url == ""
+    assert entries[0].prompt_pack == ""
+    assert entries[0].prompt_pack_section == ""
+    assert entries[0].artifact_review_state == ""
+    assert entries[0].export_targets == []
+    assert entries[0].downstream_uses == []
 
 
 def test_search_case_insensitive_substring(isolated_registry):
@@ -340,6 +361,10 @@ def test_export_csv_has_all_columns(isolated_registry):
     assert rows[0]["export_status"] == ""
     assert rows[0]["publish_status"] == ""
     assert rows[0]["superseded_by"] == ""
+    assert rows[0]["source_use_case"] == ""
+    assert rows[0]["artifact_review_state"] == ""
+    assert rows[0]["export_targets"] == ""
+    assert rows[0]["downstream_uses"] == ""
 
 
 def test_export_includes_archive_metadata_fields_read_only(isolated_registry):
@@ -357,6 +382,13 @@ def test_export_includes_archive_metadata_fields_read_only(isolated_registry):
             "export-project/run-20260201-000000/ready.png": {
                 "states": ["canva", "notion", "deployed"],
                 "superseded_by": "export-project/run-20260301-000000/ready-v2.png",
+                "source_use_case": "Keynote visual workflow",
+                "source_url": "https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/",
+                "prompt_pack": "examples/keynote-visual-workflow-prompt-pack.md",
+                "prompt_pack_section": "1. Artifact Chain Hero",
+                "artifact_review_state": "approved",
+                "export_targets": ["canva", "site"],
+                "downstream_uses": ["blog-post", "speaker-kit"],
             }
         },
     }
@@ -369,6 +401,13 @@ def test_export_includes_archive_metadata_fields_read_only(isolated_registry):
         row.pop("export_status", None)
         row.pop("publish_status", None)
         row.pop("superseded_by", None)
+        row.pop("source_use_case", None)
+        row.pop("source_url", None)
+        row.pop("prompt_pack", None)
+        row.pop("prompt_pack_section", None)
+        row.pop("artifact_review_state", None)
+        row.pop("export_targets", None)
+        row.pop("downstream_uses", None)
     registry.REGISTRY_JSON.write_text(json.dumps(stale_rows, indent=2) + "\n", encoding="utf-8")
     before = metadata_path.read_text(encoding="utf-8")
 
@@ -381,6 +420,13 @@ def test_export_includes_archive_metadata_fields_read_only(isolated_registry):
     assert json_rows[0]["export_status"] == "canva,notion"
     assert json_rows[0]["publish_status"] == "deployed"
     assert json_rows[0]["superseded_by"] == "export-project/run-20260301-000000/ready-v2.png"
+    assert json_rows[0]["source_use_case"] == "Keynote visual workflow"
+    assert json_rows[0]["source_url"] == "https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/"
+    assert json_rows[0]["prompt_pack"] == "examples/keynote-visual-workflow-prompt-pack.md"
+    assert json_rows[0]["prompt_pack_section"] == "1. Artifact Chain Hero"
+    assert json_rows[0]["artifact_review_state"] == "approved"
+    assert json_rows[0]["export_targets"] == ["canva", "site"]
+    assert json_rows[0]["downstream_uses"] == ["blog-post", "speaker-kit"]
 
     with registry.REGISTRY_CSV.open(newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
@@ -388,6 +434,47 @@ def test_export_includes_archive_metadata_fields_read_only(isolated_registry):
     assert rows[0]["export_status"] == "canva,notion"
     assert rows[0]["publish_status"] == "deployed"
     assert rows[0]["superseded_by"] == "export-project/run-20260301-000000/ready-v2.png"
+    assert rows[0]["source_use_case"] == "Keynote visual workflow"
+    assert rows[0]["artifact_review_state"] == "approved"
+    assert rows[0]["export_targets"] == "canva,site"
+    assert rows[0]["downstream_uses"] == "blog-post,speaker-kit"
+
+
+def test_search_matches_artifact_chain_fields(isolated_registry):
+    output_root = isolated_registry / "output"
+    project = output_root / "artifact-search-project"
+    run = project / "run-20260201-000000"
+    run.mkdir(parents=True)
+
+    _make_png(run / "selector.png")
+    _write_run_json(run, [{"name": "Selector", "prompt": "run prompt", "file": "selector.png"}])
+    (output_root / "archive-metadata.json").write_text(
+        json.dumps({
+            "version": 1,
+            "items": {
+                "artifact-search-project/run-20260201-000000/selector.png": {
+                    "source_use_case": "Keynote visual workflow",
+                    "prompt_pack_section": "Review Gate And Anti-Slop Selector",
+                    "artifact_review_state": "manual-rebuild",
+                    "export_targets": ["canva"],
+                    "downstream_uses": ["speaker-kit"],
+                }
+            },
+        }),
+        encoding="utf-8",
+    )
+
+    registry.index(scope="all-runs")
+
+    assert [e.id for e in registry.search("keynote visual")] == [
+        "artifact-search-project-20260201-000000-selector"
+    ]
+    assert [e.id for e in registry.search("manual-rebuild")] == [
+        "artifact-search-project-20260201-000000-selector"
+    ]
+    assert [e.id for e in registry.search("speaker-kit")] == [
+        "artifact-search-project-20260201-000000-selector"
+    ]
 
 
 def test_index_is_resilient_to_malformed_run_json(isolated_registry):

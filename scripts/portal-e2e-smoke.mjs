@@ -555,8 +555,49 @@ async function main() {
       const atlasFilterVisible = countVisible();
       const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
       clearAtlasAssetFilter();
+      setPortalMode('workflow');
+      const workflowVisible = !document.querySelector('#portal-mode-workflow').hidden;
+      const workflowCardCount = document.querySelectorAll('.workflow-card').length;
+      const workflowChainText = document.querySelector('.workflow-chain')?.textContent || '';
+      stageWorkflowPromptPack('keynote');
+      const workflowStaged = {
+        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
+        mode: document.querySelector('#studio-mode')?.value || '',
+        project: document.querySelector('#studio-project')?.value || '',
+        style: document.querySelector('#studio-style')?.value || '',
+        aspectRatio: document.querySelector('#studio-ar')?.value || '',
+        promptFile: document.querySelector('#studio-prompt-file')?.value || '',
+        dryRun: Boolean(document.querySelector('#studio-dry-run')?.checked),
+        status: document.querySelector('#studio-status')?.textContent || '',
+      };
       setPortalMode('generate');
       const generateVisible = !document.querySelector('#portal-mode-generate').hidden;
+      const styleKeys = Array.from(document.querySelectorAll('.studio-style-card'))
+        .map((card) => card.dataset.styleKey);
+      const hopecodeText = document.querySelector('.studio-style-card[data-style-key="hopecode"]')?.textContent || '';
+      const bcaiText = document.querySelector('.studio-style-card[data-style-key="bcai"]')?.textContent || '';
+      const styleSearch = document.querySelector('#studio-style-search');
+      styleSearch.value = 'hope';
+      styleSearch.dispatchEvent(new Event('input', { bubbles: true }));
+      const styleSearchVisible = document.querySelectorAll('.studio-style-card').length;
+      styleSearch.value = '';
+      styleSearch.dispatchEvent(new Event('input', { bubbles: true }));
+      setStudioStyleValue('kk');
+      appendStudioStyleValue('bcai');
+      const composedStyle = document.querySelector('#studio-style')?.value || '';
+      const composedGuidance = document.querySelector('#studio-style-guidance')?.textContent || '';
+      document.querySelector('#studio-style').value = 'mystery-style';
+      document.querySelector('#studio-style').dispatchEvent(new Event('input', { bubbles: true }));
+      const unknownGuidance = document.querySelector('#studio-style-guidance')?.textContent || '';
+      document.querySelector('#studio-prompt').value = 'Browser smoke prompt';
+      let unknownBuildMessage = '';
+      try {
+        buildStudioPayload();
+      } catch (error) {
+        unknownBuildMessage = error.message;
+      }
+      document.querySelector('#studio-style').value = '';
+      document.querySelector('#studio-style').dispatchEvent(new Event('input', { bubbles: true }));
       setPortalMode('curate');
       const curateVisible = !document.querySelector('#portal-mode-curate').hidden;
       setPortalMode('spend');
@@ -573,7 +614,20 @@ async function main() {
 
       titleInput.value = 'E2E World-Class Smoke Card';
       tagsInput.value = 'e2e,showpiece';
+      document.querySelector('#metadata-source-use-case').value = 'Keynote visual workflow';
+      document.querySelector('#metadata-source-url').value = 'https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/';
+      document.querySelector('#metadata-prompt-pack').value = 'examples/keynote-visual-workflow-prompt-pack.md';
+      document.querySelector('#metadata-prompt-pack-section').value = 'Review Gate And Anti-Slop Selector';
+      document.querySelector('#metadata-artifact-review-state').value = 'manual-rebuild';
+      document.querySelector('#metadata-export-targets').value = 'canva, deck';
+      document.querySelector('#metadata-downstream-uses').value = 'slide, speaker-kit';
       await saveMetadataForDetail({ preventDefault() {}, stopPropagation() {} });
+      const metadataBadgeText = first.querySelector('.metadata-state-badge')?.textContent || '';
+      document.querySelector('#search').value = 'speaker-kit';
+      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
+      const artifactSearchVisible = countVisible();
+      document.querySelector('#search').value = '';
+      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
 
       feedbackStatus.value = 'keep';
       feedbackNote.value = 'Browser E2E note';
@@ -601,10 +655,27 @@ async function main() {
         initialMode,
         reviewVisible,
         modeChecks: {
+          workflowVisible,
           teachVisible,
           generateVisible,
           curateVisible,
           spendVisible,
+        },
+        workflow: {
+          cardCount: workflowCardCount,
+          chainText: workflowChainText,
+          staged: workflowStaged,
+        },
+        styleReference: {
+          cardCount: styleKeys.length,
+          keys: styleKeys,
+          hopecodeText,
+          bcaiText,
+          searchVisible: styleSearchVisible,
+          composedStyle,
+          composedGuidance,
+          unknownGuidance,
+          unknownBuildMessage,
         },
         atlas: {
           programs: atlasPrograms,
@@ -635,6 +706,8 @@ async function main() {
         searchVisible,
         detailOpen: document.querySelector('#run-detail-panel').getAttribute('aria-hidden') === 'false',
         metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
+        metadataBadgeText,
+        artifactSearchVisible,
         feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
         evaluationStatus: document.querySelector('#evaluation-status-message').textContent.trim(),
         runDecisionSummary: document.querySelector('#run-decision-summary')?.textContent || '',
@@ -655,10 +728,36 @@ async function main() {
     assert(desktopState.title === 'Rafiki Library', `unexpected title: ${desktopState.title}`);
     assert(desktopState.initialMode === 'review', `expected review mode by default, got ${desktopState.initialMode}`);
     assert(desktopState.reviewVisible, 'review mode was hidden by default');
+    assert(desktopState.modeChecks.workflowVisible, 'workflow mode did not become visible');
     assert(desktopState.modeChecks.teachVisible, 'teach mode did not become visible');
     assert(desktopState.modeChecks.generateVisible, 'generate mode did not become visible');
     assert(desktopState.modeChecks.curateVisible, 'curate mode did not become visible');
     assert(desktopState.modeChecks.spendVisible, 'spend mode did not become visible');
+    assert(desktopState.workflow.cardCount >= 2, `expected workflow cards, got ${desktopState.workflow.cardCount}`);
+    assert(desktopState.workflow.chainText.includes('Prompt Pack'), 'workflow chain did not show prompt pack step');
+    assert(desktopState.workflow.staged.activeMode === 'generate', `workflow stage should switch to generate, got ${desktopState.workflow.staged.activeMode}`);
+    assert(desktopState.workflow.staged.mode === 'batch', `workflow stage should choose batch mode, got ${desktopState.workflow.staged.mode}`);
+    assert(desktopState.workflow.staged.project === 'keynote-visual-workflow', `workflow project was not staged, got ${desktopState.workflow.staged.project}`);
+    assert(desktopState.workflow.staged.style === 'hopecode', `workflow style was not staged, got ${desktopState.workflow.staged.style}`);
+    assert(desktopState.workflow.staged.aspectRatio === '16:9', `workflow aspect ratio was not staged, got ${desktopState.workflow.staged.aspectRatio}`);
+    assert(desktopState.workflow.staged.promptFile === 'examples/keynote-visual-workflow-prompt-pack.md', `workflow prompt file was not staged, got ${desktopState.workflow.staged.promptFile}`);
+    assert(desktopState.workflow.staged.dryRun, 'workflow stage should default to dry run');
+    assert(desktopState.workflow.staged.status.includes('Workflow batch staged as a dry run'), 'workflow stage did not set Prompt Studio status');
+    assert(desktopState.styleReference.cardCount >= 4, `expected style reference cards, got ${desktopState.styleReference.cardCount}`);
+    assert(desktopState.styleReference.keys.includes('none'), 'style reference did not include none');
+    assert(desktopState.styleReference.keys.includes('kk'), 'style reference did not include default kk style');
+    assert(desktopState.styleReference.keys.includes('hopecode'), 'style reference did not include HOPECODE');
+    assert(desktopState.styleReference.keys.includes('bcai'), 'style reference did not include BC AI');
+    assert(desktopState.styleReference.hopecodeText.includes('HOPECODE'), 'HOPECODE card did not show display name');
+    assert(desktopState.styleReference.hopecodeText.includes('Solarpunk'), 'HOPECODE card did not show description/context');
+    assert(desktopState.styleReference.bcaiText.includes('BC AI Community Centre'), 'BC AI card did not show display name');
+    assert(desktopState.styleReference.bcaiText.includes('mycelial'), 'BC AI card did not show registry context');
+    assert(desktopState.styleReference.searchVisible === 1, `style search should show one HOPECODE match, got ${desktopState.styleReference.searchVisible}`);
+    assert(desktopState.styleReference.composedStyle === 'kk+bcai', `composed style was not preserved, got ${desktopState.styleReference.composedStyle}`);
+    assert(desktopState.styleReference.composedGuidance.includes('Using kk'), 'composed style guidance did not name kk');
+    assert(desktopState.styleReference.composedGuidance.includes('bcai'), 'composed style guidance did not name bcai');
+    assert(desktopState.styleReference.unknownGuidance.includes('Unknown style mystery-style'), 'unknown style guidance was not visible');
+    assert(desktopState.styleReference.unknownBuildMessage.includes('Unknown style mystery-style'), 'unknown style was not blocked before submit');
     assert(desktopState.atlas.programs >= 1, 'curriculum atlas did not render programs');
     assert(desktopState.atlas.modules >= 1, 'curriculum atlas did not render modules');
     assert(desktopState.atlas.facilitatorNotes >= 1, 'curriculum atlas did not render facilitator notes');
@@ -680,6 +779,8 @@ async function main() {
     assert(desktopState.searchVisible === 1, `search should show one card, got ${desktopState.searchVisible}`);
     assert(desktopState.detailOpen, 'detail panel did not open');
     assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
+    assert(desktopState.metadataBadgeText.includes('artifact: manual rebuild'), 'artifact review state was not visible on the card metadata badge');
+    assert(desktopState.artifactSearchVisible === 1, `artifact metadata search should show one card, got ${desktopState.artifactSearchVisible}`);
     assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
     assert(desktopState.evaluationStatus === 'Saved', `evaluation save failed: ${desktopState.evaluationStatus}`);
     assert(desktopState.quality.evaluationBadges >= 1, 'evaluation badge did not render after save');
@@ -760,6 +861,27 @@ async function main() {
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
 
+    const mobileGenerateState = await mobile.evaluate(() => {
+      setPortalMode('generate');
+      const reference = document.querySelector('.studio-style-reference');
+      const rect = reference?.getBoundingClientRect();
+      return {
+        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
+        styleCards: document.querySelectorAll('.studio-style-card').length,
+        referenceWidth: rect ? Math.round(rect.width) : 0,
+        overflow: {
+          scrollWidth: document.documentElement.scrollWidth,
+          clientWidth: document.documentElement.clientWidth,
+          bodyScrollWidth: document.body.scrollWidth,
+        },
+      };
+    });
+
+    assert(mobileGenerateState.activeMode === 'generate', `expected mobile generate mode, got ${mobileGenerateState.activeMode}`);
+    assert(mobileGenerateState.styleCards >= 4, `expected mobile style cards, got ${mobileGenerateState.styleCards}`);
+    assert(mobileGenerateState.referenceWidth > 0, 'mobile style reference did not render');
+    assert(mobileGenerateState.overflow.scrollWidth <= mobileGenerateState.overflow.clientWidth, 'mobile generate has horizontal overflow');
+
     assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
 
     const refreshedManifest = options.visualBaselineMode === 'refresh'
@@ -782,6 +904,7 @@ async function main() {
       suite: suiteState,
       desktop: desktopState,
       mobile: mobileState,
+      mobile_generate: mobileGenerateState,
       screenshots: visualModeEnabled ? Object.fromEntries(
         visualResults.map((result) => [result.capture.id, result.stats]),
       ) : null,

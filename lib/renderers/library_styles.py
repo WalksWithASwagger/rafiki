@@ -47,6 +47,8 @@ def _library_extra_css() -> str:
 .atlas-module button:focus-visible,
 .atlas-unmapped button:focus-visible,
 .curriculum-context-card button:focus-visible,
+.studio-style-card-actions button:focus-visible,
+.workflow-actions button:focus-visible,
 .studio-submit:focus-visible,
 .studio-inline-btn:focus-visible,
 .portal-action-submit:focus-visible,
@@ -912,6 +914,7 @@ a:focus-visible {
   letter-spacing: 0.04em;
 }
 .run-detail-metadata input[type="text"],
+.run-detail-metadata select,
 .run-detail-evaluation input[type="text"],
 .run-detail-feedback select,
 .run-detail-evaluation select,
@@ -1084,6 +1087,229 @@ a:focus-visible {
 .studio-field textarea:hover {
   border-color: var(--accent);
   background: rgba(255,255,255,0.05);
+}
+.workflow-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.workflow-heading {
+  margin-bottom: 0;
+}
+.workflow-chain {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+.workflow-chain span {
+  border: 1px solid rgba(0,200,180,0.20);
+  border-radius: 8px;
+  background: rgba(0,200,180,0.07);
+  color: var(--teal);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.55rem 0.6rem;
+  text-align: center;
+}
+.workflow-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.85rem;
+}
+.workflow-card {
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+  background: rgba(0,0,0,0.16);
+  padding: 0.95rem;
+}
+.workflow-card-muted {
+  background: rgba(255,255,255,0.03);
+}
+.workflow-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+.workflow-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+.workflow-card code {
+  color: var(--teal);
+  font-size: 0.7rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.workflow-card p {
+  color: var(--dim);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 0 0 0.8rem;
+}
+.workflow-card dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+  margin: 0 0 0.85rem;
+}
+.workflow-card dl div {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.55rem;
+}
+.workflow-card dt {
+  color: var(--dim);
+  font-size: 0.62rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+  text-transform: uppercase;
+}
+.workflow-card dd {
+  color: var(--ink);
+  font-size: 0.78rem;
+  margin: 0;
+}
+.workflow-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+.workflow-actions button {
+  border: 1px solid rgba(0,200,180,0.28);
+  border-radius: 8px;
+  background: rgba(0,200,180,0.10);
+  color: var(--teal);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.5rem 0.72rem;
+}
+.workflow-actions button:hover {
+  border-color: var(--teal);
+  background: rgba(0,200,180,0.16);
+}
+.studio-style-guidance {
+  color: var(--dim);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+.studio-style-guidance-error {
+  color: #ffb4a8;
+}
+.studio-style-reference {
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 10px;
+  background: rgba(0,0,0,0.16);
+  padding: 0.8rem;
+}
+.studio-style-reference-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.studio-style-reference-head h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.9rem;
+}
+.studio-style-reference-head p {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+.studio-style-search {
+  width: min(320px, 100%);
+  flex-shrink: 0;
+}
+.studio-style-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.7rem;
+}
+.studio-style-card,
+.studio-style-empty {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  padding: 0.72rem;
+}
+.studio-style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 220px;
+}
+.studio-style-card.is-active {
+  border-color: rgba(0,200,180,0.62);
+  background: rgba(0,200,180,0.08);
+}
+.studio-style-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.studio-style-card-top code {
+  color: var(--teal);
+  font-size: 0.76rem;
+}
+.studio-style-badge {
+  border: 1px solid rgba(0,200,180,0.28);
+  border-radius: 999px;
+  color: var(--teal);
+  background: rgba(0,200,180,0.08);
+  padding: 0.12rem 0.42rem;
+  font-size: 0.66rem;
+  white-space: nowrap;
+}
+.studio-style-name {
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+.studio-style-description,
+.studio-style-context,
+.studio-style-empty {
+  margin: 0;
+  color: var(--dim);
+  font-size: 0.74rem;
+  line-height: 1.42;
+}
+.studio-style-context {
+  flex: 1;
+}
+.studio-style-context span {
+  display: block;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 700;
+  margin-bottom: 0.16rem;
+  text-transform: uppercase;
+}
+.studio-style-card-actions {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+.studio-style-card-actions button {
+  border: 1px solid rgba(0,200,180,0.28);
+  border-radius: 8px;
+  background: rgba(0,200,180,0.10);
+  color: var(--teal);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.38rem 0.58rem;
+}
+.studio-style-card-actions button:hover {
+  border-color: var(--teal);
+  background: rgba(0,200,180,0.16);
 }
 .studio-actions {
   display: flex;
@@ -1382,6 +1608,22 @@ a:focus-visible {
   }
   .mode-heading,
   .studio-heading {
+    flex-direction: column;
+  }
+  .studio-style-reference-head {
+    flex-direction: column;
+  }
+  .studio-style-search {
+    width: 100%;
+  }
+  .studio-style-cards {
+    grid-template-columns: 1fr;
+  }
+  .workflow-chain,
+  .workflow-card dl {
+    grid-template-columns: 1fr;
+  }
+  .workflow-card-head {
     flex-direction: column;
   }
   .mode-heading,
