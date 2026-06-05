@@ -48,7 +48,7 @@ archive, and uses the same generation path as the CLI.
 | `output/ratings.json` | `/api/ratings` | Star/reject review state keyed by `project/run/file`. |
 | `output/feedback.json` | `/api/feedback` | Per-card notes, change requests, and review statuses. |
 | `output/evaluations.json` | `/api/evaluations` | Per-card decision, score, use case, rationale, and next step. |
-| `output/archive-metadata.json` | `/api/archive-metadata` | Title overrides, tags, export/publish markers, and superseded links. |
+| `output/archive-metadata.json` | `/api/archive-metadata` | Title overrides, tags, export/publish markers, superseded links, and artifact-chain metadata. |
 | `data/usage-log.json` | `lib.usage.log_generation` | Local generation event log. |
 | `data/billing-imports.json` | `generate.py billing` and `/api/billing-imports` | Local provider billing ledger. |
 | `config/curriculum-atlas.json` | Maintainers | Local program/module/objective/competency scaffold for Teach mode. |
@@ -188,7 +188,7 @@ copies the source prompt for quick reuse or review notes.
 | `/api/evaluations` | `GET` | Return `output/evaluations.json` as `{version, items}`. |
 | `/api/evaluations` | `POST` | Upsert one evaluation item using `key`, `decision`, `score`, `use_case`, `rationale`, and `next_step`. |
 | `/api/archive-metadata` | `GET` | Return `output/archive-metadata.json` as `{version, items}`. |
-| `/api/archive-metadata` | `POST` | Upsert one metadata item using `key`, `title`, `tags`, `states`, and `superseded_by`. |
+| `/api/archive-metadata` | `POST` | Upsert one metadata item using `key`, `title`, `tags`, `states`, `superseded_by`, `source_use_case`, `source_url`, `prompt_pack`, `prompt_pack_section`, `artifact_review_state`, `export_targets`, and `downstream_uses`. |
 | `/api/regen` | `POST` | Run Prompt Studio generation or dry run through `lib.batch.run_batch`. |
 
 Supported feedback statuses are `needs-change`, `keep`, `maybe`, `blocked`, and

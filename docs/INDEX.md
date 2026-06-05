@@ -18,6 +18,9 @@ deeper operating docs by surface area.
 - [Keynote Visual Workflow Use Case](use-cases/keynote-visual-workflow.md) -
   public use case for turning talk notes into prompt packs, reviewable image
   candidates, slides, and downstream publishing assets.
+- [Keynote Workflow Handoff - 2026-06-05](HANDOFF-2026-06-05-KEYNOTE-WORKFLOW.md) -
+  public-release, blog use-case, issue swarm, PR #183 merge, verification, and
+  local worktree notes.
 - [ED + AI Logo Sprint](ED-AI-LOGO-SPRINT.md) - May 2026 education meetup
   logo exploration, prompt-pack lineage, generated review artifacts, and
   production handoff notes.
