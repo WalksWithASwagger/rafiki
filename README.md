@@ -18,6 +18,9 @@ local. There is no hosted Rafiki service.
 
 Rafiki is ready for real work. The recommended install path is: clone the repo,
 install dependencies, run locally. Roadmap: [docs/ROADMAP.md](docs/ROADMAP.md).
+The current public use-case focus is the [keynote visual workflow](docs/use-cases/keynote-visual-workflow.md):
+turning talk notes into prompt packs, reviewable image candidates, slide
+assets, and downstream web or social artifacts.
 
 ## What Rafiki Does
 
@@ -82,6 +85,12 @@ For a public batch fixture:
 
 ```bash
 npx rafiki examples/quickstart-image-prompts.md --dry-run --no-viewer
+```
+
+For the keynote visual workflow fixture:
+
+```bash
+npx rafiki examples/keynote-visual-workflow-prompt-pack.md --dry-run --no-viewer
 ```
 
 ## Common Workflows
@@ -239,10 +248,14 @@ Details: [docs/MODEL-POLICY.md](docs/MODEL-POLICY.md)
 
 ## Prompt And Media Boundary
 
-The public npm package intentionally excludes private prompt libraries,
-campaign media, mirrored knowledge-base prompts, generated outputs, and local
-asset folders. It includes only a tiny onboarding fixture:
-`examples/quickstart-image-prompts.md`.
+The GitHub repository is public, so any tracked prompt, asset, or doc should be
+treated as public. Keep private prompt libraries, private reference media,
+generated review outputs, and local-only paths outside the repo or untracked.
+
+The public npm package stays narrower by design. It ships runtime code, docs,
+styles, config examples, and only explicitly listed example prompt packs such
+as `examples/quickstart-image-prompts.md` and
+`examples/keynote-visual-workflow-prompt-pack.md`.
 
 Details: [docs/PROMPT-MEDIA-POLICY.md](docs/PROMPT-MEDIA-POLICY.md)
 

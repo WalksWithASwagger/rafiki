@@ -1,27 +1,39 @@
 # Prompt And Media Release Policy
 
-Rafiki's public package ships runtime code, docs, styles, config examples, and
-a tiny quickstart fixture. It does not ship private prompt libraries, campaign
-briefs, mirrored knowledge-base material, generated assets, or local media
-references.
+Rafiki has two public boundaries:
 
-## Public Fixture
+- the public GitHub repository
+- the narrower public npm package
 
-The packaged fixture is:
+Once the GitHub repository is public, any tracked prompt, asset, or doc should
+be treated as public. Do not commit material that depends on private source
+photos, unpublished campaign details, private archive paths, or live local-only
+media.
+
+The public npm package ships runtime code, docs, styles, config examples, and a
+small set of explicitly listed public fixtures. It does not ship private prompt
+libraries, campaign briefs, generated outputs, or local media folders by
+default.
+
+## Public Fixtures
+
+The packaged fixtures are:
 
 - `examples/quickstart-image-prompts.md`
+- `examples/keynote-visual-workflow-prompt-pack.md`
 
-It is intentionally generic and safe for onboarding. Use it for dry-run smoke
-tests and first batch runs:
+They are intentionally safe for onboarding, dry-run smoke tests, and product
+use-case discussion:
 
 ```bash
 npx rafiki examples/quickstart-image-prompts.md --dry-run --no-viewer
+npx rafiki examples/keynote-visual-workflow-prompt-pack.md --dry-run --no-viewer
 ```
 
 ## Private Prompt Libraries
 
-Keep working prompt collections in your own checkout or another private repo.
-They can still be used with Rafiki by passing paths explicitly:
+Keep private working prompt collections outside the public repo or in another
+private repo. They can still be used with Rafiki by passing paths explicitly:
 
 ```bash
 npx rafiki /path/to/private/image-prompts.md --output-dir /path/to/output
@@ -40,5 +52,6 @@ The npm `files` allowlist excludes `prompts/`, `assets/`, `output/`, `data/`,
 `tools/`, tests, scripts, and local dependency folders. Add new public examples
 only when they are small, generic, and free of private media assumptions.
 
-Private examples may remain tracked in the working repository for now, but they
-are not part of the public npm package unless explicitly added to `files`.
+Historical tracked examples in `prompts/` and `assets/` are public GitHub repo
+content for this release. They remain outside the npm package unless explicitly
+added to `files`.

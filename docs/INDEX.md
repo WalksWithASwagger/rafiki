@@ -15,6 +15,9 @@ deeper operating docs by surface area.
   Gemini versus OpenAI guidance.
 - [Prompt And Media Release Policy](PROMPT-MEDIA-POLICY.md) - public package
   fixture, private prompt library handling, and media boundaries.
+- [Keynote Visual Workflow Use Case](use-cases/keynote-visual-workflow.md) -
+  public use case for turning talk notes into prompt packs, reviewable image
+  candidates, slides, and downstream publishing assets.
 - [ED + AI Logo Sprint](ED-AI-LOGO-SPRINT.md) - May 2026 education meetup
   logo exploration, prompt-pack lineage, generated review artifacts, and
   production handoff notes.

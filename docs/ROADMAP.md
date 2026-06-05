@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-05-30
+Last reviewed: 2026-06-05
 
 Latest audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
@@ -25,6 +25,17 @@ Rafiki is a local-first creative operations tool:
 Rafiki v1 is not a hosted SaaS, shared queue, billing system, or multi-user
 image generation platform.
 
+## Current Public Use Case
+
+The active public use case is the keynote visual workflow: ideas and notes
+become prompt packs, prompt packs become reviewable image candidates, approved
+graphics become slide assets, and slide assets become reusable blog, guide,
+site, social, and speaker materials.
+
+The worked use-case doc is
+[Keynote Visual Workflow](use-cases/keynote-visual-workflow.md), with a dry-run
+prompt pack at `examples/keynote-visual-workflow-prompt-pack.md`.
+
 ## Current System Map
 
 | Area | Primary files | Current state |
@@ -38,7 +49,7 @@ image generation platform.
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
-| Prompt collections | `prompts/`, `styles/`, `assets/` | Rich working examples, private campaign assets, style references, and mirrored prompt assets exist in the repo; the public package ships only the quickstart fixture by policy. |
+| Prompt collections | `prompts/`, `styles/`, `assets/`, `examples/` | Rich working examples, style references, and mirrored prompt assets exist in the public repo; the public package ships only explicitly listed public fixtures by policy. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 251 collected Python tests in this checkout as of 2026-05-24, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes
@@ -184,12 +195,15 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-1. Add approval/export state to registry exports so CSV/JSON exports reflect the local curation sidecar.
-2. Add direct MCP wrappers for the stable registry, archive-health, viewer rebuild, export dry-run, and render dry-run workflows.
-3. Expand portal visual quality checks with optional reviewed baseline/diff artifacts for Review, Teach, and mobile views.
-4. Improve failed-generation status, retry, and cancellation UX in the portal.
-5. Add registry refresh hooks after generation and curation workflows.
-6. Add an optional thumbnail/cache path for large local archives.
+1. Model the keynote artifact chain in the library so an image can be traced from source idea to prompt, run, approval, slide/export, and downstream use.
+2. Replace the text-only style field with reference-first style cards that expose names, descriptions, use cases, and warnings from the style registry.
+3. Add a workflow-first interface mode for prompt batches, review gates, export prep, and reuse notes.
+4. Add approval/export state to registry exports so CSV/JSON exports reflect the local curation sidecar.
+5. Add direct MCP wrappers for the stable registry, archive-health, viewer rebuild, export dry-run, and render dry-run workflows.
+6. Expand portal visual quality checks with optional reviewed baseline/diff artifacts for Review, Teach, and mobile views.
+7. Improve failed-generation status, retry, and cancellation UX in the portal.
+8. Add registry refresh hooks after generation and curation workflows.
+9. Add an optional thumbnail/cache path for large local archives.
 
 ## Non-Goals For Now
 

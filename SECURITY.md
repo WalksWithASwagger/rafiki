@@ -10,6 +10,17 @@ control plane. Provider API keys stay on the operator's machine.
 - If a key was ever committed, rotate it immediately even if it has since been
   removed from the working tree.
 
+Before changing repository visibility or publishing a release, run:
+
+```bash
+gitleaks detect --source . --redact --no-banner --verbose
+trufflehog git file:///Users/kk/Code/rafiki --only-verified --no-update --json
+git check-ignore -v .env node_modules output .venv
+```
+
+Known false positives should be documented in the dated release checklist and
+allowlisted by fingerprint in `.gitleaksignore`, not ignored silently.
+
 ## Local Portal
 
 `python generate.py serve` binds to `127.0.0.1` by default.
