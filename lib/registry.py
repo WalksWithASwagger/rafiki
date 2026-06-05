@@ -44,6 +44,13 @@ CSV_COLUMNS = [
     "export_status",
     "publish_status",
     "superseded_by",
+    "source_use_case",
+    "source_url",
+    "prompt_pack",
+    "prompt_pack_section",
+    "artifact_review_state",
+    "export_targets",
+    "downstream_uses",
     "source_prompt",
     "style",
     "model",
@@ -67,6 +74,13 @@ class AssetEntry:
     export_status: str = ""
     publish_status: str = ""
     superseded_by: str = ""
+    source_use_case: str = ""
+    source_url: str = ""
+    prompt_pack: str = ""
+    prompt_pack_section: str = ""
+    artifact_review_state: str = ""
+    export_targets: list[str] = field(default_factory=list)
+    downstream_uses: list[str] = field(default_factory=list)
     source_prompt: str = ""
     style: str = ""
     model: str = ""
@@ -83,6 +97,8 @@ class AssetEntry:
         d = self.to_dict()
         d["tags"] = ",".join(self.tags)
         d["metadata_states"] = ",".join(self.metadata_states)
+        d["export_targets"] = ",".join(self.export_targets)
+        d["downstream_uses"] = ",".join(self.downstream_uses)
         return d
 
 
@@ -332,6 +348,21 @@ def _apply_archive_metadata(entries: list[AssetEntry], output_root: Path) -> Non
         entry.export_status = _status_from_states(entry.metadata_states, {"canva", "notion"})
         entry.publish_status = _status_from_states(entry.metadata_states, {"deployed", "published"})
         entry.superseded_by = str(item.get("superseded_by") or "").strip()
+        entry.source_use_case = str(item.get("source_use_case") or "").strip()
+        entry.source_url = str(item.get("source_url") or "").strip()
+        entry.prompt_pack = str(item.get("prompt_pack") or "").strip()
+        entry.prompt_pack_section = str(item.get("prompt_pack_section") or "").strip()
+        entry.artifact_review_state = str(item.get("artifact_review_state") or "").strip()
+        entry.export_targets = [
+            str(target).strip()
+            for target in item.get("export_targets", [])
+            if str(target).strip()
+        ] if isinstance(item.get("export_targets"), list) else []
+        entry.downstream_uses = [
+            str(use).strip()
+            for use in item.get("downstream_uses", [])
+            if str(use).strip()
+        ] if isinstance(item.get("downstream_uses"), list) else []
 
 
 def collect(output_root: Path | None = None, *, scope: str = "curated") -> list[AssetEntry]:
@@ -448,6 +479,12 @@ def search(query: str) -> list[AssetEntry]:
             entry.title.lower(),
             entry.caption.lower(),
             " ".join(t.lower() for t in entry.tags),
+            entry.source_use_case.lower(),
+            entry.prompt_pack.lower(),
+            entry.prompt_pack_section.lower(),
+            entry.artifact_review_state.lower(),
+            " ".join(t.lower() for t in entry.export_targets),
+            " ".join(t.lower() for t in entry.downstream_uses),
         ])
         if needle in haystack:
             out.append(entry)

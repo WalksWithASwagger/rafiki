@@ -10,6 +10,10 @@ archive, and uses the same generation path as the CLI.
   Review Queue, lineage chips, copy-prompt actions, search, ratings, metadata
   badges, feedback badges, evaluation badges, keyboard review, and the run
   detail panel.
+- **Workflow** stages repeatable artifact chains before generation. The first
+  template stages the public keynote visual workflow prompt pack as a dry-run
+  batch, then sends the operator into Prompt Studio to inspect the prompt file,
+  style, aspect ratio, and project before running.
 - **Generate** contains Prompt Studio and launches single-prompt or Markdown
   batch runs through `/api/regen`. It keeps the latest submitted payload in the
   browser so failed or reset runs can be retried directly or restored into the
@@ -91,6 +95,12 @@ It does not deploy, call provider APIs, or expose secret values.
 
 ## Prompt Studio Run Status
 
+Workflow mode can prefill Prompt Studio from a known prompt-pack template. The
+staged keynote visual workflow starts as a dry run with `style=hopecode`,
+`aspect_ratio=16:9`, and
+`prompt_file=examples/keynote-visual-workflow-prompt-pack.md`; operators still
+review the payload before spend.
+
 Prompt Studio distinguishes pending, success, failure, and reset states in the
 status line. Server and provider errors stay visible as sanitized text so the
 operator can retry with the useful failure reason still on screen. **Retry
@@ -117,9 +127,11 @@ and discussion prompts beside the evaluation form.
 The **Card Metadata** section in the run detail panel writes to
 `output/archive-metadata.json`. It can override the display title, add durable
 review tags, mark local export/publish states (`canva`, `notion`, `deployed`,
-`published`, `superseded`), and record a `superseded_by` card key. The master
-library merges that sidecar when it renders, so the state is visible as card
-badges and searchable tags instead of being trapped in browser-local storage.
+`published`, `superseded`), record a `superseded_by` card key, and carry
+artifact-chain fields such as source use case, public source URL, prompt-pack
+section, artifact review state, export targets, and downstream uses. The master
+library and registry merge that sidecar so provenance stays searchable and
+exportable instead of being trapped in browser-local storage.
 Successful non-dry-run Canva, Notion, and static deploy portal actions stamp
 the matching source cards with `canva`, `notion`, or `deployed` automatically
 when Rafiki can map the exported source back to run images. Static deploys map

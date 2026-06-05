@@ -11,6 +11,20 @@ from typing import Any, Iterable
 
 METADATA_FILENAME = "archive-metadata.json"
 ARCHIVE_STATES = {"canva", "notion", "deployed", "published", "superseded"}
+ARTIFACT_REVIEW_STATES = {"approved", "rejected", "regenerate", "manual-rebuild"}
+METADATA_EDIT_FIELDS = {
+    "title",
+    "tags",
+    "states",
+    "superseded_by",
+    "source_use_case",
+    "source_url",
+    "prompt_pack",
+    "prompt_pack_section",
+    "artifact_review_state",
+    "export_targets",
+    "downstream_uses",
+}
 
 
 def archive_metadata_path(output_root: Path) -> Path:
@@ -62,6 +76,34 @@ def _clean_text(value: object, field: str, *, max_len: int = 500) -> str:
     return value.strip()[:max_len]
 
 
+def _clean_public_url(value: object, field: str) -> str:
+    url = _clean_text(value, field, max_len=1000)
+    if not url:
+        return ""
+    if url.startswith(("http://", "https://")):
+        return url
+    raise ValueError(f"{field} must be a public http(s) URL")
+
+
+def _clean_repo_reference(value: object, field: str) -> str:
+    ref = _clean_text(value, field, max_len=500)
+    if not ref:
+        return ""
+    if ref.startswith("/") or ref.startswith("file://") or "/Users/" in ref:
+        raise ValueError(f"{field} must be a repo-relative path or stable label")
+    return ref
+
+
+def _clean_enum(value: object, field: str, allowed: set[str]) -> str:
+    item = _clean_text(value, field, max_len=80).lower()
+    if not item:
+        return ""
+    if item not in allowed:
+        allowed_values = ", ".join(sorted(allowed))
+        raise ValueError(f"{field} must be one of: {allowed_values}")
+    return item
+
+
 def _clean_list(value: object, field: str, *, allowed: set[str] | None = None) -> list[str]:
     if value is None:
         return []
@@ -105,23 +147,51 @@ def update_archive_metadata(path: Path, payload: dict[str, Any]) -> dict[str, An
     if not key:
         raise ValueError("key is required")
 
-    title = _clean_text(payload.get("title"), "title")
-    tags = _clean_list(payload.get("tags"), "tags")
-    states = _clean_list(payload.get("states"), "states", allowed=ARCHIVE_STATES)
-    superseded_by = _clean_text(payload.get("superseded_by"), "superseded_by", max_len=1000)
-
-    entry: dict[str, Any] = {}
-    if title:
-        entry["title"] = title
-    if tags:
-        entry["tags"] = tags
-    if states:
-        entry["states"] = states
-    if superseded_by:
-        entry["superseded_by"] = superseded_by
-
     data = load_archive_metadata(path)
     items = data.setdefault("items", {})
+    if not any(field in payload for field in METADATA_EDIT_FIELDS):
+        items.pop(key, None)
+        data["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        save_archive_metadata(path, data)
+        return {"ok": True, "key": key, "metadata": None}
+
+    current = items.get(key)
+    entry: dict[str, Any] = dict(current) if isinstance(current, dict) else {}
+
+    field_values: dict[str, object] = {}
+    if "title" in payload:
+        field_values["title"] = _clean_text(payload.get("title"), "title")
+    if "tags" in payload:
+        field_values["tags"] = _clean_list(payload.get("tags"), "tags")
+    if "states" in payload:
+        field_values["states"] = _clean_list(payload.get("states"), "states", allowed=ARCHIVE_STATES)
+    if "superseded_by" in payload:
+        field_values["superseded_by"] = _clean_text(payload.get("superseded_by"), "superseded_by", max_len=1000)
+    if "source_use_case" in payload:
+        field_values["source_use_case"] = _clean_text(payload.get("source_use_case"), "source_use_case", max_len=200)
+    if "source_url" in payload:
+        field_values["source_url"] = _clean_public_url(payload.get("source_url"), "source_url")
+    if "prompt_pack" in payload:
+        field_values["prompt_pack"] = _clean_repo_reference(payload.get("prompt_pack"), "prompt_pack")
+    if "prompt_pack_section" in payload:
+        field_values["prompt_pack_section"] = _clean_text(payload.get("prompt_pack_section"), "prompt_pack_section")
+    if "artifact_review_state" in payload:
+        field_values["artifact_review_state"] = _clean_enum(
+            payload.get("artifact_review_state"),
+            "artifact_review_state",
+            ARTIFACT_REVIEW_STATES,
+        )
+    if "export_targets" in payload:
+        field_values["export_targets"] = _clean_list(payload.get("export_targets"), "export_targets")
+    if "downstream_uses" in payload:
+        field_values["downstream_uses"] = _clean_list(payload.get("downstream_uses"), "downstream_uses")
+
+    for field, value in field_values.items():
+        if value:
+            entry[field] = value
+        else:
+            entry.pop(field, None)
+
     if entry:
         entry["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
         items[key] = entry

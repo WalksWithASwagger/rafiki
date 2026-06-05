@@ -359,6 +359,49 @@ def _portal_model_options() -> list[str]:
     ]
 
 
+def _compact_style_context(value: object, *, limit: int = 320) -> str:
+    text = re.sub(r"\s+", " ", str(value or "").strip())
+    text = re.sub(r"^Style guidelines:\s*", "", text, flags=re.IGNORECASE)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3].rstrip() + "..."
+
+
+def _studio_style_registry(styles: dict, default_style: str) -> list[dict]:
+    entries = [{
+        "key": "none",
+        "name": "No style",
+        "description": "Generate without a style suffix.",
+        "use_context": "Use when the prompt or reference image already carries the visual direction.",
+        "default": False,
+        "special": True,
+        "search": "none no style unstyled disable suffix",
+    }]
+    context_keys = ("recommended_use", "use_context", "recommended", "context")
+    for key, cfg in styles.items():
+        if not isinstance(cfg, dict):
+            continue
+        description = _compact_style_context(cfg.get("description"))
+        context = next((_compact_style_context(cfg.get(name)) for name in context_keys if cfg.get(name)), "")
+        if not context:
+            context = _compact_style_context(cfg.get("suffix"))
+        entries.append({
+            "key": key,
+            "name": str(cfg.get("name") or key).strip(),
+            "description": description,
+            "use_context": context or description,
+            "default": key == default_style or bool(cfg.get("default")),
+            "special": False,
+            "search": " ".join([
+                key,
+                str(cfg.get("name") or ""),
+                description,
+                context,
+            ]).strip().lower(),
+        })
+    return entries
+
+
 def _studio_panel_html(style_names: list[str], default_style: str, model_options: list[str]) -> str:
     model_opts = "".join(
         f'<option value="{model}"{" selected" if model == "gemini-2.5-flash-image" else ""}>{model}</option>'
@@ -397,8 +440,22 @@ def _studio_panel_html(style_names: list[str], default_style: str, model_options
       </label>
       <label class="studio-field">
         <span>Style</span>
-        <input id="studio-style" name="style" type="text" list="studio-style-options" placeholder="blank = default ({default_style}); use none to disable">
+        <input id="studio-style" name="style" type="text" list="studio-style-options" placeholder="blank = default ({default_style}); use none to disable" autocomplete="off" oninput="syncStudioStyleReference()">
+        <small id="studio-style-guidance" class="studio-style-guidance" aria-live="polite"></small>
       </label>
+      <div class="studio-style-reference studio-wide">
+        <div class="studio-style-reference-head">
+          <div>
+            <h3>Style Reference</h3>
+            <p id="studio-style-current"></p>
+          </div>
+          <label class="studio-field studio-style-search">
+            <span>Search Styles</span>
+            <input id="studio-style-search" type="search" placeholder="key, name, context" oninput="renderStudioStyleCards()">
+          </label>
+        </div>
+        <div class="studio-style-cards" id="studio-style-cards"></div>
+      </div>
       <label class="studio-field">
         <span>Aspect Ratio</span>
         <select id="studio-ar" name="aspect_ratio">
@@ -461,6 +518,57 @@ def _studio_panel_html(style_names: list[str], default_style: str, model_options
     <option value="none"></option>
     {style_opts}
   </datalist>
+</section>
+"""
+
+
+def _workflow_panel_html() -> str:
+    return """
+<section class="workflow-panel" id="workflow-panel">
+  <div class="mode-heading workflow-heading">
+    <div>
+      <h2>Workflow</h2>
+      <p>Stage a repeatable artifact chain before generation: prompt pack, review gate, export, and reuse.</p>
+    </div>
+    <span class="mode-note">Batch first, review second</span>
+  </div>
+  <div class="workflow-chain" aria-label="Keynote artifact workflow">
+    <span>Idea</span>
+    <span>Prompt Pack</span>
+    <span>Candidates</span>
+    <span>Review</span>
+    <span>Export</span>
+    <span>Reuse</span>
+  </div>
+  <div class="workflow-grid">
+    <article class="workflow-card">
+      <div class="workflow-card-head">
+        <h3>Keynote Visual Workflow</h3>
+        <code>examples/keynote-visual-workflow-prompt-pack.md</code>
+      </div>
+      <p>Ideas and talk notes become a public-safe prompt pack, candidates, approval decisions, slide assets, and downstream blog or speaker-kit artifacts.</p>
+      <dl>
+        <div><dt>Style lane</dt><dd>HOPECODE</dd></div>
+        <div><dt>Aspect</dt><dd>16:9</dd></div>
+        <div><dt>Start state</dt><dd>Dry run</dd></div>
+      </dl>
+      <div class="workflow-actions">
+        <button type="button" data-workflow-template="keynote" onclick="stageWorkflowPromptPack('keynote')">Stage Batch</button>
+        <button type="button" onclick="setPortalMode('curate')">Open Curation</button>
+      </div>
+    </article>
+    <article class="workflow-card workflow-card-muted">
+      <div class="workflow-card-head">
+        <h3>Reuse Loop</h3>
+        <code>artifact metadata</code>
+      </div>
+      <p>After review, card metadata can carry the source use case, prompt-pack section, review state, export targets, and downstream uses into the registry.</p>
+      <div class="workflow-actions">
+        <button type="button" onclick="setPortalMode('review')">Review Cards</button>
+        <button type="button" onclick="setPortalMode('curate')">Export Registry</button>
+      </div>
+    </article>
+  </div>
 </section>
 """
 
@@ -629,8 +737,14 @@ def _render_library(records: list[dict], output_root: Path | None = None) -> str
     sources = sorted({r["source"] for r in records if r.get("source")})
     runs = sorted({r["run_id"] for r in records if r.get("run_id")}, reverse=True)
     approval_states = ["approved", "unapproved"]
-    all_style_names = sorted(load_styles().keys())
-    default_style = get_default_style()
+    style_config = load_styles()
+    all_style_names = list(style_config.keys())
+    default_style = next((name for name, cfg in style_config.items() if isinstance(cfg, dict) and cfg.get("default")), "")
+    if not default_style:
+        default_style = get_default_style()
+    studio_style_registry = _studio_style_registry(style_config, default_style)
+    studio_style_registry_json = json.dumps(studio_style_registry, ensure_ascii=False)
+    studio_default_style_json = json.dumps(default_style, ensure_ascii=False)
     model_options = _portal_model_options()
     now = datetime.now().strftime("%Y-%m-%d %H:%M")
 
@@ -679,6 +793,7 @@ def _render_library(records: list[dict], output_root: Path | None = None) -> str
 
 <nav class="portal-mode-nav" aria-label="Portal modes">
   <button type="button" class="portal-mode-btn active" data-mode-target="review" onclick="setPortalMode('review')">Review</button>
+  <button type="button" class="portal-mode-btn" data-mode-target="workflow" onclick="setPortalMode('workflow')">Workflow</button>
   <button type="button" class="portal-mode-btn" data-mode-target="generate" onclick="setPortalMode('generate')">Generate</button>
   <button type="button" class="portal-mode-btn" data-mode-target="curate" onclick="setPortalMode('curate')">Curate</button>
   <button type="button" class="portal-mode-btn" data-mode-target="spend" onclick="setPortalMode('spend')">Spend</button>
@@ -749,6 +864,10 @@ def _render_library(records: list[dict], output_root: Path | None = None) -> str
       <button type="button" onclick="clearAtlasAssetFilter()">Clear atlas filter</button>
     </div>
     <div class="grid" id="grid"></div>
+  </section>
+
+  <section class="portal-mode-panel" id="portal-mode-workflow" data-portal-mode="workflow" hidden>
+    {_workflow_panel_html()}
   </section>
 
   <section class="portal-mode-panel" id="portal-mode-generate" data-portal-mode="generate" hidden>
@@ -888,6 +1007,8 @@ const LIBRARY = {library_json};
 const ITEMS = LIBRARY;
 const RUN_DETAILS = {run_details_json};
 const CURRICULUM_ATLAS = {atlas_json};
+const STUDIO_STYLE_REGISTRY = {studio_style_registry_json};
+const STUDIO_DEFAULT_STYLE = {studio_default_style_json};
 const RATINGS_KEY = 'rafiki:ratings';
 const FEEDBACK_KEY = 'rafiki:feedback';
 const EVALUATIONS_KEY = 'rafiki:evaluations';
@@ -928,6 +1049,169 @@ function _saveLocalMetadata(items) {{ localStorage.setItem(METADATA_KEY, JSON.st
 function studioEscapeHtml(value) {{
   return String(value || '').replace(/[&<>"]/g, ch => ({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}}[ch]));
 }}
+const STUDIO_STYLE_BY_KEY = new Map(STUDIO_STYLE_REGISTRY.map(entry => [entry.key, entry]));
+function studioStyleEntry(key) {{
+  return STUDIO_STYLE_BY_KEY.get(String(key || '').trim()) || null;
+}}
+function studioStyleName(key) {{
+  const entry = studioStyleEntry(key);
+  return entry ? entry.name : key;
+}}
+function studioStyleParts(spec) {{
+  return String(spec || '').split('+').map(part => part.trim()).filter(Boolean);
+}}
+function validateStudioStyleSpec(spec) {{
+  const raw = String(spec || '').trim();
+  const defaultEntry = studioStyleEntry(STUDIO_DEFAULT_STYLE);
+  if (!raw) {{
+    return {{
+      ok: true,
+      mode: 'default',
+      parts: STUDIO_DEFAULT_STYLE ? [STUDIO_DEFAULT_STYLE] : [],
+      message: 'Blank will use default style ' + STUDIO_DEFAULT_STYLE + (defaultEntry ? ' - ' + defaultEntry.name : '') + '.',
+    }};
+  }}
+  if (raw === 'none') {{
+    return {{ ok: true, mode: 'none', parts: ['none'], message: 'Style disabled for this run.' }};
+  }}
+  const parts = studioStyleParts(raw);
+  if (!parts.length) return validateStudioStyleSpec('');
+  if (parts.includes('none')) {{
+    return {{
+      ok: false,
+      mode: 'invalid',
+      parts,
+      unknown: ['none'],
+      message: 'The none style must be used by itself, not inside a composed style.',
+    }};
+  }}
+  const unknown = parts.filter(part => !studioStyleEntry(part));
+  if (unknown.length) {{
+    return {{
+      ok: false,
+      mode: 'unknown',
+      parts,
+      unknown,
+      message: 'Unknown style ' + unknown.join(' + ') + '. Choose a registry key, use none, or compose known keys with +.',
+    }};
+  }}
+  return {{
+    ok: true,
+    mode: parts.length > 1 ? 'composed' : 'single',
+    parts,
+    message: 'Using ' + parts.map(part => part + ' - ' + studioStyleName(part)).join(' + ') + '.',
+  }};
+}}
+function syncStudioStyleReference() {{
+  const input = document.getElementById('studio-style');
+  const selection = validateStudioStyleSpec(input?.value || '');
+  const guidance = document.getElementById('studio-style-guidance');
+  if (guidance) {{
+    guidance.textContent = selection.message;
+    guidance.classList.toggle('studio-style-guidance-error', !selection.ok);
+  }}
+  const current = document.getElementById('studio-style-current');
+  if (current) current.textContent = selection.message;
+  const active = new Set(selection.ok ? selection.parts : []);
+  document.querySelectorAll('.studio-style-card').forEach(card => {{
+    card.classList.toggle('is-active', active.has(card.dataset.styleKey || ''));
+  }});
+  return selection;
+}}
+function setStudioStyleValue(value) {{
+  const input = document.getElementById('studio-style');
+  if (!input) return;
+  input.value = value || '';
+  syncStudioStyleReference();
+}}
+function appendStudioStyleValue(key) {{
+  const cleanKey = String(key || '').trim();
+  if (!cleanKey || cleanKey === 'none') {{
+    setStudioStyleValue(cleanKey);
+    return;
+  }}
+  const input = document.getElementById('studio-style');
+  if (!input) return;
+  const current = input.value.trim();
+  const parts = current && current !== 'none' ? studioStyleParts(current).filter(part => part !== 'none') : [];
+  if (!parts.includes(cleanKey)) parts.push(cleanKey);
+  input.value = parts.join('+');
+  syncStudioStyleReference();
+}}
+function renderStudioStyleCards() {{
+  const target = document.getElementById('studio-style-cards');
+  if (!target) return;
+  const query = String(document.getElementById('studio-style-search')?.value || '').trim().toLowerCase();
+  const matches = STUDIO_STYLE_REGISTRY.filter(entry => {{
+    if (!query) return true;
+    return String(entry.search || '').includes(query)
+      || String(entry.key || '').toLowerCase().includes(query)
+      || String(entry.name || '').toLowerCase().includes(query);
+  }});
+  target.innerHTML = '';
+  if (!matches.length) {{
+    const empty = document.createElement('div');
+    empty.className = 'studio-style-empty';
+    empty.textContent = 'No registry styles match this search.';
+    target.appendChild(empty);
+    syncStudioStyleReference();
+    return;
+  }}
+  matches.forEach(entry => {{
+    const card = document.createElement('article');
+    card.className = 'studio-style-card';
+    card.dataset.styleKey = entry.key;
+
+    const top = document.createElement('div');
+    top.className = 'studio-style-card-top';
+    const key = document.createElement('code');
+    key.textContent = entry.key;
+    top.appendChild(key);
+    if (entry.default) {{
+      const badge = document.createElement('span');
+      badge.className = 'studio-style-badge';
+      badge.textContent = 'Default';
+      top.appendChild(badge);
+    }}
+    card.appendChild(top);
+
+    const name = document.createElement('strong');
+    name.className = 'studio-style-name';
+    name.textContent = entry.name || entry.key;
+    card.appendChild(name);
+
+    const description = document.createElement('p');
+    description.className = 'studio-style-description';
+    description.textContent = entry.description || 'No description in registry.';
+    card.appendChild(description);
+
+    const context = document.createElement('p');
+    context.className = 'studio-style-context';
+    const contextLabel = document.createElement('span');
+    contextLabel.textContent = 'Use context';
+    context.appendChild(contextLabel);
+    context.appendChild(document.createTextNode(entry.use_context || entry.description || 'No use context in registry.'));
+    card.appendChild(context);
+
+    const actions = document.createElement('div');
+    actions.className = 'studio-style-card-actions';
+    const useButton = document.createElement('button');
+    useButton.type = 'button';
+    useButton.textContent = entry.key === 'none' ? 'Use none' : 'Use';
+    useButton.addEventListener('click', () => setStudioStyleValue(entry.key));
+    actions.appendChild(useButton);
+    if (!entry.special) {{
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.textContent = 'Add';
+      addButton.addEventListener('click', () => appendStudioStyleValue(entry.key));
+      actions.appendChild(addButton);
+    }}
+    card.appendChild(actions);
+    target.appendChild(card);
+  }});
+  syncStudioStyleReference();
+}}
 function formatUsd(amount) {{
   const value = Number(amount || 0);
   return '$' + value.toFixed(value >= 10 ? 2 : 4).replace(/0+$/, '').replace(/\\.$/, '.00');
@@ -944,7 +1228,7 @@ function resolveAssetSrc(path) {{
   return SERVER_MODE ? '/output/' + raw.replace(/^\\/+/, '') : raw;
 }}
 function setPortalMode(mode) {{
-  const targetMode = ['review', 'generate', 'curate', 'spend', 'teach'].includes(mode) ? mode : 'review';
+  const targetMode = ['review', 'workflow', 'generate', 'curate', 'spend', 'teach'].includes(mode) ? mode : 'review';
   document.querySelectorAll('.portal-mode-panel').forEach(panel => {{
     const active = panel.dataset.portalMode === targetMode;
     panel.hidden = !active;
@@ -957,6 +1241,31 @@ function setPortalMode(mode) {{
   }});
   try {{ localStorage.setItem('rafiki:portalMode', targetMode); }} catch (err) {{}}
   if (targetMode === 'review') syncActiveCardAfterFilter();
+}}
+const WORKFLOW_TEMPLATES = {{
+  keynote: {{
+    mode: 'batch',
+    project: 'keynote-visual-workflow',
+    model: 'gemini-2.5-flash-image',
+    style: 'hopecode',
+    aspect_ratio: '16:9',
+    quality: 'high',
+    resolution: '1K',
+    prompt_file: 'examples/keynote-visual-workflow-prompt-pack.md',
+    workers: 2,
+    dry_run: true,
+  }},
+}};
+function stageWorkflowPromptPack(key) {{
+  const template = WORKFLOW_TEMPLATES[key];
+  if (!template) return;
+  const payload = Object.assign({{}}, template);
+  _lastStudioPayload = payload;
+  applyStudioPayload(payload);
+  setPortalMode('generate');
+  document.getElementById('studio-panel')?.scrollIntoView({{block: 'start'}});
+  setStudioStatus('info', 'Workflow batch staged as a dry run. Review the style, prompt file, and project before running.');
+  studioSetButtonState('restaged');
 }}
 function initPortalMode() {{
   let requested = '';
@@ -2310,6 +2619,8 @@ function buildStudioPayload() {{
     reference_image: document.getElementById('studio-reference')?.value.trim() || '',
     dry_run: document.getElementById('studio-dry-run')?.checked || false,
   }};
+  const styleCheck = syncStudioStyleReference();
+  if (!styleCheck.ok) throw new Error(styleCheck.message);
   if (mode === 'single') {{
     payload.name = document.getElementById('studio-name')?.value.trim() || '';
     payload.prompt = document.getElementById('studio-prompt')?.value.trim() || '';
@@ -2339,6 +2650,7 @@ function applyStudioPayload(payload) {{
   setValue('studio-prompt', payload.prompt || '');
   setValue('studio-prompt-file', payload.prompt_file || '');
   setValue('studio-workers', String(payload.workers || 1));
+  syncStudioStyleReference();
 }}
 function restageStudioPayload() {{
   if (!_lastStudioPayload) return;
@@ -2516,6 +2828,7 @@ async function runStudioPayload(payload) {{
   const saved = localStorage.getItem('rafiki:cardWidth');
   if (saved) {{ resizeGrid(saved); const sl = document.getElementById('grid-sizer'); if (sl) sl.value = saved; }}
   syncStudioMode();
+  renderStudioStyleCards();
   syncPortalAction();
   initPortalMode();
   loadPortalActions();

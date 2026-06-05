@@ -494,11 +494,18 @@ def test_library_viewer_renders_modes_and_curriculum_atlas(tmp_path, monkeypatch
 
     assert 'class="portal-mode-nav"' in html
     assert 'data-mode-target="review"' in html
+    assert 'data-mode-target="workflow"' in html
     assert 'id="portal-mode-review"' in html
+    assert 'id="portal-mode-workflow"' in html
     assert 'id="portal-mode-generate"' in html
     assert 'id="portal-mode-curate"' in html
     assert 'id="portal-mode-spend"' in html
     assert 'id="portal-mode-teach"' in html
+    assert "Keynote Visual Workflow" in html
+    assert "examples/keynote-visual-workflow-prompt-pack.md" in html
+    assert "function stageWorkflowPromptPack(key)" in html
+    assert "const WORKFLOW_TEMPLATES =" in html
+    assert "Workflow batch staged as a dry run" in html
     assert 'id="curriculum-atlas-panel"' in html
     assert "Responsible AI Program" in html
     assert "Facilitator Notes" in html
@@ -552,3 +559,56 @@ def test_library_viewer_renders_prompt_studio_status_retry_and_reset_hooks(tmp_p
     assert "No provider cancellation was requested" in html
     assert "Rafiki cannot cancel a provider job already handed off" in html
     assert "signal: _studioAbortController.signal" in html
+
+
+def test_library_viewer_renders_prompt_studio_style_reference_cards(tmp_path, monkeypatch):
+    output_root = _isolate_registry(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        library,
+        "load_styles",
+        lambda: {
+            "kk": {
+                "name": "BC + AI Brand",
+                "default": True,
+                "description": "Professional editorial style",
+                "suffix": "Style guidelines: dark editorial polish.",
+            },
+            "hopecode": {
+                "name": "HOPECODE",
+                "description": "Solarpunk mycelial mapping",
+                "suffix": "Style guidelines: field notes, maps, and anti-corporate texture.",
+            },
+            "bcai": {
+                "name": "BC AI Community Centre",
+                "description": "Organic-professional BC network",
+                "suffix": "Style guidelines: mycelial event maps and connected community nodes.",
+            },
+        },
+    )
+    monkeypatch.setattr(library, "get_default_style", lambda: "kk")
+    _write_run(
+        output_root / "studio-styles" / "run-20260511-120000",
+        "studio-style.png",
+        "Studio Style Asset",
+        "studio style prompt",
+    )
+
+    html = library.generate_library_viewer(output_root).read_text(encoding="utf-8")
+
+    assert 'id="studio-style-cards"' in html
+    assert 'id="studio-style-search"' in html
+    assert 'id="studio-style-guidance"' in html
+    assert "Style Reference" in html
+    assert "const STUDIO_STYLE_REGISTRY =" in html
+    assert '"key": "none"' in html
+    assert '"key": "kk"' in html
+    assert '"key": "hopecode"' in html
+    assert '"key": "bcai"' in html
+    assert '"name": "HOPECODE"' in html
+    assert '"description": "Solarpunk mycelial mapping"' in html
+    assert "mycelial event maps and connected community nodes" in html
+    assert "function validateStudioStyleSpec(spec)" in html
+    assert "function appendStudioStyleValue(key)" in html
+    assert "Unknown style" in html
+    assert "The none style must be used by itself" in html
+    assert 'oninput="syncStudioStyleReference()"' in html
