@@ -60,16 +60,16 @@ The existing repo smokes (below) verify logic but throw their screenshots
 away. To get PNGs you can actually open, use the driver. It picks a free
 port, builds the library index, launches the portal, screenshots it, builds a
 run viewer and screenshots that, exercises the Studio Dry Run, renders an
-HTML card to PNG, exports a Video Lab EDL, then runs Canva and Notion export
-dry-runs. No keys, no spend.
+HTML card to PNG, exports a Video Lab EDL, then runs Canva, Notion, and
+registry export dry-runs. No keys, no spend.
 
 ```bash
 bash .claude/skills/run-rafiki/driver.sh
 ```
 
 It prints a temp dir holding `portal.png`, `viewer.png`, `studio.json`,
-`card.png`, `video-edl.json`, `canva-export.json`, and `notion-export.json`.
-Open the PNGs, or `Read` them. `viewer.png`
+`card.png`, `video-edl.json`, `canva-export.json`, `notion-export.json`, and
+`registry-export.json`. Open the PNGs, or `Read` them. `viewer.png`
 shows the real image grid for the first project under `output/`; `portal.png`
 shows the Rafiki Suite shell (Library / Subjects / Studio / Jobs / Styles /
 Video Lab tabs); `card.png` is the Puppeteer HTML→PNG renderer output. The
@@ -87,7 +87,10 @@ action, so dry-run skips the confirm guard) and asserts `dry_run:true`,
 reports the would-be zip path **without writing it**. The Notion step POSTs
 `{"action":"notion-export","dry_run":true,...}` (an `external` action) and
 asserts `external:false` + empty `errors` — it reports what *would* be exported
-with **no Notion token and no network call**.
+with **no Notion token and no network call**. The registry step POSTs
+`{"action":"registry-export","dry_run":true,"format":"csv"}` (registry-wide, no
+project) and asserts an integer `count` and a `.csv` `path` — it reports the
+asset-registry row count and would-be CSV path **without rewriting the file**.
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
@@ -196,7 +199,7 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 `.claude/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
 port, builds the index, launches `generate.py serve`, screenshots the portal
 and a run viewer, runs a Studio Dry Run via `/api/regen`, renders an HTML card
-to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, runs Canva and
-Notion export dry-runs via `/api/actions`, then tears the server down on exit.
-Scoped to the GUI screenshot + portal-action + renderer flow the repo's own
-`smoke:dry-run` / `e2e:portal` scripts don't cover.
+to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, runs Canva,
+Notion, and registry export dry-runs via `/api/actions`, then tears the server
+down on exit. Scoped to the GUI screenshot + portal-action + renderer flow the
+repo's own `smoke:dry-run` / `e2e:portal` scripts don't cover.

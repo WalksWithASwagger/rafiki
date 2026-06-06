@@ -171,4 +171,20 @@ print(f"  ok: would export {d['exported']} from {d.get('source')}, {d.get('skipp
 PY
 fi
 
+# --- 9. Registry export dry-run (the "registry-export" portal action) --------
+# POST /api/actions with dry_run:true — reports the asset-registry row count and
+# the would-be CSV path without rewriting the file. Registry-wide, no project.
+echo "Registry export dry-run -> POST /api/actions (format: csv)"
+curl -s -X POST "http://127.0.0.1:$PORT/api/actions" \
+  -H 'Content-Type: application/json' \
+  -d '{"action":"registry-export","dry_run":true,"format":"csv"}' \
+  >"$OUT/registry-export.json" 2>/dev/null
+"$PY" - "$OUT/registry-export.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run") is True and d.get("mutating") is False, d
+assert isinstance(d.get("count"), int) and str(d.get("path", "")).endswith(".csv"), d
+print(f"  ok: {d['count']} registry row(s) -> {d['path'].split('/')[-1]}")
+PY
+
 echo "OK. Artifacts in: $OUT"
