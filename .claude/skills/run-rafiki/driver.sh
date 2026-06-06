@@ -242,7 +242,28 @@ print(f"  ok: planned {job['provider']} job, ${job['cost_estimate']['amount']} (
 PY
 rm -rf "$REPO_ROOT/output/$LORA_SUBJECT"
 
-# --- 13. MCP status tool call (the rafiki_status MCP tool) -------------------
+# --- 13. Video generation plan (the "/api/jobs/video-generate" job) ----------
+# POST a storyboard without execute => plan/dry-run: no Replicate call, $0 cost.
+# Title "Driver Video Smoke" slugs to project driver-video-smoke; the plan
+# writes a manifest under output/<project>, which we remove.
+printf '{"title":"Driver Video Smoke","scenes":[{"id":"s1","prompt":"a neon city at dawn"}]}' > "$OUT/storyboard.json"
+echo "Video generation plan -> POST /api/jobs/video-generate"
+curl -s -X POST "http://127.0.0.1:$PORT/api/jobs/video-generate" \
+  -H 'Content-Type: application/json' \
+  -d "{\"storyboard\":\"$OUT/storyboard.json\"}" \
+  >"$OUT/video-generate.json" 2>/dev/null
+"$PY" - "$OUT/video-generate.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+job = d.get("job", {})
+counts = job.get("cost_estimate", {}).get("counts", {})
+assert d.get("ok") and job.get("status") == "dry-run", d
+assert job.get("cost_estimate", {}).get("amount") == 0.0 and counts.get("network_calls") == 0, d
+print(f"  ok: planned video, ${job['cost_estimate']['amount']}, {counts.get('storyboard_scenes')} scene(s), project {d['manifest']['project']}")
+PY
+rm -rf "$REPO_ROOT/output/driver-video-smoke"
+
+# --- 14. MCP status tool call (the rafiki_status MCP tool) -------------------
 # Calls the MCP tool function directly (the same callable FastMCP dispatches
 # to over stdio) — no portal, no HTTP. Asserts repo_root and that the tool is
 # registered. Provider keys are blanked so this stays spend-free.

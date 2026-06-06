@@ -62,7 +62,8 @@ port, builds the library index, launches the portal, screenshots it, builds a
 run viewer and screenshots that, exercises the Studio Dry Run, renders an
 HTML card to PNG, exports a Video Lab EDL, runs dry-runs of all five portal
 `/api/actions` (Canva, Notion, registry, static-deploy, approve-starred), plans
-a LoRA training job, then calls the `rafiki_status` MCP tool. No keys, no spend.
+LoRA training and video generation jobs, then calls the `rafiki_status` MCP
+tool. No keys, no spend.
 
 ```bash
 bash .claude/skills/run-rafiki/driver.sh
@@ -71,8 +72,8 @@ bash .claude/skills/run-rafiki/driver.sh
 It prints a temp dir holding `portal.png`, `viewer.png`, `studio.json`,
 `card.png`, `video-edl.json`, `canva-export.json`, `notion-export.json`,
 `registry-export.json`, `static-deploy.json`, `approve-starred.json`,
-`train-lora.json`, and `mcp-status.json`. Open the PNGs, or `Read` them.
-`viewer.png`
+`train-lora.json`, `video-generate.json`, and `mcp-status.json`. Open the PNGs,
+or `Read` them. `viewer.png`
 shows the real image grid for the first project under `output/`; `portal.png`
 shows the Rafiki Suite shell (Library / Subjects / Studio / Jobs / Styles /
 Video Lab tabs); `card.png` is the Puppeteer HTML→PNG renderer output. The
@@ -109,6 +110,10 @@ the registered tools. The LoRA step POSTs to `/api/jobs/train-lora` **without**
 cost estimate, and `0` network calls (no Replicate call). It uses a throwaway
 subject `_driver-lora-smoke` and removes it afterward (the plan writes a
 `training.json` manifest under `output/<subject>`; `output/` is gitignored).
+The video step POSTs a generated storyboard to `/api/jobs/video-generate`
+**without** `execute` and asserts the same `dry-run` / `$0.0` / `0`-network
+shape; its title slugs to project `driver-video-smoke`, whose manifest dir is
+removed afterward.
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
@@ -219,7 +224,7 @@ port, builds the index, launches `generate.py serve`, screenshots the portal
 and a run viewer, runs a Studio Dry Run via `/api/regen`, renders an HTML card
 to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, dry-runs all
 five portal `/api/actions` (Canva, Notion, registry, static-deploy,
-approve-starred), plans a LoRA training job via `/api/jobs/train-lora`, calls
-the `rafiki_status` MCP tool, then tears the server down on exit. Scoped to the
-GUI screenshot + portal-action + renderer + MCP flow the repo's own
-`smoke:dry-run` / `e2e:portal` scripts don't cover.
+approve-starred), plans LoRA training and video generation jobs via
+`/api/jobs/*`, calls the `rafiki_status` MCP tool, then tears the server down on
+exit. Scoped to the GUI screenshot + portal-action + renderer + MCP flow the
+repo's own `smoke:dry-run` / `e2e:portal` scripts don't cover.
