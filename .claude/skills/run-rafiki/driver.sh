@@ -136,4 +136,22 @@ assert isinstance(d.get("edit_manifest"), dict), d
 print(f"  ok: {d['clip_count']} clip(s), project {d.get('project')}")
 PY
 
+# --- 7. Canva export dry-run (the "canva-export" portal action) -------------
+# POST /api/actions with dry_run:true — counts source images and reports the
+# would-be zip path without writing anything. Needs a project with images.
+if [ -n "$PROJECT" ]; then
+  echo "Canva export dry-run -> POST /api/actions (project: $PROJECT)"
+  curl -s -X POST "http://127.0.0.1:$PORT/api/actions" \
+    -H 'Content-Type: application/json' \
+    -d "{\"action\":\"canva-export\",\"dry_run\":true,\"project\":\"$PROJECT\"}" \
+    >"$OUT/canva-export.json" 2>/dev/null
+  "$PY" - "$OUT/canva-export.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run") is True and d.get("mutating") is False, d
+assert isinstance(d.get("image_count"), int) and str(d.get("result_path", "")).endswith(".zip"), d
+print(f"  ok: {d['image_count']} image(s) from {d.get('source')} -> {d['result_path'].split('/')[-1]}")
+PY
+fi
+
 echo "OK. Artifacts in: $OUT"

@@ -60,14 +60,16 @@ The existing repo smokes (below) verify logic but throw their screenshots
 away. To get PNGs you can actually open, use the driver. It picks a free
 port, builds the library index, launches the portal, screenshots it, builds a
 run viewer and screenshots that, exercises the Studio Dry Run, renders an
-HTML card to PNG, then exports a Video Lab EDL. No keys, no spend.
+HTML card to PNG, exports a Video Lab EDL, then runs a Canva export dry-run.
+No keys, no spend.
 
 ```bash
 bash .claude/skills/run-rafiki/driver.sh
 ```
 
 It prints a temp dir holding `portal.png`, `viewer.png`, `studio.json`,
-`card.png`, and `video-edl.json`. Open the PNGs, or `Read` them. `viewer.png`
+`card.png`, `video-edl.json`, and `canva-export.json`. Open the PNGs, or
+`Read` them. `viewer.png`
 shows the real image grid for the first project under `output/`; `portal.png`
 shows the Rafiki Suite shell (Library / Subjects / Studio / Jobs / Styles /
 Video Lab tabs); `card.png` is the Puppeteer HTML→PNG renderer output. The
@@ -78,7 +80,11 @@ exact call the Studio "Dry Run" button makes — and asserts `generated == total
 dir; `output/` is gitignored). The Video Lab step GETs
 `/api/media/selections/edl` (the "Export EDL" button) and asserts a valid
 `rafiki-video-edl` payload — `clip_count` is 0 on a fresh checkout (no
-selections yet), but the EDL structure is still emitted.
+selections yet), but the EDL structure is still emitted. The Canva step POSTs
+`{"action":"canva-export","dry_run":true,...}` to `/api/actions` (a mutating
+action, so dry-run skips the confirm guard) and asserts `dry_run:true`,
+`mutating:false`, and a `.zip` `result_path` — it counts source images and
+reports the would-be zip path **without writing it**.
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
@@ -187,6 +193,7 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 `.claude/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
 port, builds the index, launches `generate.py serve`, screenshots the portal
 and a run viewer, runs a Studio Dry Run via `/api/regen`, renders an HTML card
-to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, then tears the
-server down on exit. Scoped to the GUI screenshot + portal-action + renderer
-flow the repo's own `smoke:dry-run` / `e2e:portal` scripts don't cover.
+to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, runs a Canva
+export dry-run via `/api/actions`, then tears the server down on exit. Scoped
+to the GUI screenshot + portal-action + renderer flow the repo's own
+`smoke:dry-run` / `e2e:portal` scripts don't cover.
