@@ -187,6 +187,23 @@ assert d.get("command", [None])[0] == "vercel" and d.get("url") == "", d
 assert isinstance(d.get("source_mapping"), dict), d
 print(f"  ok: would run `{' '.join(d['command'])}` ({d['source_mapping'].get('key_count')} mapped key(s))")
 PY
+
+  # --- 11. Approve-starred dry-run (the "approve-starred" portal action) -----
+  # POST /api/actions with dry_run:true — resolves the latest run and counts
+  # starred images that WOULD be approved, without copying anything into
+  # approved/.
+  echo "Approve-starred dry-run -> POST /api/actions (project: $PROJECT)"
+  curl -s -X POST "http://127.0.0.1:$PORT/api/actions" \
+    -H 'Content-Type: application/json' \
+    -d "{\"action\":\"approve-starred\",\"dry_run\":true,\"project\":\"$PROJECT\"}" \
+    >"$OUT/approve-starred.json" 2>/dev/null
+  "$PY" - "$OUT/approve-starred.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run") is True and d.get("mutating") is False, d
+assert isinstance(d.get("approved_count"), int) and d.get("run"), d
+print(f"  ok: would approve {d['approved_count']} starred from {d['run']}")
+PY
 fi
 
 # --- 9. Registry export dry-run (the "registry-export" portal action) --------

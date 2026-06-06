@@ -60,8 +60,9 @@ The existing repo smokes (below) verify logic but throw their screenshots
 away. To get PNGs you can actually open, use the driver. It picks a free
 port, builds the library index, launches the portal, screenshots it, builds a
 run viewer and screenshots that, exercises the Studio Dry Run, renders an
-HTML card to PNG, exports a Video Lab EDL, then runs Canva, Notion, registry,
-and static-deploy export dry-runs. No keys, no spend.
+HTML card to PNG, exports a Video Lab EDL, then runs dry-runs of all five
+portal `/api/actions` (Canva, Notion, registry, static-deploy, approve-starred).
+No keys, no spend.
 
 ```bash
 bash .claude/skills/run-rafiki/driver.sh
@@ -69,8 +70,8 @@ bash .claude/skills/run-rafiki/driver.sh
 
 It prints a temp dir holding `portal.png`, `viewer.png`, `studio.json`,
 `card.png`, `video-edl.json`, `canva-export.json`, `notion-export.json`,
-`registry-export.json`, and `static-deploy.json`. Open the PNGs, or `Read`
-them. `viewer.png`
+`registry-export.json`, `static-deploy.json`, and `approve-starred.json`. Open
+the PNGs, or `Read` them. `viewer.png`
 shows the real image grid for the first project under `output/`; `portal.png`
 shows the Rafiki Suite shell (Library / Subjects / Studio / Jobs / Styles /
 Video Lab tabs); `card.png` is the Puppeteer HTML→PNG renderer output. The
@@ -95,7 +96,11 @@ asset-registry row count and would-be CSV path **without rewriting the file**.
 The static-deploy step POSTs `{"action":"static-deploy","dry_run":true,...}`
 (an `external` action) and asserts `external:false`, an empty `url`, and a
 `command` starting with `vercel` — it resolves the viewer dir and returns the
-`vercel deploy` command it *would* run, **with no network call**.
+`vercel deploy` command it *would* run, **with no network call**. The
+approve-starred step POSTs `{"action":"approve-starred","dry_run":true,...}`
+and asserts `mutating:false` + an integer `approved_count` — it resolves the
+latest run and counts starred images that *would* be approved **without copying
+anything into `approved/`**.
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
@@ -204,8 +209,8 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 `.claude/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
 port, builds the index, launches `generate.py serve`, screenshots the portal
 and a run viewer, runs a Studio Dry Run via `/api/regen`, renders an HTML card
-to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, runs Canva,
-Notion, registry, and static-deploy export dry-runs via `/api/actions`, then
-tears the server down on exit. Scoped to the GUI screenshot + portal-action +
-renderer flow the repo's own `smoke:dry-run` / `e2e:portal` scripts don't
-cover.
+to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, dry-runs all
+five portal `/api/actions` (Canva, Notion, registry, static-deploy,
+approve-starred), then tears the server down on exit. Scoped to the GUI
+screenshot + portal-action + renderer flow the repo's own `smoke:dry-run` /
+`e2e:portal` scripts don't cover.
