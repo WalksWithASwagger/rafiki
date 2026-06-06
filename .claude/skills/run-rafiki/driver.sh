@@ -222,7 +222,27 @@ assert isinstance(d.get("count"), int) and str(d.get("path", "")).endswith(".csv
 print(f"  ok: {d['count']} registry row(s) -> {d['path'].split('/')[-1]}")
 PY
 
-# --- 12. MCP status tool call (the rafiki_status MCP tool) -------------------
+# --- 12. LoRA training plan (the "/api/jobs/train-lora" job, execute off) ----
+# POST without execute => plan/dry-run: no Replicate call, $0 cost estimate.
+# Writes a training.json manifest under output/<subject>, which we remove.
+LORA_SUBJECT="_driver-lora-smoke"
+echo "LoRA training plan -> POST /api/jobs/train-lora (subject: $LORA_SUBJECT)"
+curl -s -X POST "http://127.0.0.1:$PORT/api/jobs/train-lora" \
+  -H 'Content-Type: application/json' \
+  -d "{\"subject\":\"$LORA_SUBJECT\",\"input_images_url\":\"https://example.com/dataset.zip\"}" \
+  >"$OUT/train-lora.json" 2>/dev/null
+"$PY" - "$OUT/train-lora.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+job = d.get("job", {})
+assert d.get("ok") and job.get("status") == "dry-run", d
+assert job.get("cost_estimate", {}).get("amount") == 0.0, d
+assert job.get("request", {}).get("execute") is False, d
+print(f"  ok: planned {job['provider']} job, ${job['cost_estimate']['amount']} ({job['cost_estimate']['counts']['network_calls']} network call(s))")
+PY
+rm -rf "$REPO_ROOT/output/$LORA_SUBJECT"
+
+# --- 13. MCP status tool call (the rafiki_status MCP tool) -------------------
 # Calls the MCP tool function directly (the same callable FastMCP dispatches
 # to over stdio) — no portal, no HTTP. Asserts repo_root and that the tool is
 # registered. Provider keys are blanked so this stays spend-free.
