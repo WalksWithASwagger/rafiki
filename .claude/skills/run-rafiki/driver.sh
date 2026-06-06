@@ -263,7 +263,21 @@ print(f"  ok: planned video, ${job['cost_estimate']['amount']}, {counts.get('sto
 PY
 rm -rf "$REPO_ROOT/output/driver-video-smoke"
 
-# --- 14. MCP status tool call (the rafiki_status MCP tool) -------------------
+# --- 14. Usage read (the "/api/usage" endpoint) -----------------------------
+# GET /api/usage — read-only spend/usage summary from local manifests, no
+# provider call.
+echo "Usage read -> GET /api/usage"
+curl -s "http://127.0.0.1:$PORT/api/usage" >"$OUT/usage.json" 2>/dev/null
+"$PY" - "$OUT/usage.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+log, arch = d.get("usage_log", {}), d.get("archive", {})
+assert isinstance(log.get("entries"), int), d
+assert all(isinstance(arch.get(k), int) for k in ("projects", "runs", "images")), d
+print(f"  ok: {log['entries']} log entr(ies), {arch['images']} image(s) across {arch['projects']} project(s)")
+PY
+
+# --- 15. MCP status tool call (the rafiki_status MCP tool) -------------------
 # Calls the MCP tool function directly (the same callable FastMCP dispatches
 # to over stdio) — no portal, no HTTP. Asserts repo_root and that the tool is
 # registered. Provider keys are blanked so this stays spend-free.
