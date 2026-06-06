@@ -124,7 +124,8 @@ Single-surface spot checks that spend nothing:
 
 ```bash
 node index.js examples/quickstart-image-prompts.md --dry-run --no-viewer
-node index.js --render some-card.html            # HTML -> PNG (writes some-card.png)
+# HTML -> PNG (writes alongside the .html as <name>.png):
+printf '<!doctype html><body>card</body>' > /tmp/card.html && node index.js --render /tmp/card.html
 ```
 
 ## Run (human path)
