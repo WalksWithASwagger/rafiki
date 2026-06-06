@@ -121,4 +121,19 @@ else
   echo "  FATAL: render produced no card.png" >&2; exit 1
 fi
 
+# --- 6. Video Lab EDL export (the "Export EDL" button) ----------------------
+# GET /api/media/selections/edl — read-only, no spend. clip_count is 0 on a
+# fresh checkout (no selections yet), but the EDL structure is still valid.
+echo "Video EDL export -> GET /api/media/selections/edl"
+curl -s "http://127.0.0.1:$PORT/api/media/selections/edl?include=focus,star" \
+  >"$OUT/video-edl.json" 2>/dev/null
+"$PY" - "$OUT/video-edl.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("kind") == "rafiki-video-edl", d
+assert isinstance(d.get("clips"), list) and d.get("clip_count") == len(d["clips"]), d
+assert isinstance(d.get("edit_manifest"), dict), d
+print(f"  ok: {d['clip_count']} clip(s), project {d.get('project')}")
+PY
+
 echo "OK. Artifacts in: $OUT"
