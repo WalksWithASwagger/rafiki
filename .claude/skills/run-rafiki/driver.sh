@@ -108,4 +108,17 @@ print(f"  ok: generated {d['generated']}/{d['total']}, run {d.get('run_id')}")
 PY
 rm -rf "$REPO_ROOT/output/$SMOKE_PROJECT"
 
-echo "OK. Screenshots in: $OUT"
+# --- 5. HTML -> PNG render (the Puppeteer renderer surface) ------------------
+# `--render` writes <name>.png next to the .html. No keys, no spend.
+echo "Render -> node index.js --render (HTML to PNG)"
+cat > "$OUT/card.html" <<'HTML'
+<!doctype html><html><body style="margin:0;width:600px;height:400px;background:#0b132b;color:#5eead4;font-family:sans-serif;display:flex;align-items:center;justify-content:center;font-size:40px">Rafiki render ✓</body></html>
+HTML
+node index.js --render "$OUT/card.html" >/dev/null 2>&1
+if [ -s "$OUT/card.png" ]; then
+  echo "  wrote $OUT/card.png ($(wc -c <"$OUT/card.png" | tr -d ' ') bytes)"
+else
+  echo "  FATAL: render produced no card.png" >&2; exit 1
+fi
+
+echo "OK. Artifacts in: $OUT"
