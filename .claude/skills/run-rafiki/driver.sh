@@ -169,6 +169,24 @@ assert d.get("ok") and d.get("dry_run") is True and d.get("external") is False, 
 assert isinstance(d.get("exported"), int) and d.get("errors") == [], d
 print(f"  ok: would export {d['exported']} from {d.get('source')}, {d.get('skipped')} skipped")
 PY
+
+  # --- 10. Static deploy dry-run (the "static-deploy" portal action) ---------
+  # POST /api/actions with dry_run:true — resolves the viewer dir and returns
+  # the `vercel deploy` command it WOULD run, with no network call (external).
+  # Needs viewer.html, which the `generate.py view` step above produced.
+  echo "Static deploy dry-run -> POST /api/actions (project: $PROJECT)"
+  curl -s -X POST "http://127.0.0.1:$PORT/api/actions" \
+    -H 'Content-Type: application/json' \
+    -d "{\"action\":\"static-deploy\",\"dry_run\":true,\"project\":\"$PROJECT\"}" \
+    >"$OUT/static-deploy.json" 2>/dev/null
+  "$PY" - "$OUT/static-deploy.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run") is True and d.get("external") is False, d
+assert d.get("command", [None])[0] == "vercel" and d.get("url") == "", d
+assert isinstance(d.get("source_mapping"), dict), d
+print(f"  ok: would run `{' '.join(d['command'])}` ({d['source_mapping'].get('key_count')} mapped key(s))")
+PY
 fi
 
 # --- 9. Registry export dry-run (the "registry-export" portal action) --------
