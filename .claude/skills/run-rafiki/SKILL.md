@@ -135,11 +135,20 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 
 ## Gotchas
 
-- **Portal Library tab shows "0 shown · 0 indexed" on a fresh checkout, even
-  with runs present.** The Library tab reads `/api/media` — a *media-archive
-  registry* that is empty until you populate it. The actual run content lives
-  under `/api/runs` and is surfaced by `generate.py view <project>`. Use the
-  **viewer**, not the portal Library tab, to see images out of the box.
+- **Portal Library / Subjects / Styles / Jobs tabs are empty on a fresh
+  checkout, even with runs present.** They are all backed by the *media-archive
+  registry* (`/api/media`, `/api/media/subjects`, `/api/media/styles`), which
+  is empty until you populate it — Library shows "0 shown · 0 indexed",
+  Subjects shows "No subjects indexed", Styles is blank. The actual run content
+  lives under `/api/runs` and is surfaced by `generate.py view <project>`. Use
+  the **viewer**, not the portal Library tab, to see images out of the box.
+  Note: the portal Styles tab reads the media registry, which is *not* the same
+  as the 14 generation style packs in `styles/*.md` used by `--style`.
+- **Studio and Video Lab are the content-rich tabs that work standalone.**
+  Studio has Image Studio / LoRA Training / Video Generation forms (each with a
+  Dry Run button and an "Execute provider call" + "Confirm execute spend"
+  double-guard before any spend); Video Lab has the Selection EDL export/import.
+  Neither depends on the media registry.
 - **`--dry-run` still writes a run directory** (e.g. `examples/images/run-<ts>/`
   with the manifest) even though it generates no images. Clean these up if you
   don't want them.
