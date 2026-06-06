@@ -58,17 +58,23 @@ MCP, browser rendering) and "Doctor found 0 critical issue(s)".
 
 The existing repo smokes (below) verify logic but throw their screenshots
 away. To get PNGs you can actually open, use the driver. It picks a free
-port, builds the library index, launches the portal, screenshots it, then
-builds a run viewer and screenshots that. No keys, no spend.
+port, builds the library index, launches the portal, screenshots it, builds a
+run viewer and screenshots that, then exercises the Studio Dry Run. No keys,
+no spend.
 
 ```bash
 bash .claude/skills/run-rafiki/driver.sh
 ```
 
-It prints a temp dir holding `portal.png` and `viewer.png`. Open them, or
-`Read` them. `viewer.png` shows the real image grid for the first project
-under `output/`; `portal.png` shows the Rafiki Suite shell (Library / Subjects
-/ Studio / Jobs / Styles / Video Lab tabs).
+It prints a temp dir holding `portal.png`, `viewer.png`, and `studio.json`.
+Open the PNGs, or `Read` them. `viewer.png` shows the real image grid for the
+first project under `output/`; `portal.png` shows the Rafiki Suite shell
+(Library / Subjects / Studio / Jobs / Styles / Video Lab tabs). The Studio
+step POSTs `{"mode":"single","dry_run":true,...}` to `/api/regen` — the exact
+call the Studio "Dry Run" button makes — and asserts `generated == total`
+(prints `ok: generated 1/1, run <id>`). It targets a throwaway project
+`_driver-studio-smoke` and removes it afterward (dry-run still writes a run
+dir; `output/` is gitignored).
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
@@ -175,6 +181,6 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 
 `.claude/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
 port, builds the index, launches `generate.py serve`, screenshots the portal
-and a run viewer, then tears the server down on exit. Scoped to the GUI
-screenshot flow the repo's own `smoke:dry-run` / `e2e:portal` scripts don't
-cover.
+and a run viewer, runs a Studio Dry Run via `/api/regen`, then tears the
+server down on exit. Scoped to the GUI screenshot + portal-action flow the
+repo's own `smoke:dry-run` / `e2e:portal` scripts don't cover.

@@ -90,4 +90,22 @@ if [ -n "$PROJECT" ]; then
   fi
 fi
 
+# --- 4. Studio dry-run (the same call the portal "Dry Run" button makes) -----
+# POST /api/regen with dry_run:true — no provider call, no spend. Writes a run
+# dir under output/<SMOKE_PROJECT> (dry-run always does), which we then remove.
+SMOKE_PROJECT="_driver-studio-smoke"
+echo "Studio dry-run -> POST /api/regen (project: $SMOKE_PROJECT)"
+curl -s -X POST "http://127.0.0.1:$PORT/api/regen" \
+  -H 'Content-Type: application/json' \
+  -d "{\"mode\":\"single\",\"dry_run\":true,\"prompt\":\"A radio host in a neon-lit studio\",\"project\":\"$SMOKE_PROJECT\",\"model\":\"gemini-2.5-flash-image\",\"style\":\"kk\",\"aspect_ratio\":\"16:9\"}" \
+  >"$OUT/studio.json" 2>/dev/null
+"$PY" - "$OUT/studio.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run", True) is not False, d
+assert d.get("generated") == d.get("total") and d.get("total", 0) >= 1, d
+print(f"  ok: generated {d['generated']}/{d['total']}, run {d.get('run_id')}")
+PY
+rm -rf "$REPO_ROOT/output/$SMOKE_PROJECT"
+
 echo "OK. Screenshots in: $OUT"
