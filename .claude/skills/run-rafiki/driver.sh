@@ -222,4 +222,20 @@ assert isinstance(d.get("count"), int) and str(d.get("path", "")).endswith(".csv
 print(f"  ok: {d['count']} registry row(s) -> {d['path'].split('/')[-1]}")
 PY
 
+# --- 12. MCP status tool call (the rafiki_status MCP tool) -------------------
+# Calls the MCP tool function directly (the same callable FastMCP dispatches
+# to over stdio) — no portal, no HTTP. Asserts repo_root and that the tool is
+# registered. Provider keys are blanked so this stays spend-free.
+echo "MCP status tool -> mcp_server.rafiki_status()"
+GOOGLE_API_KEY= GEMINI_API_KEY= OPENAI_API_KEY= "$PY" - "$OUT/mcp-status.json" <<'PY'
+import json, sys, asyncio, mcp_server
+status = json.loads(mcp_server.rafiki_status())
+tools = {t.name for t in asyncio.run(mcp_server.mcp.list_tools())}
+assert status.get("repo_root"), status
+assert "rafiki_run" in status.get("common_tools", []), status
+assert {"rafiki_status", "rafiki_run"}.issubset(tools), sorted(tools)
+json.dump({"status": status, "tool_count": len(tools)}, open(sys.argv[1], "w"), indent=2)
+print(f"  ok: {len(tools)} MCP tool(s), repo_root {status['repo_root'].split('/')[-1]}")
+PY
+
 echo "OK. Artifacts in: $OUT"
