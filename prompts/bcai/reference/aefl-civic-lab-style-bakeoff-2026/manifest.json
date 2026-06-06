@@ -1,0 +1,168 @@
+{
+  "title": "AEFL Civic Lab Style Reference Kit",
+  "purpose": "Curated, visual-only references for a dedicated Rafiki aefl style: civic field notes, care/trust loops, woven thread, and BC+AI logo reference. Excludes circuit, dot-network, certification, animal, and map-as-tech-grid material.",
+  "created_for": "aefl-civic-lab-style-bakeoff-2026",
+  "style_board": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/aefl-civic-lab-reference-board.png",
+  "style_board_dimensions": [
+    1824,
+    632
+  ],
+  "included": [
+    {
+      "key": "woven-thread-grid",
+      "title": "Woven Thread Grid",
+      "role": "tactile systems held together; thread/fiber metaphor, not a network map",
+      "source": "/Users/kk/projects/BC + AI/AEFL/aefl-graphics/31beacffabfa17fa5c3a51c6ddcd670a04e4a69d8f7642c23adeb696.jpg",
+      "filename": "001-woven-thread-grid.jpg",
+      "crop": null,
+      "copied_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/001-woven-thread-grid.jpg",
+      "visual_only_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/001-woven-thread-grid-visual-only.png",
+      "source_dimensions": [
+        1024,
+        1024
+      ],
+      "visual_dimensions": [
+        1024,
+        1024
+      ],
+      "bytes": 951602
+    },
+    {
+      "key": "care-values-loop",
+      "title": "Care/Trust Loop",
+      "role": "warm sparse value-field composition with labels cropped out",
+      "source": "/Users/kk/projects/BC + AI/AEFL/aefl-graphics/3cdd354321e9a297dc1e0b4807d142e4897d4fade9d84a201deac6e1.jpg",
+      "filename": "002-care-values-loop.jpg",
+      "crop": [
+        330,
+        245,
+        690,
+        630
+      ],
+      "copied_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/002-care-values-loop.jpg",
+      "visual_only_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/002-care-values-loop-visual-only.png",
+      "source_dimensions": [
+        1024,
+        1024
+      ],
+      "visual_dimensions": [
+        360,
+        385
+      ],
+      "bytes": 697260
+    },
+    {
+      "key": "shared-understanding-circle",
+      "title": "Shared Circle Light",
+      "role": "facilitated-circle rhythm and room trust with handwriting cropped out",
+      "source": "/Users/kk/projects/BC + AI/AEFL/aefl-graphics/9ee4d1bf09b389be6440e8e7578b011e63bf8bd4a14ed20b821a1eb1.jpg",
+      "filename": "003-shared-circle-light.jpg",
+      "crop": [
+        330,
+        285,
+        715,
+        730
+      ],
+      "copied_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/003-shared-circle-light.jpg",
+      "visual_only_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/003-shared-circle-light-visual-only.png",
+      "source_dimensions": [
+        1024,
+        1024
+      ],
+      "visual_dimensions": [
+        385,
+        445
+      ],
+      "bytes": 703259
+    },
+    {
+      "key": "bcai-logo-source",
+      "title": "BC+AI Ecosystem Logo Source",
+      "role": "local BC+AI logo reference from supplied AEFL folder",
+      "source": "/Users/kk/projects/BC + AI/AEFL/aefl-graphics/BC + AI ECOSYSTEM LOGO (1).png",
+      "filename": "004-bcai-logo-source.png",
+      "crop": null,
+      "copied_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/004-bcai-logo-source.png",
+      "visual_only_path": "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/004-bcai-logo-source-visual-only.png",
+      "source_dimensions": [
+        1200,
+        1200
+      ],
+      "visual_dimensions": [
+        1200,
+        1200
+      ],
+      "bytes": 1682278
+    }
+  ],
+  "excluded": [
+    {
+      "file": "0_1.jpeg",
+      "reason": "road/portal direction; previous pass drifted here"
+    },
+    {
+      "file": "14039ac13d2ae8f765e9820104551d9164bdc37e99b5d27d0e90ad1b.jpg",
+      "reason": "dense dot-line/radial network"
+    },
+    {
+      "file": "ChatGPT Image Apr 13, 2025, 09_18_53 AM.png",
+      "reason": "bandage/certification visual metaphor"
+    },
+    {
+      "file": "ChatGPT Image Apr 18, 2025, 06_43_42 AM.png",
+      "reason": "certification/tree board content"
+    },
+    {
+      "file": "ChatGPT Image Apr 18, 2025, 12_03_24 PM.png",
+      "reason": "map-as-tech-grid and map labels"
+    },
+    {
+      "file": "ChatGPT Image Apr 19, 2025, 05_17_37 AM.png",
+      "reason": "tree/map text-heavy community diagram"
+    },
+    {
+      "file": "ChatGPT Image Jul 19, 2025, 10_15_13 AM.png",
+      "reason": "dot-line network"
+    },
+    {
+      "file": "ChatGPT Image Jul 28, 2025, 10_28_56 PM.png",
+      "reason": "dot-line constellation network"
+    },
+    {
+      "file": "ChatGPT Image Oct 21, 2025, 06_06_51 PM.png",
+      "reason": "animal/folk motif not appropriate for AEFL"
+    },
+    {
+      "file": "ChatGPT Image Oct 21, 2025, 06_08_56 PM.png",
+      "reason": "DNA/tree and handwritten text; too close to old generic symbolism"
+    },
+    {
+      "file": "bc-ai.png",
+      "reason": "map-as-tech-grid reference"
+    },
+    {
+      "file": "diagram_1759165639.png",
+      "reason": "map/dense light cluster reference"
+    },
+    {
+      "file": "lone-wolves.jpg",
+      "reason": "dot-line network despite useful anti-lone-wolf text"
+    },
+    {
+      "file": "photo-1569396116180-210c182bedb8.jpeg",
+      "reason": "binary-heart/circuit-adjacent visual"
+    }
+  ],
+  "global_reference_recommendation": [
+    "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/aefl-civic-lab-reference-board.png",
+    "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-canva-typography-reset-2026/aefl-canva-typography-reference-board.png",
+    "/Users/kk/Code/rafiki/prompts/bcai/reference/aefl-civic-lab-style-bakeoff-2026/assets/004-bcai-logo-source.png",
+    "/Users/kk/Code/rafiki/prompts/futureproof/reference/bcai-logo-light-official.png"
+  ],
+  "rules": [
+    "The active style board contains no captions and no intentional readable source text.",
+    "Use the board for civic-lab tone, materiality, care, trust, and thread metaphors only.",
+    "Do not copy source text from the references; the active board crops source text out.",
+    "Do not reintroduce circuit boards, PCB traces, dense node maps, certification graphics, badges, animal motifs, map-as-tech-grid graphics, or binary-heart imagery."
+  ]
+}

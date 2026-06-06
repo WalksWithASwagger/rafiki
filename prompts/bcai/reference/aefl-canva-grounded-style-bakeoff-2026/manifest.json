@@ -1,0 +1,231 @@
+{
+  "canva_shortlink": "https://canva.link/23z9qnkqclziy50",
+  "design_id": "DAG_EBTpe-Q",
+  "purpose": "Style reference only for AEFL Rafiki bakeoff. Do not copy exact Canva elements.",
+  "page_count": 18,
+  "pages": [
+    {
+      "index": 1,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-01.png"
+    },
+    {
+      "index": 2,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-02.png"
+    },
+    {
+      "index": 3,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-03.png"
+    },
+    {
+      "index": 4,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-04.png"
+    },
+    {
+      "index": 5,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-05.png"
+    },
+    {
+      "index": 6,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-06.png"
+    },
+    {
+      "index": 7,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-07.png"
+    },
+    {
+      "index": 8,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-08.png"
+    },
+    {
+      "index": 9,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-09.png"
+    },
+    {
+      "index": 10,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-10.png"
+    },
+    {
+      "index": 11,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-11.png"
+    },
+    {
+      "index": 12,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-12.png"
+    },
+    {
+      "index": 13,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-13.png"
+    },
+    {
+      "index": 14,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-14.png"
+    },
+    {
+      "index": 15,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-15.png"
+    },
+    {
+      "index": 16,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-16.png"
+    },
+    {
+      "index": 17,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-17.png"
+    },
+    {
+      "index": 18,
+      "source_dimensions": {
+        "width": 1200,
+        "height": 1200
+      },
+      "thumbnail_dimensions": {
+        "width": 447,
+        "height": 447
+      },
+      "file": "canva-page-18.png"
+    }
+  ],
+  "reference_board": {
+    "file": "aefl-canva-reference-board.png",
+    "dimensions": {
+      "width": 2850,
+      "height": 1437
+    }
+  }
+}
