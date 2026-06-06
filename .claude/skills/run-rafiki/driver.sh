@@ -152,6 +152,23 @@ assert d.get("ok") and d.get("dry_run") is True and d.get("mutating") is False, 
 assert isinstance(d.get("image_count"), int) and str(d.get("result_path", "")).endswith(".zip"), d
 print(f"  ok: {d['image_count']} image(s) from {d.get('source')} -> {d['result_path'].split('/')[-1]}")
 PY
+
+  # --- 8. Notion export dry-run (the "notion-export" portal action) ----------
+  # POST /api/actions with dry_run:true — counts what would be exported with no
+  # Notion token and no external call (external:true action, so dry-run drops
+  # the confirm guard and the network request).
+  echo "Notion export dry-run -> POST /api/actions (project: $PROJECT)"
+  curl -s -X POST "http://127.0.0.1:$PORT/api/actions" \
+    -H 'Content-Type: application/json' \
+    -d "{\"action\":\"notion-export\",\"dry_run\":true,\"project\":\"$PROJECT\"}" \
+    >"$OUT/notion-export.json" 2>/dev/null
+  "$PY" - "$OUT/notion-export.json" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+assert d.get("ok") and d.get("dry_run") is True and d.get("external") is False, d
+assert isinstance(d.get("exported"), int) and d.get("errors") == [], d
+print(f"  ok: would export {d['exported']} from {d.get('source')}, {d.get('skipped')} skipped")
+PY
 fi
 
 echo "OK. Artifacts in: $OUT"
