@@ -69,53 +69,31 @@ calls the `rafiki_status` MCP tool. No keys, no spend.
 bash .claude/skills/run-rafiki/driver.sh
 ```
 
-It prints a temp dir holding `portal.png`, `viewer.png`, `studio.json`,
-`card.png`, `video-edl.json`, `canva-export.json`, `notion-export.json`,
-`registry-export.json`, `static-deploy.json`, `approve-starred.json`,
-`train-lora.json`, `video-generate.json`, `usage.json`, and `mcp-status.json`.
-Open the PNGs, or `Read` them. `viewer.png`
-shows the real image grid for the first project under `output/`; `portal.png`
-shows the Rafiki Suite shell (Library / Subjects / Studio / Jobs / Styles /
-Video Lab tabs); `card.png` is the Puppeteer HTML→PNG renderer output. The
-Studio step POSTs `{"mode":"single","dry_run":true,...}` to `/api/regen` — the
-exact call the Studio "Dry Run" button makes — and asserts `generated == total`
-(prints `ok: generated 1/1, run <id>`). It targets a throwaway project
-`_driver-studio-smoke` and removes it afterward (dry-run still writes a run
-dir; `output/` is gitignored). The Video Lab step GETs
-`/api/media/selections/edl` (the "Export EDL" button) and asserts a valid
-`rafiki-video-edl` payload — `clip_count` is 0 on a fresh checkout (no
-selections yet), but the EDL structure is still emitted. The Canva step POSTs
-`{"action":"canva-export","dry_run":true,...}` to `/api/actions` (a mutating
-action, so dry-run skips the confirm guard) and asserts `dry_run:true`,
-`mutating:false`, and a `.zip` `result_path` — it counts source images and
-reports the would-be zip path **without writing it**. The Notion step POSTs
-`{"action":"notion-export","dry_run":true,...}` (an `external` action) and
-asserts `external:false` + empty `errors` — it reports what *would* be exported
-with **no Notion token and no network call**. The registry step POSTs
-`{"action":"registry-export","dry_run":true,"format":"csv"}` (registry-wide, no
-project) and asserts an integer `count` and a `.csv` `path` — it reports the
-asset-registry row count and would-be CSV path **without rewriting the file**.
-The static-deploy step POSTs `{"action":"static-deploy","dry_run":true,...}`
-(an `external` action) and asserts `external:false`, an empty `url`, and a
-`command` starting with `vercel` — it resolves the viewer dir and returns the
-`vercel deploy` command it *would* run, **with no network call**. The
-approve-starred step POSTs `{"action":"approve-starred","dry_run":true,...}`
-and asserts `mutating:false` + an integer `approved_count` — it resolves the
-latest run and counts starred images that *would* be approved **without copying
-anything into `approved/`**. The MCP step calls `mcp_server.rafiki_status()`
-directly (the same callable FastMCP dispatches to over stdio — no portal, no
-HTTP) and asserts a `repo_root` plus that `rafiki_status`/`rafiki_run` are among
-the registered tools. The LoRA step POSTs to `/api/jobs/train-lora` **without**
-`execute` — the plan/dry-run path — and asserts `status:"dry-run"`, a `$0.0`
-cost estimate, and `0` network calls (no Replicate call). It uses a throwaway
-subject `_driver-lora-smoke` and removes it afterward (the plan writes a
-`training.json` manifest under `output/<subject>`; `output/` is gitignored).
-The video step POSTs a generated storyboard to `/api/jobs/video-generate`
-**without** `execute` and asserts the same `dry-run` / `$0.0` / `0`-network
-shape; its title slugs to project `driver-video-smoke`, whose manifest dir is
-removed afterward. The usage step GETs `/api/usage` (read-only spend summary
-built from local manifests) and asserts integer `usage_log.entries` and
-`archive.projects/runs/images`.
+It prints a temp dir holding the artifacts below. Open the PNGs, or `Read`
+them. Each step drives the exact endpoint the matching portal button calls;
+every write path is a `dry_run`/plan, so nothing spends or mutates.
+
+| # | Artifact | Step (endpoint) | Asserts |
+|---|---|---|---|
+| 1 | `portal.png` | Portal screenshot | Rafiki Suite shell (Library/Subjects/Studio/Jobs/Styles/Video Lab) |
+| 2 | `viewer.png` | Run-viewer screenshot | real image grid for the first project under `output/` |
+| 3 | `studio.json` | Studio Dry Run — `POST /api/regen` (`dry_run:true`) | `generated == total` |
+| 4 | `card.png` | `node index.js --render` (Puppeteer HTML→PNG) | non-empty PNG |
+| 5 | `video-edl.json` | "Export EDL" — `GET /api/media/selections/edl` | valid `rafiki-video-edl` (0 clips on a fresh checkout) |
+| 6 | `canva-export.json` | `POST /api/actions` canva-export dry-run (mutating) | `mutating:false`, `.zip` `result_path`, **no zip written** |
+| 7 | `notion-export.json` | `POST /api/actions` notion-export dry-run (external) | `external:false`, empty `errors`, **no token/network** |
+| 8 | `static-deploy.json` | `POST /api/actions` static-deploy dry-run (external) | `external:false`, empty `url`, `vercel` `command`, **no deploy** |
+| 9 | `approve-starred.json` | `POST /api/actions` approve-starred dry-run (mutating) | `mutating:false`, int `approved_count`, **nothing copied to `approved/`** |
+| 10 | `registry-export.json` | `POST /api/actions` registry-export dry-run | int `count`, `.csv` `path`, **file not rewritten** |
+| 11 | `train-lora.json` | `POST /api/jobs/train-lora` (no `execute`) | `status:"dry-run"`, `$0.0` cost, `0` network calls |
+| 12 | `video-generate.json` | `POST /api/jobs/video-generate` (no `execute`) | `status:"dry-run"`, `$0.0` cost, `0` network calls |
+| 13 | `usage.json` | `GET /api/usage` (read-only, from local manifests) | int `usage_log.entries` and `archive.projects/runs/images` |
+| 14 | `mcp-status.json` | `mcp_server.rafiki_status()` (MCP tool, no HTTP) | `repo_root` set; `rafiki_status`/`rafiki_run` registered |
+
+Steps that write a manifest (Studio, LoRA, video) use throwaway projects
+(`_driver-studio-smoke`, `_driver-lora-smoke`, `driver-video-smoke`) and remove
+them on the way out; `output/` is gitignored regardless. The server is torn
+down on exit.
 
 Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
 
