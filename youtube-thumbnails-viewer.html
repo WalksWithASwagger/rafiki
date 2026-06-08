@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Thumbnails — Graphics Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .intro {
+            text-align: center;
+            color: #999;
+            margin-bottom: 40px;
+            font-size: 0.95em;
+        }
+
+        .program-section {
+            margin-bottom: 60px;
+        }
+
+        .program-title {
+            font-size: 1.8em;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #333;
+            color: #fff;
+        }
+
+        .program-title.animation {
+            color: #a78bfa;
+        }
+
+        .program-title.rap {
+            color: #34d399;
+        }
+
+        .cohort-section {
+            margin-bottom: 40px;
+            padding-left: 20px;
+            border-left: 3px solid #555;
+        }
+
+        .cohort-title {
+            font-size: 1.2em;
+            color: #ccc;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #1a1a1a;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #333;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card:hover {
+            border-color: #555;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            transform: translateY(-2px);
+        }
+
+        .card-image {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #0a0a0a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .card-title {
+            padding: 15px;
+            font-size: 0.9em;
+            color: #ccc;
+            word-break: break-word;
+        }
+
+        .type-badge {
+            display: inline-block;
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.7em;
+            color: #999;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .stats {
+            text-align: center;
+            color: #666;
+            font-size: 0.9em;
+            padding: 20px;
+            background: #111;
+            margin-top: 40px;
+            border-radius: 8px;
+        }
+
+        .background-badge {
+            background: #2d5f2e;
+            color: #7ce77c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 YouTube Thumbnails</h1>
+        <div class="intro">Complete collection of YouTube thumbnail backgrounds and designs</div>
+
+        <!-- Animation Accelerator Section -->
+        <div class="program-section">
+            <h2 class="program-title animation">🎬 Animation Accelerator</h2>
+
+            <!-- Cohort 2 Week 1 -->
+            <div class="cohort-section">
+                <div class="cohort-title">Cohort 2 — Week 1</div>
+                <div class="grid" id="animWeek1Grid"></div>
+            </div>
+
+            <!-- Cohort 2 Weeks 2-3 -->
+            <div class="cohort-section">
+                <div class="cohort-title">Cohort 2 — Weeks 2-3</div>
+                <div class="grid" id="animWeeks23Grid"></div>
+            </div>
+        </div>
+
+        <!-- RAP Section -->
+        <div class="program-section">
+            <h2 class="program-title rap">🌱 Responsible AI Professional</h2>
+            <div class="grid" id="rapGrid"></div>
+        </div>
+
+        <div class="stats">
+            <strong id="totalCount">0</strong> YouTube thumbnail designs
+        </div>
+    </div>
+
+    <script>
+        const imageData = {
+            animWeek1: [
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/animation-accelerator-c2-week1-plaque.png',
+                    title: 'Week 1 Plaque Design',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/animation-accelerator-c2-week1-studio.png',
+                    title: 'Week 1 Studio Design',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/animation-accelerator-c2-week1-generative-plaque.png',
+                    title: 'Week 1 Generative Plaque',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/animation-accelerator-c2-week1-generative-studio.png',
+                    title: 'Week 1 Generative Studio',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/background-blank-plaque.png',
+                    title: 'Background: Blank Plaque',
+                    type: 'Background Only'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/background-studio-negative-space.png',
+                    title: 'Background: Studio Negative Space',
+                    type: 'Background Only'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/generated-text-plaque-source.png',
+                    title: 'Text Source: Plaque',
+                    type: 'Text Layer'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-week-1-2026-05-31/generated-text-studio-source.png',
+                    title: 'Text Source: Studio',
+                    type: 'Text Layer'
+                }
+            ],
+            animWeeks23: [
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-weeks-2-3-2026-06-01/animation-accelerator-c2-week2-generative-storyboard.png',
+                    title: 'Week 2 Storyboard',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-weeks-2-3-2026-06-01/animation-accelerator-c2-week3-generative-screening.png',
+                    title: 'Week 3 Screening',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-weeks-2-3-2026-06-01/generated-week2-storyboard-source.png',
+                    title: 'Text Source: Week 2',
+                    type: 'Text Layer'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-weeks-2-3-2026-06-01/generated-week3-screening-source.png',
+                    title: 'Text Source: Week 3',
+                    type: 'Text Layer'
+                }
+            ],
+            rap: [
+                {
+                    src: 'output/rap-youtube-thumbnails/nano-pro-1k/run-20260525-100455/01-week-1-foundations-thumbnail-plate.png',
+                    title: 'Week 1 Foundations (Nano Pro)',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'output/rap-youtube-thumbnails/nano-pro-1k/run-20260525-100455/02-four-class-playlist-thumbnail-plate.png',
+                    title: 'Four-Class Playlist (Nano Pro)',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'output/rap-youtube-thumbnails/gpt-image-2/run-20260525-100547/01-week-1-foundations-thumbnail-plate.png',
+                    title: 'Week 1 Foundations (GPT Image 2)',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'output/rap-youtube-thumbnails/gpt-image-2/run-20260525-100547/02-four-class-playlist-thumbnail-plate.png',
+                    title: 'Four-Class Playlist (GPT Image 2)',
+                    type: 'Full Design'
+                },
+                {
+                    src: 'output/rap-youtube-thumbnails/cohort-1-week-3-2026-06-08/run-20260608-133031/01-week-3-thumbnail-full-design.png',
+                    title: 'Cohort 1, Week 3 (Bioluminescent)',
+                    type: 'Full Design'
+                }
+            ]
+        };
+
+        function renderGrid(containerId, data) {
+            const container = document.getElementById(containerId);
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                const typeBadgeClass = item.type === 'Background Only' ? 'type-badge background-badge' : 'type-badge';
+                card.innerHTML = `
+                    <div class="card-image">
+                        <img src="${item.src}" alt="${item.title}">
+                    </div>
+                    <div class="card-title">
+                        <div class="${typeBadgeClass}">${item.type}</div>
+                        ${item.title}
+                    </div>
+                `;
+                card.addEventListener('click', () => {
+                    window.open(item.src);
+                });
+                container.appendChild(card);
+            });
+        }
+
+        function updateStats() {
+            const total = imageData.animWeek1.length + imageData.animWeeks23.length + imageData.rap.length;
+            document.getElementById('totalCount').textContent = total;
+        }
+
+        // Render all grids
+        renderGrid('animWeek1Grid', imageData.animWeek1);
+        renderGrid('animWeeks23Grid', imageData.animWeeks23);
+        renderGrid('rapGrid', imageData.rap);
+        updateStats();
+    </script>
+</body>
+</html>
