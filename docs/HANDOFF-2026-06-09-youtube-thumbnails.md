@@ -63,10 +63,64 @@ python generate.py \
 - `~/Desktop/animation-accelerator-youtube-thumbnails-2026-06-09.zip` — committed animation assets + Rafiki runs
 - `~/Desktop/youtube-thumbnails-raw-2026-06-09.zip` — all raw PNG/JPG from this session (both programs)
 
+## Local gallery setup
+
+The main viewer (`youtube-thumbnails-viewer.html`) now includes **future cohort promo graphics** in addition to session YouTube thumbnails.
+
+**Symlink required for Animation Accelerator paths:**
+
+```bash
+ln -sf /Users/kk/Code/animation-accelerator /Users/kk/Code/rafiki/animation-accelerator
+```
+
+Without this symlink, AA Cohort 2–4 image cards will 404 locally. RAP promo graphics load from `output/` inside Rafiki and do not need the symlink.
+
+## Animation Accelerator — Cohorts 3 & 4 promo graphics
+
+Committed in the animation-accelerator repo (no new generation needed). Asset index: `animation-accelerator/content/campaigns/2026-animation-accelerator-cohorts-3-4/asset-index.md`
+
+| Asset | Path |
+| --- | --- |
+| Cohort 3 Luma cover | `animation-accelerator/assets/public/campaign-graphics/luma-covers/2026-07-27-ai-animation-accelerator-luma-cover.png` |
+| Cohort 4 Luma cover | `animation-accelerator/assets/public/campaign-graphics/luma-covers/2026-09-21-ai-animation-accelerator-luma-cover.png` |
+| C3 social crops (4) | `animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-3-*.png` |
+| C4 social crops (4) | `animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-4-*.png` |
+| C3 web refresh | `animation-accelerator/assets/public/creative-site/cohorts/cohort-3-refresh-1600x900.webp` |
+| C4 web refresh | `animation-accelerator/assets/public/creative-site/cohorts/cohort-4-refresh-1600x900.webp` |
+
+## RAP — Future cohort enrollment promo graphics
+
+**Not session thumbnails.** These are native Luma feature graphics for future enrollment dates:
+
+- **01–10:** RAP Cohort 2 enrollment promo — starts August 7, 2026
+- **11–20:** RAP Cohort 3 enrollment promo — starts September 18, 2026
+
+**Batch location:**
+`output/rap-cohort-feature-graphics-2026-native/raw-gpt-image-2/run-20260605-194358/`
+
+**Batch viewer:**
+`output/rap-cohort-feature-graphics-2026-native/raw-gpt-image-2/run-20260605-194358/viewer.html`
+
+**Prompt:** `prompts/bcai/rap-cohort-feature-graphics-2026-native-2026-06-06.md`
+
+**Regenerate command:**
+
+```bash
+python generate.py \
+  -f prompts/bcai/rap-cohort-feature-graphics-2026-native-2026-06-06.md \
+  -d output/rap-cohort-feature-graphics-2026-native/REFRESH \
+  --no-style -m gpt --reference-role brand \
+  --global-reference-images "/Users/kk/Code/RAP/web/public/brand/rap/rap-shield.png,/Users/kk/Code/RAP/web/public/brand/bcai/bcai-logo-official.png" \
+  -a 16:9 -q high -w 2
+```
+
+Note: enrollment promos use `rap-shield.png` (hex badge for Luma covers). Session recording thumbnails use `rap-cert.png` (certification shield).
+
 ## Verify
 
 ```bash
 open youtube-thumbnails-viewer.html
 open output/animation-accelerator-youtube-thumbnails/cohort-2-week-3-2026-06-09-v3/viewer.html
 open output/rap-youtube-thumbnails/cohort-2-week-3-2026-06-09-v2/viewer.html
+open output/rap-cohort-feature-graphics-2026-native/raw-gpt-image-2/run-20260605-194358/viewer.html
 ```

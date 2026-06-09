@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Thumbnails — Graphics Viewer</title>
+    <title>YouTube Thumbnails + Future Cohort Promo Graphics</title>
     <style>
         * {
             margin: 0;
@@ -113,6 +113,22 @@
             object-fit: cover;
         }
 
+        .card-image.fit-contain img {
+            object-fit: contain;
+        }
+
+        .card-image.aspect-square {
+            aspect-ratio: 1 / 1;
+        }
+
+        .card-image.aspect-portrait {
+            aspect-ratio: 4 / 5;
+        }
+
+        .card-image.aspect-landscape-wide {
+            aspect-ratio: 1200 / 630;
+        }
+
         .card-title {
             padding: 15px;
             font-size: 0.9em;
@@ -202,6 +218,40 @@
             background: #6d28d9;
         }
 
+        .quick-open.rap-promo {
+            background: #0f1f1a;
+            border-color: #1f6b4f;
+        }
+
+        .quick-open.rap-promo h2 {
+            color: #6ee7b7;
+        }
+
+        .quick-open.rap-promo .quick-link {
+            background: #134e3a;
+            border-color: #1f8a62;
+            color: #d1fae5;
+        }
+
+        .quick-open.rap-promo .quick-link.primary {
+            background: #047857;
+            border-color: #10b981;
+            color: #fff;
+        }
+
+        .subsection-label {
+            font-size: 0.85em;
+            color: #888;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .symlink-note {
+            color: #b45309;
+            font-size: 0.85em;
+            margin-top: 8px;
+        }
+
         .card a.card-link {
             color: inherit;
             text-decoration: none;
@@ -287,8 +337,11 @@
     </div>
 
     <div class="container">
-        <h1>🎬 YouTube Thumbnails</h1>
-        <div class="intro">Click any thumbnail to preview · use quick links to open the file directly</div>
+        <h1>🎬 YouTube Thumbnails + Promo Graphics</h1>
+        <div class="intro">
+            Click any image to preview · use quick links to open files directly
+            <div class="symlink-note">Animation Accelerator paths require local symlink: <code>animation-accelerator</code> → <code>/Users/kk/Code/animation-accelerator</code></div>
+        </div>
 
         <div class="quick-open" id="week3QuickOpen">
             <h2>Animation Accelerator — Cohort 2, Week 3</h2>
@@ -317,16 +370,58 @@
                 <div class="cohort-title">Cohort 2 — Week 2</div>
                 <div class="grid" id="animWeek2Grid"></div>
             </div>
+
+            <!-- Future Cohorts Promo -->
+            <div class="cohort-section">
+                <div class="cohort-title">Future Cohorts — Promo Graphics</div>
+                <p class="subsection-label">Luma covers, social crops, and web refresh art (committed in animation-accelerator repo)</p>
+
+                <div class="quick-open" id="animC3QuickOpen">
+                    <h2>Cohort 3 — starts July 27, 2026</h2>
+                    <p>Primary Luma cover and channel-ready crops</p>
+                    <div class="quick-links" id="animC3QuickLinks"></div>
+                </div>
+                <div class="grid" id="animPromoC3Grid"></div>
+
+                <div class="quick-open" id="animC4QuickOpen">
+                    <h2>Cohort 4 — starts September 21, 2026</h2>
+                    <p>Primary Luma cover and channel-ready crops</p>
+                    <div class="quick-links" id="animC4QuickLinks"></div>
+                </div>
+                <div class="grid" id="animPromoC4Grid"></div>
+            </div>
         </div>
 
         <!-- RAP Section -->
         <div class="program-section">
             <h2 class="program-title rap">🌱 Responsible AI Professional</h2>
-            <div class="grid" id="rapGrid"></div>
+
+            <div class="cohort-section">
+                <div class="cohort-title">Session Recording Thumbnails</div>
+                <p class="subsection-label">YouTube thumbnails for live cohort recordings</p>
+                <div class="grid" id="rapSessionGrid"></div>
+            </div>
+
+            <div class="cohort-section">
+                <div class="cohort-title">Future Cohort Enrollment Promo Graphics</div>
+                <p class="subsection-label">Native Luma feature graphics — not session recordings. Batch viewer: <code>output/rap-cohort-feature-graphics-2026-native/raw-gpt-image-2/run-20260605-194358/viewer.html</code></p>
+
+                <div class="quick-open rap-promo" id="rapPromoQuickOpen">
+                    <h2>RAP enrollment promo bakeoff</h2>
+                    <p>10 visual directions per future cohort start date</p>
+                    <div class="quick-links" id="rapPromoQuickLinks"></div>
+                </div>
+
+                <div class="cohort-title" style="font-size:1em;margin-top:24px;">Enrollment promo — Cohort 2, Aug 7, 2026</div>
+                <div class="grid" id="rapPromoC2Grid"></div>
+
+                <div class="cohort-title" style="font-size:1em;margin-top:24px;">Enrollment promo — Cohort 3, Sept 18, 2026</div>
+                <div class="grid" id="rapPromoC3Grid"></div>
+            </div>
         </div>
 
         <div class="stats">
-            <strong id="totalCount">0</strong> YouTube thumbnail designs
+            <strong id="totalCount">0</strong> graphics in gallery
         </div>
     </div>
 
@@ -438,7 +533,91 @@
                     type: 'Source Plate'
                 }
             ],
-            rap: [
+            animPromoC3: [
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/luma-covers/2026-07-27-ai-animation-accelerator-luma-cover.png',
+                    title: 'Cohort 3 Luma Cover',
+                    type: 'Luma Cover',
+                    fit: 'contain',
+                    aspect: 'square'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-3-square-1080.png',
+                    title: 'Cohort 3 Square (1080)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'square'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-3-landscape-1200x630.png',
+                    title: 'Cohort 3 Landscape (1200×630)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'landscape-wide'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-3-portrait-1080x1350.png',
+                    title: 'Cohort 3 Portrait (1080×1350)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'portrait'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-3-newsletter-1600x900.png',
+                    title: 'Cohort 3 Newsletter (1600×900)',
+                    type: 'Newsletter',
+                    fit: 'contain'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/creative-site/cohorts/cohort-3-refresh-1600x900.webp',
+                    title: 'Cohort 3 Web Refresh (1600×900)',
+                    type: 'Web Card',
+                    fit: 'contain'
+                }
+            ],
+            animPromoC4: [
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/luma-covers/2026-09-21-ai-animation-accelerator-luma-cover.png',
+                    title: 'Cohort 4 Luma Cover',
+                    type: 'Luma Cover',
+                    fit: 'contain',
+                    aspect: 'square'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-4-square-1080.png',
+                    title: 'Cohort 4 Square (1080)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'square'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-4-landscape-1200x630.png',
+                    title: 'Cohort 4 Landscape (1200×630)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'landscape-wide'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-4-portrait-1080x1350.png',
+                    title: 'Cohort 4 Portrait (1080×1350)',
+                    type: 'Social Crop',
+                    fit: 'contain',
+                    aspect: 'portrait'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/campaign-graphics/social-crops/cohorts-3-4/cohort-4-newsletter-1600x900.png',
+                    title: 'Cohort 4 Newsletter (1600×900)',
+                    type: 'Newsletter',
+                    fit: 'contain'
+                },
+                {
+                    src: 'animation-accelerator/assets/public/creative-site/cohorts/cohort-4-refresh-1600x900.webp',
+                    title: 'Cohort 4 Web Refresh (1600×900)',
+                    type: 'Web Card',
+                    fit: 'contain'
+                }
+            ],
+            rapSession: [
                 {
                     src: 'output/rap-youtube-thumbnails/cohort-2-week-3-2026-06-09-v2/run-20260609-061636/02-cohort-2-week-3-bioluminescent-pass-b.png',
                     title: 'Cohort 2, Week 3 — Bioluminescent (rap-cert shield)',
@@ -482,6 +661,55 @@
             ]
         };
 
+        const rapPromoBase = 'output/rap-cohort-feature-graphics-2026-native/raw-gpt-image-2/run-20260605-194358/';
+        const rapPromoDirections = [
+            'Executive Signal Forest',
+            'Governance Workbench',
+            'Four-Week Pathway',
+            'Responsible-AI Weather Map',
+            'Human Oversight Circle',
+            'Artifact Portfolio Table',
+            'BC Coast Network',
+            'Ethics Operating Room',
+            'Credential Halo',
+            'Community Practice Canopy'
+        ];
+        const rapPromoC2Files = [
+            '01-august-7-cohort-2-executive-signal-forest.png',
+            '02-august-7-cohort-2-governance-workbench.png',
+            '03-august-7-cohort-2-four-week-pathway.png',
+            '04-august-7-cohort-2-responsible-ai-weather-map.png',
+            '05-august-7-cohort-2-human-oversight-circle.png',
+            '06-august-7-cohort-2-artifact-portfolio-table.png',
+            '07-august-7-cohort-2-bc-coast-network.png',
+            '08-august-7-cohort-2-ethics-operating-room.png',
+            '09-august-7-cohort-2-credential-halo.png',
+            '10-august-7-cohort-2-community-practice-canopy.png'
+        ];
+        const rapPromoC3Files = [
+            '11-september-18-cohort-3-executive-signal-forest.png',
+            '12-september-18-cohort-3-governance-workbench.png',
+            '13-september-18-cohort-3-four-week-pathway.png',
+            '14-september-18-cohort-3-responsible-ai-weather-map.png',
+            '15-september-18-cohort-3-human-oversight-circle.png',
+            '16-september-18-cohort-3-artifact-portfolio-table.png',
+            '17-september-18-cohort-3-bc-coast-network.png',
+            '18-september-18-cohort-3-ethics-operating-room.png',
+            '19-september-18-cohort-3-credential-halo.png',
+            '20-september-18-cohort-3-community-practice-canopy.png'
+        ];
+
+        imageData.rapPromoC2 = rapPromoC2Files.map((file, index) => ({
+            src: rapPromoBase + file,
+            title: rapPromoDirections[index],
+            type: 'Enrollment Promo'
+        }));
+        imageData.rapPromoC3 = rapPromoC3Files.map((file, index) => ({
+            src: rapPromoBase + file,
+            title: rapPromoDirections[index],
+            type: 'Enrollment Promo'
+        }));
+
         const week3RefreshBase = 'output/animation-accelerator-youtube-thumbnails/cohort-2-week-3-2026-06-09-v3/run-20260609-060607/';
         const week3Base = 'animation-accelerator/assets/public/youtube-thumbnails/cohort-2-weeks-2-3-2026-06-01/';
         const week3QuickFiles = [
@@ -489,6 +717,25 @@
             { href: week3RefreshBase + '01-week-3-generative-plaque-pass-a.png', label: 'Open Pass A' },
             { href: week3RefreshBase + '../viewer.html', label: 'Open Rafiki viewer' },
             { href: week3Base + 'animation-accelerator-c2-week3-generative-screening.jpg', label: 'Original screening JPG' }
+        ];
+
+        const animC3Base = 'animation-accelerator/assets/public/campaign-graphics/';
+        const animC3QuickFiles = [
+            { href: animC3Base + 'luma-covers/2026-07-27-ai-animation-accelerator-luma-cover.png', label: 'Luma cover', primary: true },
+            { href: animC3Base + 'social-crops/cohorts-3-4/cohort-3-newsletter-1600x900.png', label: 'Newsletter crop' },
+            { href: animC3Base + 'social-crops/cohorts-3-4/cohort-3-landscape-1200x630.png', label: 'Landscape crop' }
+        ];
+
+        const animC4QuickFiles = [
+            { href: animC3Base + 'luma-covers/2026-09-21-ai-animation-accelerator-luma-cover.png', label: 'Luma cover', primary: true },
+            { href: animC3Base + 'social-crops/cohorts-3-4/cohort-4-newsletter-1600x900.png', label: 'Newsletter crop' },
+            { href: animC3Base + 'social-crops/cohorts-3-4/cohort-4-landscape-1200x630.png', label: 'Landscape crop' }
+        ];
+
+        const rapPromoQuickFiles = [
+            { href: rapPromoBase + 'viewer.html', label: 'Open batch viewer', primary: true },
+            { href: rapPromoBase + '09-august-7-cohort-2-credential-halo.png', label: 'C2 Credential Halo' },
+            { href: rapPromoBase + '19-september-18-cohort-3-credential-halo.png', label: 'C3 Credential Halo' }
         ];
 
         const lightbox = document.getElementById('lightbox');
@@ -520,17 +767,26 @@
             if (event.key === 'Escape') closeLightbox();
         });
 
-        function renderQuickLinks() {
-            const container = document.getElementById('week3QuickLinks');
-            week3QuickFiles.forEach((file, index) => {
+        function renderQuickLinks(containerId, files) {
+            const container = document.getElementById(containerId);
+            files.forEach((file) => {
                 const link = document.createElement('a');
-                link.className = index === 0 ? 'quick-link primary' : 'quick-link';
+                link.className = file.primary ? 'quick-link primary' : 'quick-link';
                 link.href = file.href;
                 link.target = '_blank';
                 link.rel = 'noopener';
                 link.textContent = file.label;
                 container.appendChild(link);
             });
+        }
+
+        function imageClasses(item) {
+            const classes = ['card-image'];
+            if (item.fit === 'contain') classes.push('fit-contain');
+            if (item.aspect === 'square') classes.push('aspect-square');
+            if (item.aspect === 'portrait') classes.push('aspect-portrait');
+            if (item.aspect === 'landscape-wide') classes.push('aspect-landscape-wide');
+            return classes.join(' ');
         }
 
         function renderGrid(containerId, data) {
@@ -545,7 +801,7 @@
                         : 'type-badge';
                 card.innerHTML = `
                     <a class="card-link" href="${item.src}" target="_blank" rel="noopener">
-                        <div class="card-image">
+                        <div class="${imageClasses(item)}">
                             <img src="${item.src}" alt="${item.title}" loading="lazy">
                         </div>
                         <div class="card-title">
@@ -568,15 +824,26 @@
             const total = imageData.animWeek1.length
                 + imageData.animWeek3.length
                 + imageData.animWeek2.length
-                + imageData.rap.length;
+                + imageData.animPromoC3.length
+                + imageData.animPromoC4.length
+                + imageData.rapSession.length
+                + imageData.rapPromoC2.length
+                + imageData.rapPromoC3.length;
             document.getElementById('totalCount').textContent = total;
         }
 
-        renderQuickLinks();
+        renderQuickLinks('week3QuickLinks', week3QuickFiles);
+        renderQuickLinks('animC3QuickLinks', animC3QuickFiles);
+        renderQuickLinks('animC4QuickLinks', animC4QuickFiles);
+        renderQuickLinks('rapPromoQuickLinks', rapPromoQuickFiles);
         renderGrid('animWeek1Grid', imageData.animWeek1);
         renderGrid('animWeek3Grid', imageData.animWeek3);
         renderGrid('animWeek2Grid', imageData.animWeek2);
-        renderGrid('rapGrid', imageData.rap);
+        renderGrid('animPromoC3Grid', imageData.animPromoC3);
+        renderGrid('animPromoC4Grid', imageData.animPromoC4);
+        renderGrid('rapSessionGrid', imageData.rapSession);
+        renderGrid('rapPromoC2Grid', imageData.rapPromoC2);
+        renderGrid('rapPromoC3Grid', imageData.rapPromoC3);
         updateStats();
 
         if (new URLSearchParams(window.location.search).get('week') === '3') {
