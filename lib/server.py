@@ -787,7 +787,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     def _serve_runs(self):
-        from lib.renderers.library import load_extra_outputs, _scan_root
+        from lib.renderers.library import load_extra_outputs
         runs: list[dict] = []
         extra_roots = load_extra_outputs()
 

@@ -41,6 +41,9 @@ jobs:
       - name: Audit Python runtime dependencies
         run: python -m pip_audit -r requirements.txt
 
+      - name: Lint Python
+        run: python -m ruff check .
+
       - name: Run tests
         run: npm test
 
@@ -55,3 +58,17 @@ jobs:
 
       - name: Run doctor
         run: npm run doctor
+
+  secret-scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

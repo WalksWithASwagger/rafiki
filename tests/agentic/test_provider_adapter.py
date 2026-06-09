@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "agentic"))
 
-from provider_adapter import run_provider  # noqa: E402
 
 from test_dev_loop import copy_contract_repo  # noqa: E402
 
