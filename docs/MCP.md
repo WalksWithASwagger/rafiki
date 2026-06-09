@@ -235,3 +235,6 @@ Some fallback CLI workflows still mutate local state or external systems:
 The returned JSON includes `mutating: true` for those calls so MCP clients can
 surface approvals or logs clearly. Use each workflow's own `--dry-run` flag
 where available.
+
+For copy-paste automation and agent archive recipes, see
+[Local Automation And Agent Archive Recipes](RECIPES.md).
