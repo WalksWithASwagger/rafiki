@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Generate a polished presentation viewer (filter tabs, lightbox, social copy) from a JSON data file.
 
-The viewer mirrors the look and behavior of the original RAP certification viewer
-(`generate-rap-viewer.py`) but is parameterized over an arbitrary set of categories
-and items, so the same code can power any image series.
+The viewer is parameterized over an arbitrary set of categories and items, so the
+same code can power any image series from a JSON data file.
 
 Usage:
     python generate-presentation-viewer.py --data <data.json> --output <dir> [--title <override>]
@@ -57,10 +56,8 @@ def _resolve_image_dir(image_dir: str) -> Path:
     """Resolve an image_dir from the JSON.
 
     Absolute paths are honored as-is. Relative paths are resolved against the
-    repo root (where this script lives), matching the convention used by the
-    legacy `generate-rap-viewer.py` and the wrappers that follow it. Existence
-    is not required at generation time — the original viewer also blindly
-    constructed paths whether or not the targets were on disk."""
+    repo root (where this script lives). Existence is not required at generation
+    time — paths are constructed whether or not the targets are on disk."""
     p = Path(image_dir)
     if p.is_absolute():
         return p
