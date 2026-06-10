@@ -11,6 +11,11 @@ output.png
 test-image.png
 output/
 
+# Generated content & creative outputs — kept in a private knowledge base,
+# not in the public tool repo. The tool ships; the work made with it does not.
+prompts/
+assets/
+
 # Generated outputs (large files, regenerable)
 outputs/
 
