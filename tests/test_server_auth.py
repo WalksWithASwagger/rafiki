@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import server as server_module
 from lib import training as training_module
-from lib import usage as usage_module
 from lib import video_jobs as video_jobs_module
 from lib.server import _RafikiHandler
 from tests.server_harness import http_get as _get

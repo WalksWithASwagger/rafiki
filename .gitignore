@@ -69,3 +69,6 @@ config/media-roots.local.json
 
 # Local package artifacts
 *.tgz
+
+# Local symlink to sibling project (machine-specific)
+animation-accelerator
