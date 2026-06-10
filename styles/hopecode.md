@@ -129,10 +129,7 @@ The style suffix is defined in `styles/styles.yaml` and emphasizes:
 
 ## Examples
 
-See the HOPECODE prompt library in `/prompts/hopecode/`:
-- `personal-blog-examples.md` - Journey maps, story diagrams
-- `thought-leadership-examples.md` - Framework diagrams, systems maps
-- `concept-mapping-examples.md` - Relationship networks, knowledge webs
+Example prompt packs for this style are kept in a private knowledge base, not in the public tool repo.
 
 ## The Manifesto
 

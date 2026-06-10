@@ -264,8 +264,7 @@ The style suffix automatically applies:
 
 ## Examples
 
-See The Upgrade AI prompt library in `/prompts/upgrade/`:
-- `training-marketing.md` - Course marketing, transformation diagrams, skill development visuals
+Example prompt packs for this style are kept in a private knowledge base, not in the public tool repo.
 
 ## The Heart of It
 

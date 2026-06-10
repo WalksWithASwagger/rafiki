@@ -76,6 +76,6 @@ python generate.py -p "Ring-buffer phase diagram — thresholds and feedback loo
 
 ## Source Material
 
-Full polished prompt set, short variants, alternate aesthetic phrasing, and batch-export one-liners: `prompts/kk-kb/femme-prompts-mac-image-repository.md`
+The full prompt set, short variants, alternate phrasings, and batch-export one-liners are kept in a private knowledge base, not in the public tool repo.
 
 The prompt file also contains a neuro/bio/substrate set (neural cartography, protein fold consciousness, chromosomal memory palace, etc.) that pairs well with this style.

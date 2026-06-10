@@ -49,7 +49,7 @@ prompt pack at `examples/keynote-visual-workflow-prompt-pack.md`.
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
-| Prompt collections | `prompts/`, `styles/`, `assets/`, `examples/` | Rich working examples, style references, and mirrored prompt assets exist in the public repo; the public package ships only explicitly listed public fixtures by policy. |
+| Prompt collections | `styles/`, `examples/` | The tool ships `styles/` presets and `examples/` tutorials; generated prompt packs (`prompts/`) and output assets (`assets/`) are kept in a private knowledge base and gitignored, per the tool/output separation. |
 | Tests and CI | `tests/`, `.github/workflows/ci.yml` | 300+ collected Python tests in this checkout, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes

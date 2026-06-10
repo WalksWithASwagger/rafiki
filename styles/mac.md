@@ -79,5 +79,4 @@ python generate.py \
 
 ## Source Material
 
-Original internal 50-tile reference set: MAC Mind, AI & Consciousness source tiles (not packaged).
-First generated batch: `prompts/mac/launch-series.md` → `output/mac-launch/`.
+Original internal 50-tile reference set: MAC Mind, AI & Consciousness source tiles (not packaged). Example prompt packs and generated batches are kept in a private knowledge base, not in the public tool repo.

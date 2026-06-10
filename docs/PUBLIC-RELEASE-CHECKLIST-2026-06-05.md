@@ -12,8 +12,9 @@ explicitly listed in `package.json`.
 
 - Existing repo, not a new clean-room repo.
 - Gate on true credentials, provider keys, account secrets, and tokens.
-- Do not stage unrelated local work such as
-  `prompts/bcai/aefl-luma-thumbnails-2026.md`.
+- Do not stage unrelated local work such as generated prompt packs or output
+  assets (these live in a private knowledge base; `prompts/` and `assets/` are
+  gitignored).
 - Treat any tracked prompt, asset, or doc as public once repository visibility
   changes.
 - Keep live provider keys in environment variables or an untracked `.env`.

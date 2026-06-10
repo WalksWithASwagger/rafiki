@@ -72,16 +72,13 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │                                #   bcai-ecosystem, upgrade, zine, gni, femme,
 │                                #   mac, mac-workshop, indigenomics, cmvan,
 │                                #   kk-blocks, kk-cmyk, kk-glitch, kk-acid
-├── prompts/                     # Prompt libraries — kk/, bcai/, hopecode/, upgrade/,
-│                                #   kk-kb/, kb-ecosystem-mirror/,
-│                                #   mac/, vancouver-ai/,
-│                                #   creative-mornings-vancouver-may-2026/, etc.
-│                                #   Excluded from the npm package allowlist.
+├── prompts/                     # (gitignored) local prompt libraries — your generated
+│                                #   content, kept in a private knowledge base, not shipped
 ├── examples/
 │   └── quickstart-image-prompts.md  # Public onboarding fixture (the only prompt
 │                                #   shipped in the npm package)
-├── assets/                      # Reference images, campaign assets, KB-import mirrors
-│                                #   (private — not packaged)
+├── assets/                      # (gitignored) local reference images and output assets —
+│                                #   private, not tracked or packaged
 ├── config/
 │   ├── extra-outputs.json.example
 │   ├── pricing.json             # Public model pricing profile for local estimates
