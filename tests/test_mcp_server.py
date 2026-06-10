@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import mcp_server
 from lib.batch import BatchResult
@@ -66,6 +67,8 @@ def test_typed_workflow_tools_are_registered():
         "rafiki_render",
         "rafiki_canva_export",
         "rafiki_notion_export",
+        "rafiki_media_warnings",
+        "rafiki_job_status",
     }.issubset(names)
 
 
@@ -398,6 +401,112 @@ def test_canva_export_wrapper_dry_run_reports_bundle_plan(tmp_path):
     assert payload["zip"] is True
     assert payload["result_path"].endswith("canva-export.zip")
     assert not (output_root / "canva-project" / "canva-export").exists()
+
+
+def test_media_warnings_returns_empty_list_when_registry_absent(tmp_path):
+    payload = json.loads(
+        mcp_server.rafiki_media_warnings(
+            registry_path=str(tmp_path / "nonexistent-registry.json")
+        )
+    )
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert payload["warnings"] == []
+    assert payload["warning_count"] == 0
+
+
+def test_media_warnings_returns_warnings_from_registry(tmp_path):
+    registry_path = tmp_path / "media-registry.json"
+    registry_path.write_text(
+        json.dumps({
+            "version": 1,
+            "indexed_at": "2026-06-01T10:00:00+00:00",
+            "entries": [],
+            "warnings": ["root not found: /missing/path", "importer skipped: generic"],
+        }),
+        encoding="utf-8",
+    )
+
+    payload = json.loads(
+        mcp_server.rafiki_media_warnings(
+            registry_path=str(registry_path)
+        )
+    )
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert payload["warning_count"] == 2
+    assert "root not found: /missing/path" in payload["warnings"]
+    assert payload["indexed_at"] == "2026-06-01T10:00:00+00:00"
+
+
+def test_job_status_returns_error_for_missing_job(tmp_path):
+    import lib.jobs as jobs_module
+
+    with patch.object(jobs_module, "JOBS_DIR", tmp_path / "jobs"):
+        payload = json.loads(mcp_server.rafiki_job_status("nonexistent-job-id"))
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert "not found" in payload["error"]
+
+
+def test_job_status_returns_hardened_fields_for_existing_job(tmp_path):
+    import lib.jobs as jobs_module
+
+    jobs_dir = tmp_path / "jobs"
+    jobs_dir.mkdir()
+    job_record = {
+        "id": "video-generation-20260601-120000",
+        "kind": "video-generation",
+        "provider": "Replicate",
+        "status": "queued",
+        "polling_status": "pending",
+        "error": "",
+        "target_output_dir": str(tmp_path / "output"),
+        "created_at": "2026-06-01T12:00:00+00:00",
+        "updated_at": "2026-06-01T12:00:01+00:00",
+        "cost_estimate": {"currency": "USD", "amount": 0.0, "estimated": True},
+    }
+    (jobs_dir / "video-generation-20260601-120000.json").write_text(
+        json.dumps(job_record), encoding="utf-8"
+    )
+
+    with patch.object(jobs_module, "JOBS_DIR", jobs_dir):
+        payload = json.loads(
+            mcp_server.rafiki_job_status("video-generation-20260601-120000")
+        )
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert payload["job_id"] == "video-generation-20260601-120000"
+    assert payload["status"] == "queued"
+    assert payload["polling_status"] == "pending"
+    assert payload["error"] == ""
+    assert payload["provider"] == "Replicate"
+    assert payload["kind"] == "video-generation"
+    assert payload["cost_estimate"]["currency"] == "USD"
+    assert "job" in payload
+    assert payload["job"]["id"] == "video-generation-20260601-120000"
+
+
+def test_job_status_rejects_blank_job_id():
+    payload = json.loads(mcp_server.rafiki_job_status(""))
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert "job_id is required" in payload["error"]
 
 
 def test_notion_export_wrapper_dry_run_uses_exporter_without_api(tmp_path):

@@ -14,6 +14,8 @@ Tools:
   rafiki_media_search  Search indexed multimedia assets
   rafiki_subjects      List indexed subject profiles
   rafiki_jobs          List local long-running job records
+  rafiki_job_status    Return hardened status fields for a single job
+  rafiki_media_warnings Return warnings from the last media registry index run
   rafiki_archive_health Report archive health
   rafiki_viewer_rebuild Rebuild a project viewer
   rafiki_library_rebuild Rebuild the master library viewer
@@ -491,6 +493,8 @@ def rafiki_status() -> str:
             "rafiki_media_search",
             "rafiki_subjects",
             "rafiki_jobs",
+            "rafiki_job_status",
+            "rafiki_media_warnings",
             "rafiki_train_lora",
             "rafiki_video_generate",
             "rafiki_style_anchors",
@@ -1256,6 +1260,95 @@ def rafiki_notion_export(
         "mutating": not dry_run,
         "external": True,
         **result,
+    })
+
+
+@mcp.tool()
+def rafiki_media_warnings(registry_path: str = "") -> str:
+    """Return warnings collected during the last multimedia registry index run.
+
+    Reads the persisted media-registry.json without triggering a re-index.
+    Returns an empty warnings list if the registry has not been built yet.
+
+    Args:
+        registry_path: Optional absolute path to a media-registry.json file.
+            Defaults to data/media-registry.json in the repo root.
+
+    Returns:
+        JSON with ok, warning_count, warnings (list of strings), indexed_at,
+        and registry_path. Always mutating: false, external: false.
+    """
+    from lib import media_registry
+
+    reg_path = Path(registry_path).expanduser() if registry_path else media_registry.MEDIA_REGISTRY_JSON
+    data = media_registry.load_registry(reg_path, rebuild_if_missing=False)
+    warnings_list = [str(w) for w in (data.get("warnings") or []) if w]
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_media_warnings",
+        "mutating": False,
+        "external": False,
+        "registry_path": str(reg_path),
+        "indexed_at": data.get("indexed_at", ""),
+        "warning_count": len(warnings_list),
+        "warnings": warnings_list,
+    })
+
+
+@mcp.tool()
+def rafiki_job_status(job_id: str) -> str:
+    """Return hardened status fields for a single local job record.
+
+    Reads the job file under data/jobs/ and returns stable typed fields
+    including status, polling_status, provider, kind, cost_estimate, and
+    explicit safety flags. Never calls any provider or mutates local state.
+
+    Args:
+        job_id: Job ID as returned by rafiki_jobs, rafiki_train_lora, or
+            rafiki_video_generate.
+
+    Returns:
+        JSON with ok, job_id, status, polling_status, error, provider, kind,
+        created_at, updated_at, cost_estimate, mutating: false, external: false,
+        and the full raw job dict under 'job'.
+    """
+    from lib.jobs import load_job
+
+    if not job_id or not job_id.strip():
+        return _error_payload(
+            "rafiki_job_status",
+            "job_id is required",
+            mutating=False,
+            external=False,
+        )
+
+    record = load_job(job_id.strip())
+    if record is None:
+        return _error_payload(
+            "rafiki_job_status",
+            f"job not found: {job_id}",
+            job_id=job_id,
+            mutating=False,
+            external=False,
+        )
+
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_job_status",
+        "mutating": False,
+        "external": False,
+        "job_id": str(record.get("id") or job_id),
+        "status": str(record.get("status") or ""),
+        "polling_status": str(record.get("polling_status") or ""),
+        "error": str(record.get("error") or ""),
+        "provider": str(record.get("provider") or ""),
+        "kind": str(record.get("kind") or ""),
+        "created_at": str(record.get("created_at") or ""),
+        "updated_at": str(record.get("updated_at") or ""),
+        "cost_estimate": record.get("cost_estimate") or {},
+        "job": record,
     })
 
 
