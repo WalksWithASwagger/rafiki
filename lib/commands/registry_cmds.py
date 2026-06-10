@@ -30,6 +30,18 @@ def _cmd_registry(argv: list[str]) -> None:
     sp_export = sub.add_parser("export", help="Export registry to CSV or JSON")
     sp_export.add_argument("--format", choices=["csv", "json"], default="csv")
 
+    sp_suggest = sub.add_parser(
+        "suggest-lineage",
+        help="Show lineage candidates not yet linked by superseded_by",
+    )
+    sp_suggest.add_argument("--json", action="store_true", dest="json_output",
+                            help="Emit results as JSON")
+    sp_suggest.add_argument(
+        "--all-runs",
+        action="store_true",
+        help="Include all runs (not just curated) when loading the registry",
+    )
+
     args = p.parse_args(argv)
 
     from lib.registry import index as registry_index, search as registry_search, export as registry_export
@@ -58,6 +70,24 @@ def _cmd_registry(argv: list[str]) -> None:
     if args.action == "export":
         path = registry_export(format=args.format)
         print(f"Exported registry: {path}")
+        return
+
+    if args.action == "suggest-lineage":
+        from lib.lineage import suggest_lineage_candidates
+        scope = "all-runs" if args.all_runs else "curated"
+        entries = registry_index(scope=scope)
+        suggestions = suggest_lineage_candidates(entries)
+        if args.json_output:
+            print(json.dumps(suggestions, indent=2))
+            return
+        if not suggestions:
+            print("No unlinked lineage candidates found.")
+            return
+        print(f"{len(suggestions)} lineage suggestion(s):")
+        for s in suggestions:
+            print(f"  [{s['project']}] {s['source_id']}  <->  {s['candidate_id']}")
+            for reason in s["reasons"]:
+                print(f"    reason: {reason}")
         return
 
 

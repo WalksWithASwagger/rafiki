@@ -50,12 +50,15 @@ reads archive metadata but does not stamp or mutate that sidecar.
 ## CLI
 
 ```bash
-generate.py registry index                  # rebuild curated data/asset-registry.json
-generate.py registry index --all-runs       # persist the complete local archive
-generate.py registry search "hallucination" # case-insensitive, title+caption+tags
-generate.py registry search "bias" --json   # JSON output
-generate.py registry export --format csv    # → data/asset-registry.csv
-generate.py registry export --format json   # → data/asset-registry.json
+generate.py registry index                       # rebuild curated data/asset-registry.json
+generate.py registry index --all-runs            # persist the complete local archive
+generate.py registry search "hallucination"      # case-insensitive, title+caption+tags
+generate.py registry search "bias" --json        # JSON output
+generate.py registry export --format csv         # → data/asset-registry.csv
+generate.py registry export --format json        # → data/asset-registry.json
+generate.py registry suggest-lineage             # show unlinked lineage candidates
+generate.py registry suggest-lineage --json      # JSON output for further processing
+generate.py registry suggest-lineage --all-runs  # include all historical runs
 ```
 
 ## Automatic vs manual refresh
