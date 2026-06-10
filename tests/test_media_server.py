@@ -235,3 +235,21 @@ def test_media_subject_filters_and_profiles_use_registry_payload(media_server: s
     assert [entry["id"] for entry in subject["representative_outputs"]] == ["kris-image", "kris-video"]
     assert subject["quick_links"]["library"] == "/?tab=library&view=all&subject=kris"
     assert subject["quick_links"]["video_subject"] == "/?tab=video&videoSubject=kris"
+
+
+def test_media_warnings_endpoint_returns_empty_list_when_no_warnings(media_server: str, monkeypatch) -> None:
+    data = {"warnings": [], "entries": [], "summary": {}}
+    monkeypatch.setattr(media_registry, "load_registry", lambda *args, **kwargs: data)
+
+    payload = json.loads(_request(f"{media_server}/api/media/warnings").read().decode("utf-8"))
+
+    assert payload == {"warnings": []}
+
+
+def test_media_warnings_endpoint_surfaces_registry_warnings(media_server: str, monkeypatch) -> None:
+    data = {"warnings": ["root not found: /missing", "stale ref: abc123"], "entries": [], "summary": {}}
+    monkeypatch.setattr(media_registry, "load_registry", lambda *args, **kwargs: data)
+
+    payload = json.loads(_request(f"{media_server}/api/media/warnings").read().decode("utf-8"))
+
+    assert payload["warnings"] == ["root not found: /missing", "stale ref: abc123"]
