@@ -1,0 +1,25 @@
+[
+  {
+    "prompt_id": "core_01",
+    "prompt": "Subject benchmark core",
+    "output_file": "__placeholder__/evals/v4_benchmark/version-a/01_core_01.jpg",
+    "output_url": "https://example.com/core-01.jpg",
+    "prediction_id": "bench-core-1",
+    "version_id": "version-a",
+    "version_ref": "owner/subject-model:version-a",
+    "status": "succeeded",
+    "predict_time": 1.2,
+    "web_url": "https://replicate.example/p/bench-core-1"
+  },
+  {
+    "prompt_id": "style_01",
+    "prompt": "Subject benchmark style",
+    "output_file": "__placeholder__/evals/v4_benchmark/version-a/11_style_01.jpg",
+    "output_url": "https://example.com/style-01.jpg",
+    "prediction_id": "bench-style-1",
+    "version_id": "version-a",
+    "version_ref": "owner/subject-model:version-a",
+    "status": "succeeded",
+    "predict_time": 1.5
+  }
+]
