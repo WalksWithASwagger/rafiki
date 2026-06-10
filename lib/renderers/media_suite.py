@@ -203,6 +203,31 @@ HTML = r"""<!doctype html>
     th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
     th { color: var(--muted); font-size: 12px; font-weight: 600; }
     a { color: var(--accent); text-decoration: none; }
+    #warnBadge { position: relative; }
+    #warnBadge .badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: var(--warn);
+      color: #101114;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 2px 5px;
+      pointer-events: none;
+    }
+    #warnDrawer {
+      display: none;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      padding: 12px 20px;
+    }
+    #warnDrawer.open { display: block; }
+    #warnDrawer h3 { margin: 0 0 8px; font-size: 13px; color: var(--warn); }
+    #warnDrawer ul { margin: 0; padding: 0 0 0 16px; color: var(--muted); font-size: 12px; }
+    #warnDrawer li { margin-bottom: 4px; overflow-wrap: anywhere; }
+    #warnDrawer .quiet { color: var(--muted); font-size: 12px; }
     @media (max-width: 760px) {
       header { grid-template-columns: 1fr; }
       nav { justify-content: flex-start; }
@@ -221,8 +246,13 @@ HTML = r"""<!doctype html>
       <button data-view="styles">Styles</button>
       <button data-view="video">Video Lab</button>
       <button id="refresh" title="Refresh media index">↻</button>
+      <button id="warnBadge" title="Importer warnings" style="display:none">⚠</button>
     </nav>
   </header>
+  <div id="warnDrawer">
+    <h3>Importer Warnings</h3>
+    <ul id="warnList"></ul>
+  </div>
   <main>
     <section id="library" class="view active">
       <div class="toolbar">
@@ -622,6 +652,27 @@ HTML = r"""<!doctype html>
       state.selections = data.items || {};
     }
 
+    async function loadWarnings() {
+      const data = await getJson('/api/media/warnings');
+      const warnings = data.warnings || [];
+      const badge = $('warnBadge');
+      const drawer = $('warnDrawer');
+      const list = $('warnList');
+      if (warnings.length) {
+        badge.style.display = '';
+        badge.innerHTML = `⚠ <span class="badge">${warnings.length}</span>`;
+        list.innerHTML = warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('');
+      } else {
+        badge.style.display = 'none';
+        drawer.classList.remove('open');
+        list.innerHTML = '';
+      }
+    }
+
+    $('warnBadge').addEventListener('click', () => {
+      $('warnDrawer').classList.toggle('open');
+    });
+
     function renderVideo() {
       const q = $('videoQ').value.toLowerCase();
       const subject = state.videoSubject || $('videoSubject').value;
@@ -788,7 +839,7 @@ HTML = r"""<!doctype html>
 
     async function loadAll(refresh=false) {
       await loadMedia(refresh);
-      await Promise.all([loadSubjects(), loadStyles(), loadJobs(), loadSelections()]);
+      await Promise.all([loadSubjects(), loadStyles(), loadJobs(), loadSelections(), loadWarnings()]);
       renderVideo();
       if (state.initialView) activateView(state.initialView);
     }

@@ -404,6 +404,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._serve_media_video_edits()
         elif path == "/api/media/jobs":
             self._serve_media_jobs()
+        elif path == "/api/media/warnings":
+            self._serve_media_warnings()
         elif path == "/api/media/selections/edl":
             self._serve_media_selection_edl(parsed.query)
         elif path == "/api/media/selections":
@@ -590,6 +592,13 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         from lib.jobs import list_jobs
 
         self._respond(200, "application/json", json.dumps({"jobs": list_jobs()}).encode())
+
+    def _serve_media_warnings(self):
+        from lib import media_registry
+
+        data = media_registry.load_registry(self._media_registry_path())
+        payload = {"warnings": data.get("warnings", [])}
+        self._respond(200, "application/json", json.dumps(payload).encode())
 
     def _serve_media_selections(self):
         self._respond(200, "application/json", json.dumps(self._load_video_selections()).encode())
