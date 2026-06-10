@@ -46,6 +46,7 @@ def run_acceptance(tmp_root: Path) -> dict[str, Any]:
     )
     _assert_registry_counts(registry)
     _assert_external_media_only(registry, fixture["media_root"])
+    assert registry.get("warnings", []) == [], registry.get("warnings")
 
     httpd, thread, base_url = _start_server(tmp_root, registry_path, fixture)
     try:
@@ -58,6 +59,8 @@ def run_acceptance(tmp_root: Path) -> dict[str, Any]:
         httpd.server_close()
         thread.join(timeout=2)
 
+    validation = _validation_checks(fixture)
+    warnings = _warning_checks(tmp_root)
     _assert_no_fixture_media_copied(tmp_root, fixture["clip"])
     return {
         "ok": True,
@@ -65,6 +68,7 @@ def run_acceptance(tmp_root: Path) -> dict[str, Any]:
             "entries": registry["summary"]["entries"],
             "videos": registry["summary"]["by_kind"].get("video", 0),
             "audio": registry["summary"]["by_kind"].get("audio", 0),
+            "clean_warnings": registry.get("warnings", []),
         },
         "portal": portal,
         "dry_run_job": {
@@ -75,6 +79,8 @@ def run_acceptance(tmp_root: Path) -> dict[str, Any]:
             "status": edit["manifest"]["status"],
             "manifest_path": edit["manifest_path"],
         },
+        "validation": validation,
+        "warnings": warnings,
         "private_media": {
             "copied_alex_media": False,
             "fixture_root": str(fixture["media_root"]),
@@ -218,6 +224,39 @@ def _dry_run_job_check(base_url: str, tmp_root: Path, storyboard: Path) -> dict[
     assert Path(result["manifest_path"]).exists()
     assert len(list(jobs_dir.glob("*.json"))) == 1
     return result
+
+
+def _validation_checks(fixture: dict[str, Any]) -> dict[str, Any]:
+    """Exercise the edit-manifest validation surface on a good and a bad manifest."""
+    from lib.video_jobs import validate_edit_manifest
+
+    good = json.loads(fixture["edit"].read_text(encoding="utf-8"))
+    good_result = validate_edit_manifest(good, base_path=fixture["edit"].parent)
+    assert good_result["ok"] is True, good_result["errors"]
+    assert good_result["errors"] == []
+
+    bad = json.loads(json.dumps(good))
+    bad["clips"][0]["path"] = str(fixture["media_root"] / "clips" / "missing.mp4")
+    bad_result = validate_edit_manifest(bad, base_path=fixture["edit"].parent)
+    assert bad_result["ok"] is False
+    assert any(error["type"] == "missing_clip" for error in bad_result["errors"]), bad_result["errors"]
+
+    return {"good_ok": True, "bad_detects_missing_clip": True}
+
+
+def _warning_checks(tmp_root: Path) -> dict[str, Any]:
+    """Confirm the registry surfaces a warning for an unreadable media root."""
+    from lib import media_registry
+    from lib.media_roots import MediaRoot
+
+    missing_root = tmp_root / "does-not-exist"
+    registry = media_registry.index(
+        roots={"missing": MediaRoot(key="missing", path=missing_root, importer="generic")},
+        registry_path=tmp_root / "data" / "warn-registry.json",
+    )
+    warnings = registry.get("warnings", [])
+    assert any("root not found" in warning for warning in warnings), warnings
+    return {"missing_root_warned": True, "warning_count": len(warnings)}
 
 
 def _assert_registry_counts(registry: dict[str, Any]) -> None:

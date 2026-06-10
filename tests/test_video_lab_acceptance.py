@@ -19,3 +19,7 @@ def test_video_lab_acceptance_command_passes() -> None:
     assert payload["portal"]["range_status"] == 206
     assert payload["dry_run_job"]["status"] == "dry-run"
     assert payload["private_media"]["copied_alex_media"] is False
+    assert payload["registry"]["clean_warnings"] == []
+    assert payload["validation"]["good_ok"] is True
+    assert payload["validation"]["bad_detects_missing_clip"] is True
+    assert payload["warnings"]["missing_root_warned"] is True
