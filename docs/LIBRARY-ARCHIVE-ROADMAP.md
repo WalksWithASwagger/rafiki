@@ -1,6 +1,6 @@
 # Rafiki Library And Archive Roadmap
 
-Last reviewed: 2026-05-23
+Last reviewed: 2026-06-09
 
 ## Goal
 
@@ -158,8 +158,9 @@ Success criteria:
    `output/archive-metadata.json`.
 5. Add archive health and cleanup reports. Done.
 6. Add optional thumbnail/cache generation for large local archives. Done.
-7. Add registry export state from `output/archive-metadata.json`.
-8. Add MCP wrappers once the local contracts are stable.
+7. Add registry export state from `output/archive-metadata.json`. Done (#143).
+8. Add MCP wrappers once the local contracts are stable. Done (#145); media-suite
+   tools and docs sync remain open (#208, #210).
 
 ## Non-Goals
 
