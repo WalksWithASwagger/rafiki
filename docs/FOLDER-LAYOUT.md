@@ -8,7 +8,6 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── generate.py                  # Python CLI dispatcher: generation, viewers, archive,
 │                                #   registry, deploy, exports, regen, serve, link-projects
 ├── generate-presentation-viewer.py  # JSON-driven deck viewer builder
-├── generate-rap-viewer.py       # thin wrapper for the RAP viewer data
 ├── mcp_server.py                # MCP server (typed tools + constrained CLI bridge)
 ├── package.json                 # npm package "rafiki"; bins: rafiki, image-gen
 ├── pytest.ini

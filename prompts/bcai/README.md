@@ -56,34 +56,6 @@ Prompts for BC AI ecosystem visualizations:
 
 **Best for:** Regenerating article art, map thumbnails, funding/hackathon tiles, and ecosystem storytelling without WIRED/ corporate chart defaults
 
-### RAP Certification — 4-Week Visual Curriculum
-
-40 images covering the full **Responsible AI Professional** certification curriculum,
-expressed as BC old-growth forest metaphors. Each file is a self-contained batch:
-
-| File | Module | Concepts |
-|------|--------|---------|
-| [`rap-week-1-foundations.md`](./rap-week-1-foundations.md) | Week 1 — Foundations | Data, Signal/Noise, ML vs Programming, Neural Nets, Attention, Hallucination, ReAct Loop, Governance, AI-shaped problems, Human-in-the-Loop |
-| [`rap-week-2-core-ethics.md`](./rap-week-2-core-ethics.md) | Week 2 — Core Ethics | Algorithmic bias, Fairness definitions, Hiring bias, Privacy/consent, Surveillance capitalism, Differential privacy, Copyright, Prediction vs description, Bias audit, Ethics assessment |
-| [`rap-week-3-societal-impact.md`](./rap-week-3-societal-impact.md) | Week 3 — Societal Impact | Deployment readiness, High-stakes domains, Job displacement, Augmentation vs replacement, Environmental cost, Right-sizing models, AI literacy, Deployment checklist, Worker surveillance, Failure response |
-| [`rap-week-4-human-element.md`](./rap-week-4-human-element.md) | Week 4 — Human Element | Deepfakes, Trust erosion, AI disclosure, Parasocial dynamics, Children & AI, Creativity, Agency, Meaning, Indigenous knowledge, Human flourishing |
-
-**Visual system:** deep forest green `#1E3A2B` + gold/amber `#D4A017` + bioluminescent white glow + misty grey-green atmosphere. Reference image: `/path/to/your/reference/rap-fall.png`.
-
-**Run any week:**
-```bash
-python generate.py -f prompts/bcai/rap-week-1-foundations.md -d output/rap-week-1 \
-  --style bcai -m gpt-image-2 \
-  --reference-images "/path/to/your/reference/rap-fall.png" -w 2
-```
-
-**Combined viewer with captions + social post copy:**
-```bash
-python generate-rap-viewer.py   # → output/rap-all-weeks/viewer.html
-```
-
----
-
 ### [context-creator-field-journals.md](./context-creator-field-journals.md)
 
 A single high-detail scene: three torn journal pages (different hands, different subject matter) with the same two words — **CONTEXT CREATOR** — circled on each, linked by mycelial threads to a bioluminescent node. “Three altitudes, same word, no coordination” — convergent independent discovery; found-object / documentary look, not deck zine.

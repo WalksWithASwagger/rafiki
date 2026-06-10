@@ -62,20 +62,18 @@ writing and emits a warning to stderr when the embedded payload exceeds 50 MB.
 ```bash
 # Single portable file, images capped at 1200 px wide
 python generate-presentation-viewer.py \
-    --data prompts/bcai/rap-viewer-data.json \
-    --output /tmp/rap-viewer \
+    --data prompts/<series>/viewer-data.json \
+    --output /tmp/series-viewer \
     --self-contained \
     --max-width 1200
 ```
 
-## Existing wrappers
+## Wrappers
 
-| Wrapper | Data file |
-|---|---|
-| `generate-rap-viewer.py` | `prompts/bcai/rap-viewer-data.json` |
-
-A wrapper is just a four-line `subprocess.run(...)` that pins the data file and
-output directory — see `generate-rap-viewer.py` for the pattern.
+No wrappers ship in this repo. A wrapper is just a four-line
+`subprocess.run(...)` around `generate-presentation-viewer.py` that pins a data
+file and output directory — keep series-specific wrappers in your own working
+directory rather than in the public tool.
 
 ## JSON schema
 
@@ -105,7 +103,7 @@ output directory — see `generate-rap-viewer.py` for the pattern.
   ],
 
   "image_dirs": {
-    "1": "output/rap-week-1/run-20260502-204603"  // dir per category id
+    "1": "output/<series>-1/run-20260502-204603"  // dir per category id
   },
 
   "items": [
@@ -156,8 +154,9 @@ item also has the legacy `social` string, that copy remains available as an
        --data prompts/<series>/viewer-data.json \
        --output output/<series>-viewer
    ```
-4. **(Optional) Add a wrapper** at the repo root if you'll regenerate often.
-   Copy `generate-rap-viewer.py`, change the two paths.
+4. **(Optional) Add a wrapper** in your own working directory if you'll
+   regenerate often — a four-line `subprocess.run([...])` around
+   `generate-presentation-viewer.py` with the data file and output dir pinned.
 
 ## Worked example: podcast episode thumbnails
 

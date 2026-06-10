@@ -12,7 +12,7 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | Scenario | Tool | Style flag | Model | Example command |
 |---|---|---|---|---|
 | **KK editorial / social** — article headers, LinkedIn banners, social variants (16:9, 1:1, 9:16) | Rafiki CLI | `--style kk` | `flash` | `python generate.py -f prompts/kk/2026-01-24-what-would-chat-do.md -d output/kk --style kk` |
-| **BC+AI ecosystem assets** — RAP marketing, logos, ecosystem diagrams | Rafiki CLI | `--style bcai` (diagrams) or `--no-style` (RAP, carries own styling) | `gpt` (RAP) / `flash` (diagrams) | `python generate.py -f prompts/bcai/rap-marketing.md -d output/rap --no-style -m gpt --quality high` |
+| **BC+AI ecosystem assets** — ecosystem diagrams, community maps | Rafiki CLI | `--style bcai` | `flash` | `python generate.py -f prompts/bcai/ecosystem-diagrams.md -d output/ecosystem --style bcai` |
 | **HOPECODE community diagrams** — BC+AI community theory, solarpunk mapping | Rafiki CLI | `--style hopecode` | `flash` | `python generate.py -f prompts/bcai/bcai-hopecode-visual-prompts.md -d output/hopecode --style hopecode` |
 | **WAIFF punk zine slide deck** — BWR, xerox grain, ransom-note type; needs reference image | Rafiki CLI (single-prompt; file needs reformat for batch — see §5) | `--no-style` (prompts carry zine aesthetic) or `--style zine` | `pro` | `python generate.py -p "Chaotic punk zine cover..." --no-style -m pro --reference-image prompts/kk-kb/reference-collage-v2.png` |
 | **GNI cosmic editorial diagrams** — space-blue, orbital, orbit maps | Rafiki CLI | `--style gni` | `flash` / `pro` | `python generate.py -p "AI journalism toolkit — four orbiting quadrants: GenAI, NLP, ML, Predictive — radial nodes on deep space-blue" --style gni -m pro` |
@@ -35,10 +35,6 @@ Cross-references: `styles/` for full style specs, `docs/SCOPE.md` for architectu
 | `prompts/kk/2026-01-24-what-would-chat-do.md` | KK editorial / social | `## N.` sections + `**Prompt:**` blockquotes | Yes | 7 prompts; WiT Regatta 2026 social/article images |
 | `prompts/kk/name-the-bias-hopecode.md` | KK personal / thought-leadership | `## N.` sections + `**Prompt:**` blockquotes | Yes | 9 HOPECODE-style images for "Name the Bias" article series |
 | `prompts/kk/name-the-bias-social-variants.md` | KK personal / thought-leadership | `## N.` sections + `**Prompt:**` blockquotes | Yes | 6 square/vertical social variants for name-the-bias |
-| `prompts/bcai/rap-marketing.md` | BC+AI ecosystem — RAP certification | `## N.` sections + `**Prompt:**` blockquotes | Yes | RAP brand colors embedded; use `--no-style` |
-| `prompts/bcai/rap-logo-variations.md` | BC+AI ecosystem — RAP logos | `## N.` sections + `**Prompt:**` blockquotes | Yes | Logo variants; use `--no-style` |
-| `prompts/bcai/rap-martin-revisions.md` | BC+AI ecosystem — RAP lecture revisions | `## N.` sections + `**Prompt:**` blockquotes | Yes | Martin revision pass for RAP Weeks 1-3; optional local reference via `--reference-images` |
-| `prompts/bcai/rap-youtube-thumbnails-2026-05-25.md` | BC+AI ecosystem — RAP YouTube thumbnails | `## N.` sections + `**Prompt:**` blockquotes | Yes | Source prompts; rendered outputs are kept in a private knowledge base, not this repo. |
 | `prompts/bcai/ecosystem-diagrams.md` | BC+AI ecosystem assets | `## N.` sections + `**Prompt:**` blockquotes | Yes | Mycelial network ecosystem diagrams |
 | `prompts/bcai/bcai-hopecode-visual-prompts.md` | BC+AI / HOPECODE community | `## N.` sections + `**Prompt:**` blockquotes | Yes | Also contains HOPECODE style preface block for single-prompt overrides |
 | `prompts/bcai/context-creator-field-journals.md` | BC+AI ecosystem | `## N.` sections + `**Prompt:**` blockquotes | Yes | Field journal visual series |
@@ -430,10 +426,6 @@ python generate.py -p "A creative professional at the intersection of technology
 python generate.py -f prompts/bcai/bcai-hopecode-visual-prompts.md \
   -d output/hopecode --style hopecode
 
-# RAP certification marketing — model carries its own styling
-python generate.py -f prompts/bcai/rap-marketing.md \
-  -d output/rap --no-style -m gpt --quality high
-
 # WAIFF punk zine — single slide with reference image (file needs ## N. reformat for batch)
 python generate.py \
   -p "Chaotic punk zine cover, dense overlapping collage... Black white and blood red only." \
@@ -441,8 +433,8 @@ python generate.py \
   --reference-image prompts/kk-kb/reference-collage-v2.png
 
 # Parallel batch — 4 workers
-python generate.py -f prompts/bcai/rap-marketing.md \
-  -d output/rap --workers 4
+python generate.py -f prompts/bcai/ecosystem-diagrams.md \
+  -d output/ecosystem --workers 4
 
 # Style composition — kk + bcai stacked
 python generate.py -p "BC AI ecosystem network diagram..." --style kk+bcai
