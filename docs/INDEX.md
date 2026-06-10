@@ -18,12 +18,6 @@ deeper operating docs by surface area.
 - [Keynote Visual Workflow Use Case](use-cases/keynote-visual-workflow.md) -
   public use case for turning talk notes into prompt packs, reviewable image
   candidates, slides, and downstream publishing assets.
-- [Keynote Workflow Handoff - 2026-06-05](HANDOFF-2026-06-05-KEYNOTE-WORKFLOW.md) -
-  public-release, blog use-case, issue swarm, PR #183 merge, verification, and
-  local worktree notes.
-- [ED + AI Logo Sprint](ED-AI-LOGO-SPRINT.md) - May 2026 education meetup
-  logo exploration, prompt-pack lineage, generated review artifacts, and
-  production handoff notes.
 
 ## Runtime Surfaces
 
@@ -60,8 +54,6 @@ deeper operating docs by surface area.
   the all-runs image archive, portal curation, cleanup, and agent access.
 - [Curriculum Atlas](CURRICULUM-ATLAS.md) - local program/module/objective
   scaffold that links generated archive images to teaching surfaces.
-- [KB Mirror Policy](kb-mirror-policy.md) - canonical ownership rule for
-  `prompts/kk-kb/` vs the legacy `kk-ai-ecosystem` copies.
 
 ## Export, Deployment, And Delivery
 
@@ -84,6 +76,3 @@ deeper operating docs by surface area.
   common agent archive jobs.
 - [Scheduled Regeneration](SCHEDULED-REGEN.md) - scheduled job config, schema,
   run behavior, and Claude Code automation notes.
-- [Image Pipeline Operator Guide](image-pipeline-operator.md) - scenario
-  decision table, prompt inventory, styles, reference image flow, Streamlit UI
-  workflow, viewer commands, and CLI recipes.
