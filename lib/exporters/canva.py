@@ -34,6 +34,26 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "output"
 RAP_DATA_PATH = REPO_ROOT / "prompts" / "bcai" / "rap-viewer-data.json"
 
+# Named export presets — operators pass --preset instead of tuning flags.
+# Each value is a dict of keyword arguments forwarded to export().
+PRESETS: dict[str, dict] = {
+    # Compact zip for quick sharing (e.g. email, Slack, Canva upload).
+    "small-review": {"zip": True},
+    # Unzipped directory with full asset structure preserved for archiving.
+    "full-archive": {"zip": False},
+}
+
+
+def apply_preset(preset_name: str) -> dict:
+    """Return export() kwargs for a named preset.
+
+    Raises ValueError for unknown preset names.
+    """
+    if preset_name not in PRESETS:
+        known = ", ".join(sorted(PRESETS))
+        raise ValueError(f"Unknown preset {preset_name!r}. Known presets: {known}")
+    return dict(PRESETS[preset_name])
+
 
 def _slug_to_title(slug: str) -> str:
     """Strip a leading ``NN-`` index and turn the rest into Title Case."""

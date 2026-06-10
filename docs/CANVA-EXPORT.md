@@ -3,6 +3,26 @@
 Bundle a project's images plus a metadata CSV for drag-and-drop bulk upload
 into Canva. No Canva API or hosted viewer required.
 
+## Export presets
+
+Two named presets cover the common cases. Pass `--preset <name>` instead of
+tuning individual flags:
+
+| Preset | Output | Use when |
+|---|---|---|
+| `small-review` | `canva-export.zip` | Sharing a compact review file (email, Slack, Canva upload) |
+| `full-archive` | `canva-export/` directory | Archiving the full asset structure locally |
+
+```bash
+# Small review — produces output/<project>/canva-export.zip
+python generate.py canva-export rap-all-weeks --preset small-review
+
+# Full archive — produces output/<project>/canva-export/ (unzipped)
+python generate.py canva-export rap-all-weeks --preset full-archive
+```
+
+Explicit flags (`--no-zip`) override the preset when both are provided.
+
 ## Usage
 
 ```bash

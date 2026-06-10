@@ -293,20 +293,42 @@ def _cmd_canva_export(argv: list[str]) -> None:
         prog="generate.py canva-export",
         description=(
             "Bundle a project's images and a metadata CSV for Canva.\n"
-            "Source: output/<project>/approved/ if present, else latest run-*/."
+            "Source: output/<project>/approved/ if present, else latest run-*/.\n\n"
+            "Presets:\n"
+            "  small-review  — zipped bundle for quick sharing (default behaviour)\n"
+            "  full-archive  — unzipped directory with full asset structure preserved"
         ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument("project", help="Project name under output/ (e.g. rap-all-weeks)")
     p.add_argument("--output", "-o", default=None,
                    help="Export dir (default: output/<project>/canva-export/)")
     p.add_argument("--no-zip", action="store_true",
                    help="Skip zipping the bundle (return the dir instead)")
+    p.add_argument(
+        "--preset",
+        choices=["small-review", "full-archive"],
+        default=None,
+        help=(
+            "Named export preset. "
+            "'small-review' produces a zip for sharing; "
+            "'full-archive' produces an unzipped directory. "
+            "Explicit --no-zip overrides the preset."
+        ),
+    )
     args = p.parse_args(argv)
 
-    from lib.exporters.canva import export
+    from lib.exporters.canva import export, apply_preset
+
+    kwargs: dict = {}
+    if args.preset:
+        kwargs.update(apply_preset(args.preset))
+    # Explicit flag wins over preset
+    if args.no_zip:
+        kwargs["zip"] = False
 
     out = Path(args.output) if args.output else None
-    result = export(project=args.project, output_dir=out, zip=not args.no_zip)
+    result = export(project=args.project, output_dir=out, **kwargs)
     print(f"Canva export: {result}")
 
 
