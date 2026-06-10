@@ -75,6 +75,7 @@ __all__ = [
     "parse_image_prompts_md",
     "load_styles",
     "get_default_style",
+    "_parse_days",
 ]
 
 
