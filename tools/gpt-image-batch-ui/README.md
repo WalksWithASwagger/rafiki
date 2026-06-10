@@ -22,10 +22,12 @@ streamlit run diagram_gen_ui.py
 
 ## Prompts + style
 
-From the **Rafiki** repo root, assets live under `prompts/kk-kb/gni-journalism-sovereignty/`. From this folder (`tools/gpt-image-batch-ui/`), use:
+Point the UI at a local prompt file (one prompt per line) and an optional style-guide
+text file. Generated prompt packs are kept in a private knowledge base, not in the public
+tool repo — supply your own local paths, e.g.:
 
-- `../prompts/kk-kb/gni-journalism-sovereignty/gpt-image-1-prompts-one-per-line.txt` (44 lines)
-- `../prompts/kk-kb/gni-journalism-sovereignty/hopecode-style-guide.txt`
+- `<your-prompts>/gpt-image-1-prompts-one-per-line.txt` (one prompt per line)
+- `<your-prompts>/style-guide.txt` (optional style preface)
 
 ## Notes
 

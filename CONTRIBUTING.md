@@ -52,8 +52,8 @@ process. Normal runtime commands include configured extra outputs by default.
 
 - Do not commit secrets, tokens, or private local paths.
 - Keep local machine configuration in untracked files where possible.
-- Prefer generic examples in top-level docs; move highly specific workflow notes
-  into `docs/` or `prompts/`.
+- Prefer generic examples in top-level docs; keep highly specific or content-
+  specific workflow notes in a private knowledge base, not the public tool repo.
 - Add or update tests when changing Python behavior.
 - Keep the local-first product scope intact unless the change explicitly expands
   it.

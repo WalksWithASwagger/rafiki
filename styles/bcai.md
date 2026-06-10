@@ -262,8 +262,7 @@ The style suffix automatically applies:
 
 ## Examples
 
-See the BC AI prompt library in `/prompts/bcai/`:
-- `ecosystem-diagrams.md` - Core ecosystem visualizations, stakeholder maps, infrastructure diagrams
+Example prompt packs for this style are kept in a private knowledge base, not in the public tool repo.
 
 ## Design Heritage
 

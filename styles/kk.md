@@ -73,9 +73,7 @@ The style suffix is defined in `styles/styles.yaml` and can be modified there wi
 
 ## Examples
 
-Existing examples can be found in:
-- `/prompts/kk/2026-01-24-what-would-chat-do.md` - WiT Regatta 2026 graphics
-- Various marketing hub directories under `/content/projects/05-marketing-and-outreach/`
+Example prompt packs for this style are kept in a private knowledge base, not in the public tool repo.
 
 ## Design Philosophy
 

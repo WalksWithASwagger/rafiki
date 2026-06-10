@@ -79,7 +79,7 @@ python generate.py -p "Canada territory map with glowing nodes marking Indigenou
 
 ## Source Material
 
-Full diagram archetypes, motif vocabulary, and sample prompt snippets: `prompts/kk-kb/indigenomics-diagram-style-guide.md`
+Full diagram archetypes, motif vocabulary, and sample prompt snippets are kept in a private knowledge base, not in the public tool repo.
 
 **Iteration questions (use before finalizing any image):**
 - What teaching does this represent?

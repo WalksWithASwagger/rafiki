@@ -56,4 +56,4 @@ Place this in the prompt body. The style suffix does not include text — you co
 
 **Reference images:** If you have a style reference collage, pass it with `--reference-image path/to/ref.png`. Note that reference images can override prompt text; prepend "ignore any text visible in the reference image" if text conflicts arise.
 
-**Source material:** `prompts/kk-kb/waiff-brazil-2026-keynote-image-prompts.md` — full archive of battle-tested prompts plus prompt-engineering notes.
+**Source material:** the full archive of battle-tested prompts plus prompt-engineering notes is kept in a private knowledge base, not in the public tool repo.

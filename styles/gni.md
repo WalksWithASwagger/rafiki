@@ -76,4 +76,4 @@ python generate.py -p "AI journalism toolkit — four orbiting quadrants: GenAI,
 
 **Prism splits for duality:** For bias diagrams, overrepresentation vs. output splits, or chaos vs. clarity comparisons — specify "symmetrical prism split" in the prompt body. The style suffix primes the model; the prompt directs the specific layout.
 
-**Source material:** `prompts/kk-kb/gni-cosmic-diagram-style-guide.md` — principles, layout recipes, icon kit, and sample prompt snippets.
+**Source material:** the GNI cosmic diagram style guide — principles, layout recipes, icon kit, and sample prompt snippets — is kept in a private knowledge base, not in the public tool repo.

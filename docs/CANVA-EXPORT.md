@@ -35,9 +35,9 @@ aspect_ratio, source_run, prompt`.
 
 ## Metadata enrichment
 
-- For RAP projects, captions/social copy are pulled from
-  `prompts/bcai/rap-viewer-data.json` if present (see issue #18). Missing
-  file is handled gracefully — the columns simply come back empty.
+- If a project ships an optional viewer-data metadata file, captions/social
+  copy are pulled from it if present (see issue #18). A missing file is handled
+  gracefully — the columns simply come back empty.
 - For non-RAP projects, `title` falls back to a Title-Case version of the
   filename slug; `caption`, `week`, and `social_post` are empty.
 
