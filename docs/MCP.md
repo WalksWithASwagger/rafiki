@@ -83,6 +83,20 @@ checkout when you need copy-paste commands for your own client.
   latest-run images.
 - `rafiki_notion_export`: dry-run or export approved/latest-run images to a
   Notion gallery database.
+- `rafiki_media_index`: index configured multimedia roots or one explicit local
+  root into the multimedia registry cache. Defaults to `dry_run: true`.
+- `rafiki_media_search`: search the multimedia registry for images, videos,
+  audio, styles, and manifests.
+- `rafiki_subjects`: list indexed subject profiles, or return one subject when
+  `subject` is passed.
+- `rafiki_jobs`: list local dry-run and executed job records stored under
+  `data/jobs`.
+- `rafiki_train_lora`: plan or launch a Replicate FLUX LoRA training job.
+  Defaults to dry-run (`execute: false`).
+- `rafiki_video_generate`: plan or launch a storyboard video generation job.
+  Defaults to dry-run (`execute: false`).
+- `rafiki_style_anchors`: read or derive a normalized style profile from a
+  style-anchor JSON file.
 - `rafiki_run`: run supported fallback CLI workflows without a shell.
 
 Typed workflow tools return stable JSON with `success`, `ok`, `tool`,
@@ -180,6 +194,75 @@ Canva and Notion export:
 {"project": "rap-all-weeks", "database_id": "notion-db-id", "dry_run": false}
 ```
 
+Multimedia suite:
+
+`rafiki_media_index` indexes configured roots from `config/media-roots.json`
+(or one explicit root). Defaults to dry-run so the registry cache is not
+written unless `dry_run` is false:
+
+```json
+{"key": "alex-samuel", "importer": "alex-samuel", "dry_run": true}
+```
+
+```json
+{"root": "/absolute/path/to/media-root", "key": "custom-root", "importer": "generic", "dry_run": true}
+```
+
+`rafiki_media_search`:
+
+```json
+{"query": "portrait", "kind": "image", "limit": 20}
+```
+
+`rafiki_subjects`:
+
+```json
+{}
+```
+
+```json
+{"subject": "alexandra"}
+```
+
+`rafiki_jobs`:
+
+```json
+{}
+```
+
+`rafiki_style_anchors`:
+
+```json
+{"source": "/absolute/path/to/style-anchor.json", "name": "hollywood"}
+```
+
+Spend-capable provider jobs (dry-run by default):
+
+`rafiki_train_lora` writes local manifests and job records. Set
+`execute: true` only after explicit operator approval; that path may call
+Replicate and spend credits:
+
+```json
+{"subject": "alexandra", "execute": false}
+```
+
+Note: the MCP argument is `execute`, not `dry_run`. Omit `execute` or pass
+`execute: false` for the safe default.
+
+```json
+{"subject": "alexandra", "input_images_url": "https://example.com/training.zip", "execute": false}
+```
+
+`rafiki_video_generate` follows the same execute gate:
+
+```json
+{"storyboard": "/absolute/path/to/storyboard.json", "execute": false}
+```
+
+```json
+{"storyboard": "/absolute/path/to/storyboard.json", "model": "wan-video/wan2.1-with-lora", "execute": true}
+```
+
 ## CLI Bridge Examples
 
 `rafiki_run` is still available for less common workflows. It accepts Rafiki
@@ -220,11 +303,15 @@ Render-only bridge calls execute:
 node /path/to/rafiki/index.js <args...>
 ```
 
-Typed tools mark local writes and external calls explicitly. `rafiki_archive_health`
-is always read-only and returns `mutating: false`. Registry export, viewer
-rebuild, library rebuild, render, and Canva export are local mutations when
+Typed tools mark local writes and external calls explicitly. `rafiki_archive_health`,
+`rafiki_media_search`, `rafiki_subjects`, `rafiki_jobs`, and `rafiki_style_anchors`
+are read-only and return `mutating: false`. `rafiki_media_index` is read-only when
+`dry_run` is true and mutates the local registry cache when `dry_run` is false.
+Registry export, viewer rebuild, library rebuild, render, and Canva export are local mutations when
 `dry_run` is false. Notion export is external and only mutates remote Notion
-state plus the local export log when `dry_run` is false.
+state plus the local export log when `dry_run` is false. `rafiki_train_lora` and
+`rafiki_video_generate` are always `mutating: true`; they stay local-only when
+`execute` is false and may call external providers when `execute` is true.
 
 Dry-run wrappers do not stamp archive metadata or write generated outputs.
 They only report the paths, URLs, counts, commands, and errors a real run would
