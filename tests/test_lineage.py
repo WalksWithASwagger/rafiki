@@ -155,7 +155,7 @@ def test_read_only_entries_not_mutated():
 def test_cmd_registry_suggest_lineage_no_matches(tmp_path, monkeypatch, capsys):
     import json as _json
 
-    from lib import registry, extra_outputs
+    from lib import registry
     from lib.commands.registry_cmds import _cmd_registry
 
     output_root = tmp_path / "output"

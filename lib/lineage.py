@@ -102,9 +102,21 @@ def _slug_base(slug: str) -> str:
     return result.strip("-_")
 
 
+_TITLE_STOPWORDS = frozenset({
+    "the", "and", "for", "now", "with", "from", "this", "that", "into", "are",
+    "was", "but", "not", "you", "your", "our", "out", "off", "per", "via",
+})
+
+
 def _title_words(title: str) -> frozenset[str]:
-    """Return a frozenset of lowercase alphabetic words from a title (length >= 3)."""
-    return frozenset(w for w in re.findall(r"[a-z]{3,}", title.lower()))
+    """Lowercase alphabetic title words (length >= 3), minus common stop-words.
+
+    Stop-words are dropped so lineage matching keys on meaningful terms rather
+    than filler like "the" or "now".
+    """
+    return frozenset(
+        w for w in re.findall(r"[a-z]{3,}", title.lower()) if w not in _TITLE_STOPWORDS
+    )
 
 
 def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
