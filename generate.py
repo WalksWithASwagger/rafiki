@@ -58,6 +58,16 @@ from lib.prompts import parse_image_prompts_md, ASPECT_RATIOS
 from lib.styles import load_styles, get_default_style
 from lib.usage import load_usage_log
 from lib.batch import run_batch
+from lib.commands import (
+    _cmd_approve,
+    _cmd_archive_health,
+    _cmd_archive_thumbnails,
+    _cmd_billing,
+    _cmd_clean,
+    _cmd_registry,
+    _parse_days,
+    _refresh_registry_after_mutation,
+)
 
 # Re-export for MCP server and other importers that do `import generate`
 __all__ = [
@@ -371,271 +381,6 @@ def _cmd_regen(argv: list[str]) -> None:
         print(f"  status: {summary['status']}")
         if job.notify:
             print(f"  [notify] {job.name} → {summary['status']} (output: {job.output_dir})")
-
-
-def _cmd_registry(argv: list[str]) -> None:
-    """Asset registry — index, search, export across all projects."""
-    p = argparse.ArgumentParser(
-        prog="generate.py registry",
-        description="Cross-project image asset registry (index/search/export).",
-    )
-    sub = p.add_subparsers(dest="action", required=True)
-
-    sp_index = sub.add_parser("index", help="Rebuild data/asset-registry.json from output/")
-    sp_index.add_argument(
-        "--all-runs",
-        action="store_true",
-        help="Index every run-* image instead of the curated approved/latest-run scope",
-    )
-
-    sp_search = sub.add_parser("search", help="Search registry by title/caption/tags")
-    sp_search.add_argument("query", help="Substring to match (case-insensitive)")
-    sp_search.add_argument("--json", action="store_true", dest="json_output",
-                           help="Emit results as JSON")
-
-    sp_export = sub.add_parser("export", help="Export registry to CSV or JSON")
-    sp_export.add_argument("--format", choices=["csv", "json"], default="csv")
-
-    args = p.parse_args(argv)
-
-    from lib.registry import index as registry_index, search as registry_search, export as registry_export
-
-    if args.action == "index":
-        entries = registry_index(scope="all-runs" if args.all_runs else "curated")
-        projects = sorted({e.project for e in entries})
-        print(f"Indexed {len(entries)} assets across {len(projects)} project(s).")
-        return
-
-    if args.action == "search":
-        results = registry_search(args.query)
-        if args.json_output:
-            print(json.dumps([e.to_dict() for e in results], indent=2))
-            return
-        if not results:
-            print(f"No matches for {args.query!r}.")
-            return
-        print(f"{len(results)} match(es) for {args.query!r}:")
-        for e in results:
-            print(f"  [{e.project}] {e.title}")
-            print(f"    id={e.id}  style={e.style}  model={e.model}")
-            print(f"    {e.path}")
-        return
-
-    if args.action == "export":
-        path = registry_export(format=args.format)
-        print(f"Exported registry: {path}")
-        return
-
-
-def _refresh_registry_after_mutation(output_root: Path, *, reason: str) -> dict[str, object]:
-    from lib import registry
-
-    return registry.refresh_cache(output_root=output_root, reason=reason)
-
-
-def _approval_output_root(project: str, output_dir: str | None) -> Path:
-    if output_dir:
-        return Path(output_dir).expanduser().resolve()
-    project_path = Path(project).expanduser()
-    if project_path.is_absolute():
-        return project_path.parent.resolve()
-    return (Path(__file__).parent / "output").resolve()
-
-
-def _approval_project_dir(project: str, output_root: Path) -> Path:
-    project_path = Path(project).expanduser()
-    if project_path.is_absolute():
-        return project_path.resolve()
-    return output_root / project
-
-
-def _cmd_billing(argv: list[str]) -> None:
-    """Import or summarize local provider billing exports."""
-    p = argparse.ArgumentParser(
-        prog="generate.py billing",
-        description="Import provider billing CSV/JSON into local gitignored spend ledger.",
-    )
-    sub = p.add_subparsers(dest="action", required=True)
-
-    sp_import = sub.add_parser("import", help="Import .csv, .json, or .jsonl billing rows")
-    sp_import.add_argument("source", help="Billing export file")
-    sp_import.add_argument("--provider", default="", help="Provider override, e.g. OpenAI or Gemini")
-    sp_import.add_argument("--label", default="", help="Friendly source label stored with each row")
-    sp_import.add_argument("--state", default=None, help="Override billing ledger path")
-    sp_import.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
-
-    sp_summary = sub.add_parser("summary", help="Summarize imported billing ledger")
-    sp_summary.add_argument("--state", default=None, help="Override billing ledger path")
-    sp_summary.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
-
-    args = p.parse_args(argv)
-
-    from lib.billing import import_billing_file, summarize_billing_imports
-
-    state_path = Path(args.state) if getattr(args, "state", None) else None
-    if args.action == "import":
-        try:
-            result = import_billing_file(
-                Path(args.source),
-                state_path=state_path,
-                provider=args.provider,
-                label=args.label,
-            )
-        except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        if args.json_output:
-            print(json.dumps(result, indent=2))
-            return
-        print(
-            f"Billing import: {result['imported']} imported, "
-            f"{result['duplicates']} duplicate(s), {result['skipped']} skipped"
-        )
-        print(f"Ledger: {result['path']}")
-        return
-
-    summary = summarize_billing_imports(state_path)
-    if args.json_output:
-        print(json.dumps(summary, indent=2))
-        return
-    print(f"Billing ledger: {summary['path']}")
-    print(f"Imported: {summary['entries']} row(s)")
-    print(f"USD total: ${summary['amount']:.2f}")
-    for provider in summary["by_provider"]:
-        print(f"  {provider['provider']}: ${provider['amount']:.2f} ({provider['entries']} row(s))")
-
-
-def _cmd_archive_health(argv: list[str]) -> None:
-    """Report archive health without mutating generated outputs."""
-    p = argparse.ArgumentParser(
-        prog="generate.py archive-health",
-        description="Read-only report for missing images, malformed runs, sidecar orphans, duplicates, and disk usage.",
-    )
-    p.add_argument(
-        "--output-dir", "-d", default=None,
-        help="Root output directory (default: output/ next to generate.py)",
-    )
-    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
-    p.add_argument(
-        "--cleanup-report",
-        action="store_true",
-        help="Print the conservative cleanup report grouped by project and run",
-    )
-    args = p.parse_args(argv)
-
-    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
-    from lib.archive_health import archive_health_report
-
-    report = archive_health_report(output_root)
-    if args.json_output:
-        print(json.dumps(report, indent=2))
-        return
-    if args.cleanup_report:
-        _print_archive_cleanup_report(report)
-        return
-
-    summary = report["summary"]
-    print(f"Archive health: {output_root}")
-    print(
-        f"Runs: {summary['runs']}  Images: {summary['present_images']}/"
-        f"{summary['manifest_images']} present  Disk: {summary['disk_bytes']} bytes"
-    )
-    print(
-        f"Missing: {summary['missing_images']}  Malformed runs: {len(report['malformed_runs'])}  "
-        f"Duplicate filename groups: {summary['duplicate_filename_groups']}"
-    )
-    print(
-        f"Orphans: ratings={summary['orphaned_ratings']} "
-        f"feedback={summary['orphaned_feedback']} "
-        f"evaluations={summary['orphaned_evaluations']} "
-        f"metadata={summary['orphaned_metadata']}"
-    )
-    cleanup = report["cleanup_report"]["summary"]
-    print(
-        f"Cleanup candidates: {cleanup['candidate_runs']} run(s), "
-        f"{cleanup['candidate_bytes']} bytes; risky runs: {cleanup['risky_runs']}"
-    )
-    cache = report["thumbnail_cache"]
-    print(f"Thumbnail cache: {cache['files']} file(s), {cache['disk_bytes']} bytes at {cache['path']}")
-    for rec in report["recommendations"]:
-        print(f"- {rec}")
-
-
-def _cmd_archive_thumbnails(argv: list[str]) -> None:
-    """Build optional local thumbnails without changing originals or viewers."""
-    p = argparse.ArgumentParser(
-        prog="generate.py archive-thumbnails",
-        description="Build local preview thumbnails under output/.rafiki-cache/ for large archives.",
-    )
-    p.add_argument(
-        "--output-dir", "-d", default=None,
-        help="Root output directory (default: output/ next to generate.py)",
-    )
-    p.add_argument("--width", type=int, default=480, help="Thumbnail max width in pixels")
-    p.add_argument("--force", action="store_true", help="Regenerate thumbnails even if cached")
-    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
-    args = p.parse_args(argv)
-
-    output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
-    if not output_root.exists():
-        print(f"Error: output dir not found: {output_root}")
-        sys.exit(1)
-
-    from lib.renderers.library import _records_from_registry
-    from lib.thumbnail_cache import build_thumbnail_cache
-
-    records = _records_from_registry(output_root)
-    summary = build_thumbnail_cache(output_root, records, width=args.width, force=args.force)
-    if args.json_output:
-        print(json.dumps(summary, indent=2))
-        return
-
-    print(f"Thumbnail cache: {summary['path']}")
-    print(
-        f"Images: {summary['checked']} checked  "
-        f"created={summary['created']} reused={summary['reused']} failed={summary['failed']}"
-    )
-    if summary["failed"]:
-        print("Errors:")
-        for error in summary["errors"]:
-            print(f"- {error['file']}: {error['error']}")
-
-
-def _print_archive_cleanup_report(report: dict) -> None:
-    cleanup = report["cleanup_report"]
-    summary = cleanup["summary"]
-    print(f"Archive cleanup report: {report['output_root']}")
-    print(f"Policy: {cleanup['policy']}")
-    print(
-        f"Candidates: {summary['candidate_runs']} run(s), "
-        f"{summary['candidate_images']} image(s), {summary['candidate_bytes']} bytes"
-    )
-    print(
-        f"Review before cleanup: {summary['risky_runs']} run(s), "
-        f"{summary['sidecar_orphan_groups']} sidecar orphan group(s), "
-        f"{summary['duplicate_filename_groups']} duplicate filename group(s)"
-    )
-
-    for project in cleanup["projects"]:
-        project_summary = project["summary"]
-        print(
-            f"\n{project['project']}: {project_summary['candidate_runs']} candidate / "
-            f"{project_summary['risky_runs']} review"
-        )
-        for run in project["runs"]:
-            print(
-                f"  [{run['action']}:{run['risk_level']}] {run['run']} "
-                f"{run['approved_images']}/{run['image_count']} approved, "
-                f"{run['disk_bytes']} bytes"
-            )
-            print(f"    {run['reason']}")
-        for command in project["suggested_commands"]:
-            print(f"    next: {command}")
-
-    if cleanup["sidecar_orphans"]:
-        print("\nSidecar orphans:")
-        for orphan in cleanup["sidecar_orphans"]:
-            print(f"  {orphan['collection']}: {orphan['count']} key(s)")
 
 
 def _cmd_deploy(argv: list[str]) -> None:
@@ -1040,138 +785,33 @@ def _cmd_style(argv: list[str]) -> None:
         print(f"  negative: {profile.negative_suffix[:240]}")
 
 
-def _cmd_approve(argv: list[str]) -> None:
-    """Copy starred images from a run into output/<project>/approved/."""
-    p = argparse.ArgumentParser(
-        prog="generate.py approve",
-        description="Promote starred images into the project's approved/ set.",
-    )
-    p.add_argument("project", help="Project name under output/ (or absolute path)")
-    p.add_argument("--run", default=None,
-                   help="Run id to approve from (default: latest run)")
-    p.add_argument(
-        "--output-dir",
-        default=None,
-        help="Root output directory for relative projects (default: output/ next to generate.py)",
-    )
-    args = p.parse_args(argv)
-
-    from lib.archive import approve as _approve
-    output_root = _approval_output_root(args.project, args.output_dir)
-    n = _approve(args.project, run=args.run, output_root=output_root)
-    approved_dir = _approval_project_dir(args.project, output_root) / "approved"
-    print(f"Approved {n} image(s) → {approved_dir}/")
-    if n > 0:
-        refresh = _refresh_registry_after_mutation(output_root, reason="approve")
-        print(f"Registry refreshed: {refresh['registry_path']} ({refresh['registry_count']} assets)")
-
-
-def _parse_days(spec: str) -> int:
-    """Parse '30d' / '7' into an int day count."""
-    s = spec.strip().lower()
-    if s.endswith("d"):
-        s = s[:-1]
-    try:
-        return int(s)
-    except ValueError as e:
-        raise argparse.ArgumentTypeError(
-            f"--older-than expects N or Nd (e.g. 30 or 30d), got {spec!r}"
-        ) from e
-
-
-def _cmd_clean(argv: list[str]) -> None:
-    """Delete old run-* dirs, optionally keeping runs with approved images."""
-    p = argparse.ArgumentParser(
-        prog="generate.py clean",
-        description="Remove run-*/ dirs from a project. approved/ is never touched.",
-    )
-    p.add_argument("project", help="Project name under output/ (or absolute path)")
-    p.add_argument("--keep-approved", action="store_true",
-                   help="Only delete runs whose images are all in approved/")
-    p.add_argument("--older-than", default=None, metavar="DAYS",
-                   help="Only delete runs older than N days (e.g. 30 or 30d)")
-    p.add_argument("--dry-run", action="store_true",
-                   help="Print what would be deleted without removing anything")
-    args = p.parse_args(argv)
-
-    older = _parse_days(args.older_than) if args.older_than else None
-    from lib.archive import clean as _clean
-    deleted = _clean(
-        args.project,
-        keep_approved=args.keep_approved,
-        older_than_days=older,
-        dry_run=args.dry_run,
-    )
-    verb = "Would delete" if args.dry_run else "Deleted"
-    print(f"{verb} {len(deleted)} run dir(s):")
-    for d in deleted:
-        print(f"  {d}")
-
-
 def main() -> None:
     # Dispatch subcommands before main arg parsing
-    if len(sys.argv) > 1 and sys.argv[1] == "view":
-        _cmd_view(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "library":
-        _cmd_library(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "serve":
-        _cmd_serve(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "link-projects":
-        _cmd_link_projects(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "approve":
-        _cmd_approve(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "canva-export":
-        _cmd_canva_export(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "clean":
-        _cmd_clean(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "deploy":
-        _cmd_deploy(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "notion-export":
-        _cmd_notion_export(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "regen":
-        _cmd_regen(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "registry":
-        _cmd_registry(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "billing":
-        _cmd_billing(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "archive-health":
-        _cmd_archive_health(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "archive-thumbnails":
-        _cmd_archive_thumbnails(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "social-expand":
-        _cmd_social_expand(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "media":
-        _cmd_media(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "import":
-        _cmd_import(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "subjects":
-        _cmd_subjects(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "train":
-        _cmd_train(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "video":
-        _cmd_video(sys.argv[2:])
-        return
-    if len(sys.argv) > 1 and sys.argv[1] == "style":
-        _cmd_style(sys.argv[2:])
+    subcommands = {
+        "view": _cmd_view,
+        "library": _cmd_library,
+        "serve": _cmd_serve,
+        "link-projects": _cmd_link_projects,
+        "approve": _cmd_approve,
+        "canva-export": _cmd_canva_export,
+        "clean": _cmd_clean,
+        "deploy": _cmd_deploy,
+        "notion-export": _cmd_notion_export,
+        "regen": _cmd_regen,
+        "registry": _cmd_registry,
+        "billing": _cmd_billing,
+        "archive-health": _cmd_archive_health,
+        "archive-thumbnails": _cmd_archive_thumbnails,
+        "social-expand": _cmd_social_expand,
+        "media": _cmd_media,
+        "import": _cmd_import,
+        "subjects": _cmd_subjects,
+        "train": _cmd_train,
+        "video": _cmd_video,
+        "style": _cmd_style,
+    }
+    if len(sys.argv) > 1 and sys.argv[1] in subcommands:
+        subcommands[sys.argv[1]](sys.argv[2:])
         return
 
     parser = argparse.ArgumentParser(
