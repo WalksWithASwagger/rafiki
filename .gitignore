@@ -4,6 +4,7 @@
 # macOS / local scratch
 .DS_Store
 /rafiki/
+/animation-accelerator
 
 # One-off local renders (regenerable)
 output.png
