@@ -91,6 +91,13 @@ checkout when you need copy-paste commands for your own client.
   `subject` is passed.
 - `rafiki_jobs`: list local dry-run and executed job records stored under
   `data/jobs`.
+- `rafiki_job_status`: return hardened status fields for a single job by ID,
+  including `status`, `polling_status`, `error`, `provider`, `kind`,
+  `cost_estimate`, and explicit `mutating: false` / `external: false` safety
+  flags. Never calls any provider.
+- `rafiki_media_warnings`: return the `warnings` list collected during the
+  last multimedia registry index run without triggering a re-index. Returns an
+  empty list if the registry has not been built yet.
 - `rafiki_train_lora`: plan or launch a Replicate FLUX LoRA training job.
   Defaults to dry-run (`execute: false`).
 - `rafiki_video_generate`: plan or launch a storyboard video generation job.
@@ -230,6 +237,22 @@ written unless `dry_run` is false:
 {}
 ```
 
+`rafiki_job_status`:
+
+```json
+{"job_id": "video-generation-20260601-120000"}
+```
+
+`rafiki_media_warnings`:
+
+```json
+{}
+```
+
+```json
+{"registry_path": "/absolute/path/to/media-registry.json"}
+```
+
 `rafiki_style_anchors`:
 
 ```json
@@ -304,7 +327,8 @@ node /path/to/rafiki/index.js <args...>
 ```
 
 Typed tools mark local writes and external calls explicitly. `rafiki_archive_health`,
-`rafiki_media_search`, `rafiki_subjects`, `rafiki_jobs`, and `rafiki_style_anchors`
+`rafiki_media_search`, `rafiki_subjects`, `rafiki_jobs`, `rafiki_job_status`,
+`rafiki_media_warnings`, and `rafiki_style_anchors`
 are read-only and return `mutating: false`. `rafiki_media_index` is read-only when
 `dry_run` is true and mutates the local registry cache when `dry_run` is false.
 Registry export, viewer rebuild, library rebuild, render, and Canva export are local mutations when
