@@ -115,6 +115,9 @@ command: cd /path/to/rafiki && python generate.py regen --yes
 
 Pair with `notify: true` on individual jobs to get a one-line confirmation in the run log when an evergreen batch refreshes.
 
+See also [Local Automation And Agent Archive Recipes](RECIPES.md) for
+copy-paste dry-run recipes and agent archive jobs.
+
 Prefer a two-step automation while a job is new:
 
 ```

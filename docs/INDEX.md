@@ -79,6 +79,9 @@ deeper operating docs by surface area.
 
 ## Regeneration And Operator Workflows
 
+- [Local Automation And Agent Archive Recipes](RECIPES.md) - copy-paste
+  dry-run recipes for scheduled regen, prompt refresh, post-run summary, and
+  common agent archive jobs.
 - [Scheduled Regeneration](SCHEDULED-REGEN.md) - scheduled job config, schema,
   run behavior, and Claude Code automation notes.
 - [Image Pipeline Operator Guide](image-pipeline-operator.md) - scenario
