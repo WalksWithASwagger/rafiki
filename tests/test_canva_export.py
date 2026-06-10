@@ -133,3 +133,40 @@ def test_prefers_approved_over_runs(tmp_path: Path):
     images_dir = project / "canva-export" / "images"
     assert (images_dir / "from-approved.png").exists()
     assert not (images_dir / "from-run.png").exists()
+
+
+# ─── Preset mapping tests ──────────────────────────────────────────────────────
+
+def test_presets_dict_contains_expected_keys():
+    assert "small-review" in canva.PRESETS
+    assert "full-archive" in canva.PRESETS
+
+
+def test_apply_preset_small_review_returns_zip_true():
+    opts = canva.apply_preset("small-review")
+    assert opts["zip"] is True
+
+
+def test_apply_preset_full_archive_returns_zip_false():
+    opts = canva.apply_preset("full-archive")
+    assert opts["zip"] is False
+
+
+def test_apply_preset_unknown_raises_value_error():
+    with pytest.raises(ValueError, match="Unknown preset"):
+        canva.apply_preset("nonexistent-preset")
+
+
+def test_preset_small_review_produces_zip(project_root: Path):
+    opts = canva.apply_preset("small-review")
+    result = canva.export("test-project", output_root=project_root, **opts)
+    assert result.suffix == ".zip"
+    assert result.exists()
+
+
+def test_preset_full_archive_produces_directory(project_root: Path):
+    opts = canva.apply_preset("full-archive")
+    result = canva.export("test-project", output_root=project_root, **opts)
+    assert result.is_dir()
+    assert (result / "images").is_dir()
+    assert (result / "assets.csv").is_file()
