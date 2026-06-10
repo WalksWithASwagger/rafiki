@@ -1,0 +1,24 @@
+[
+  {
+    "prompt_key": "closeup",
+    "prompt": "Subject cross-version closeup",
+    "output_file": "__placeholder__/evals/cross_version/version-b/01_closeup.jpg",
+    "output_url": "https://example.com/cross-closeup.jpg",
+    "prediction_id": "cross-closeup-1",
+    "version_id": "version-b",
+    "version_ref": "owner/subject-model:version-b",
+    "status": "succeeded",
+    "predict_time": 1.75,
+    "web_url": "https://replicate.example/p/cross-closeup-1"
+  },
+  {
+    "prompt_key": "full_body",
+    "prompt": "Subject cross-version full body",
+    "output_url": "https://example.com/cross-full-body.jpg",
+    "prediction_id": "cross-body-1",
+    "version_id": "version-b",
+    "version_ref": "owner/subject-model:version-b",
+    "status": "succeeded",
+    "predict_time": 1.6
+  }
+]

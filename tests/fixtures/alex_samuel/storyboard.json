@@ -1,0 +1,29 @@
+{
+  "title": "Song Fixture",
+  "artist": "Fixture Artist",
+  "duration_sec": 180,
+  "audio_file": "song.mp3",
+  "trigger_word": "SUBJECT",
+  "scenes": [
+    {
+      "id": "s01",
+      "start": 0,
+      "end": 5,
+      "section": "intro",
+      "type": "video",
+      "mood": "open",
+      "lyrics": "",
+      "notes": "opening"
+    },
+    {
+      "id": "s02",
+      "start": 5,
+      "end": 12,
+      "section": "verse",
+      "type": "video",
+      "mood": "focused",
+      "lyrics": "line one",
+      "notes": ""
+    }
+  ]
+}

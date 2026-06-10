@@ -1,0 +1,16 @@
+{
+  "version": "cinematic_v1",
+  "style_suffix": "cinematic depth of field golden hour",
+  "negative_suffix": "plastic skin overexposed flat",
+  "source": {
+    "ratings_path": "video_project/song_fixture/ratings.json",
+    "prompt_suite_path": "video_project/song_fixture/prompt_suite.json",
+    "starred_prompt_count": 4,
+    "grade_counts": {"high dynamic range filmic grade": 3, "cool tones": 1},
+    "lens_counts": {"50mm prime": 3, "35mm": 1},
+    "top_runs": [
+      {"run_id": "wave1", "score": 5},
+      {"run_id": "wave2", "score": 4}
+    ]
+  }
+}
