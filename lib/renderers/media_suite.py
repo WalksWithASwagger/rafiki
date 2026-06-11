@@ -233,6 +233,33 @@ HTML = r"""<!doctype html>
     #warnDrawer ul { margin: 0; padding: 0 0 0 16px; color: var(--muted); font-size: 12px; }
     #warnDrawer li { margin-bottom: 4px; overflow-wrap: anywhere; }
     #warnDrawer .quiet { color: var(--muted); font-size: 12px; }
+    .preview-panel {
+      margin-top: 12px;
+      border: 1px solid var(--warn);
+      border-radius: 8px;
+      background: var(--panel-2);
+      padding: 12px 14px;
+    }
+    .preview-panel h3 {
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: var(--warn);
+      font-weight: 650;
+    }
+    .preview-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .preview-row .label { color: var(--muted); min-width: 90px; }
+    .preview-note {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 8px;
+      font-style: italic;
+    }
     @media (max-width: 760px) {
       header { grid-template-columns: 1fr; }
       nav { justify-content: flex-start; }
@@ -305,8 +332,10 @@ HTML = r"""<!doctype html>
           <label>Dataset URL<input id="trainDataset"></label>
           <label class="check"><input type="checkbox" id="trainExecute"> Execute provider call</label>
           <label class="check"><input type="checkbox" id="trainConfirm"> Confirm execute spend</label>
+          <button id="trainPreview" class="primary">Preview</button>
           <button id="trainRun" class="warn">Dry Run</button>
         </div>
+        <div id="trainPreviewPanel" class="preview-panel" style="display:none"></div>
       </div>
       <div class="panel">
         <h2>Video Generation</h2>
@@ -314,8 +343,10 @@ HTML = r"""<!doctype html>
           <label class="wide">Storyboard Path<input id="videoStoryboard" placeholder="/path/to/storyboard.json"></label>
           <label class="check"><input type="checkbox" id="videoExecute"> Execute provider call</label>
           <label class="check"><input type="checkbox" id="videoConfirm"> Confirm execute spend</label>
+          <button id="videoPreview" class="primary">Preview</button>
           <button id="videoRun" class="warn">Dry Run</button>
         </div>
+        <div id="videoPreviewPanel" class="preview-panel" style="display:none"></div>
       </div>
       <pre id="studioOut"></pre>
     </section>
@@ -398,7 +429,9 @@ HTML = r"""<!doctype html>
     $('videoExport').addEventListener('click', exportVideoEdl);
     $('videoImport').addEventListener('click', importVideoEdl);
     $('studioRun').addEventListener('click', runStudio);
+    $('trainPreview').addEventListener('click', previewTraining);
     $('trainRun').addEventListener('click', runTraining);
+    $('videoPreview').addEventListener('click', previewVideoGeneration);
     $('videoRun').addEventListener('click', runVideoGeneration);
     $('subjectCards').addEventListener('click', handleSubjectQuickLink);
 
@@ -847,6 +880,53 @@ HTML = r"""<!doctype html>
         aspect_ratio: $('studioAspect').value
       });
       $('studioOut').textContent = JSON.stringify(result, null, 2);
+    }
+
+    function renderPreviewPanel(panel, preview) {
+      const counts = preview.count_preview || {};
+      const execute = preview.execute;
+      const mode = execute ? 'execute' : 'dry-run';
+      const rows = [
+        ['Provider', preview.provider || '—'],
+        ['Model', preview.model || '—'],
+        ['Mode', mode],
+      ];
+      const countKeys = Object.entries(counts).filter(([k]) => k !== 'network_calls');
+      countKeys.forEach(([k, v]) => rows.push([k.replace(/_/g, ' '), String(v)]));
+      const note = preview.pricing_note || '';
+      panel.innerHTML = `<h3>Cost / Count Preview</h3>` +
+        rows.map(([label, val]) => `<div class="preview-row"><span class="label">${escapeHtml(label)}</span><span>${escapeHtml(val)}</span></div>`).join('') +
+        (note ? `<div class="preview-note">${escapeHtml(note)}</div>` : '');
+      panel.style.display = '';
+    }
+
+    async function previewTraining() {
+      const panel = $('trainPreviewPanel');
+      try {
+        const preview = await postJson('/api/jobs/train-lora/preview', {
+          subject: $('trainSubject').value || 'subject',
+          input_images_url: $('trainDataset').value,
+          execute: $('trainExecute').checked
+        });
+        renderPreviewPanel(panel, preview);
+      } catch (err) {
+        panel.innerHTML = `<div class="preview-note">${escapeHtml(err.message)}</div>`;
+        panel.style.display = '';
+      }
+    }
+
+    async function previewVideoGeneration() {
+      const panel = $('videoPreviewPanel');
+      try {
+        const preview = await postJson('/api/jobs/video-generate/preview', {
+          storyboard: $('videoStoryboard').value,
+          execute: $('videoExecute').checked
+        });
+        renderPreviewPanel(panel, preview);
+      } catch (err) {
+        panel.innerHTML = `<div class="preview-note">${escapeHtml(err.message)}</div>`;
+        panel.style.display = '';
+      }
     }
 
     async function runTraining() {

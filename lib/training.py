@@ -15,6 +15,46 @@ DEFAULT_TRAINER_MODEL = "ostris/flux-dev-lora-trainer"
 DEFAULT_TRAINER_VERSION = "26dce37af90b9d997eeb970d92e47de3064d46c300504ae376c75bef6a9022d2"
 
 
+def build_training_preview(
+    *,
+    subject: str,
+    trainer_model: str = DEFAULT_TRAINER_MODEL,
+    input_images_url: str = "",
+    steps: int = 1000,
+    lora_rank: int = 16,
+    execute: bool = False,
+) -> dict[str, Any]:
+    """Return a local cost/count preview with no file I/O or provider calls."""
+    count_preview = {
+        "planned_provider_jobs": 1,
+        "network_calls": 1 if execute else 0,
+        "training_runs": 1,
+        "steps": steps,
+        "lora_rank": lora_rank,
+        "dataset_urls": 1 if input_images_url else 0,
+    }
+    from lib.jobs import provider_cost_preview as _pcp
+
+    cost_estimate = _pcp(
+        provider="Replicate",
+        model=trainer_model,
+        counts=count_preview,
+        dry_run=not execute,
+        note="Replicate LoRA training spend is not estimated locally; use provider billing for exact charges.",
+    )
+    return {
+        "kind": "lora-training",
+        "subject": subject,
+        "provider": "Replicate",
+        "model": trainer_model,
+        "execute": execute,
+        "dry_run": not execute,
+        "count_preview": count_preview,
+        "cost_estimate": cost_estimate,
+        "pricing_note": cost_estimate["note"],
+    }
+
+
 def plan_lora_training(
     *,
     subject: str,
