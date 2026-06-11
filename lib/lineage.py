@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from lib.registry import AssetEntry
 
 
 COMPARISON_FIELDS = (
@@ -72,3 +77,133 @@ def annotate_lineage_comparisons(records: list[dict[str, Any]]) -> None:
             })
 
         record["lineage_comparison"] = comparison
+
+
+# ── lineage suggestion heuristics ────────────────────────────────────────────
+
+# Version/variant suffixes that mark a file as a derivative of another.
+_VERSION_SUFFIX_RE = re.compile(
+    r"[-_](?:v\d+|r\d+|alt\d*|retry\d*|take\d*|\d+)$",
+    re.IGNORECASE,
+)
+
+
+def _slug_base(slug: str) -> str:
+    """Strip trailing version/variant suffixes to get a canonical base slug.
+
+    Iterates so that chained suffixes like ``hero-v2-alt`` reduce to ``hero``.
+    """
+    result = slug.lower()
+    while True:
+        trimmed = _VERSION_SUFFIX_RE.sub("", result)
+        if trimmed == result:
+            break
+        result = trimmed
+    return result.strip("-_")
+
+
+_TITLE_STOPWORDS = frozenset({
+    "the", "and", "for", "now", "with", "from", "this", "that", "into", "are",
+    "was", "but", "not", "you", "your", "our", "out", "off", "per", "via",
+})
+
+
+def _title_words(title: str) -> frozenset[str]:
+    """Lowercase alphabetic title words (length >= 3), minus common stop-words.
+
+    Stop-words are dropped so lineage matching keys on meaningful terms rather
+    than filler like "the" or "now".
+    """
+    return frozenset(
+        w for w in re.findall(r"[a-z]{3,}", title.lower()) if w not in _TITLE_STOPWORDS
+    )
+
+
+def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+
+def _path_stem(entry: "AssetEntry") -> str:
+    """Return the filename stem (no extension) for an AssetEntry path."""
+    return Path(entry.path).stem if entry.path else entry.id
+
+
+def suggest_lineage_candidates(
+    entries: "list[AssetEntry]",
+    *,
+    title_jaccard_threshold: float = 0.5,
+) -> list[dict[str, Any]]:
+    """Return read-only lineage suggestions for entries without an explicit link.
+
+    Pairs two entries in the same project when they share a slug base (after
+    stripping version suffixes) OR when their titles have significant word
+    overlap.  Pairs already connected by an explicit ``superseded_by`` link are
+    excluded.
+
+    Each suggestion is a dict::
+
+        {
+            "source_id": str,
+            "candidate_id": str,
+            "source_path": str,
+            "candidate_path": str,
+            "project": str,
+            "reasons": list[str],   # human-readable explanation
+        }
+
+    The list is ordered: (source, candidate) with source_id < candidate_id so
+    each unique pair appears exactly once.
+    """
+    # Collect ids referenced by explicit superseded_by links to suppress them.
+    explicitly_linked: set[tuple[str, str]] = set()
+    for entry in entries:
+        if entry.superseded_by:
+            a, b = entry.id, entry.superseded_by
+            explicitly_linked.add((a, b) if a < b else (b, a))
+
+    # Group by project for O(project-size^2) pairwise comparison.
+    by_project: dict[str, list["AssetEntry"]] = {}
+    for entry in entries:
+        by_project.setdefault(entry.project, []).append(entry)
+
+    suggestions: list[dict[str, Any]] = []
+    seen_pairs: set[tuple[str, str]] = set()
+
+    for project, group in by_project.items():
+        for i, a in enumerate(group):
+            for b in group[i + 1:]:
+                pair = (a.id, b.id) if a.id < b.id else (b.id, a.id)
+                if pair in seen_pairs or pair in explicitly_linked:
+                    continue
+
+                reasons: list[str] = []
+
+                # Heuristic 1: slug base match.
+                a_stem = _slug_base(re.sub(r"[^a-z0-9-]", "-", _path_stem(a)))
+                b_stem = _slug_base(re.sub(r"[^a-z0-9-]", "-", _path_stem(b)))
+                if a_stem and b_stem and a_stem == b_stem and a_stem != project.lower():
+                    reasons.append(f"slug base match: {a_stem!r}")
+
+                # Heuristic 2: title word overlap.
+                a_words = _title_words(a.title)
+                b_words = _title_words(b.title)
+                j = _jaccard(a_words, b_words)
+                if j >= title_jaccard_threshold:
+                    reasons.append(f"title overlap: {j:.0%} ({', '.join(sorted(a_words & b_words))})")
+
+                if not reasons:
+                    continue
+
+                seen_pairs.add(pair)
+                suggestions.append({
+                    "source_id": pair[0],
+                    "candidate_id": pair[1],
+                    "source_path": a.path if a.id == pair[0] else b.path,
+                    "candidate_path": b.path if a.id == pair[0] else a.path,
+                    "project": project,
+                    "reasons": reasons,
+                })
+
+    return suggestions
