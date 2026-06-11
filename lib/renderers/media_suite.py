@@ -362,6 +362,7 @@ HTML = r"""<!doctype html>
       const target = $(view) ? view : 'library';
       document.querySelectorAll('#tabs button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === target));
       document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === target));
+      pushFilterState();
     }
 
     document.querySelectorAll('#tabs button[data-view]').forEach(btn => {
@@ -369,20 +370,23 @@ HTML = r"""<!doctype html>
     });
 
     $('refresh').addEventListener('click', () => loadAll(true));
-    $('search').addEventListener('click', () => loadMedia(false));
-    $('viewMode').addEventListener('change', () => loadMedia(false));
-    $('kind').addEventListener('change', () => loadMedia(false));
-    $('collection').addEventListener('change', () => loadMedia(false));
+    $('search').addEventListener('click', () => { pushFilterState(); loadMedia(false); });
+    $('viewMode').addEventListener('change', () => { pushFilterState(); loadMedia(false); });
+    $('kind').addEventListener('change', () => { pushFilterState(); loadMedia(false); });
+    $('collection').addEventListener('change', () => { pushFilterState(); loadMedia(false); });
     $('subject').addEventListener('change', () => {
       state.librarySubject = $('subject').value;
+      pushFilterState();
       loadMedia(false);
     });
     $('videoSubject').addEventListener('change', () => {
       state.videoSubject = $('videoSubject').value;
+      pushFilterState();
       renderVideo();
     });
     $('videoProject').addEventListener('change', () => {
       state.videoProject = $('videoProject').value;
+      pushFilterState();
       renderVideo();
     });
     $('videoSearch').addEventListener('click', renderVideo);
@@ -416,16 +420,57 @@ HTML = r"""<!doctype html>
       return JSON.parse(text || '{}');
     }
 
+    const FILTER_STORAGE_KEY = 'rafiki:library-filters';
+
+    function loadStoredFilters() {
+      try {
+        const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    function pushFilterState() {
+      const params = new URLSearchParams();
+      const tab = document.querySelector('#tabs button.active[data-view]');
+      const activeTab = tab ? tab.dataset.view : '';
+      if (activeTab && activeTab !== 'library') params.set('tab', activeTab);
+      const view = $('viewMode').value;
+      if (view && view !== 'review') params.set('view', view);
+      const q = $('q').value;
+      if (q) params.set('q', q);
+      const kind = $('kind').value;
+      if (kind) params.set('kind', kind);
+      const collection = $('collection').value;
+      if (collection) params.set('collection', collection);
+      const subject = $('subject').value;
+      if (subject) params.set('subject', subject);
+      const videoSubject = $('videoSubject').value;
+      if (videoSubject) params.set('videoSubject', videoSubject);
+      const videoProject = $('videoProject').value;
+      if (videoProject) params.set('videoProject', videoProject);
+      const search = params.toString();
+      history.replaceState(null, '', search ? '?' + search : location.pathname);
+      try {
+        const stored = {tab: activeTab, view, q, kind, collection, subject, videoSubject, videoProject};
+        localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(stored));
+      } catch (e) { /* storage unavailable */ }
+    }
+
     function applyInitialParams() {
-      const params = new URLSearchParams(window.location.search);
-      state.initialView = params.get('tab') || '';
-      state.librarySubject = params.get('subject') || '';
-      state.videoSubject = params.get('videoSubject') || '';
-      state.videoProject = params.get('videoProject') || '';
-      if (params.has('q')) $('q').value = params.get('q') || '';
-      if (params.has('view')) $('viewMode').value = params.get('view') || 'review';
-      if (params.has('kind')) $('kind').value = params.get('kind') || '';
-      if (params.has('collection')) $('collection').value = params.get('collection') || '';
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasUrlState = urlParams.toString() !== '';
+      const stored = hasUrlState ? {} : loadStoredFilters();
+      const get = (key, fallback = '') => urlParams.has(key) ? (urlParams.get(key) || fallback) : (stored[key] || fallback);
+      state.initialView = get('tab');
+      state.librarySubject = get('subject');
+      state.videoSubject = get('videoSubject');
+      state.videoProject = get('videoProject');
+      $('q').value = get('q');
+      $('viewMode').value = get('view') || 'review';
+      $('kind').value = get('kind');
+      $('collection').value = get('collection');
     }
 
     async function loadMedia(refresh) {
@@ -750,30 +795,27 @@ HTML = r"""<!doctype html>
       }
     }
 
-    async function applyLibrarySubject(subject, href) {
+    async function applyLibrarySubject(subject, _href) {
       state.librarySubject = subject;
       $('subject').value = subject;
       $('viewMode').value = 'all';
       activateView('library');
-      if (href) history.replaceState(null, '', href);
       await loadMedia(false);
     }
 
-    function applyVideoSubject(subject, href) {
+    function applyVideoSubject(subject, _href) {
       state.videoSubject = subject;
       $('videoSubject').value = subject;
       activateView('video');
-      if (href) history.replaceState(null, '', href);
       renderVideo();
     }
 
-    async function applyVideoProject(project, href) {
+    async function applyVideoProject(project, _href) {
       state.videoSubject = '';
       state.videoProject = project;
       $('videoSubject').value = '';
       $('videoProject').value = project;
       activateView('video');
-      if (href) history.replaceState(null, '', href);
       if (state.librarySubject) {
         state.librarySubject = '';
         $('subject').value = '';
@@ -842,6 +884,7 @@ HTML = r"""<!doctype html>
       await Promise.all([loadSubjects(), loadStyles(), loadJobs(), loadSelections(), loadWarnings()]);
       renderVideo();
       if (state.initialView) activateView(state.initialView);
+      pushFilterState();
     }
     loadAll(false).catch(err => { $('summary').textContent = err.message; });
   </script>
