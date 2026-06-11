@@ -19,6 +19,44 @@ DEFAULT_EDL_SELECTIONS = ("focus", "star")
 DURATION_TOLERANCE_SECONDS = 0.05
 
 
+def build_video_preview(
+    *,
+    storyboard_path: Path,
+    model: str = DEFAULT_VIDEO_MODEL,
+    execute: bool = False,
+) -> dict[str, Any]:
+    """Return a local cost/count preview with no file I/O beyond reading the storyboard."""
+    storyboard_path = Path(storyboard_path).expanduser().resolve()
+    data = _load_json(storyboard_path)
+    scenes = _scenes(data)
+    count_preview = {
+        "planned_provider_jobs": 1,
+        "network_calls": 1 if execute else 0,
+        "storyboard_scenes": len(scenes),
+        "prompted_scenes": sum(1 for scene in scenes if scene.get("prompt")),
+        "requested_videos": 1,
+    }
+    from lib.jobs import provider_cost_preview as _pcp
+
+    cost_estimate = _pcp(
+        provider="Replicate",
+        model=model,
+        counts=count_preview,
+        dry_run=not execute,
+        note="Replicate video generation spend is not estimated locally; use provider billing for exact charges.",
+    )
+    return {
+        "kind": "video-generation",
+        "provider": "Replicate",
+        "model": model,
+        "execute": execute,
+        "dry_run": not execute,
+        "count_preview": count_preview,
+        "cost_estimate": cost_estimate,
+        "pricing_note": cost_estimate["note"],
+    }
+
+
 def plan_video_generation(
     *,
     storyboard_path: Path,

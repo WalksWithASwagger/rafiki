@@ -453,8 +453,12 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._import_media_selection_edl()
         elif path == "/api/media/selections":
             self._update_media_selection()
+        elif path == "/api/jobs/train-lora/preview":
+            self._preview_train_lora()
         elif path == "/api/jobs/train-lora":
             self._run_train_lora()
+        elif path == "/api/jobs/video-generate/preview":
+            self._preview_video_generate()
         elif path == "/api/jobs/video-generate":
             self._run_video_generate()
         else:
@@ -976,6 +980,50 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
         imported["items"] = items
         self._respond(200, "application/json", json.dumps(imported).encode("utf-8"))
+
+    def _preview_train_lora(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            subject = _coerce_str(payload.get("subject"), field="subject", required=True)
+            execute = _coerce_bool(payload.get("execute"))
+            from lib.training import build_training_preview
+
+            result = build_training_preview(
+                subject=subject,
+                input_images_url=_coerce_str(payload.get("input_images_url"), field="input_images_url"),
+                execute=execute,
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(500, "application/json", json.dumps({"error": "preview failed", "detail": _safe_error_text(e)}).encode("utf-8"))
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _preview_video_generate(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            storyboard = _coerce_str(payload.get("storyboard"), field="storyboard", required=True)
+            execute = _coerce_bool(payload.get("execute"))
+            from lib.video_jobs import build_video_preview
+
+            result = build_video_preview(
+                storyboard_path=Path(storyboard),
+                model=_coerce_str(payload.get("model"), field="model") or "wan-video/wan2.1-with-lora",
+                execute=execute,
+            )
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(500, "application/json", json.dumps({"error": "preview failed", "detail": _safe_error_text(e)}).encode("utf-8"))
+            return
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     def _run_train_lora(self):
         length = int(self.headers.get("Content-Length", 0))
