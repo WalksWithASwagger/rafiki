@@ -149,6 +149,11 @@ HTML = r"""<!doctype html>
       height: 100%;
       object-fit: cover;
     }
+    .subject-output-link {
+      display: block;
+      border-radius: 6px;
+      overflow: hidden;
+    }
     .thumb {
       width: 100%;
       aspect-ratio: 16 / 10;
@@ -572,7 +577,7 @@ HTML = r"""<!doctype html>
         </div>
         <div class="subject-section">
           <h3>Top Outputs</h3>
-          ${subjectOutputsHtml(outputs)}
+          ${subjectOutputsHtml(outputs, quickLinks.library)}
         </div>
       </div></article>`;
     }
@@ -591,12 +596,18 @@ HTML = r"""<!doctype html>
       }).join('')}</ul>`;
     }
 
-    function subjectOutputsHtml(outputs) {
+    function subjectOutputsHtml(outputs, libraryHref) {
       if (!outputs.length) return '<div class="meta">No indexed outputs yet</div>';
-      return `<div class="subject-output-grid">${outputs.map(output => `<div class="subject-output">
-        <div class="subject-output-thumb">${entryMediaHtml(output)}</div>
-        <div class="meta">${escapeHtml(output.title || output.id || output.kind)}</div>
-      </div>`).join('')}</div>`;
+      return `<div class="subject-output-grid">${outputs.map(output => {
+        const subject = output.subject || '';
+        const link = libraryHref || '';
+        const thumb = `<div class="subject-output-thumb">${entryMediaHtml(output)}</div>`;
+        const label = `<div class="meta">${escapeHtml(output.title || output.id || output.kind)}</div>`;
+        if (link && subject) {
+          return `<div class="subject-output"><a href="${escapeAttr(link)}" data-library-subject="${escapeAttr(subject)}" class="subject-output-link" title="View in Library">${thumb}</a>${label}</div>`;
+        }
+        return `<div class="subject-output">${thumb}${label}</div>`;
+      }).join('')}</div>`;
     }
 
     function entryMediaHtml(entry) {
