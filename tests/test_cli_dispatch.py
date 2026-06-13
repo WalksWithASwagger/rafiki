@@ -357,3 +357,70 @@ def test_cmd_link_projects_creates_symlink(tmp_path, monkeypatch, capsys):
     assert link.is_symlink()
     assert link.resolve() == real.resolve()
     assert "link proj" in capsys.readouterr().out
+
+
+# ── media import roots ─────────────────────────────────────────────────────
+
+def test_cmd_import_alex_samuel_requires_root(capsys):
+    with pytest.raises(SystemExit) as exc:
+        generate._cmd_import(["alex-samuel"])
+
+    assert exc.value.code == 2
+    assert "--root" in capsys.readouterr().err
+
+
+def test_cmd_import_alex_samuel_uses_explicit_root(tmp_path, monkeypatch, capsys):
+    from lib import media_registry
+
+    calls = {}
+
+    def fake_index(*, roots, write, incremental):
+        calls["root"] = roots["alex-samuel"].path
+        calls["write"] = write
+        calls["incremental"] = incremental
+        return {
+            "summary": {
+                "entries": 0,
+                "subjects": 0,
+                "styles": 0,
+                "video_edits": 0,
+            },
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(media_registry, "index", fake_index)
+    root = tmp_path / "alex-samuel"
+
+    generate._cmd_import(["alex-samuel", "--root", str(root), "--dry-run"])
+
+    out = capsys.readouterr().out
+    assert calls == {"root": root, "write": False, "incremental": False}
+    assert f"Would import 0 entries from {root}" in out
+
+
+def test_cmd_subjects_import_requires_root(capsys):
+    with pytest.raises(SystemExit) as exc:
+        generate._cmd_subjects(["import"])
+
+    assert exc.value.code == 2
+    assert "--root" in capsys.readouterr().err
+
+
+def test_cmd_subjects_import_uses_explicit_root(tmp_path, monkeypatch, capsys):
+    from lib import media_registry
+
+    calls = {}
+
+    def fake_index(*, roots, write):
+        calls["root"] = roots["alex-samuel"].path
+        calls["write"] = write
+        return {"summary": {"subjects": 3}}
+
+    monkeypatch.setattr(media_registry, "index", fake_index)
+    root = tmp_path / "alex-samuel"
+
+    generate._cmd_subjects(["import", "--root", str(root), "--dry-run"])
+
+    out = capsys.readouterr().out
+    assert calls == {"root": root, "write": False}
+    assert "Subjects: 3 (dry-run)" in out

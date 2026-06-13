@@ -72,7 +72,9 @@ python generate.py archive-health --json
 
 **Expected output:** Due-job execution log, `output/library.html`, and a JSON
 health summary with project/run counts. Report generated `run-*/` paths only;
-do not send private prompt text or provider keys externally.
+do not send private prompt text or provider keys externally. Treat health
+against the live local archive as advisory; use a disposable or fixture
+`--output-dir` for release checks.
 
 ## Agent Recipe: Find Unused Good Assets
 
@@ -159,6 +161,9 @@ CLI:
 python generate.py archive-health --json
 python generate.py archive-health --cleanup-report
 ```
+
+For release verification, run the same commands against a controlled fixture or
+disposable output root with `--output-dir`.
 
 MCP (`rafiki_archive_health`):
 
