@@ -82,6 +82,9 @@ the rest.
    work. The cleanup report groups runs by project, labels low-risk candidates
    versus repair-first or human-review cases, and prints the dry-run follow-up
    command before any destructive cleanup is considered.
+   When archive health is used as a release gate, point it at a controlled
+   fixture or disposable output root with `--output-dir`; the default live
+   `output/` archive is an operator advisory surface.
 
 ## Layout
 
