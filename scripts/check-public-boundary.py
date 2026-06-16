@@ -43,6 +43,12 @@ BANNED_SUFFIXES: dict[str, str] = {
     ".tgz": "package tarballs are generated artifacts",
 }
 
+# Explicit public fixtures that override a banned prefix/file/suffix.
+# Each entry is an intentional, reviewed exception to the tool-only boundary.
+ALLOWED_EXCEPTIONS: dict[str, str] = {
+    "prompts/bcai/ed-ai-logo-variations.md": "public BC+AI ED+AI logo prompt kit, intentionally shipped",
+}
+
 
 def tracked_files() -> list[str]:
     result = subprocess.run(
@@ -59,6 +65,8 @@ def public_boundary_violations(paths: list[str]) -> list[tuple[str, str]]:
     violations: list[tuple[str, str]] = []
     for path in sorted(paths):
         normalized = path.replace("\\", "/")
+        if normalized in ALLOWED_EXCEPTIONS:
+            continue
         reason = BANNED_FILES.get(normalized)
         if reason is None:
             reason = next(
