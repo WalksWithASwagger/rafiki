@@ -296,7 +296,7 @@ Notion workflows.
 ```json
 {"args": ["--usage"]}
 {"args": ["library"]}
-{"args": ["archive-health", "--json"]}
+{"args": ["archive-health", "--output-dir", "/path/to/fixture-output", "--json"]}
 {"args": ["archive-health", "--cleanup-report"]}
 {"args": ["approve", "rap-all-weeks", "--run", "20260507-100000"]}
 {"args": ["clean", "rap-all-weeks", "--dry-run"]}
@@ -304,6 +304,10 @@ Notion workflows.
 {"args": ["social-expand", "rap-all-weeks", "--dry-run"]}
 {"args": ["regen", "--dry-run"]}
 ```
+
+Use an explicit fixture or disposable `--output-dir` when archive health is a
+release gate. Running `archive-health` without `--output-dir` inspects the
+operator's live local archive and is advisory.
 
 `serve` is intentionally blocked in the MCP bridge because it is a long-running
 portal process. Start it directly when needed:
