@@ -330,6 +330,7 @@ Useful commands:
 
 ```bash
 npm test
+npm run public:check
 npm run pack:check
 npm run docs:check
 python3 -m pytest -q

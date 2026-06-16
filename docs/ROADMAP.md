@@ -185,11 +185,14 @@ Before declaring a roadmap phase done:
 
 - `npm test` (see `CONTRIBUTING.md` for the deterministic-local contract)
 - `npm run pack:check`
+- `npm run public:check`
 - `npm run doctor`
 - `npm run smoke:dry-run`
 - `npm run e2e:portal` (see `docs/PORTAL-COMMAND-CENTER.md` for the extra-outputs isolation contract)
-- `python generate.py archive-health --json`
-- `python generate.py archive-health --cleanup-report`
+- archive-health over a controlled fixture or disposable output root, such as
+  the path exercised by `npm run smoke:dry-run`
+- live `python generate.py archive-health --json` and `--cleanup-report` only
+  as advisory operator reports for the current local archive
 - Docs checked for stale "known gap" claims
 - Git status reviewed for unrelated local artifacts
 
