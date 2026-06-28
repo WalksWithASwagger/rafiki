@@ -701,6 +701,7 @@ def rafiki_batch(
     return json.dumps({
         "success": result.success,
         "ok": result.success,
+        "tool": "rafiki_batch",
         "mode": "batch",
         "dry_run": dry_run,
         "generated": result.success_count,

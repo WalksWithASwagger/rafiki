@@ -114,7 +114,7 @@ from the envelope above. (Tools sharing a gap are grouped.)
 | `rafiki_generate` | gained `tool` (#249); outcome still also in `message`. Conformant. |
 | `rafiki_list_styles` | restructured under `styles` + `count` with `ok`/`success`/`tool` (#249). Conformant. |
 | `rafiki_usage` | gained `ok`/`success`/`tool` (#249). Conformant. |
-| `rafiki_batch` | error paths now carry the full flag set via `_error_payload` (#250). Conformant. |
+| `rafiki_batch` | error paths carry the full flag set (#250); success path gained `tool` (#253). Conformant. |
 | `rafiki_run` | three error shapes unified to one key set (flag-distinguished); gained `tool` (#250). Conformant. |
 
 ### Gaps
@@ -162,25 +162,11 @@ would require coordinated consumer updates and is out of scope for the additive 
   fields — never removing existing keys.
 - Normalize path/url naming and count naming as additive aliases first; only consider
   removing a legacy name in a later, explicitly-breaking pass with consumer updates.
-- A machine-readable JSON Schema for the envelope is **deferred** to the contract-validation
-  follow-up (it backs the output-format eval). Illustrative shape, for reference only:
-
-```jsonc
-// Deferred — authored in the contract-validation follow-up, not now.
-{
-  "type": "object",
-  "required": ["ok", "success", "tool"],
-  "properties": {
-    "ok": {"type": "boolean"},
-    "success": {"type": "boolean"},
-    "tool": {"type": "string"},
-    "error": {"type": ["string", "null"]},
-    "mutating": {"type": "boolean"},
-    "external": {"type": "boolean"},
-    "dry_run": {"type": "boolean"}
-  }
-}
-```
+- A machine-readable JSON Schema for the envelope lives at
+  [`tests/mcp_envelope_schema.json`](../tests/mcp_envelope_schema.json) and backs the
+  output-format eval in `tests/test_mcp_envelope_contract.py` (#253), which validates 21
+  of the 23 typed tools (all but `rafiki_media_index` and `rafiki_notion_export`, covered
+  by their own tests) plus error paths against it.
 
 ## Follow-up implementation issues
 

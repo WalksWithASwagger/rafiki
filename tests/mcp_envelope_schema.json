@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Rafiki MCP tool output envelope",
+  "description": "Common envelope fields every typed MCP tool must satisfy. Tool-specific fields are permitted as additional properties. See docs/MCP-OUTPUT-CONTRACT.md.",
+  "type": "object",
+  "required": ["ok", "success", "tool"],
+  "properties": {
+    "ok": {"type": "boolean"},
+    "success": {"type": "boolean"},
+    "tool": {"type": "string", "minLength": 1},
+    "error": {"type": ["string", "null"]},
+    "mutating": {"type": "boolean"},
+    "external": {"type": "boolean"},
+    "dry_run": {"type": "boolean"},
+    "count": {"type": "integer"}
+  },
+  "additionalProperties": true
+}
