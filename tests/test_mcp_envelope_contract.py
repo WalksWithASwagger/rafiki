@@ -90,6 +90,24 @@ def test_error_outputs_match_envelope(name):
     assert isinstance(payload["error"], str) and payload["error"]
 
 
+def test_floyo_generate_matches_envelope(tmp_path, monkeypatch):
+    from lib.providers import floyo_provider
+
+    monkeypatch.delenv("FLOYO_KEY", raising=False)
+    monkeypatch.setattr(floyo_provider, "save_job", lambda record, **kwargs: tmp_path / f"{record.id}.json")
+    assert_envelope(
+        mcp_server.rafiki_floyo_generate(
+            workflow="wan22_endframe",
+            start_image="/tmp/a.jpg",
+            end_image="/tmp/b.jpg",
+            prompt="morph",
+            output_root=str(tmp_path),
+            execute=False,
+        ),
+        expect_ok=True,
+    )
+
+
 def test_media_warnings_matches_envelope(tmp_path):
     assert_envelope(
         mcp_server.rafiki_media_warnings(registry_path=str(tmp_path / "none.json")),

@@ -25,6 +25,8 @@ deeper operating docs by surface area.
   and safety notes.
 - [MCP Output Contract](MCP-OUTPUT-CONTRACT.md) - proposed stable JSON envelope
   for typed tool outputs (paths, URLs, counts, errors, mutation flags).
+- [Floyo Video](FLOYO.md) - drive Floyo (flowyo.ai) hosted-ComfyUI workflows to
+  render short clips; dry-run-first CLI + MCP.
 - [Doctor](DOCTOR.md) - what `npm run doctor` / `npx rafiki --doctor` checks,
   exit codes, and common fixes.
 - [Chrome / Puppeteer](CHROME-PUPPETEER.md) - browser resolution and sandbox
