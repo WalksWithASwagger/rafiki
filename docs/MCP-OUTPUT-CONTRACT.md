@@ -107,18 +107,18 @@ from the envelope above. (Tools sharing a gap are grouped.)
 | `rafiki_generate` | gained `tool` (#249); outcome still also in `message`. Conformant. |
 | `rafiki_list_styles` | restructured under `styles` + `count` with `ok`/`success`/`tool` (#249). Conformant. |
 | `rafiki_usage` | gained `ok`/`success`/`tool` (#249). Conformant. |
+| `rafiki_batch` | error paths now carry the full flag set via `_error_payload` (#250). Conformant. |
+| `rafiki_run` | three error shapes unified to one key set (flag-distinguished); gained `tool` (#250). Conformant. |
 
 ### Gaps
 
 | Tool | Gap |
 |---|---|
-| `rafiki_batch` | Conformant on success, but early-return errors **drop fields** the success path includes. |
 | `rafiki_render` | Parallel arrays `output_paths`/`output_urls`; error path shape differs from success. |
 | `rafiki_viewer_rebuild` | Merges preview + run dicts → **shape varies**; prefixed `viewer_path`/`viewer_url`. |
 | `rafiki_library_rebuild` | Merges preview + run dicts → shape varies; prefixed `library_path`/`library_url`. |
 | `rafiki_canva_export` | Merges base + run; prefixed `result_path`/`result_url`; success/error shapes differ. |
 | `rafiki_notion_export` | Spreads `notion.export()` result; `external:true`; shape depends on result dict. |
-| `rafiki_run` | **Three distinct error shapes** (validation / timeout / subprocess); nested CLI JSON under `json`. |
 
 Cross-cutting gaps: (a) `path`/`url` prefix naming is inconsistent; `registry_path` has no
 `url` sibling. (b) count fields are named per-tool (`count`, `warning_count`,

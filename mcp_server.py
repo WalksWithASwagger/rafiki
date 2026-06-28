@@ -643,7 +643,13 @@ def rafiki_batch(
     """
     prompt_path = Path(prompt_file)
     if not prompt_path.exists() and not dry_run:
-        return _json({"success": False, "error": f"Prompt file not found: {prompt_file}"})
+        return _error_payload(
+            "rafiki_batch",
+            f"Prompt file not found: {prompt_file}",
+            mutating=False,
+            external=False,
+            dry_run=dry_run,
+        )
 
     prompts = _capture(parse_image_prompts_md, str(prompt_path)) if prompt_path.exists() else []
     out_dir = Path(output_dir) if output_dir else prompt_path.parent / "images"
@@ -658,7 +664,13 @@ def rafiki_batch(
             reference_images=reference_images,
         )
     except ValueError as e:
-        return _json({"success": False, "ok": False, "error": str(e)})
+        return _error_payload(
+            "rafiki_batch",
+            str(e),
+            mutating=False,
+            external=False,
+            dry_run=dry_run,
+        )
 
     result = _capture(
         run_batch,
@@ -1390,7 +1402,25 @@ def rafiki_run(args: list[str], timeout_seconds: int = 900) -> str:
         args: generate.py arguments only; do not include python, rafiki, or generate.py.
         timeout_seconds: Seconds before the subprocess is stopped, max 3600.
     """
-    return _json(_run_generate_py(args, timeout_seconds))
+    result = _run_generate_py(args, timeout_seconds)
+    success = bool(result.get("success", False))
+    normalized = {
+        "success": success,
+        "ok": bool(result.get("ok", success)),
+        "tool": "rafiki_run",
+        "exit_code": result.get("exit_code"),
+        "timeout": bool(result.get("timeout", False)),
+        "error": result.get("error"),
+        "mutating": bool(result.get("mutating", False)),
+        "external": bool(result.get("external", False)),
+        "command": result.get("command", []),
+        "cwd": result.get("cwd", str(_ROOT)),
+        "stdout": result.get("stdout", ""),
+        "stderr": result.get("stderr", ""),
+        "json": result.get("json"),
+        "args": result.get("args", args),
+    }
+    return _json(normalized)
 
 
 if __name__ == "__main__":

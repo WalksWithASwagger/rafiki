@@ -162,7 +162,23 @@ def test_batch_rejects_mismatched_reference_images(tmp_path):
 
     assert payload["success"] is False
     assert payload["ok"] is False
+    assert payload["tool"] == "rafiki_batch"
+    assert payload["mutating"] is False
+    assert payload["external"] is False
     assert "reference_images has 3 path(s) but 2 prompt(s)" in payload["error"]
+
+
+def test_batch_missing_prompt_file_returns_full_error_envelope(tmp_path):
+    payload = json.loads(
+        mcp_server.rafiki_batch(prompt_file=str(tmp_path / "missing.md"), dry_run=False)
+    )
+
+    assert payload["success"] is False
+    assert payload["ok"] is False
+    assert payload["tool"] == "rafiki_batch"
+    assert payload["mutating"] is False
+    assert payload["external"] is False
+    assert "Prompt file not found" in payload["error"]
 
 
 def test_run_rejects_non_rafiki_invocations():
@@ -170,6 +186,9 @@ def test_run_rejects_non_rafiki_invocations():
 
     assert payload["success"] is False
     assert payload["ok"] is False
+    assert payload["tool"] == "rafiki_run"
+    assert payload["timeout"] is False
+    assert payload["exit_code"] is None
     assert "unsupported Rafiki CLI invocation" in payload["error"]
 
 
@@ -205,6 +224,9 @@ def test_run_usage_smoke():
     payload = json.loads(mcp_server.rafiki_run(["--usage"]))
 
     assert payload["success"] is True
+    assert payload["tool"] == "rafiki_run"
+    assert payload["timeout"] is False
+    assert payload["error"] is None
     assert payload["exit_code"] == 0
     assert "Total images generated:" in payload["stdout"]
 
