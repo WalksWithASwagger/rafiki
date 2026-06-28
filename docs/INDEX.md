@@ -23,6 +23,8 @@ deeper operating docs by surface area.
 
 - [MCP](MCP.md) - local MCP installation, tool surface, CLI bridge examples,
   and safety notes.
+- [MCP Output Contract](MCP-OUTPUT-CONTRACT.md) - proposed stable JSON envelope
+  for typed tool outputs (paths, URLs, counts, errors, mutation flags).
 - [Doctor](DOCTOR.md) - what `npm run doctor` / `npx rafiki --doctor` checks,
   exit codes, and common fixes.
 - [Chrome / Puppeteer](CHROME-PUPPETEER.md) - browser resolution and sandbox
