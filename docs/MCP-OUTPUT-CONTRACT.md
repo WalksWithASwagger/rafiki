@@ -121,11 +121,18 @@ from the envelope above. (Tools sharing a gap are grouped.)
 
 | Tool | Gap |
 |---|---|
-| `rafiki_render` | Parallel arrays `output_paths`/`output_urls`; error path shape differs from success. |
-| `rafiki_viewer_rebuild` | Merges preview + run dicts → **shape varies**; prefixed `viewer_path`/`viewer_url`. |
-| `rafiki_library_rebuild` | Merges preview + run dicts → shape varies; prefixed `library_path`/`library_url`. |
-| `rafiki_canva_export` | Merges base + run; prefixed `result_path`/`result_url`; success/error shapes differ. |
+| `rafiki_render` | Parallel arrays `output_paths`/`output_urls` (conformant); error path shape differs from success (merged-shape, below). |
+| `rafiki_viewer_rebuild` | `run_viewer_paths` gained parallel `run_viewer_urls` (#251); still merges preview + run dicts → shape varies. |
+| `rafiki_library_rebuild` | Preview-error branch gained `library_url` (#251); still merges preview + run dicts → shape varies. |
+| `rafiki_canva_export` | `result_path`/`result_url` present; still merges base + run; success/error shapes differ. |
 | `rafiki_notion_export` | Spreads `notion.export()` result; `external:true`; shape depends on result dict. |
+
+The remaining gaps above are the **merged preview+run shape** unpredictability, not
+path/url coverage. After #251 every output path has a `file://` URL sibling:
+`rafiki_generate` (`output_url`), `rafiki_media_index` / `rafiki_media_warnings`
+(`registry_url`), `rafiki_batch` (`viewer_url`), and the viewer arrays
+(`run_viewer_urls`). `html_paths` on `rafiki_render` are inputs and intentionally have no
+URL sibling.
 
 Cross-cutting gaps: (a) `path`/`url` prefix naming is inconsistent; `registry_path` has no
 `url` sibling. (b) count fields are named per-tool (`count`, `warning_count`,

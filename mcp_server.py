@@ -336,6 +336,7 @@ def _library_preview(output_root: str = "") -> dict:
             "error": f"Output root not found: {root}",
             "output_root": str(root),
             "library_path": str(root / "library.html"),
+            "library_url": _file_url(root / "library.html"),
         }
 
     from lib.renderers.library import _records_from_registry
@@ -387,6 +388,7 @@ def _viewer_preview(
             "run_count": 0,
             "image_count": image_count,
             "run_viewer_paths": [],
+            "run_viewer_urls": [],
         }
 
     run_dirs = sorted(p for p in project_dir.glob("run-*") if p.is_dir())
@@ -400,6 +402,7 @@ def _viewer_preview(
 
     viewer_path = project_dir / "viewer.html"
     run_viewer_paths = [str(run_dir / "viewer.html") for run_dir in run_dirs] if all_runs else []
+    run_viewer_urls = [_file_url(run_dir / "viewer.html") for run_dir in run_dirs] if all_runs else []
     return {
         "success": True,
         "project": project,
@@ -409,6 +412,7 @@ def _viewer_preview(
         "run_count": len(run_dirs),
         "image_count": image_count,
         "run_viewer_paths": run_viewer_paths,
+        "run_viewer_urls": run_viewer_urls,
     }
 
 
@@ -580,6 +584,7 @@ def rafiki_generate(
         "ok": success,
         "tool": "rafiki_generate",
         "output_path": output_path,
+        "output_url": _file_url(Path(output_path)),
         "model": resolved_model,
         "aspect_ratio": resolved_aspect_ratio,
         "resolution": resolution,
@@ -704,6 +709,7 @@ def rafiki_batch(
         "run_dir": str(result.run_dir),
         "run_id": result.run_id,
         "viewer_path": result.viewer_path,
+        "viewer_url": _file_url(Path(result.viewer_path)) if result.viewer_path else "",
         "model": resolved_model,
         "aspect_ratio": resolved_aspect_ratio,
         "resolution": resolution,
@@ -860,6 +866,7 @@ def rafiki_media_index(
         "mutating": not dry_run,
         "external": False,
         "registry_path": str(media_registry.MEDIA_REGISTRY_JSON),
+        "registry_url": _file_url(media_registry.MEDIA_REGISTRY_JSON),
         **payload,
     })
 
@@ -1321,6 +1328,7 @@ def rafiki_media_warnings(registry_path: str = "") -> str:
         "mutating": False,
         "external": False,
         "registry_path": str(reg_path),
+        "registry_url": _file_url(reg_path),
         "indexed_at": data.get("indexed_at", ""),
         "count": len(warnings_list),
         "warning_count": len(warnings_list),

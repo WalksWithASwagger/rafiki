@@ -96,6 +96,7 @@ def test_generate_style_none_stays_unstyled(monkeypatch, tmp_path):
     assert payload["success"] is True
     assert payload["ok"] is True
     assert payload["tool"] == "rafiki_generate"
+    assert payload["output_url"].startswith("file://")
     assert payload["aspect_ratio"] == "16:9"
     assert captured["style"] == "none"
     assert captured["reference_image"] == "/tmp/ref.png"
@@ -356,7 +357,10 @@ def test_viewer_rebuild_wrapper_dry_run_reports_viewer_paths(tmp_path):
     assert payload["run_count"] == 1
     assert payload["image_count"] == 1
     assert payload["viewer_path"] == str(project / "viewer.html")
+    assert payload["viewer_url"].startswith("file://")
     assert payload["run_viewer_paths"] == [str(run_dir / "viewer.html")]
+    assert len(payload["run_viewer_urls"]) == len(payload["run_viewer_paths"])
+    assert payload["run_viewer_urls"][0].startswith("file://")
     assert not (project / "viewer.html").exists()
 
 
@@ -496,6 +500,7 @@ def test_media_warnings_returns_warnings_from_registry(tmp_path):
     assert payload["external"] is False
     assert payload["count"] == 2
     assert payload["warning_count"] == 2
+    assert payload["registry_url"].startswith("file://")
     assert "root not found: /missing/path" in payload["warnings"]
     assert payload["indexed_at"] == "2026-06-01T10:00:00+00:00"
 
