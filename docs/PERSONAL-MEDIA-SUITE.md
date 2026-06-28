@@ -3,6 +3,28 @@
 Rafiki can index local image and video pipelines without copying their media.
 Use this for private corpora such as `/Users/kk/Desktop/alex-samuel`.
 
+## Rafiki vs the alex-samuel studio — who owns what
+
+These are **two repos by design** (combined June 2026 via the Media Suite Hardening lane,
+issues #169–#197):
+
+- **`/Users/kk/Desktop/alex-samuel`** is the **live studio** — its own private git repo
+  (`WalksWithASwagger/alex-samuel`). It holds the portrait→LoRA pipeline, the Floyo/ComfyUI
+  video work (`andromeda_project/`), the media corpus, and client/festival deliverables.
+  This is where generation actually happens.
+- **Rafiki** is the **catalog / ops layer**. It **indexes the studio in place** — metadata
+  only, no copying — via `lib/importers/alex_samuel.py`, and provides its own dry-run
+  Replicate pipelines (`rafiki_train_lora`, `rafiki_video_generate`).
+
+**Boundary rule (non-negotiable):** Rafiki is a **public, tool-only repo**. The studio's
+media (real people's faces, client deliverables) is **private** and must never be committed
+here — it stays in gitignored local roots. "Bringing work into Rafiki" means porting
+*tooling* into `lib/`, while *media* lives under gitignored local roots, not git.
+
+> Retirement of the standalone studio (folding the Floyo video + audio pipelines into
+> Rafiki) is a tracked, phased effort — see the consolidation audit in `meta/audits/` and
+> the open migration issues. Until that lands, the studio remains the source of truth.
+
 ## Local Root Config
 
 Copy the template and keep the local file untracked:
