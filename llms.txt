@@ -1,0 +1,18 @@
+# rafiki
+
+> local-first AI image generation, batch prompt runs, browser review, and HTML-to-PNG rendering.
+
+rafiki is a local-first creative-asset workflow by Kris Krüg / BC + AI. It generates
+images via Gemini and OpenAI, runs markdown prompt batches into isolated run-* dirs,
+serves a local review and rating portal, and renders HTML to PNG with Puppeteer. It
+runs from a local checkout; API keys never leave your machine. No hosted service.
+
+## Key files
+- [README](README.md): what it is and the quickstart
+- [AGENTS.md](AGENTS.md): how agents should operate in this repo
+- docs/use-cases/keynote-visual-workflow.md: the main public workflow
+- docs/ROADMAP.md: where it is going
+
+## Links
+- Author: Kris Krüg · https://kriskrug.co
+- Community: BC + AI · https://bc-ai.ca
