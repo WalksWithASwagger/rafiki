@@ -102,6 +102,9 @@ checkout when you need copy-paste commands for your own client.
   Defaults to dry-run (`execute: false`).
 - `rafiki_video_generate`: plan or launch a storyboard video generation job.
   Defaults to dry-run (`execute: false`).
+- `rafiki_floyo_generate`: plan or launch a Floyo (flowyo.ai) hosted-ComfyUI
+  video workflow (default `wan22_endframe`). Defaults to dry-run (`execute:
+  false`); on execute it submits only. See [FLOYO.md](FLOYO.md).
 - `rafiki_style_anchors`: read or derive a normalized style profile from a
   style-anchor JSON file.
 - `rafiki_run`: run supported fallback CLI workflows without a shell.

@@ -4,6 +4,12 @@
   "updated_at": "2026-05-18",
   "source_note": "Public image pricing snapshot. Provider billing exports remain the source of truth.",
   "models": {
+    "wan22_endframe": {
+      "provider": "Floyo",
+      "basis": "provider_billing_required",
+      "source_url": "https://flowyo.ai",
+      "source_detail": "Floyo FloTime workflow. Spend is billed in FloTime hours and is not estimated locally; use provider billing for exact charges."
+    },
     "gemini-2.5-flash-image": {
       "provider": "Gemini",
       "default_tier": "standard",
