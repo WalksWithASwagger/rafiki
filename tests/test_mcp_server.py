@@ -94,6 +94,8 @@ def test_generate_style_none_stays_unstyled(monkeypatch, tmp_path):
     )
 
     assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["tool"] == "rafiki_generate"
     assert payload["aspect_ratio"] == "16:9"
     assert captured["style"] == "none"
     assert captured["reference_image"] == "/tmp/ref.png"
@@ -169,6 +171,34 @@ def test_run_rejects_non_rafiki_invocations():
     assert payload["success"] is False
     assert payload["ok"] is False
     assert "unsupported Rafiki CLI invocation" in payload["error"]
+
+
+def test_status_returns_envelope_fields():
+    payload = json.loads(mcp_server.rafiki_status())
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["tool"] == "rafiki_status"
+    assert "rafiki_run" in payload["common_tools"]
+
+
+def test_list_styles_returns_envelope_fields():
+    payload = json.loads(mcp_server.rafiki_list_styles())
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["tool"] == "rafiki_list_styles"
+    assert payload["count"] == len(payload["styles"])
+    assert isinstance(payload["styles"], dict)
+
+
+def test_usage_returns_envelope_fields():
+    payload = json.loads(mcp_server.rafiki_usage())
+
+    assert payload["success"] is True
+    assert payload["ok"] is True
+    assert payload["tool"] == "rafiki_usage"
+    assert "entries" in payload
 
 
 def test_run_usage_smoke():
