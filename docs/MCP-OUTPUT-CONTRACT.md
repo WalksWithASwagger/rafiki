@@ -39,6 +39,13 @@ Every typed tool returns a JSON **object** (serialized by `_json()` →
 | `dry_run` | bool | when applicable | `true` if the call previewed without performing the action. |
 | `count` | int | when applicable | Cardinality of the primary collection in the response. |
 
+**Counts.** A tool that returns a single primary collection exposes `count` = that
+collection's size. A tool that reports several independent tallies uses descriptive
+`*_count` names (e.g. `project_count`, `run_count`, `present_image_count`) and omits the
+generic `count` (there is no single primary collection). Where a primary collection
+historically used a descriptive name, the descriptive name is kept and `count` is added
+alongside it (e.g. `rafiki_media_warnings` has both `count` and `warning_count`).
+
 **Paths and URLs.** A single primary output uses the flat pair `path` + `url`, produced by
 `**_path_info(p)` (which resolves the path and emits a `file://` URL). Multiple outputs use
 parallel arrays `*_paths` + `*_urls`. (Today some tools prefix the pair, e.g.
@@ -95,7 +102,7 @@ from the envelope above. (Tools sharing a gap are grouped.)
 | `rafiki_registry_export` | flat `path`+`url`, `count`. Conformant. |
 | `rafiki_media_index` | spreads `index()` payload; has flags + `registry_path`. |
 | `rafiki_media_search` | `count`, `results[]`. Conformant. |
-| `rafiki_media_warnings` | `warning_count`, `warnings[]`. Conformant. |
+| `rafiki_media_warnings` | `count` + legacy `warning_count`, `warnings[]` (#252). Conformant. |
 | `rafiki_subjects` | `count`, `subjects[]`. Conformant. |
 | `rafiki_jobs` | `count`, `jobs[]`. Conformant. |
 | `rafiki_job_status` | full status fields; clean error path. Conformant. |
