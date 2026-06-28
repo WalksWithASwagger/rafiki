@@ -1,15 +1,17 @@
-# MCP Output Contract (Proposed)
+# MCP Output Contract
 
-Status: **proposed — pending maintainer ratification** (issue #212).
+Status: **ratified and active** (2026-06-28, issue #212). Conformance follow-ups
+#249–#253 are merged; new and changed typed tools must satisfy this contract and the
+output-format eval in `tests/test_mcp_envelope_contract.py`.
 Scope: a stable, agent-readable JSON output contract for the typed MCP tools in
 [`mcp_server.py`](../mcp_server.py). This satisfies roadmap
 [Phase 5 P2](ROADMAP.md): "Tools return stable JSON with paths, URLs, counts, errors,
 and mutation flags."
 
 This document **describes and formalizes the envelope that already exists** in the tool
-returns. It does not change any tool output. Normalization of the gaps catalogued below is
-tracked by the follow-up issues in the last section. See [MCP.md](MCP.md) for the tool
-surface and usage examples.
+returns. The conformance follow-ups that closed the original gaps (#249–#253) have landed;
+the catalogue below records the resulting state. See [MCP.md](MCP.md) for the tool surface
+and usage examples.
 
 ## Design constraints
 

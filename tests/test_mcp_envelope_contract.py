@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 import jsonschema
 import pytest
@@ -94,6 +95,29 @@ def test_media_warnings_matches_envelope(tmp_path):
         mcp_server.rafiki_media_warnings(registry_path=str(tmp_path / "none.json")),
         expect_ok=True,
     )
+
+
+def test_job_status_success_matches_envelope(tmp_path):
+    import lib.jobs as jobs_module
+
+    jobs_dir = tmp_path / "jobs"
+    jobs_dir.mkdir()
+    job_id = "video-generation-20260601-120000"
+    (jobs_dir / f"{job_id}.json").write_text(
+        json.dumps({
+            "id": job_id,
+            "kind": "video-generation",
+            "provider": "Replicate",
+            "status": "queued",
+            "polling_status": "pending",
+            "created_at": "2026-06-01T12:00:00+00:00",
+            "updated_at": "2026-06-01T12:00:01+00:00",
+            "cost_estimate": {"currency": "USD", "amount": 0.0, "estimated": True},
+        }),
+        encoding="utf-8",
+    )
+    with patch.object(jobs_module, "JOBS_DIR", jobs_dir):
+        assert_envelope(mcp_server.rafiki_job_status(job_id), expect_ok=True)
 
 
 def test_archive_health_matches_envelope(tmp_path):

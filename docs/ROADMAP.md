@@ -1,8 +1,9 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-06-09
+Last reviewed: 2026-06-28
 
-Latest audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
+Latest audit: [MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md)
+Prior audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
 That audit is a dated snapshot. The active roadmap below reflects the later
 lineage comparison and Curriculum Atlas story-mode work on `main`.
@@ -152,7 +153,7 @@ Goal: let local agents use Rafiki safely and predictably.
 | P0 | Keep MCP docs and tool schemas current with every CLI addition. | New stable CLI workflows either get direct MCP wrappers or explicit `rafiki_run` examples. |
 | Shipped | Add direct MCP wrappers for the most-used bridge workflows. | `mcp_server.py` exposes typed tools for registry search/export, archive health, viewer rebuild, library rebuild, Canva export, Notion export, and render (#145). |
 | P1 | Add local automation recipes. | Scheduled regen, prompt library refresh, and post-run summary jobs have copyable examples (#213). |
-| P2 | Add agent-readable output contracts. | Tools return stable JSON with paths, URLs, counts, errors, and mutation flags. |
+| Shipped | Add agent-readable output contracts. | Typed tools return stable JSON with paths, URLs, counts, errors, and mutation flags, ratified in [MCP-OUTPUT-CONTRACT.md](MCP-OUTPUT-CONTRACT.md) (#212) and enforced by an output-format eval; conformance follow-ups #249–#254 merged. |
 
 ## Phase 6: Sharing And Deployment
 
