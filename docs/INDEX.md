@@ -67,6 +67,8 @@ deeper operating docs by surface area.
   preference, environment requirements, and output format.
 - [Deployment](DEPLOYMENT.md) - static hosting setup, readiness checks, deploy
   commands, and caveats.
+- [CDN Publishing Research](CDN-PUBLISHING-RESEARCH.md) - decision memo on
+  optional CDN-backed approved-asset publishing (#202); recommends defer.
 - [Delivery Pipeline](DELIVERY-PIPELINE.md) - canonical agentic delivery
   contract: labels, required issue shape, branch/PR traceability, Linear sync,
   pause controls, verification gates, and local commands.
