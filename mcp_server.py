@@ -461,6 +461,7 @@ def _canva_preview(
         "output_dir": str(export_dir.resolve(strict=False)),
         "result_path": str(result_path.resolve(strict=False)),
         "result_url": _file_url(result_path),
+        "count": len(images),
         "image_count": len(images),
         "zip": not no_zip,
     }
@@ -1321,6 +1322,7 @@ def rafiki_media_warnings(registry_path: str = "") -> str:
         "external": False,
         "registry_path": str(reg_path),
         "indexed_at": data.get("indexed_at", ""),
+        "count": len(warnings_list),
         "warning_count": len(warnings_list),
         "warnings": warnings_list,
     })

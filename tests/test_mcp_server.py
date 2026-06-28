@@ -449,6 +449,7 @@ def test_canva_export_wrapper_dry_run_reports_bundle_plan(tmp_path):
     assert payload["ok"] is True
     assert payload["dry_run"] is True
     assert payload["mutating"] is False
+    assert payload["count"] == 1
     assert payload["image_count"] == 1
     assert payload["zip"] is True
     assert payload["result_path"].endswith("canva-export.zip")
@@ -467,6 +468,7 @@ def test_media_warnings_returns_empty_list_when_registry_absent(tmp_path):
     assert payload["mutating"] is False
     assert payload["external"] is False
     assert payload["warnings"] == []
+    assert payload["count"] == 0
     assert payload["warning_count"] == 0
 
 
@@ -492,6 +494,7 @@ def test_media_warnings_returns_warnings_from_registry(tmp_path):
     assert payload["ok"] is True
     assert payload["mutating"] is False
     assert payload["external"] is False
+    assert payload["count"] == 2
     assert payload["warning_count"] == 2
     assert "root not found: /missing/path" in payload["warnings"]
     assert payload["indexed_at"] == "2026-06-01T10:00:00+00:00"
