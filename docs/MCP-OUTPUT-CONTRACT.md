@@ -103,15 +103,15 @@ from the envelope above. (Tools sharing a gap are grouped.)
 | `rafiki_style_anchors` | flags + `style`. Conformant. |
 | `rafiki_train_lora` | spreads planner result; `mutating:true`, `external` reflects `execute`. |
 | `rafiki_video_generate` | spreads planner result; same pattern as train_lora. |
+| `rafiki_status` | gained `ok`/`success`/`tool` (#249). Conformant. |
+| `rafiki_generate` | gained `tool` (#249); outcome still also in `message`. Conformant. |
+| `rafiki_list_styles` | restructured under `styles` + `count` with `ok`/`success`/`tool` (#249). Conformant. |
+| `rafiki_usage` | gained `ok`/`success`/`tool` (#249). Conformant. |
 
 ### Gaps
 
 | Tool | Gap |
 |---|---|
-| `rafiki_status` | **No `ok`/`success`/`tool`.** Pure status dict — the main outlier. |
-| `rafiki_generate` | Has `ok`/`success` but **no `tool`**; outcome conveyed via free-text `message`. |
-| `rafiki_list_styles` | **No envelope fields** — returns a style→meta map plus `_tip`. |
-| `rafiki_usage` | Delegates to `load_usage_log()`; envelope fields **not guaranteed**. |
 | `rafiki_batch` | Conformant on success, but early-return errors **drop fields** the success path includes. |
 | `rafiki_render` | Parallel arrays `output_paths`/`output_urls`; error path shape differs from success. |
 | `rafiki_viewer_rebuild` | Merges preview + run dicts → **shape varies**; prefixed `viewer_path`/`viewer_url`. |

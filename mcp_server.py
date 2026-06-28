@@ -472,6 +472,9 @@ def rafiki_status() -> str:
     python_bin = sys.executable
     server_path = str(_ROOT / "mcp_server.py")
     result = {
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_status",
         "repo_root": str(_ROOT),
         "python": python_bin,
         "mcp_server": server_path,
@@ -574,6 +577,7 @@ def rafiki_generate(
     result: dict = {
         "success": success,
         "ok": success,
+        "tool": "rafiki_generate",
         "output_path": output_path,
         "model": resolved_model,
         "aspect_ratio": resolved_aspect_ratio,
@@ -706,17 +710,31 @@ def rafiki_list_styles() -> str:
     """
     styles = load_styles()
     result = {
-        name: {"description": cfg.get("description", ""), "default": cfg.get("default", False)}
-        for name, cfg in styles.items()
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_list_styles",
+        "count": len(styles),
+        "styles": {
+            name: {
+                "description": cfg.get("description", ""),
+                "default": cfg.get("default", False),
+            }
+            for name, cfg in styles.items()
+        },
+        "_tip": "Compose styles with '+', e.g. style='kk+bcai'",
     }
-    result["_tip"] = "Compose styles with '+', e.g. style='kk+bcai'"
     return _json(result)
 
 
 @mcp.tool()
 def rafiki_usage() -> str:
     """Return local Rafiki usage history and recent generations."""
-    return _json(load_usage_log())
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_usage",
+        **load_usage_log(),
+    })
 
 
 @mcp.tool()
