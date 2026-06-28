@@ -109,7 +109,9 @@ checkout when you need copy-paste commands for your own client.
 Typed workflow tools return stable JSON with `success`, `ok`, `tool`,
 `dry_run`, `mutating`, and `external` fields, plus workflow-specific paths,
 URLs, counts, stdout/stderr, or error details. `success` is kept for existing
-clients; new clients should read `ok`.
+clients; new clients should read `ok`. See
+[MCP-OUTPUT-CONTRACT.md](MCP-OUTPUT-CONTRACT.md) for the full field reference,
+per-tool catalogue, and the proposed output contract.
 
 ## Typed Workflow Examples
 
