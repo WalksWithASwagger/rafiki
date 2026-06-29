@@ -156,13 +156,20 @@ def plan_floyo_generation(
             final = floyo_provider.poll_run(run_id, execute=True, max_attempts=max_attempts)
             final_status = floyo_provider._job_status(final, execute=True)
             for out in floyo_provider.find_outputs(final):
-                url = floyo_provider.output_url(out)
-                if not url:
-                    continue
                 fn = out.get("file_name") or out.get("filename") or "clip.mp4"
-                dest = run_dir / f"{workflow}_{run_id}_{fn}"
-                result = floyo_provider.download_output(url, dest, execute=True)
-                outputs.append(result)
+                # Download failures are recorded, not fatal — the run record/id must persist.
+                try:
+                    url = floyo_provider.output_url(out)
+                    if not url and out.get("id"):
+                        # Floyo outputs are referenced by file id; resolve a presigned URL.
+                        url = floyo_provider.presigned_url(str(out["id"]), execute=True)
+                    if not url:
+                        outputs.append({"status": "no-url", "file": fn})
+                        continue
+                    dest = run_dir / f"{workflow}_{run_id}_{fn}"
+                    outputs.append(floyo_provider.download_output(url, dest, execute=True))
+                except Exception as e:  # noqa: BLE001 - record, don't crash the run
+                    outputs.append({"status": "failed", "file": fn, "error": str(e)[:300]})
 
     manifest = {
         "version": 1,
