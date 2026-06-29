@@ -54,6 +54,18 @@ Add `--no-wait` to submit without polling/downloading, `--json` for machine outp
 `-d/--output-dir` to override the output root. Output clips land in
 `output/<project>/floyo-run-<stamp>/` (gitignored).
 
+### Scoring silent clips
+
+`wan22_endframe` clips come back silent. Lay the song over one with ffmpeg (dry-run first):
+
+```bash
+python generate.py floyo mux --video clip.mp4 --audio song.mp3 --audio-start 5 --execute
+# -> writes clip_scored.mp4 (video copied, audio re-encoded, trimmed to the clip)
+```
+
+Local only — no provider spend. **Do not** mux over a lip-sync (`infinitetalk`/`multitalk`)
+clip: its vocal is already embedded and drives the lips.
+
 ## MCP
 
 `rafiki_floyo_generate(workflow="wan22_endframe", start_image, end_image, prompt, project,

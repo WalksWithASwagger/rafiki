@@ -801,28 +801,45 @@ def _cmd_floyo(argv: list[str]) -> None:
     sp_generate.add_argument("--execute", action="store_true")
     sp_generate.add_argument("--no-wait", action="store_true", help="Submit only; do not poll/download")
     sp_generate.add_argument("--json", action="store_true", dest="json_output")
+    sp_mux = sub.add_parser("mux", help="Mux an audio track over a (silent) clip via ffmpeg")
+    sp_mux.add_argument("--video", required=True)
+    sp_mux.add_argument("--audio", required=True)
+    sp_mux.add_argument("--output", "-o", default=None)
+    sp_mux.add_argument("--audio-start", type=float, default=0.0, help="Start the audio this many seconds in")
+    sp_mux.add_argument("--execute", action="store_true")
+    sp_mux.add_argument("--json", action="store_true", dest="json_output")
     args = p.parse_args(argv)
 
-    inputs: dict[str, str] = {}
-    for item in args.sets:
-        if "=" not in item:
-            print(f"Error: --set must be slot=value, got {item!r}", file=sys.stderr)
-            sys.exit(1)
-        slot, value = item.split("=", 1)
-        inputs[slot] = value
-
-    from lib.floyo_jobs import plan_floyo_generation
-
     try:
-        result = plan_floyo_generation(
-            workflow=args.workflow,
-            inputs=inputs,
-            project=args.project,
-            name=args.name,
-            output_root=Path(args.output_dir) if args.output_dir else None,
-            execute=args.execute,
-            wait=not args.no_wait,
-        )
+        if args.action == "mux":
+            from lib.clip_audio import mux_clip_audio
+
+            result = mux_clip_audio(
+                args.video,
+                args.audio,
+                output_path=args.output,
+                audio_start_seconds=args.audio_start,
+                execute=args.execute,
+            )
+        else:
+            inputs: dict[str, str] = {}
+            for item in args.sets:
+                if "=" not in item:
+                    print(f"Error: --set must be slot=value, got {item!r}", file=sys.stderr)
+                    sys.exit(1)
+                slot, value = item.split("=", 1)
+                inputs[slot] = value
+            from lib.floyo_jobs import plan_floyo_generation
+
+            result = plan_floyo_generation(
+                workflow=args.workflow,
+                inputs=inputs,
+                project=args.project,
+                name=args.name,
+                output_root=Path(args.output_dir) if args.output_dir else None,
+                execute=args.execute,
+                wait=not args.no_wait,
+            )
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -830,11 +847,15 @@ def _cmd_floyo(argv: list[str]) -> None:
     if args.json_output:
         print(json.dumps(result, indent=2))
         return
-    print(f"Floyo {args.action}: {result['manifest']['status']}")
-    print(f"Manifest: {result['manifest_path']}")
-    for out in result.get("outputs", []):
-        if out.get("output_path"):
-            print(f"Output: {out['output_path']}")
+    if args.action == "mux":
+        print(f"Floyo mux: {result['status']}")
+        print(f"Output: {result['output']}")
+    else:
+        print(f"Floyo {args.action}: {result['manifest']['status']}")
+        print(f"Manifest: {result['manifest_path']}")
+        for out in result.get("outputs", []):
+            if out.get("output_path"):
+                print(f"Output: {out['output_path']}")
 
 
 def _cmd_style(argv: list[str]) -> None:
