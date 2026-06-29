@@ -30,6 +30,13 @@ def test_patch_workflow_maps_slots():
     assert tpl["112:16"]["inputs"]["positive_prompt"] == "glam space opera"
 
 
+def test_subject_slug_from_inputs():
+    assert floyo_jobs._subject_slug({"start_image": "/x/plates/mage_likeness/0_3.jpg"}) == "mage"
+    assert floyo_jobs._subject_slug({"image": "/x/plates/kevin_likeness/0_0.jpg"}) == "kevin"
+    assert floyo_jobs._subject_slug({"start_image": "/x/plates/ziggy_sing_16x9.jpg"}) == "ziggy"
+    assert floyo_jobs._subject_slug({}) == ""
+
+
 def test_unknown_workflow_raises():
     with pytest.raises(ValueError):
         floyo_jobs.load_workflow_template("does-not-exist")

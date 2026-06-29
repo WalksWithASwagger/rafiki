@@ -19,6 +19,26 @@ from lib.providers import floyo_provider
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS_DIR = REPO_ROOT / "config" / "floyo_workflows"
 DEFAULT_WORKFLOW = "wan22_endframe"
+_WORKFLOW_LABELS = {
+    "wan22_endframe": "transition",
+    "infinitetalk": "lipsync",
+    "multitalk": "lipsync",
+}
+
+
+def _subject_slug(inputs: dict[str, str]) -> str:
+    """Derive a readable subject (e.g. 'mage') from the primary image input's path."""
+    for key in ("start_image", "image"):
+        path = inputs.get(key)
+        if not path:
+            continue
+        parent = Path(path).parent.name
+        if parent.endswith("_likeness"):
+            return parent[: -len("_likeness")]
+        if parent and parent != "plates":
+            return parent
+        return Path(path).stem.split("_")[0].lower()
+    return ""
 _FILE_SLOT_TYPES = {"image", "video", "audio_file"}
 
 
@@ -171,6 +191,16 @@ def plan_floyo_generation(
                     outputs.append(floyo_provider.download_output(url, dest, execute=True))
                 except Exception as e:  # noqa: BLE001 - record, don't crash the run
                     outputs.append({"status": "failed", "file": fn, "error": str(e)[:300]})
+            # Readable deposit names: <subject>_<type>_<run-id>[_n].mp4
+            subject = _subject_slug(inputs) or project
+            label = _WORKFLOW_LABELS.get(workflow, workflow)
+            idx = 0
+            for out in outputs:
+                if out.get("status") == "downloaded" and out.get("output_path"):
+                    idx += 1
+                    suffix = Path(out["output_path"]).suffix or ".mp4"
+                    extra = f"_{idx}" if idx > 1 else ""
+                    out["deposit_name"] = f"{subject}_{label}_{run_id[:10]}{extra}{suffix}"
             # Deposit clips into the project that owns them (if `project` is a media root).
             deposit_outputs_into_project(outputs, project, "clips")
 

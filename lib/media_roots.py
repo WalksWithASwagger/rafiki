@@ -115,7 +115,7 @@ def deposit_outputs_into_project(outputs: list[dict[str, Any]], project: str, su
         try:
             dest_dir.mkdir(parents=True, exist_ok=True)
             src = Path(out["output_path"])
-            dest = dest_dir / src.name
+            dest = dest_dir / (out.get("deposit_name") or src.name)
             shutil.copy2(src, dest)
             out["project_path"] = str(dest)
         except OSError as e:
