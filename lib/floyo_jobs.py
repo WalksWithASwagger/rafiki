@@ -35,7 +35,8 @@ def _subject_slug(inputs: dict[str, str]) -> str:
         parent = Path(path).parent.name
         if parent.endswith("_likeness"):
             return parent[: -len("_likeness")]
-        if parent and parent != "plates":
+        # Anchors live in locked_looks/; name from the filename (e.g. kevin_static -> kevin).
+        if parent and parent not in ("plates", "locked_looks"):
             return parent
         return Path(path).stem.split("_")[0].lower()
     return ""
