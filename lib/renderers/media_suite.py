@@ -387,6 +387,7 @@ HTML = r"""<!doctype html>
       styles: [],
       jobs: [],
       selections: {},
+      notes: {},
       librarySubject: '',
       videoSubject: '',
       videoProject: '',
@@ -739,6 +740,7 @@ HTML = r"""<!doctype html>
     async function loadSelections() {
       const data = await getJson('/api/media/selections');
       state.selections = data.items || {};
+      state.notes = data.notes || {};
     }
 
     async function loadWarnings() {
@@ -777,6 +779,7 @@ HTML = r"""<!doctype html>
       renderVideoSubjectOptions();
       $('videoCards').innerHTML = videos.slice(0, 160).map(videoCardHtml).join('');
       document.querySelectorAll('[data-select]').forEach(btn => btn.addEventListener('click', saveSelection));
+      document.querySelectorAll('[data-note-id]').forEach(ta => ta.addEventListener('change', saveNote));
     }
 
     function videoCardHtml(entry) {
@@ -789,8 +792,15 @@ HTML = r"""<!doctype html>
           <div class="chips">
             ${['focus','star','exclude'].map(value => `<button data-select="${value}" data-id="${entry.id}" class="${current === value ? 'active' : ''}">${value}</button>`).join('')}
           </div>
+          <textarea class="note" data-note-id="${entry.id}" placeholder="notes…" rows="2">${escapeHtml(state.notes[entry.id] || '')}</textarea>
         </div>
       </article>`;
+    }
+
+    async function saveNote(event) {
+      const ta = event.currentTarget;
+      await postJson('/api/media/notes', {key: ta.dataset.noteId, note: ta.value});
+      state.notes[ta.dataset.noteId] = ta.value;
     }
 
     async function saveSelection(event) {

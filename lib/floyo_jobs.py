@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.jobs import provider_cost_preview, write_manifest
+from lib.media_roots import deposit_outputs_into_project
 from lib.providers import floyo_provider
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -170,6 +171,8 @@ def plan_floyo_generation(
                     outputs.append(floyo_provider.download_output(url, dest, execute=True))
                 except Exception as e:  # noqa: BLE001 - record, don't crash the run
                     outputs.append({"status": "failed", "file": fn, "error": str(e)[:300]})
+            # Deposit clips into the project that owns them (if `project` is a media root).
+            deposit_outputs_into_project(outputs, project, "clips")
 
     manifest = {
         "version": 1,
