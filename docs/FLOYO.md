@@ -66,6 +66,23 @@ python generate.py floyo mux --video clip.mp4 --audio song.mp3 --audio-start 5 -
 Local only — no provider spend. **Do not** mux over a lip-sync (`infinitetalk`/`multitalk`)
 clip: its vocal is already embedded and drives the lips.
 
+## Keyframes (stills) — Replicate, not Floyo
+
+Floyo/FloTime is a **video** backend and **cannot load FLUX image LoRAs**, so the keyframe
+*stills* that feed these workflows are generated on **Replicate** (FLUX + the trained
+character image LoRA, e.g. `walkswithaswagger/alexandra-samuel`). Floyo then animates them.
+
+```bash
+# from a project dir with keyframes.json + REPLICATE_API_TOKEN in rafiki/.env
+python generate.py keyframes generate --beat situ_02_backstage --num-outputs 4 --execute
+# or by number:  --beat 02
+```
+
+`keyframes.json` holds `settings` (the LoRA model `version`, aspect ratio, steps, guidance,
+`lora_scale`, output format) and `beats` (each with a `prompt`). Stills land in
+`output/keyframes/<beat>/keyframe-run-<stamp>/` (gitignored). Replicate is the **backup**
+provider generally — but it is the only engine for FLUX-image-LoRA stills.
+
 ## MCP
 
 `rafiki_floyo_generate(workflow="wan22_endframe", start_image, end_image, prompt, project,

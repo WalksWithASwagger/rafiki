@@ -108,6 +108,24 @@ def test_floyo_generate_matches_envelope(tmp_path, monkeypatch):
     )
 
 
+def test_keyframes_generate_matches_envelope(tmp_path, monkeypatch):
+    from lib.providers import replicate_provider
+
+    monkeypatch.delenv("REPLICATE_API_TOKEN", raising=False)
+    monkeypatch.setattr(replicate_provider, "save_job", lambda record, **kwargs: tmp_path / f"{record.id}.json")
+    kf = tmp_path / "keyframes.json"
+    kf.write_text(json.dumps({
+        "settings": {"version": "v123", "aspect_ratio": "21:9", "output_format": "jpg"},
+        "beats": {"situ_01_starman": {"prompt": "HERO PORTRAIT of KRISKRUG"}},
+    }), encoding="utf-8")
+    assert_envelope(
+        mcp_server.rafiki_keyframes_generate(
+            keyframes=str(kf), beat="01", num_outputs=2, output_root=str(tmp_path), execute=False,
+        ),
+        expect_ok=True,
+    )
+
+
 def test_media_warnings_matches_envelope(tmp_path):
     assert_envelope(
         mcp_server.rafiki_media_warnings(registry_path=str(tmp_path / "none.json")),
