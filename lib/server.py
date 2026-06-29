@@ -453,6 +453,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._import_media_selection_edl()
         elif path == "/api/media/selections":
             self._update_media_selection()
+        elif path == "/api/media/notes":
+            self._update_media_note()
         elif path == "/api/jobs/train-lora/preview":
             self._preview_train_lora()
         elif path == "/api/jobs/train-lora":
@@ -942,6 +944,30 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
         self._respond(200, "application/json", json.dumps({"ok": True, "items": items}).encode("utf-8"))
 
+    def _update_media_note(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            key = _coerce_str(payload.get("key"), field="key", required=True)
+            note = _coerce_str(payload.get("note"), field="note")
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": str(e)}).encode("utf-8"))
+            return
+        except Exception:
+            self._respond(400, "application/json", b'{"error":"bad request"}')
+            return
+
+        data = self._load_video_selections()
+        notes = data.setdefault("notes", {})
+        if note:
+            notes[key] = note[:2000]
+        else:
+            notes.pop(key, None)
+        self.video_selections_file.parent.mkdir(parents=True, exist_ok=True)
+        self.video_selections_file.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        self._respond(200, "application/json", json.dumps({"ok": True, "notes": notes}).encode("utf-8"))
+
     def _import_media_selection_edl(self):
         from lib import media_registry
         from lib.video_jobs import import_video_selection_payload
@@ -1082,6 +1108,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         items = data.get("items")
         if not isinstance(items, dict):
             data["items"] = {}
+        if not isinstance(data.get("notes"), dict):
+            data["notes"] = {}
         data.setdefault("version", 1)
         return data
 

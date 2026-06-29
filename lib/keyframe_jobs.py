@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from lib.jobs import provider_cost_preview, write_manifest
+from lib.media_roots import deposit_outputs_into_project
 from lib.providers import replicate_provider
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -138,6 +139,8 @@ def plan_keyframe_generation(
                 outputs.append(replicate_provider.download_output(url, dest, execute=True))
             except Exception as e:  # noqa: BLE001 - record, don't crash the run
                 outputs.append({"status": "failed", "url": url, "error": str(e)[:300]})
+        # Deposit stills into the project that owns them (if `project` is a media root).
+        deposit_outputs_into_project(outputs, project, "keyframes")
 
     manifest = {
         "version": 1, "kind": "keyframe-generation", "status": final_status if execute else "dry-run",
