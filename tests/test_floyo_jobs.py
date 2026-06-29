@@ -72,3 +72,24 @@ def test_plan_dry_run_writes_manifest(tmp_path, monkeypatch):
     assert manifest["project"] == "andromeda"
     assert manifest["inputs"]["prompt"] == "morph"
     assert manifest["cost_estimate"]["amount"] == 0.0
+
+
+@pytest.mark.parametrize("workflow", ["wan22_endframe", "infinitetalk", "multitalk"])
+def test_shipped_workflows_load(workflow):
+    tpl, imap = floyo_jobs.load_workflow_template(workflow)
+    assert isinstance(tpl, dict) and tpl
+    assert imap.get("slots")
+
+
+def test_infinitetalk_dry_run_plan(tmp_path, monkeypatch):
+    _no_network(monkeypatch, tmp_path)
+    result = floyo_jobs.plan_floyo_generation(
+        workflow="infinitetalk",
+        inputs={"image": "/tmp/a.jpg", "audio": "/tmp/song.mp3", "prompt": "singing to camera"},
+        project="andromeda",
+        output_root=tmp_path,
+        execute=False,
+    )
+    assert result["job"]["status"] == "dry-run"
+    assert result["manifest"]["workflow"] == "infinitetalk"
+    assert result["manifest"]["inputs"]["audio"] == "/tmp/song.mp3"

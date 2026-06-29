@@ -22,6 +22,11 @@ Templates live in `config/floyo_workflows/` as ComfyUI API-format graphs plus an
 
 - **`wan22_endframe`** — morph a start image into an end image as a short (~3s), silent,
   RIFE-interpolated clip. Slots: `start_image`, `end_image`, `prompt`.
+- **`infinitetalk`** — audio-driven lip-sync from a single still (the singing shots). Slots:
+  `image`, `audio` (an audio file), `prompt`, plus optional `max_frames`, `width`, `height`.
+- **`multitalk`** — multi-person lip-sync. Slots: `image`, `audio`, `prompt`.
+
+Audio slots upload the file and pass its `#inputs/` reference to the workflow's audio loader.
 
 ## CLI
 
@@ -38,6 +43,11 @@ python generate.py floyo generate \
 python generate.py floyo generate --workflow wan22_endframe \
   --set start_image=plateA.jpg --set end_image=plateB.jpg \
   --set prompt="..." --project andromeda --execute
+
+# Lip-sync (singing shot)
+python generate.py floyo generate --workflow infinitetalk \
+  --set image=singer.jpg --set audio=vocal.mp3 \
+  --set prompt="singing to camera, glam space opera" --project andromeda --execute
 ```
 
 Add `--no-wait` to submit without polling/downloading, `--json` for machine output, and
