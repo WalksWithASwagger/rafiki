@@ -10,9 +10,9 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import subprocess
 import urllib.error
 import urllib.request
-import uuid
 from pathlib import Path
 from time import sleep
 from typing import Any
@@ -53,21 +53,28 @@ def upload_asset(path: str | Path, mime: str = "", *, execute: bool = False) -> 
     if not src.is_file():
         raise FloyoError(f"upload source not found: {src}")
     mime = mime or mimetypes.guess_type(src.name)[0] or "application/octet-stream"
-    body, content_type = _multipart(
-        fields={"path": "/api/uploads", "on_conflict": "rename"},
-        file_field="file",
-        file_path=src,
-        mime=mime,
+    # Floyo's CDN sits behind Cloudflare, which rejects a plain urllib client (HTTP 1010).
+    # curl's signature is accepted, so uploads shell out to curl (the studio's proven path).
+    proc = subprocess.run(
+        [
+            "curl", "-sS", "-X", "POST", FLOYO_UPLOAD_URL,
+            "-H", f"Authorization: Bearer {_token()}",
+            "-F", f"file=@{src};type={mime}",
+            "-F", "path=/api/uploads",
+            "-F", "on_conflict=rename",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=300,
     )
-    req = urllib.request.Request(
-        FLOYO_UPLOAD_URL,
-        data=body,
-        method="POST",
-        headers={"Authorization": f"Bearer {_token()}", "Content-Type": content_type},
-    )
-    data = _read_json(req, timeout=300)
-    if "input_path" not in data:
-        raise FloyoError(f"upload response missing input_path: {json.dumps(data)[:500]}")
+    if proc.returncode != 0:
+        raise FloyoError(f"upload failed (curl exit {proc.returncode}): {proc.stderr[:500]}")
+    try:
+        data = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        raise FloyoError(f"upload response not JSON: {proc.stdout[:500]}") from e
+    if not isinstance(data, dict) or "input_path" not in data:
+        raise FloyoError(f"upload response missing input_path: {str(data)[:500]}")
     return data
 
 
@@ -130,18 +137,19 @@ def download_output(url: str, output_path: Path, *, execute: bool = False) -> di
     output_path = Path(output_path).expanduser()
     if not execute:
         return {"status": "dry-run", "url": url, "output_path": str(output_path)}
-    req = urllib.request.Request(url, headers={"Accept": "application/octet-stream"})
-    try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            body = resp.read()
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")
-        raise FloyoError(f"download HTTP {e.code}: {detail[:1000]}") from e
-    except urllib.error.URLError as e:
-        raise FloyoError(f"download failed: {e}") from e
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_bytes(body)
-    return {"status": "downloaded", "url": url, "output_path": str(output_path), "bytes": len(body)}
+    # Floyo's CDN (presigned output URLs included) is Cloudflare-protected and rejects a plain
+    # urllib client (HTTP 1010/403); curl's signature is accepted. -f fails on non-2xx.
+    proc = subprocess.run(
+        ["curl", "-fsS", "-L", "-o", str(output_path), url],
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+    if proc.returncode != 0:
+        raise FloyoError(f"download failed (curl exit {proc.returncode}): {proc.stderr[:300] or 'non-2xx response'}")
+    size = output_path.stat().st_size if output_path.exists() else 0
+    return {"status": "downloaded", "url": url, "output_path": str(output_path), "bytes": size}
 
 
 def create_job(
@@ -195,6 +203,8 @@ def create_job(
 def _job_status(response: dict[str, Any], *, execute: bool) -> str:
     if not execute:
         return "dry-run"
+    if response.get("error"):
+        return "failed"  # Floyo can return status=done with a system error
     status = str(response.get("status") or "").lower()
     if status in _FAILED_STATUSES:
         return "failed"
@@ -215,37 +225,13 @@ def _polling_status(response: dict[str, Any], *, execute: bool) -> str:
 
 
 def _job_error(response: dict[str, Any]) -> str:
+    err = response.get("error")
     status = str(response.get("status") or "").lower()
-    if status not in _FAILED_STATUSES and not response.get("error"):
+    if status not in _FAILED_STATUSES and not err:
         return ""
-    return str(response.get("error") or response.get("logs") or "")[:2000]
-
-
-def _multipart(
-    *,
-    fields: dict[str, str],
-    file_field: str,
-    file_path: Path,
-    mime: str,
-) -> tuple[bytes, str]:
-    boundary = uuid.uuid4().hex
-    crlf = b"\r\n"
-    parts: list[bytes] = []
-    for key, value in fields.items():
-        parts.append(f"--{boundary}".encode())
-        parts.append(f'Content-Disposition: form-data; name="{key}"'.encode())
-        parts.append(b"")
-        parts.append(value.encode())
-    parts.append(f"--{boundary}".encode())
-    parts.append(
-        f'Content-Disposition: form-data; name="{file_field}"; filename="{file_path.name}"'.encode()
-    )
-    parts.append(f"Content-Type: {mime}".encode())
-    parts.append(b"")
-    parts.append(file_path.read_bytes())
-    parts.append(f"--{boundary}--".encode())
-    parts.append(b"")
-    return crlf.join(parts), f"multipart/form-data; boundary={boundary}"
+    if isinstance(err, dict):
+        err = err.get("message") or err.get("code") or json.dumps(err)
+    return str(err or response.get("logs") or "")[:2000]
 
 
 def _post_json(path: str, payload: dict[str, Any]) -> dict[str, Any]:

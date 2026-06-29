@@ -53,3 +53,10 @@ def test_job_status_mapping():
     assert floyo_provider._job_status({"status": "done"}, execute=True) == "succeeded"
     assert floyo_provider._job_status({"status": "error"}, execute=True) == "failed"
     assert floyo_provider._job_status({"status": "processing"}, execute=True) == "processing"
+
+
+def test_done_with_error_is_failed():
+    # Floyo can return status=done alongside a system error dict.
+    resp = {"status": "done", "error": {"type": "system", "code": "system_error", "message": "boom"}}
+    assert floyo_provider._job_status(resp, execute=True) == "failed"
+    assert floyo_provider._job_error(resp) == "boom"
