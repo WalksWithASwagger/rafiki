@@ -41,6 +41,21 @@ def test_deposit_copies_downloaded_outputs(tmp_path, monkeypatch):
     assert "project_path" not in outputs[1]
 
 
+def test_deposit_uses_deposit_name(tmp_path, monkeypatch):
+    project = tmp_path / "project"
+    project.mkdir()
+    src = tmp_path / "run" / "infinitetalk_run_ABC_00001.mp4"
+    src.parent.mkdir()
+    src.write_bytes(b"v")
+    monkeypatch.setattr(
+        "lib.media_roots.load_media_roots",
+        lambda **_: {"gg": MediaRoot(key="gg", path=project, importer="generic", enabled=True)},
+    )
+    outputs = [{"status": "downloaded", "output_path": str(src), "deposit_name": "mage_lipsync_run_ABC.mp4"}]
+    deposit_outputs_into_project(outputs, "gg", "clips")
+    assert (project / "clips" / "mage_lipsync_run_ABC.mp4").exists()
+
+
 def test_deposit_noop_for_unknown_project(tmp_path, monkeypatch):
     monkeypatch.setattr("lib.media_roots.load_media_roots", lambda **_: {})
     outputs = [{"status": "downloaded", "output_path": str(tmp_path / "x.mp4")}]
