@@ -34,6 +34,8 @@ def test_subject_slug_from_inputs():
     assert floyo_jobs._subject_slug({"start_image": "/x/plates/mage_likeness/0_3.jpg"}) == "mage"
     assert floyo_jobs._subject_slug({"image": "/x/plates/kevin_likeness/0_0.jpg"}) == "kevin"
     assert floyo_jobs._subject_slug({"start_image": "/x/plates/ziggy_sing_16x9.jpg"}) == "ziggy"
+    assert floyo_jobs._subject_slug({"image": "/x/locked_looks/kevin_static.jpg"}) == "kevin"
+    assert floyo_jobs._subject_slug({"image": "/x/locked_looks/mage_magenta_rune.jpg"}) == "mage"
     assert floyo_jobs._subject_slug({}) == ""
 
 
