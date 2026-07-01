@@ -1,6 +1,6 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-06-28
+Last reviewed: 2026-07-01
 
 Latest audit: [MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md)
 Prior audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
@@ -48,6 +48,7 @@ prompt pack at `examples/keynote-visual-workflow-prompt-pack.md`.
 | Review viewers | `lib/renderers/viewer.py`, `generate-presentation-viewer.py` | Comparison viewers, reusable presentation viewers, social-copy export, and self-contained HTML mode. |
 | Asset operations | `lib/archive.py`, `lib/archive_health.py`, `lib/registry.py`, `lib/exporters/`, `lib/deploy/`, `scripts/workspace_hygiene.py` | Approved-image curation, read-only archive health and workspace hygiene reporting, searchable registry cache, Canva bundle export, Notion export, Vercel deploy helper, and secret-safe deploy readiness checks. |
 | Automation | `lib/regen.py`, `config/scheduled-regen.json.example` | Scheduled regeneration jobs are configured locally and can be dry-run or executed from the CLI. |
+| Floyo video | `lib/providers/floyo_provider.py`, `lib/floyo_jobs.py`, `lib/video_jobs.py`, `config/floyo_workflows/`, `docs/FLOYO.md` | Dry-run-first hosted-ComfyUI (flowyo.ai) clip rendering: `wan22_endframe`, lip-sync (`infinitetalk`/`multitalk`), clip audio-mux, keyframe-gen, and clip ingest via `generate.py floyo` and `rafiki_floyo_*` MCP tools; `--execute` is operator-gated spend. |
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/github-*`, `.agents/skills/github-*` | Linear-backed GitHub issue-to-PR loop is now documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `styles/`, `examples/` | The tool ships `styles/` presets and `examples/` tutorials; generated prompt packs (`prompts/`) and output assets (`assets/`) are kept in a private knowledge base and gitignored, per the tool/output separation. |
@@ -199,23 +200,37 @@ Before declaring a roadmap phase done:
 
 ## Near-Term Execution Order
 
-Shipped near-term items (#180, #181, #182, #143, #145, #147, #142, #144, #146,
-#187) are closed. Active open work:
+The earlier near-term queue is shipped and closed (#142–#147, #180–#182, #186,
+#187, #188–#199, #207, #208, #210–#214, #202). The active thrust is now the
+studio-consolidation epic plus a few human-gated spikes.
 
-1. Refresh roadmap statuses against shipped work and closed issues (#207).
-2. Close public repo metadata and stale audit follow-ups (#186).
-3. Document media-suite MCP tools in `docs/MCP.md` (#208).
-4. Add MCP tool/docs sync test (#210; blocked by #208).
-5. Extract first command modules from the `generate.py` dispatcher (#211).
-6. Spike agent-readable JSON output contract for MCP tools (#212).
-7. Add local automation and agent archive recipes doc (#213).
-8. Media suite hardening lane: importer fixtures (#189), warning drawer (#188),
-   job lifecycle (#192–#193), video validation (#194–#195), MCP mirror (#196),
-   acceptance command (#197).
-9. Add KB ecosystem mirror freshness check (#214).
-10. Workflow power tools: export presets (#198), lineage suggestions (#199).
-11. Curriculum Atlas validation (#200) and export controls (#201, blocked).
-12. Explore CDN-backed approved asset publishing (#202, research).
+**Epic #268 — retire the standalone `alex-samuel` studio into Rafiki**, via a
+three-way split: `rafiki` is the tool (public), `gorgeous-ghost` is the private
+film work operated by Rafiki, and `alex-samuel` is archived. Dry-run-first;
+nothing deleted until cutover, KK sign-off, and backup. Audit:
+[meta/audits/2026-06-28-alex-samuel-consolidation-audit.md](../meta/audits/2026-06-28-alex-samuel-consolidation-audit.md).
+
+1. **Track 1 — Floyo video pipeline (#263).** M1 (provider + `wan22_endframe`)
+   and most of Phase 2 (lip-sync `infinitetalk`/`multitalk`, clip audio-mux,
+   keyframe-gen, clip ingest into the project) are shipped; the remaining tail
+   is the plate/faceswap resolver. See [FLOYO.md](FLOYO.md).
+2. **Track 3 — Clips review surface in the portal (#271).** One-at-a-time
+   playback, audio badges, love/like/pass + notes, byte-range seek, filters.
+3. **Track 2 — LoRA lite slice, film LoRAs only (#270)**, on top of
+   `lib/training.py`.
+4. **Track 4 — Audio surface (#264):** Suno ingest/management scope.
+5. **Track 5a — Production-knowledge indexing in the importer (#265)** and
+   **Track 5b — canonical gitignored media home + corpus migration (#266)**.
+6. **Track 7 — `gorgeous-ghost` carve-out (#274):** Phase A (repo stood up) is
+   done; Phase B media migration is gated on Floyo parity.
+7. **Track 6 — Retirement cutover + verification (#267)**, blocked on Tracks 1–5.
+
+Standalone open work outside the epic:
+
+8. Curriculum Atlas story-rail validation (#200, needs-human), then export
+   controls (#201, blocked on #200).
+9. Verify Notion signed upload against a live workspace (#69, needs-human,
+   credential-gated).
 
 ## Non-Goals For Now
 

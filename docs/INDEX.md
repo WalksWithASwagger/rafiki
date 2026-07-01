@@ -36,8 +36,6 @@ deeper operating docs by surface area.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, mode navigation, feedback, evaluation, archive metadata state,
   revision staging, Curriculum Atlas surface, and API endpoints.
-- [Work Plan 2026-05-21](WORKPLAN-2026-05-21.md) - dated snapshot after the
-  quality-polish PR; use the roadmap for the live queue.
 - [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
   estimate rules, and source-of-truth boundaries.
 
@@ -50,8 +48,6 @@ deeper operating docs by surface area.
   re-indexing guidance for external or generated assets.
 - [Personal Media Suite](PERSONAL-MEDIA-SUITE.md) - multimedia roots, Alex
   importer, local media registry, suite portal, and dry-run job commands.
-- [V1 Hardening Audit And Workplan](V1-HARDENING-AUDIT-2026-06-04.md) -
-  current suite audit, risk areas, phased workplan, and verification cadence.
 - [Approved-Image Archive](ARCHIVE.md) - approved-asset archive flow, layout,
   `index.json` schema, and storage location.
 - [Library And Archive Roadmap](LIBRARY-ARCHIVE-ROADMAP.md) - build plan for

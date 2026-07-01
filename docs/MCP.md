@@ -117,7 +117,7 @@ Typed workflow tools return stable JSON with `success`, `ok`, `tool`,
 URLs, counts, stdout/stderr, or error details. `success` is kept for existing
 clients; new clients should read `ok`. See
 [MCP-OUTPUT-CONTRACT.md](MCP-OUTPUT-CONTRACT.md) for the full field reference,
-per-tool catalogue, and the proposed output contract.
+per-tool catalogue, and the ratified output contract.
 
 ## Typed Workflow Examples
 
