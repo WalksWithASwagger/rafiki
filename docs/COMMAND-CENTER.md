@@ -8,7 +8,7 @@ Two surfaces, same data:
 
 - **Static library** — `output/library.html`. A self-contained page (works over `file://`, no
   server). Project / model / aspect / style filter chips, keyword search, sort, lightbox.
-- **Live portal** — `python generate.py serve` → http://localhost:8000. The richer surface:
+- **Live portal** — `python generate.py serve` → http://localhost:7433. The richer surface:
   persistent ratings, review queue, run detail, plus Generate / Curate / Spend / Teach modes.
   See [Portal Command Center](PORTAL-COMMAND-CENTER.md) for the full mode map and API.
 

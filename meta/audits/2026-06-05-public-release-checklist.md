@@ -1,5 +1,9 @@
 # Public Release Checklist - 2026-06-05
 
+> Archived 2026-07-01: this was a one-time pre-public-release checklist and is
+> retained here for the historical gitleaks-allowlist rationale. The repository
+> is now public.
+
 Repository: `WalksWithASwagger/rafiki`
 
 Public release decision: make the existing GitHub repository public after a

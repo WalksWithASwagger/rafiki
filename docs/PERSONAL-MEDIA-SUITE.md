@@ -78,5 +78,6 @@ The legacy image-only library remains available at `/library`.
 The suite serves external media through `/media/<root>/<relative-path>` and
 supports byte ranges for MP4 scrubbing.
 
-The current V1 hardening audit and phased workplan live in
-[V1 Hardening Audit And Workplan](V1-HARDENING-AUDIT-2026-06-04.md).
+The 2026-06-04 V1 hardening audit and phased workplan are archived in
+[meta/audits/2026-06-04-v1-hardening-audit.md](../meta/audits/2026-06-04-v1-hardening-audit.md);
+live planning is tracked in [ROADMAP.md](ROADMAP.md).
