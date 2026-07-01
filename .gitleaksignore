@@ -1,1 +1,3 @@
-6cc1ef728eac04d6719b90abaa31793fd78eb3bf:docs/image-pipeline-operator.md:generic-api-key:132
+# gitleaks allowlist (fingerprint per line). Empty: no active false positives.
+# Prior entry for docs/image-pipeline-operator.md was dropped when that doc was
+# removed (2026-07-01).

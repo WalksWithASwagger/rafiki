@@ -1,5 +1,8 @@
 # Rafiki V1 Hardening Audit And Workplan - 2026-06-04
 
+> Archived 2026-07-01: moved out of `docs/` into the audit archive. Live
+> planning is tracked in [docs/ROADMAP.md](../../docs/ROADMAP.md).
+
 This audit covers the personal media suite after the foundation commit
 `846c0c7 Add personal media suite foundation` and the first V1 hardening slice.
 Rafiki remains the product home. `/Users/kk/Desktop/alex-samuel` remains an
