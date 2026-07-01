@@ -64,14 +64,11 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── sync-kb-image-prompt-mirror.sh
 │   └── agentic/                 # Agentic pipeline scripts (issue_lint, dev_loop,
 │                                #   pr_traceability, linear_sync, ensure_labels,
-│                                #   pr_review, repo_doctor, status_report,
-│                                #   provider_adapter, common)
-├── styles/                      # styles.yaml + per-style markdown guides
-│                                #   (run `npx rafiki --list-styles` for live truth):
-│                                #   kk, hopecode, bcai, futureproof-mythic,
-│                                #   bcai-ecosystem, upgrade, zine, gni, femme,
-│                                #   mac, mac-workshop, indigenomics, cmvan,
-│                                #   kk-blocks, kk-cmyk, kk-glitch, kk-acid
+│                                #   pr_review, provider_adapter, common)
+├── styles/                      # styles.yaml + per-style markdown guides, plus
+│                                #   refs/ image plates for a few styles
+│                                #   (run `npx rafiki --list-styles` for the live
+│                                #   style list — it is the source of truth)
 ├── prompts/                     # (gitignored) local prompt libraries — your generated
 │                                #   content, kept in a private knowledge base, not shipped
 ├── examples/
@@ -96,28 +93,9 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── tools/
 │   └── gpt-image-batch-ui/      # Streamlit batch UI for gpt-image-1 workflows
 ├── tests/                       # Python test suite (incl. tests/agentic/)
-└── docs/                        # See docs/INDEX.md for the full map
-    ├── INDEX.md
-    ├── SCOPE.md
-    ├── ROADMAP.md
-    ├── PROMPT-MEDIA-POLICY.md
-    ├── MODEL-POLICY.md
-    ├── MCP.md
-    ├── DOCTOR.md
-    ├── CHROME-PUPPETEER.md
-    ├── PRESENTATION-VIEWER.md
-    ├── PORTAL-COMMAND-CENTER.md
-    ├── ASSET-REGISTRY.md
-    ├── ARCHIVE.md
-    ├── kb-mirror-policy.md
-    ├── CANVA-EXPORT.md
-    ├── NOTION-EXPORT.md
-    ├── SOCIAL-EXPANSION.md
-    ├── DEPLOYMENT.md
-    ├── DELIVERY-PIPELINE.md
-    ├── SCHEDULED-REGEN.md
-    ├── image-pipeline-operator.md
-    └── FOLDER-LAYOUT.md         # this file
+└── docs/                        # Operating docs. INDEX.md is the full,
+                                 #   authoritative map — this tree does not
+                                 #   re-list every doc so the two can't drift.
 ```
 
 ## Optional sibling repos

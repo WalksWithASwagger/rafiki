@@ -80,3 +80,26 @@ core, incl. lip-sync/faceswap/clip-manager), **#264** (audio-production surface)
 (index production knowledge), **#266** (canonical gitignored media home), and **#267**
 (retirement cutover + verification, blocked on the rest). The standalone studio remains the
 source of truth until the cutover.
+
+## Progress update (2026-06-28, end of day)
+
+The plan sharpened into a **three-way split** (ratified by KK): `rafiki` = tool,
+`gorgeous-ghost` = the film work (new **private** repo, creative source carved out;
+`alex-samuel` untouched), `alex-samuel` = retired/archived. Epic #268 reframed accordingly;
+Track 7 (#274) tracks the carve-out.
+
+Shipped today against Track 1 (#263):
+- **M1** — Floyo provider + `wan22_endframe` pipeline + CLI (`generate.py floyo`) + MCP
+  (`rafiki_floyo_generate`) (PR #273).
+- **M1 hotfix** — Floyo CDN is Cloudflare-protected; upload **and** download go through curl;
+  `done`+error treated as failed; download failures non-fatal (PR #275).
+- **A real @LEX clip rendered end-to-end** through Rafiki (6.5s, validated) — M1 proven.
+- **Phase 2a** — lip-sync workflows `infinitetalk` + `multitalk` shipped (PR #276).
+- **Phase 2b** — clip audio-mux (`generate.py floyo mux`, ffmpeg) to score silent clips (PR #277).
+
+Phase 0 freeze tag `rafiki-port-baseline-2026-06-28` set in the studio (local; remote push
+pending — large repo). Known Floyo wrinkle: it intermittently returns `system_error` with a
+valid output; the curl-download fix captures the clip whenever Floyo produces one.
+
+**Remaining on Track 1:** keyframe-gen surface (`keyframes.json` → `rafiki_generate`). Then
+Tracks 2–7 and the cutover (#267).

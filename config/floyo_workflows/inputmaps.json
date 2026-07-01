@@ -1,0 +1,83 @@
+{
+  "wan22_endframe": {
+    "label": "Wan 2.2 i2v + End Frame (FloTime) \u2014 transition/morph A->B (RIFE-interpolated, ~3s, silent)",
+    "billing": "flotime",
+    "status": "ready (API snippet)",
+    "slots": {
+      "start_image": {
+        "node": "67",
+        "field": "image",
+        "type": "image"
+      },
+      "end_image": {
+        "node": "98",
+        "field": "image",
+        "type": "image"
+      },
+      "prompt": {
+        "node": "112:16",
+        "field": "positive_prompt",
+        "type": "text"
+      }
+    }
+  },
+  "infinitetalk": {
+    "label": "InfiniteTalk (FloTime) \u2014 audio-driven lip-sync, unlimited length, 480p",
+    "billing": "flotime",
+    "status": "ready (API snippet)",
+    "slots": {
+      "image": {
+        "node": "313",
+        "field": "image",
+        "type": "image"
+      },
+      "audio": {
+        "node": "125",
+        "field": "audio",
+        "type": "audio_file"
+      },
+      "prompt": {
+        "node": "241",
+        "field": "positive_prompt",
+        "type": "text"
+      },
+      "max_frames": {
+        "node": "270",
+        "field": "value",
+        "type": "int"
+      },
+      "width": {
+        "node": "245",
+        "field": "value",
+        "type": "int"
+      },
+      "height": {
+        "node": "246",
+        "field": "value",
+        "type": "int"
+      }
+    }
+  },
+  "multitalk": {
+    "label": "MultiTalk / Wan2.1 FusionX (FloTime) \u2014 audio lip-sync, multi-person capable (the band)",
+    "billing": "flotime",
+    "status": "ready (converted, seed-fix applied)",
+    "slots": {
+      "image": {
+        "node": "133",
+        "field": "image",
+        "type": "image"
+      },
+      "audio": {
+        "node": "125",
+        "field": "audio",
+        "type": "audio_file"
+      },
+      "prompt": {
+        "node": "217",
+        "field": "prompt",
+        "type": "text"
+      }
+    }
+  }
+}

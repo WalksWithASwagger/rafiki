@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -82,3 +83,40 @@ def load_media_roots(*, include_disabled: bool = False) -> dict[str, MediaRoot]:
     if include_disabled:
         return roots
     return {key: root for key, root in roots.items() if root.enabled}
+
+
+def project_media_dir(
+    project: str, subdir: str, *, roots: dict[str, MediaRoot] | None = None
+) -> Path | None:
+    """If ``project`` matches a configured media root, return ``<root>/<subdir>``.
+
+    Used to deposit generated outputs into the project that owns them (e.g. Floyo
+    clips into ``<root>/clips/``). Returns None when the project is not a media root.
+    """
+    roots = roots if roots is not None else load_media_roots(include_disabled=True)
+    root = roots.get(project)
+    if root is None:
+        return None
+    return root.path / subdir
+
+
+def deposit_outputs_into_project(outputs: list[dict[str, Any]], project: str, subdir: str) -> None:
+    """Copy downloaded outputs into the project's media root (e.g. <root>/clips/), in place.
+
+    No-op when ``project`` is not a configured media root. Records ``project_path`` on each
+    copied output (or ``project_copy_error``).
+    """
+    dest_dir = project_media_dir(project, subdir)
+    if dest_dir is None:
+        return
+    for out in outputs:
+        if out.get("status") != "downloaded" or not out.get("output_path"):
+            continue
+        try:
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            src = Path(out["output_path"])
+            dest = dest_dir / (out.get("deposit_name") or src.name)
+            shutil.copy2(src, dest)
+            out["project_path"] = str(dest)
+        except OSError as e:
+            out["project_copy_error"] = str(e)[:200]

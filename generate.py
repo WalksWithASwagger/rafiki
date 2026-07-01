@@ -782,6 +782,131 @@ def _cmd_video(argv: list[str]) -> None:
     print(f"Manifest: {result['manifest_path']}")
 
 
+def _cmd_floyo(argv: list[str]) -> None:
+    """Floyo (flowyo.ai) hosted-ComfyUI video workflows."""
+    p = argparse.ArgumentParser(
+        prog="generate.py floyo",
+        description="Floyo video generation. Defaults to dry-run; pass --execute to upload, submit, and download.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp_generate = sub.add_parser("generate", help="Plan or launch a Floyo workflow run")
+    sp_generate.add_argument("--workflow", default="wan22_endframe")
+    sp_generate.add_argument(
+        "--set", action="append", default=[], dest="sets", metavar="slot=value",
+        help="Workflow input, e.g. --set start_image=a.jpg --set prompt='...'",
+    )
+    sp_generate.add_argument("--project", default="floyo")
+    sp_generate.add_argument("--name", default="")
+    sp_generate.add_argument("--output-dir", "-d", default=None)
+    sp_generate.add_argument("--execute", action="store_true")
+    sp_generate.add_argument("--no-wait", action="store_true", help="Submit only; do not poll/download")
+    sp_generate.add_argument("--json", action="store_true", dest="json_output")
+    sp_mux = sub.add_parser("mux", help="Mux an audio track over a (silent) clip via ffmpeg")
+    sp_mux.add_argument("--video", required=True)
+    sp_mux.add_argument("--audio", required=True)
+    sp_mux.add_argument("--output", "-o", default=None)
+    sp_mux.add_argument("--audio-start", type=float, default=0.0, help="Start the audio this many seconds in")
+    sp_mux.add_argument("--execute", action="store_true")
+    sp_mux.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    try:
+        if args.action == "mux":
+            from lib.clip_audio import mux_clip_audio
+
+            result = mux_clip_audio(
+                args.video,
+                args.audio,
+                output_path=args.output,
+                audio_start_seconds=args.audio_start,
+                execute=args.execute,
+            )
+        else:
+            inputs: dict[str, str] = {}
+            for item in args.sets:
+                if "=" not in item:
+                    print(f"Error: --set must be slot=value, got {item!r}", file=sys.stderr)
+                    sys.exit(1)
+                slot, value = item.split("=", 1)
+                inputs[slot] = value
+            from lib.floyo_jobs import plan_floyo_generation
+
+            result = plan_floyo_generation(
+                workflow=args.workflow,
+                inputs=inputs,
+                project=args.project,
+                name=args.name,
+                output_root=Path(args.output_dir) if args.output_dir else None,
+                execute=args.execute,
+                wait=not args.no_wait,
+            )
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json_output:
+        print(json.dumps(result, indent=2))
+        return
+    if args.action == "mux":
+        print(f"Floyo mux: {result['status']}")
+        print(f"Output: {result['output']}")
+    else:
+        print(f"Floyo {args.action}: {result['manifest']['status']}")
+        print(f"Manifest: {result['manifest_path']}")
+        for out in result.get("outputs", []):
+            if out.get("output_path"):
+                print(f"Output: {out['output_path']}")
+
+
+def _cmd_keyframes(argv: list[str]) -> None:
+    """Generate keyframe stills from a keyframes.json beat (Replicate FLUX + @LEX LoRA)."""
+    p = argparse.ArgumentParser(
+        prog="generate.py keyframes",
+        description="Keyframe stills from keyframes.json beats. Uses Replicate (FLUX + trained "
+        "image LoRA) — FloTime can't load FLUX image LoRAs. Defaults to dry-run.",
+    )
+    sub = p.add_subparsers(dest="action", required=True)
+    sp = sub.add_parser("generate", help="Plan or launch keyframe generation for a beat")
+    sp.add_argument("--keyframes", default="keyframes.json", help="Path to keyframes.json")
+    sp.add_argument("--beat", required=True, help="Beat key or number, e.g. situ_02_backstage or 02")
+    sp.add_argument("--engine", default="flux1-lora")
+    sp.add_argument("--num-outputs", type=int, default=4)
+    sp.add_argument("--seed", type=int, default=None)
+    sp.add_argument("--project", default="keyframes")
+    sp.add_argument("--output-dir", "-d", default=None)
+    sp.add_argument("--execute", action="store_true")
+    sp.add_argument("--no-wait", action="store_true", help="Submit only; do not poll/download")
+    sp.add_argument("--json", action="store_true", dest="json_output")
+    args = p.parse_args(argv)
+
+    from lib.keyframe_jobs import plan_keyframe_generation
+
+    try:
+        result = plan_keyframe_generation(
+            keyframes_path=Path(args.keyframes),
+            beat=args.beat,
+            engine=args.engine,
+            num_outputs=args.num_outputs,
+            seed=args.seed,
+            project=args.project,
+            output_root=Path(args.output_dir) if args.output_dir else None,
+            execute=args.execute,
+            wait=not args.no_wait,
+        )
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if args.json_output:
+        print(json.dumps(result, indent=2))
+        return
+    print(f"Keyframes {args.action}: {result['manifest']['status']} (beat {result['manifest']['beat']})")
+    print(f"Manifest: {result['manifest_path']}")
+    for out in result.get("outputs", []):
+        if out.get("output_path"):
+            print(f"Output: {out['output_path']}")
+
+
 def _cmd_style(argv: list[str]) -> None:
     """Style utilities."""
     p = argparse.ArgumentParser(
@@ -831,6 +956,8 @@ def main() -> None:
         "subjects": _cmd_subjects,
         "train": _cmd_train,
         "video": _cmd_video,
+        "floyo": _cmd_floyo,
+        "keyframes": _cmd_keyframes,
         "style": _cmd_style,
     }
     if len(sys.argv) > 1 and sys.argv[1] in subcommands:

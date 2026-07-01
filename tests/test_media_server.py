@@ -87,6 +87,23 @@ def test_media_selections_endpoint_persists_local_state(media_server: str) -> No
     assert saved["items"]["media/demo/clip.mp4"] == "star"
 
 
+def test_media_notes_endpoint_persists_and_clears(media_server: str) -> None:
+    resp = _request(
+        f"{media_server}/api/media/notes",
+        method="POST",
+        data={"key": "demo-video-clip.mp4", "note": "great take, use this"},
+    )
+    assert resp.status == 200
+
+    saved = json.loads(_request(f"{media_server}/api/media/selections").read().decode("utf-8"))
+    assert saved["notes"]["demo-video-clip.mp4"] == "great take, use this"
+
+    # empty note clears it
+    _request(f"{media_server}/api/media/notes", method="POST", data={"key": "demo-video-clip.mp4", "note": ""})
+    saved = json.loads(_request(f"{media_server}/api/media/selections").read().decode("utf-8"))
+    assert "demo-video-clip.mp4" not in saved["notes"]
+
+
 def test_media_selection_edl_exports_indexed_video_selection(media_server: str) -> None:
     resp = _request(
         f"{media_server}/api/media/selections",

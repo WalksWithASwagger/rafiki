@@ -102,6 +102,12 @@ checkout when you need copy-paste commands for your own client.
   Defaults to dry-run (`execute: false`).
 - `rafiki_video_generate`: plan or launch a storyboard video generation job.
   Defaults to dry-run (`execute: false`).
+- `rafiki_floyo_generate`: plan or launch a Floyo (flowyo.ai) hosted-ComfyUI
+  video workflow (default `wan22_endframe`). Defaults to dry-run (`execute:
+  false`); on execute it submits only. See [FLOYO.md](FLOYO.md).
+- `rafiki_keyframes_generate`: generate keyframe stills from a `keyframes.json`
+  beat via Replicate (FLUX + the trained character image LoRA). Defaults to
+  dry-run; submits only on execute. See [FLOYO.md](FLOYO.md).
 - `rafiki_style_anchors`: read or derive a normalized style profile from a
   style-anchor JSON file.
 - `rafiki_run`: run supported fallback CLI workflows without a shell.
@@ -111,7 +117,7 @@ Typed workflow tools return stable JSON with `success`, `ok`, `tool`,
 URLs, counts, stdout/stderr, or error details. `success` is kept for existing
 clients; new clients should read `ok`. See
 [MCP-OUTPUT-CONTRACT.md](MCP-OUTPUT-CONTRACT.md) for the full field reference,
-per-tool catalogue, and the proposed output contract.
+per-tool catalogue, and the ratified output contract.
 
 ## Typed Workflow Examples
 

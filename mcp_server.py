@@ -91,6 +91,8 @@ _CLI_SUBCOMMANDS = {
     "subjects",
     "train",
     "video",
+    "floyo",
+    "keyframes",
 }
 _CLI_TOP_LEVEL_FLAGS = {
     "--prompt",
@@ -118,6 +120,8 @@ _CLI_MUTATING_SUBCOMMANDS = {
     "subjects",
     "train",
     "video",
+    "floyo",
+    "keyframes",
 }
 
 mcp = FastMCP(
@@ -505,6 +509,8 @@ def rafiki_status() -> str:
             "rafiki_media_warnings",
             "rafiki_train_lora",
             "rafiki_video_generate",
+            "rafiki_floyo_generate",
+            "rafiki_keyframes_generate",
             "rafiki_style_anchors",
             "rafiki_archive_health",
             "rafiki_viewer_rebuild",
@@ -977,6 +983,83 @@ def rafiki_video_generate(
         "success": True,
         "ok": True,
         "tool": "rafiki_video_generate",
+        "mutating": True,
+        "external": execute,
+        **result,
+    })
+
+
+@mcp.tool()
+def rafiki_floyo_generate(
+    workflow: str = "wan22_endframe",
+    start_image: str = "",
+    end_image: str = "",
+    prompt: str = "",
+    project: str = "floyo",
+    execute: bool = False,
+    output_root: str = "",
+) -> str:
+    """Plan or launch a Floyo (flowyo.ai) video workflow. Defaults to dry-run.
+
+    The default workflow `wan22_endframe` morphs start_image -> end_image into a
+    short silent clip. On execute, this submits only (does not block-poll); use
+    the CLI `generate.py floyo generate --execute` to also wait and download.
+    """
+    from lib.floyo_jobs import plan_floyo_generation
+
+    inputs = {
+        k: v
+        for k, v in (("start_image", start_image), ("end_image", end_image), ("prompt", prompt))
+        if v
+    }
+    result = plan_floyo_generation(
+        workflow=workflow,
+        inputs=inputs,
+        project=project,
+        execute=execute,
+        wait=False,
+        output_root=Path(output_root) if output_root else None,
+    )
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_floyo_generate",
+        "mutating": True,
+        "external": execute,
+        **result,
+    })
+
+
+@mcp.tool()
+def rafiki_keyframes_generate(
+    keyframes: str = "keyframes.json",
+    beat: str = "",
+    engine: str = "flux1-lora",
+    num_outputs: int = 4,
+    execute: bool = False,
+    output_root: str = "",
+) -> str:
+    """Generate keyframe stills from a keyframes.json beat. Defaults to dry-run.
+
+    Uses Replicate (FLUX + the trained character image LoRA); FloTime can't load
+    FLUX image LoRAs, so stills run on Replicate while Floyo handles video. On
+    execute this submits only (does not block-poll); use the CLI to wait + download.
+    """
+    from lib.keyframe_jobs import plan_keyframe_generation
+
+    result = plan_keyframe_generation(
+        keyframes_path=Path(keyframes),
+        beat=beat,
+        engine=engine,
+        num_outputs=num_outputs,
+        execute=execute,
+        wait=False,
+        output_root=Path(output_root) if output_root else None,
+    )
+    return _json({
+        "success": True,
+        "ok": True,
+        "tool": "rafiki_keyframes_generate",
         "mutating": True,
         "external": execute,
         **result,
