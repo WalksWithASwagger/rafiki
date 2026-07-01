@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "engine": "flux1-lora",
+    "version": "462bc779395b9c6a452f5e293c8ef238dc5a68acefd4f843a6dcca12323cf1fe",
+    "model_ref": "walkswithaswagger/mayumi-v1",
+    "trigger": "MAYUMISCALLY",
+    "model_type": "dev",
+    "aspect_ratio": "16:9",
+    "num_inference_steps": 36,
+    "guidance_scale": 3.2,
+    "lora_scale": 0.8,
+    "output_format": "jpg"
+  },
+  "beats": {
+    "mayumi_intro": {
+      "prompt": "gold-and-red sequined outfit with a flowing cape and a heavy ornate belt buckle, magenta-purple eye makeup, short dark hair, a microphone gripped in one hand, MAYUMISCALLY as Mayumi the Space Boss, commanding three-quarter shot on stage, electric-blue spotlight, photoreal, cinematic, film grain"
+    }
+  }
+}

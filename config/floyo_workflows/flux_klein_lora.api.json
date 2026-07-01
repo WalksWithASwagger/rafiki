@@ -1,0 +1,335 @@
+{
+  "242": {
+    "_meta": {
+      "title": "ReferenceLatent"
+    },
+    "inputs": {
+      "latent": [
+        "246",
+        0
+      ],
+      "conditioning": [
+        "265",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent"
+  },
+  "243": {
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    },
+    "inputs": {
+      "conditioning": [
+        "265",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut"
+  },
+  "244": {
+    "_meta": {
+      "title": "ReferenceLatent"
+    },
+    "inputs": {
+      "latent": [
+        "246",
+        0
+      ],
+      "conditioning": [
+        "243",
+        0
+      ]
+    },
+    "class_type": "ReferenceLatent"
+  },
+  "245": {
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    },
+    "inputs": {
+      "noise": [
+        "277",
+        0
+      ],
+      "guider": [
+        "247",
+        0
+      ],
+      "sigmas": [
+        "263",
+        0
+      ],
+      "sampler": [
+        "286",
+        0
+      ],
+      "latent_image": [
+        "249",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced"
+  },
+  "246": {
+    "_meta": {
+      "title": "VAE Encode"
+    },
+    "inputs": {
+      "vae": [
+        "251",
+        0
+      ],
+      "pixels": [
+        "264",
+        0
+      ]
+    },
+    "class_type": "VAEEncode"
+  },
+  "247": {
+    "_meta": {
+      "title": "CFGGuider"
+    },
+    "inputs": {
+      "cfg": 1,
+      "model": [
+        "269",
+        0
+      ],
+      "negative": [
+        "244",
+        0
+      ],
+      "positive": [
+        "242",
+        0
+      ]
+    },
+    "class_type": "CFGGuider"
+  },
+  "249": {
+    "_meta": {
+      "title": "Empty Flux 2 Latent"
+    },
+    "inputs": {
+      "width": [
+        "250",
+        0
+      ],
+      "height": [
+        "250",
+        1
+      ],
+      "batch_size": 1
+    },
+    "class_type": "EmptyFlux2LatentImage"
+  },
+  "250": {
+    "_meta": {
+      "title": "Get Image Size"
+    },
+    "inputs": {
+      "image": [
+        "264",
+        0
+      ]
+    },
+    "class_type": "GetImageSize"
+  },
+  "251": {
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "263": {
+    "_meta": {
+      "title": "Flux2Scheduler"
+    },
+    "inputs": {
+      "steps": 8,
+      "width": [
+        "250",
+        1
+      ],
+      "height": [
+        "250",
+        1
+      ]
+    },
+    "class_type": "Flux2Scheduler"
+  },
+  "264": {
+    "_meta": {
+      "title": "ImageScaleToTotalPixels"
+    },
+    "inputs": {
+      "image": [
+        "270",
+        0
+      ],
+      "megapixels": 1,
+      "upscale_method": "lanczos",
+      "resolution_steps": 1
+    },
+    "class_type": "ImageScaleToTotalPixels"
+  },
+  "265": {
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    },
+    "inputs": {
+      "clip": [
+        "272",
+        0
+      ],
+      "text": "realistic，replace the man's clothes into a roman knight armmor,  replace background with classic medieval room, remmove the laptop"
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "269": {
+    "_meta": {
+      "title": "Load LoRA"
+    },
+    "inputs": {
+      "model": [
+        "271",
+        0
+      ],
+      "lora_name": "Klein-consistency-flux-2-klein-9b-consis-fjTks6Ly.safetensors",
+      "strength_model": 0.8000000000000002
+    },
+    "class_type": "LoraLoaderModelOnly"
+  },
+  "270": {
+    "_meta": {
+      "title": "Load Image"
+    },
+    "inputs": {
+      "image": "#community_inputs/flux-2-klein-9b-consis-fjTks6Ly/2026-03-09 11_56_15-Downloads - File Explorer (2).png"
+    },
+    "class_type": "LoadImage"
+  },
+  "271": {
+    "_meta": {
+      "title": "Load Diffusion Model"
+    },
+    "inputs": {
+      "unet_name": "flux-2-klein-9b.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader"
+  },
+  "272": {
+    "_meta": {
+      "title": "Load CLIP"
+    },
+    "inputs": {
+      "type": "flux2",
+      "device": "default",
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors"
+    },
+    "class_type": "CLIPLoader"
+  },
+  "275": {
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "vae": [
+        "251",
+        0
+      ],
+      "samples": [
+        "245",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "277": {
+    "_meta": {
+      "title": "RandomNoise"
+    },
+    "inputs": {
+      "noise_seed": 1113453115687112
+    },
+    "class_type": "RandomNoise"
+  },
+  "278": {
+    "_meta": {
+      "title": "Preview Image"
+    },
+    "inputs": {
+      "images": [
+        "279",
+        0
+      ]
+    },
+    "class_type": "PreviewImage"
+  },
+  "279": {
+    "_meta": {
+      "title": "LayerUtility: Image Reel Composit"
+    },
+    "inputs": {
+      "border": 8,
+      "reel_1": [
+        "280",
+        0
+      ],
+      "font_file": "Alibaba-PuHuiTi-Heavy.ttf",
+      "font_size": 40,
+      "color_theme": "light"
+    },
+    "class_type": "LayerUtility: ImageReelComposit"
+  },
+  "280": {
+    "_meta": {
+      "title": "LayerUtility: Image Reel"
+    },
+    "inputs": {
+      "border": 32,
+      "image1": [
+        "270",
+        0
+      ],
+      "image2": [
+        "275",
+        0
+      ],
+      "image1_text": "original",
+      "image2_text": "with LoRA",
+      "image3_text": "",
+      "image4_text": "",
+      "reel_height": 1024
+    },
+    "class_type": "LayerUtility: ImageReel"
+  },
+  "282": {
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "images": [
+        "275",
+        0
+      ],
+      "filename_prefix": "ComfyUI"
+    },
+    "class_type": "SaveImage"
+  },
+  "286": {
+    "_meta": {
+      "title": "KSamplerSelect"
+    },
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "settings": {
+    "engine": "flux1-lora",
+    "version": "58fc2f91a4d2f9d7d9a848a1d75963f417a73827315d255ef52c98cf8f1d767f",
+    "model_ref": "walkswithaswagger/kris-krug-final-elite-20260407",
+    "trigger": "KRISKRUG",
+    "model_type": "dev",
+    "aspect_ratio": "16:9",
+    "num_inference_steps": 36,
+    "guidance_scale": 3.2,
+    "lora_scale": 0.8,
+    "output_format": "jpg"
+  },
+  "beats": {
+    "lex_hero_closeup": {
+      "prompt": "silver sequined mirror-tile lightning-bolt vest, a bold red-and-blue Aladdin Sane lightning bolt painted across the face, KRISKRUG as @LEX the Glitter King, flame-red mullet, red beard, tight cinematic close-up to camera singing into a mic, 1972 glam space-opera concert, dramatic spotlight, shallow depth of field, photoreal, sharp skin detail, film grain"
+    },
+    "lex_hero_wide": {
+      "prompt": "silver sequined mirror-tile lightning-bolt vest, a bold red-and-blue Aladdin Sane lightning bolt painted across the face, KRISKRUG as @LEX the Glitter King, flame-red mullet, red beard, three-quarter body on a smoky stage, arms raised mid-performance, head-to-toe silver sequined glam, beams of stage light, photoreal, cinematic, film grain"
+    },
+    "lex_cutaway": {
+      "prompt": "silver sequined mirror-tile lightning-bolt vest, a bold red-and-blue Aladdin Sane lightning bolt painted across the face, KRISKRUG as @LEX the Glitter King, flame-red mullet, red beard, side profile, eyes closed, head tilted up in the spotlight, no microphone, atmospheric haze, cinematic close-up, photoreal, film grain"
+    },
+    "lex_neon_cathedral": {
+      "prompt": "silver sequined mirror-tile lightning-bolt vest, a bold red-and-blue Aladdin Sane lightning bolt painted across the face, KRISKRUG as @LEX the Glitter King, flame-red mullet, red beard, singing to camera inside a vast neon-lit cathedral of glowing tubes, medium close-up, volumetric haze, saturated magenta and cyan light, photoreal, cinematic, film grain"
+    },
+    "lex_crowd_pov": {
+      "prompt": "silver sequined mirror-tile lightning-bolt vest, a bold red-and-blue Aladdin Sane lightning bolt painted across the face, KRISKRUG as @LEX the Glitter King, flame-red mullet, red beard, low-angle crowd POV looking up at him belting the chorus on stage, hands reaching from the foreground, blown-out stage lights and lens flare behind, photoreal, cinematic, film grain"
+    }
+  }
+}

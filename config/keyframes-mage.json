@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "engine": "flux1-lora",
+    "version": "d7b022fb7e32a701c908724575422ba0099a59de79b2a136a2474a88f0ff576b",
+    "model_ref": "walkswithaswagger/luke-v1",
+    "trigger": "LUKESCALLY",
+    "model_type": "dev",
+    "aspect_ratio": "16:9",
+    "num_inference_steps": 36,
+    "guidance_scale": 3.2,
+    "lora_scale": 0.8,
+    "output_format": "jpg"
+  },
+  "beats": {
+    "mage_intro": {
+      "prompt": "glossy black catsuit with hot-magenta sequined panels, a magenta feather-trimmed cape, a black-and-magenta chrome antenna headpiece, hot-magenta concentric signal-ripple markings radiating from the left eye, widow's-peak wavy hair with a hot-magenta streak, light stubble, LUKESCALLY as Mage the Magenta Rune, radiant broadcast-diva grin, medium close-up, saturated magenta light, photoreal, cinematic, film grain"
+    }
+  }
+}
