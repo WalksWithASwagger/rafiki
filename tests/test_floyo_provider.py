@@ -55,8 +55,15 @@ def test_job_status_mapping():
     assert floyo_provider._job_status({"status": "processing"}, execute=True) == "processing"
 
 
-def test_done_with_error_is_failed():
-    # Floyo can return status=done alongside a system error dict.
+def test_done_with_system_error_is_succeeded():
+    # Floyo attaches a noise system-error dict to runs that actually succeeded (status=done).
+    # The status field is authoritative; the error field alone is not a failure signal.
     resp = {"status": "done", "error": {"type": "system", "code": "system_error", "message": "boom"}}
+    assert floyo_provider._job_status(resp, execute=True) == "succeeded"
+    assert floyo_provider._job_error(resp) == ""  # no error surfaced on a succeeded run
+
+
+def test_failed_status_surfaces_error():
+    resp = {"status": "error", "error": {"message": "real failure"}}
     assert floyo_provider._job_status(resp, execute=True) == "failed"
-    assert floyo_provider._job_error(resp) == "boom"
+    assert floyo_provider._job_error(resp) == "real failure"

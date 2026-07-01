@@ -363,8 +363,8 @@ HTML = r"""<!doctype html>
       <div class="panel">
         <h2>Selection EDL</h2>
         <div class="form">
-          <label>Include<select id="videoEdlInclude"><option value="focus,star">Focus + Star</option><option value="focus">Focus</option><option value="star">Star</option><option value="focus,star,exclude">All selection states</option></select></label>
-          <label>Default Import<select id="videoImportDefault"><option value="focus">Focus</option><option value="star">Star</option><option value="exclude">Exclude</option></select></label>
+          <label>Include<select id="videoEdlInclude"><option value="focus,star">Love + Like</option><option value="star">Love only</option><option value="focus">Like only</option><option value="focus,star,exclude">Everything</option></select></label>
+          <label>Default Import<select id="videoImportDefault"><option value="focus">Like</option><option value="star">Love</option><option value="exclude">Cut</option></select></label>
           <button id="videoExport" class="primary">Export EDL</button>
           <button id="videoImport" class="warn">Import</button>
           <label class="wide">EDL JSON<textarea id="videoEdlJson"></textarea></label>
@@ -377,6 +377,7 @@ HTML = r"""<!doctype html>
         <button id="videoSearch" class="primary">Search</button>
         <a href="/library">Image Library</a>
       </div>
+      <p class="muted" style="margin:0 0 10px">Mark each clip: <strong>★ Love</strong> or <strong>👍 Like</strong> = keep · <strong>✕ Cut</strong> = drop. Love + Like both flow into the cut.</p>
       <div id="videoCards" class="grid"></div>
     </section>
   </main>
@@ -790,7 +791,7 @@ HTML = r"""<!doctype html>
           <div class="title">${escapeHtml(entry.title || entry.id)}</div>
           <div class="meta">${escapeHtml(entry.project || '')} ${escapeHtml(entry.relative_path)}</div>
           <div class="chips">
-            ${['focus','star','exclude'].map(value => `<button data-select="${value}" data-id="${entry.id}" class="${current === value ? 'active' : ''}">${value}</button>`).join('')}
+            ${[['star','★ Love'],['focus','👍 Like'],['exclude','✕ Cut']].map(([value,label]) => `<button data-select="${value}" data-id="${entry.id}" class="${current === value ? 'active' : ''}">${label}</button>`).join('')}
           </div>
           <textarea class="note" data-note-id="${entry.id}" placeholder="notes…" rows="2">${escapeHtml(state.notes[entry.id] || '')}</textarea>
         </div>

@@ -77,3 +77,6 @@ config/media-roots.local.json
 
 # Local symlink to sibling project (machine-specific)
 animation-accelerator
+
+# Private likeness config (LoRA version + character prompts) — not for the public tool repo
+config/keyframes*.json

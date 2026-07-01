@@ -203,8 +203,8 @@ def create_job(
 def _job_status(response: dict[str, Any], *, execute: bool) -> str:
     if not execute:
         return "dry-run"
-    if response.get("error"):
-        return "failed"  # Floyo can return status=done with a system error
+    # Floyo attaches a noise ``error: {type:"system",...}`` to runs that actually succeeded
+    # (status=done). The status field is authoritative; the error field is not.
     status = str(response.get("status") or "").lower()
     if status in _FAILED_STATUSES:
         return "failed"
@@ -225,10 +225,12 @@ def _polling_status(response: dict[str, Any], *, execute: bool) -> str:
 
 
 def _job_error(response: dict[str, Any]) -> str:
-    err = response.get("error")
+    # Only surface an error when the run actually failed. Floyo carries a noise system error
+    # on successful (status=done) runs too, so the error field alone is not a failure signal.
     status = str(response.get("status") or "").lower()
-    if status not in _FAILED_STATUSES and not err:
+    if status not in _FAILED_STATUSES:
         return ""
+    err = response.get("error")
     if isinstance(err, dict):
         err = err.get("message") or err.get("code") or json.dumps(err)
     return str(err or response.get("logs") or "")[:2000]
