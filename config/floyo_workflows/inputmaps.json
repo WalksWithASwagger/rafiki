@@ -79,5 +79,80 @@
         "type": "text"
       }
     }
+  },
+  "ltx_face_i2v": {
+    "label": "LTX 2.3 Face-Consistent I2V + VBVR — one portrait -> ~8s vertical video, identity held by VBVR LoRA",
+    "billing": "flotime",
+    "status": "ready (API snippet)",
+    "slots": {
+      "source_image": {
+        "node": "4914",
+        "field": "image",
+        "type": "image"
+      },
+      "prompt": {
+        "node": "4976",
+        "field": "prompt",
+        "type": "text"
+      },
+      "seconds": {
+        "node": "4858",
+        "field": "value",
+        "type": "int"
+      },
+      "fps": {
+        "node": "4863",
+        "field": "value",
+        "type": "int"
+      }
+    }
+  },
+  "zimage_lora_train": {
+    "label": "Musubi Z-Image LoRA Trainer — captioned dataset folder -> .safetensors in #models/loras",
+    "billing": "flotime",
+    "status": "self-served (API)",
+    "slots": {
+      "data_path": { "node": "19", "field": "data_path", "type": "text" },
+      "output_name": { "node": "19", "field": "output_name", "type": "text" },
+      "epochs": { "node": "19", "field": "max_train_epochs", "type": "int" },
+      "network_dim": { "node": "19", "field": "network_dim", "type": "int" }
+    }
+  },
+  "zimage_t2i_lora": {
+    "label": "Z-Image Base — Text to Image with a custom LoRA",
+    "billing": "flotime",
+    "status": "self-served (API)",
+    "slots": {
+      "prompt": { "node": "67", "field": "text", "type": "text" },
+      "negative": { "node": "71", "field": "text", "type": "text" },
+      "lora_name": { "node": "77", "field": "lora_name", "type": "text" },
+      "width": { "node": "68", "field": "width", "type": "int" },
+      "height": { "node": "68", "field": "height", "type": "int" },
+      "seed": { "node": "69", "field": "seed", "type": "int" },
+      "steps": { "node": "69", "field": "steps", "type": "int" }
+    }
+  },
+  "flux_lora_train": {
+    "label": "Fast LoRA Training for Flux (flux-dev) — image folder + trigger word, auto-caption, 2000 steps",
+    "billing": "flotime",
+    "status": "self-served (API)",
+    "slots": {
+      "folder": { "node": "2", "field": "folder", "type": "text" },
+      "trigger_word": { "node": "1", "field": "trigger_word", "type": "text" },
+      "steps": { "node": "1", "field": "steps", "type": "int" }
+    }
+  },
+  "flux_t2i_lora": {
+    "label": "Flux Text to Image + custom LoRA (flux1-dev) — generate from a trained flux-dev LoRA",
+    "billing": "flotime",
+    "status": "self-served (API)",
+    "slots": {
+      "prompt": { "node": "6", "field": "text", "type": "text" },
+      "lora_name": { "node": "43", "field": "lora_name", "type": "text" },
+      "width": { "node": "27", "field": "width", "type": "int" },
+      "height": { "node": "27", "field": "height", "type": "int" },
+      "seed": { "node": "25", "field": "noise_seed", "type": "int" },
+      "steps": { "node": "17", "field": "steps", "type": "int" }
+    }
   }
 }

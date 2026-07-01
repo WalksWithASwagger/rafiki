@@ -1,0 +1,211 @@
+{
+  "6": {
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    },
+    "inputs": {
+      "clip": [
+        "43",
+        1
+      ],
+      "text": "castle on a hill, 1980's retro cartoon style"
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "8": {
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "vae": [
+        "10",
+        0
+      ],
+      "samples": [
+        "13",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "9": {
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "images": [
+        "8",
+        0
+      ],
+      "filename_prefix": "Text2Image_Lora/Image"
+    },
+    "class_type": "SaveImage"
+  },
+  "10": {
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "ae.sft"
+    },
+    "class_type": "VAELoader"
+  },
+  "11": {
+    "_meta": {
+      "title": "DualCLIPLoader"
+    },
+    "inputs": {
+      "type": "flux",
+      "device": "default",
+      "clip_name1": "t5xxl_fp16.safetensors",
+      "clip_name2": "clip_l.safetensors"
+    },
+    "class_type": "DualCLIPLoader"
+  },
+  "12": {
+    "_meta": {
+      "title": "Load Diffusion Model"
+    },
+    "inputs": {
+      "unet_name": "flux1-dev-fp8.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader"
+  },
+  "13": {
+    "_meta": {
+      "title": "SamplerCustomAdvanced"
+    },
+    "inputs": {
+      "noise": [
+        "25",
+        0
+      ],
+      "guider": [
+        "22",
+        0
+      ],
+      "sigmas": [
+        "17",
+        0
+      ],
+      "sampler": [
+        "16",
+        0
+      ],
+      "latent_image": [
+        "27",
+        0
+      ]
+    },
+    "class_type": "SamplerCustomAdvanced"
+  },
+  "16": {
+    "_meta": {
+      "title": "KSamplerSelect"
+    },
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "class_type": "KSamplerSelect"
+  },
+  "17": {
+    "_meta": {
+      "title": "BasicScheduler"
+    },
+    "inputs": {
+      "model": [
+        "30",
+        0
+      ],
+      "steps": 20,
+      "denoise": 1,
+      "scheduler": "simple"
+    },
+    "class_type": "BasicScheduler"
+  },
+  "22": {
+    "_meta": {
+      "title": "BasicGuider"
+    },
+    "inputs": {
+      "model": [
+        "30",
+        0
+      ],
+      "conditioning": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "BasicGuider"
+  },
+  "25": {
+    "_meta": {
+      "title": "RandomNoise"
+    },
+    "inputs": {
+      "noise_seed": 921065019333846
+    },
+    "class_type": "RandomNoise"
+  },
+  "26": {
+    "_meta": {
+      "title": "FluxGuidance"
+    },
+    "inputs": {
+      "guidance": 3.5,
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "class_type": "FluxGuidance"
+  },
+  "27": {
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    },
+    "inputs": {
+      "width": 1344,
+      "height": 768,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage"
+  },
+  "30": {
+    "_meta": {
+      "title": "ModelSamplingFlux"
+    },
+    "inputs": {
+      "model": [
+        "43",
+        0
+      ],
+      "width": 1344,
+      "height": 768,
+      "max_shift": 1.15,
+      "base_shift": 0.5
+    },
+    "class_type": "ModelSamplingFlux"
+  },
+  "43": {
+    "_meta": {
+      "title": "Load LoRA (Model and CLIP)"
+    },
+    "inputs": {
+      "clip": [
+        "11",
+        0
+      ],
+      "model": [
+        "12",
+        0
+      ],
+      "lora_name": "Fire_Ice_Cartoon_FLUX.safetensors",
+      "strength_clip": 1,
+      "strength_model": 1
+    },
+    "class_type": "LoraLoader"
+  }
+}

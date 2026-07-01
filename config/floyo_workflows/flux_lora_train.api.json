@@ -1,0 +1,48 @@
+{
+  "1": {
+    "_meta": {
+      "title": "Flux LoRA Trainer"
+    },
+    "inputs": {
+      "steps": 2000,
+      "images": [
+        "2",
+        0
+      ],
+      "is_style": false,
+      "create_masks": true,
+      "trigger_word": "nami",
+      "images_zip_url": "",
+      "data_archive_format": "",
+      "is_input_format_already_preprocessed": false
+    },
+    "class_type": "FluxLoraTrainer_floyo"
+  },
+  "2": {
+    "_meta": {
+      "title": "Load Images From Folder (KJ)"
+    },
+    "inputs": {
+      "width": 1024,
+      "folder": "#community_inputs/other/nami",
+      "height": 1024,
+      "start_index": 0,
+      "image_load_cap": 0,
+      "keep_aspect_ratio": "crop",
+      "include_subfolders": false
+    },
+    "class_type": "LoadImagesFromFolderKJ"
+  },
+  "15": {
+    "_meta": {
+      "title": "Show Text 🐍"
+    },
+    "inputs": {
+      "text": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ShowText|pysssss"
+  }
+}

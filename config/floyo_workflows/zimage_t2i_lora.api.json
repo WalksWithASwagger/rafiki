@@ -1,0 +1,155 @@
+{
+  "9": {
+    "_meta": {
+      "title": "Save Image"
+    },
+    "inputs": {
+      "images": [
+        "65",
+        0
+      ],
+      "filename_prefix": "z-image"
+    },
+    "class_type": "SaveImage"
+  },
+  "62": {
+    "_meta": {
+      "title": "Load CLIP"
+    },
+    "inputs": {
+      "type": "lumina2",
+      "device": "default",
+      "clip_name": "qwen_3_4b.safetensors"
+    },
+    "class_type": "CLIPLoader"
+  },
+  "63": {
+    "_meta": {
+      "title": "Load VAE"
+    },
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    },
+    "class_type": "VAELoader"
+  },
+  "65": {
+    "_meta": {
+      "title": "VAE Decode"
+    },
+    "inputs": {
+      "vae": [
+        "63",
+        0
+      ],
+      "samples": [
+        "69",
+        0
+      ]
+    },
+    "class_type": "VAEDecode"
+  },
+  "66": {
+    "_meta": {
+      "title": "Load Diffusion Model"
+    },
+    "inputs": {
+      "unet_name": "z_image_bf16.safetensors",
+      "weight_dtype": "default"
+    },
+    "class_type": "UNETLoader"
+  },
+  "67": {
+    "_meta": {
+      "title": "CLIP Text Encode (Positive Prompt)"
+    },
+    "inputs": {
+      "clip": [
+        "62",
+        0
+      ],
+      "text": "br14nne, A digital illustration in an anime style, featuring a young woman with white hair walking through a lively night festival, her face illuminated by hundreds of floating paper lanterns. she is wearing a yellow and blue tunic with a blue diamond pattern, paired with black leggings and brown boots. the woman has an excited, bright-eyed expression with a wide grin as she looks up at the lanterns rising into the starry sky. festival crowds and wooden stalls are visible in the soft bokeh background. the overall color palette is deep navy blue sky with warm amber and gold lantern light, with a focus on the character's delighted expression and the magical glow surrounding her."
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "68": {
+    "_meta": {
+      "title": "EmptySD3LatentImage"
+    },
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptySD3LatentImage"
+  },
+  "69": {
+    "_meta": {
+      "title": "KSampler"
+    },
+    "inputs": {
+      "cfg": 4,
+      "seed": 194410329813798,
+      "model": [
+        "70",
+        0
+      ],
+      "steps": 30,
+      "denoise": 1,
+      "negative": [
+        "71",
+        0
+      ],
+      "positive": [
+        "67",
+        0
+      ],
+      "scheduler": "simple",
+      "latent_image": [
+        "68",
+        0
+      ],
+      "sampler_name": "res_multistep"
+    },
+    "class_type": "KSampler"
+  },
+  "70": {
+    "_meta": {
+      "title": "ModelSamplingAuraFlow"
+    },
+    "inputs": {
+      "model": [
+        "77",
+        0
+      ],
+      "shift": 3
+    },
+    "class_type": "ModelSamplingAuraFlow"
+  },
+  "71": {
+    "_meta": {
+      "title": "CLIP Text Encode (Negative Prompt)"
+    },
+    "inputs": {
+      "clip": [
+        "62",
+        0
+      ],
+      "text": ""
+    },
+    "class_type": "CLIPTextEncode"
+  },
+  "77": {
+    "_meta": {
+      "title": "Load LoRA"
+    },
+    "inputs": {
+      "model": [
+        "66",
+        0
+      ],
+      "lora_name": "br14nne_zimage-z-image-base-text-to-i-OaEXINkX.safetensors",
+      "strength_model": 1
+    },
+    "class_type": "LoraLoaderModelOnly"
+  }
+}

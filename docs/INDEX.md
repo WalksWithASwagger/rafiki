@@ -44,6 +44,10 @@ deeper operating docs by surface area.
 - [Command Center](COMMAND-CENTER.md) - aggregate every Rafiki image across all
   your repos into one dashboard (static library + live portal); registering
   external projects and the one-command refresh.
+- [Library And Viewer Designer Handoff](LIBRARY-VIEWER-DESIGNER-HANDOFF-2026-07.md) -
+  current system map, archive inventory, diagrams, pain points, and redesign
+  requirements for the image library, viewers, portal, registry, and media
+  suite.
 - [Asset Registry](ASSET-REGISTRY.md) - registry schema, CLI indexing, and
   re-indexing guidance for external or generated assets.
 - [Personal Media Suite](PERSONAL-MEDIA-SUITE.md) - multimedia roots, Alex

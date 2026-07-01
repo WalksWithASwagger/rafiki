@@ -1,0 +1,19 @@
+{
+  "settings": {
+    "engine": "flux1-lora",
+    "version": "fb5dac9f202f402d63aec87320f861484c4bcd94eaae3e65bd24313447001f19",
+    "model_ref": "walkswithaswagger/kevin-v1",
+    "trigger": "KEVINSCALLY",
+    "model_type": "dev",
+    "aspect_ratio": "16:9",
+    "num_inference_steps": 36,
+    "guidance_scale": 3.2,
+    "lora_scale": 0.8,
+    "output_format": "jpg"
+  },
+  "beats": {
+    "kevin_intro": {
+      "prompt": "black leather tank and pants, electric-blue glitch eye-makeup, long wavy hair, electric guitar slung across the body, KEVINSCALLY as Kevin 'Static' the Rocker, tight cinematic shot on a strobing stage, glitch energy, electric-blue and cyan light, photoreal, sharp skin detail, film grain"
+    }
+  }
+}
