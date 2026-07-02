@@ -7,11 +7,16 @@ import json
 import os
 import re
 import secrets
+import socket
+import subprocess
 import threading
+import time
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, unquote, urlparse
+from urllib.request import Request, urlopen
 
 from lib.batch import run_batch
 from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
@@ -20,6 +25,9 @@ from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_MODEL = DEFAULT_IMAGE_MODEL
 _TRUE_VALUES = {"1", "true", "yes", "on"}
+FRONTEND_DIR = REPO_ROOT / "frontend"
+FRONTEND_ENTRY = FRONTEND_DIR / ".output" / "server" / "index.mjs"
+FRONTEND_ROUTES = ("/", "/library", "/viewer", "/export", "/registry", "/health", "/spend", "/assets")
 
 
 def _basic_auth_credentials() -> tuple[str, str] | None:
@@ -344,6 +352,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
     media_registry_file: Path | None = None
     extra_roots: dict[str, Path]  # project_name → real dir
     media_roots: dict[str, object] = {}
+    frontend_origin: str | None = None
 
     def log_message(self, fmt, *args):  # suppress noisy access log
         pass
@@ -384,12 +393,16 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             return
         parsed = urlparse(self.path)
         path = parsed.path
-        if path in ("/", ""):
-            self._serve_suite()
-        elif path == "/library":
-            self._serve_library()
+        if path == "/api/library-state":
+            self._serve_library_state()
+        elif path in ("/legacy-suite", "/legacy-suite/"):
+            self._serve_legacy_suite()
+        elif path in ("/legacy-library", "/legacy-library/"):
+            self._serve_legacy_library()
+        elif _is_frontend_route(path):
+            self._serve_frontend(parsed)
         elif path == "/favicon.ico":
-            self._respond(204, "image/x-icon", b"")
+            self._serve_frontend(parsed)
         elif path.startswith("/output/"):
             self._serve_static(path[len("/output/"):])
         elif path.startswith("/media/"):
@@ -468,20 +481,61 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
     # ── Route handlers ────────────────────────────────────────────────────────
 
-    def _serve_library(self):
+    def _serve_legacy_library(self):
         from lib.renderers.library import generate_library_viewer
         lib_path = generate_library_viewer(self.output_root)
         self._respond(200, "text/html; charset=utf-8", lib_path.read_bytes())
 
-    def _serve_suite(self):
+    def _serve_legacy_suite(self):
         from lib.renderers.media_suite import render_media_suite
 
         self._respond(200, "text/html; charset=utf-8", render_media_suite())
 
+    def _serve_frontend(self, parsed):
+        if not self.frontend_origin:
+            if parsed.path in ("/", ""):
+                self._serve_legacy_suite()
+            elif parsed.path.startswith("/library"):
+                self._serve_legacy_library()
+            elif parsed.path == "/favicon.ico":
+                self._respond(204, "image/x-icon", b"")
+            else:
+                self._respond(503, "application/json", b'{"error":"frontend unavailable"}')
+            return
+
+        target = f"{self.frontend_origin}{parsed.path}"
+        if parsed.query:
+            target = f"{target}?{parsed.query}"
+        req = Request(
+            target,
+            headers={
+                "Accept": self.headers.get("Accept", "*/*"),
+                "User-Agent": self.headers.get("User-Agent", "rafiki-python-proxy"),
+            },
+        )
+        try:
+            with urlopen(req, timeout=15) as resp:
+                self._respond_proxy(resp.status, resp.headers, resp.read())
+        except HTTPError as e:
+            self._respond_proxy(e.code, e.headers, e.read())
+        except URLError:
+            self._respond(502, "application/json", b'{"error":"frontend proxy failed"}')
+
+    def _serve_library_state(self):
+        from lib.frontend_state import build_library_state
+
+        payload = build_library_state(
+            self.output_root,
+            extra_roots=self.extra_roots,
+            ratings_file=self.ratings_file,
+            registry_file=REPO_ROOT / "data" / "asset-registry.json",
+        )
+        self._respond(200, "application/json", json.dumps(payload).encode())
+
     def _serve_static(self, rel_path: str):
         """Serve a file from output_root or, for registered projects, from
         their real external directory — no symlinks needed."""
-        rel_path = rel_path.lstrip("/")
+        rel_path = unquote(rel_path).lstrip("/")
         parts = rel_path.split("/", 1)
         project = parts[0]
         rest = parts[1] if len(parts) > 1 else ""
@@ -1203,8 +1257,99 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
+    def _respond_proxy(self, status: int, headers, body: bytes) -> None:
+        try:
+            self.send_response(status)
+            for name in ("Content-Type", "Location", "Cache-Control", "ETag", "Last-Modified"):
+                value = headers.get(name)
+                if value:
+                    self.send_header(name, value)
+            if not headers.get("Content-Type"):
+                self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
+
     def _404(self) -> None:
         self._respond(404, "application/json", b'{"error":"not found"}')
+
+
+def _is_frontend_route(path: str) -> bool:
+    if path in ("", "/"):
+        return True
+    return any(path == route or path.startswith(f"{route}/") for route in FRONTEND_ROUTES if route != "/")
+
+
+def _free_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _ensure_frontend_build() -> bool:
+    if FRONTEND_ENTRY.exists():
+        return True
+    if not (FRONTEND_DIR / "package.json").exists():
+        return False
+    subprocess.run(
+        ["npm", "--prefix", str(FRONTEND_DIR), "run", "build"],
+        cwd=REPO_ROOT,
+        check=True,
+        timeout=120,
+    )
+    return FRONTEND_ENTRY.exists()
+
+
+def _wait_for_frontend(origin: str, proc: subprocess.Popen, *, timeout_seconds: float = 15.0) -> bool:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        if proc.poll() is not None:
+            return False
+        try:
+            with urlopen(f"{origin}/health", timeout=1) as resp:
+                return resp.status < 500
+        except Exception:
+            time.sleep(0.15)
+    return False
+
+
+def _start_frontend_server() -> tuple[subprocess.Popen | None, str | None]:
+    if os.environ.get("RAFIKI_DISABLE_FRONTEND") == "1":
+        return None, None
+    try:
+        if not _ensure_frontend_build():
+            return None, None
+        port = _free_local_port()
+        env = os.environ.copy()
+        env.update({"HOST": "127.0.0.1", "PORT": str(port)})
+        proc = subprocess.Popen(
+            ["node", str(FRONTEND_ENTRY)],
+            cwd=FRONTEND_DIR,
+            env=env,
+        )
+        origin = f"http://127.0.0.1:{port}"
+        if _wait_for_frontend(origin, proc):
+            return proc, origin
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+    except Exception as e:
+        print(f"Frontend unavailable, falling back to legacy routes: {e}")
+    return None, None
+
+
+def _stop_frontend_server(proc: subprocess.Popen | None) -> None:
+    if proc is None or proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
 
 
 def serve(
@@ -1239,9 +1384,12 @@ def serve(
     Handler.media_registry_file = REPO_ROOT / "data" / "media-registry.json"
     Handler.extra_roots = extra_roots
     Handler.media_roots = media_roots
+    frontend_proc, frontend_origin = _start_frontend_server()
+    Handler.frontend_origin = frontend_origin
 
     auth_on = _basic_auth_credentials() is not None
     if public and not auth_on:
+        _stop_frontend_server(frontend_proc)
         raise ValueError("--public requires both PORTAL_USERNAME and PORTAL_PASSWORD")
 
     bind_host = "0.0.0.0" if public else "127.0.0.1"
@@ -1260,6 +1408,10 @@ def serve(
 
     if auth_on:
         print("Auth: Basic (PORTAL_USERNAME / PORTAL_PASSWORD)")
+    if frontend_origin:
+        print(f"Frontend:      {frontend_origin}")
+    else:
+        print("Frontend:      legacy fallback")
 
     print("Ctrl-C to stop.")
 
@@ -1270,3 +1422,5 @@ def serve(
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("\nServer stopped.")
+    finally:
+        _stop_frontend_server(frontend_proc)

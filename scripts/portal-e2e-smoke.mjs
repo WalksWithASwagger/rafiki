@@ -94,6 +94,19 @@ function getPythonExecutable() {
   return 'python';
 }
 
+function getBrowserExecutable() {
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+  const candidates = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ];
+  return candidates.find((candidate) => fs.existsSync(candidate));
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     cwd: repoRoot,
@@ -166,6 +179,20 @@ async function waitForServer(url, server) {
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw new Error(`portal server did not become ready: ${lastError?.message || 'unknown'}`);
+}
+
+async function waitForCondition(check, label, timeoutMs = 5000) {
+  const startedAt = Date.now();
+  let lastError = null;
+  while (Date.now() - startedAt < timeoutMs) {
+    try {
+      if (await check()) return;
+    } catch (error) {
+      lastError = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+  }
+  throw new Error(`${label} did not become true${lastError ? `: ${lastError.message}` : ''}`);
 }
 
 async function getFreePort() {
@@ -459,6 +486,15 @@ async function main() {
       const target = path.join(runDir, image.file);
       return writeFixtureImage(target, index, image.aspect_ratio || manifest.aspect_ratio || '1:1');
     }));
+    manifest.images.push({
+      ...manifest.images[0],
+      name: 'Missing placeholder smoke',
+      file: 'missing-placeholder.png',
+      prompt: 'Browser smoke missing placeholder record',
+      seed: 999999,
+      error: '',
+    });
+    fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
     run(python, ['generate.py', 'library', '--output-dir', outputRoot], { env: smokeEnv });
 
@@ -469,6 +505,7 @@ async function main() {
       cwd: repoRoot,
       stdio: ['ignore', 'pipe', 'pipe'],
       env: smokeEnv,
+      detached: process.platform !== 'win32',
     });
 
     let serverOutput = '';
@@ -476,11 +513,16 @@ async function main() {
     server.stderr.on('data', (chunk) => { serverOutput += chunk.toString(); });
 
     await waitForServer(url, server);
+    await waitForCondition(() => serverOutput.includes('Frontend:'), 'portal server frontend status', 10000);
+    assert(
+      !serverOutput.includes('Frontend:      legacy fallback'),
+      `expected React frontend to start, got legacy fallback\n${serverOutput}`,
+    );
 
     const usage = await fetch(`${url}api/usage`).then((response) => response.json());
     assert(usage.archive.projects === 1, `expected one project, got ${usage.archive.projects}`);
     assert(usage.archive.runs === 1, `expected one run, got ${usage.archive.runs}`);
-    assert(usage.archive.images === 2, `expected two images, got ${usage.archive.images}`);
+    assert(usage.archive.images === 3, `expected three images, got ${usage.archive.images}`);
 
     const readiness = await fetch(`${url}api/deploy-readiness`).then((response) => response.json());
     assert(Array.isArray(readiness.checks), 'deploy readiness did not return checks');
@@ -488,29 +530,20 @@ async function main() {
 
     browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: getBrowserExecutable(),
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
 
-    const suite = await browser.newPage();
-    suite.on('pageerror', (error) => errors.push(`suite pageerror: ${error.message}`));
-    suite.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type())) errors.push(`suite console ${msg.type()}: ${msg.text()}`);
-    });
-    await suite.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
-    await suite.goto(url, { waitUntil: 'networkidle0' });
-    await suite.waitForSelector('#tabs button[data-view="library"]', { timeout: 5000 });
-    const suiteState = await suite.evaluate(() => ({
-      title: document.title,
-      activeView: document.querySelector('.view.active')?.id || '',
-      tabs: Array.from(document.querySelectorAll('#tabs button[data-view]')).map((button) => button.dataset.view),
-      legacyHref: document.querySelector('a[href="/library"]')?.getAttribute('href') || '',
-      summary: document.querySelector('#summary')?.textContent?.trim() || '',
-    }));
-    assert(suiteState.title === 'Rafiki Suite', `unexpected suite title: ${suiteState.title}`);
-    assert(suiteState.activeView === 'library', `expected suite Library view by default, got ${suiteState.activeView}`);
-    assert(['library', 'subjects', 'studio', 'jobs', 'styles', 'video'].every((tab) => suiteState.tabs.includes(tab)), 'suite tabs did not render');
-    assert(suiteState.legacyHref === '/library', 'suite did not link to the legacy image library');
-    await suite.close();
+    const libraryState = await fetch(`${url}api/library-state`).then((response) => response.json());
+    assert(libraryState.projects.length === 1, `expected one library project, got ${libraryState.projects.length}`);
+    assert(libraryState.runs.length === 1, `expected one library run, got ${libraryState.runs.length}`);
+    assert(libraryState.images.length === 3, `expected three library images, got ${libraryState.images.length}`);
+    assert(libraryState.health.missingRecords === 1, `expected one missing image, got ${libraryState.health.missingRecords}`);
+    const firstRun = libraryState.runs[0];
+    const firstPresent = libraryState.images.find((image) => image.status === 'present');
+    const missingRecord = libraryState.images.find((image) => image.status === 'missing');
+    assert(firstPresent, 'library state did not include a present image');
+    assert(missingRecord, 'library state did not include a missing image');
 
     const desktop = await browser.newPage();
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
@@ -519,276 +552,34 @@ async function main() {
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await desktop.goto(libraryUrl, { waitUntil: 'networkidle0' });
-    await desktop.waitForSelector('.card', { timeout: 5000 });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Projects'));
+    await desktop.waitForFunction(() => Array.from(document.querySelectorAll('img[src^="/output/"]')).some((img) => img.naturalWidth > 0));
 
-    const desktopState = await desktop.evaluate(async () => {
-      const countVisible = () => document.querySelectorAll('.card:not(.hidden-filter)').length;
-      const first = document.querySelector('.card');
-      const titleInput = document.querySelector('#metadata-title');
-      const tagsInput = document.querySelector('#metadata-tags');
-      const feedbackStatus = document.querySelector('#feedback-status');
-      const feedbackNote = document.querySelector('#feedback-note');
-      const evaluationDecision = document.querySelector('#evaluation-decision');
-      const evaluationScore = document.querySelector('#evaluation-score');
-      const evaluationUseCase = document.querySelector('#evaluation-use-case');
-      const evaluationRationale = document.querySelector('#evaluation-rationale');
-      const evaluationNextStep = document.querySelector('#evaluation-next-step');
-      const cssText = Array.from(document.querySelectorAll('style'))
-        .map((style) => style.textContent || '')
-        .join('\n');
+    const desktopState = await desktop.evaluate(() => ({
+      title: document.title,
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
+      text: document.body.textContent || '',
+      outputImages: Array.from(document.querySelectorAll('img[src^="/output/"]')).map((img) => ({
+        src: img.getAttribute('src') || '',
+        naturalWidth: img.naturalWidth,
+      })),
+      routeLinks: Array.from(document.querySelectorAll('a[href]')).map((link) => link.getAttribute('href')),
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+      },
+    }));
+    assert(desktopState.title.includes('Library'), `unexpected library title: ${desktopState.title}`);
+    assert(desktopState.h1 === 'Projects', `expected Projects heading, got ${desktopState.h1}`);
+    assert(desktopState.text.includes(libraryState.projects[0].name), 'library did not render the live project name');
+    assert(desktopState.outputImages.some((image) => image.naturalWidth > 0), 'desktop library image did not load from /output');
+    assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop library has horizontal overflow');
 
-      const initialMode = document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '';
-      const reviewVisible = !document.querySelector('#portal-mode-review').hidden;
-      setPortalMode('teach');
-      const teachVisible = !document.querySelector('#portal-mode-teach').hidden;
-      const teachButton = document.querySelector('.portal-mode-btn[data-mode-target="teach"]');
-      teachButton.focus();
-      const teachFocusStyle = window.getComputedStyle(teachButton);
-      const atlasPrograms = document.querySelectorAll('.atlas-program').length;
-      const atlasModules = document.querySelectorAll('.atlas-module').length;
-      const atlasFacilitatorNotes = document.querySelectorAll('.atlas-facilitator-notes li').length;
-      const atlasRubricItems = document.querySelectorAll('.atlas-rubric-item').length;
-      const atlasConceptLinks = document.querySelectorAll('.atlas-concept-link').length;
-      const atlasGraphNodes = document.querySelectorAll('.atlas-graph-nodes g').length;
-      const atlasGraphEdges = document.querySelectorAll('.atlas-graph-edges line').length;
-      focusAtlasUnmapped();
-      const atlasFilterVisible = countVisible();
-      const atlasBannerVisible = !document.querySelector('#atlas-filter-banner').hidden;
-      clearAtlasAssetFilter();
-      setPortalMode('workflow');
-      const workflowVisible = !document.querySelector('#portal-mode-workflow').hidden;
-      const workflowCardCount = document.querySelectorAll('.workflow-card').length;
-      const workflowChainText = document.querySelector('.workflow-chain')?.textContent || '';
-      stageWorkflowPromptPack('keynote');
-      const workflowStaged = {
-        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
-        mode: document.querySelector('#studio-mode')?.value || '',
-        project: document.querySelector('#studio-project')?.value || '',
-        style: document.querySelector('#studio-style')?.value || '',
-        aspectRatio: document.querySelector('#studio-ar')?.value || '',
-        promptFile: document.querySelector('#studio-prompt-file')?.value || '',
-        dryRun: Boolean(document.querySelector('#studio-dry-run')?.checked),
-        status: document.querySelector('#studio-status')?.textContent || '',
-      };
-      setPortalMode('generate');
-      const generateVisible = !document.querySelector('#portal-mode-generate').hidden;
-      const styleKeys = Array.from(document.querySelectorAll('.studio-style-card'))
-        .map((card) => card.dataset.styleKey);
-      const hopecodeText = document.querySelector('.studio-style-card[data-style-key="hopecode"]')?.textContent || '';
-      const bcaiText = document.querySelector('.studio-style-card[data-style-key="bcai"]')?.textContent || '';
-      const styleSearch = document.querySelector('#studio-style-search');
-      styleSearch.value = 'hope';
-      styleSearch.dispatchEvent(new Event('input', { bubbles: true }));
-      const styleSearchVisible = document.querySelectorAll('.studio-style-card').length;
-      styleSearch.value = '';
-      styleSearch.dispatchEvent(new Event('input', { bubbles: true }));
-      setStudioStyleValue('kk');
-      appendStudioStyleValue('bcai');
-      const composedStyle = document.querySelector('#studio-style')?.value || '';
-      const composedGuidance = document.querySelector('#studio-style-guidance')?.textContent || '';
-      document.querySelector('#studio-style').value = 'mystery-style';
-      document.querySelector('#studio-style').dispatchEvent(new Event('input', { bubbles: true }));
-      const unknownGuidance = document.querySelector('#studio-style-guidance')?.textContent || '';
-      document.querySelector('#studio-prompt').value = 'Browser smoke prompt';
-      let unknownBuildMessage = '';
-      try {
-        buildStudioPayload();
-      } catch (error) {
-        unknownBuildMessage = error.message;
-      }
-      document.querySelector('#studio-style').value = '';
-      document.querySelector('#studio-style').dispatchEvent(new Event('input', { bubbles: true }));
-      setPortalMode('curate');
-      const curateVisible = !document.querySelector('#portal-mode-curate').hidden;
-      setPortalMode('spend');
-      const spendVisible = !document.querySelector('#portal-mode-spend').hidden;
-      setPortalMode('review');
-
-      document.querySelector('#search').value = 'review portal';
-      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
-      const searchVisible = countVisible();
-      document.querySelector('#search').value = '';
-      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
-
-      openRunDetail({ preventDefault() {}, stopPropagation() {} }, 0);
-
-      titleInput.value = 'E2E World-Class Smoke Card';
-      tagsInput.value = 'e2e,showpiece';
-      document.querySelector('#metadata-source-use-case').value = 'Keynote visual workflow';
-      document.querySelector('#metadata-source-url').value = 'https://kriskrug.co/2026/06/04/ai-keynote-slides-visual-workflow/';
-      document.querySelector('#metadata-prompt-pack').value = 'examples/keynote-visual-workflow-prompt-pack.md';
-      document.querySelector('#metadata-prompt-pack-section').value = 'Review Gate And Anti-Slop Selector';
-      document.querySelector('#metadata-artifact-review-state').value = 'manual-rebuild';
-      document.querySelector('#metadata-export-targets').value = 'canva, deck';
-      document.querySelector('#metadata-downstream-uses').value = 'slide, speaker-kit';
-      await saveMetadataForDetail({ preventDefault() {}, stopPropagation() {} });
-      const metadataBadgeText = first.querySelector('.metadata-state-badge')?.textContent || '';
-      document.querySelector('#search').value = 'speaker-kit';
-      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
-      const artifactSearchVisible = countVisible();
-      document.querySelector('#search').value = '';
-      document.querySelector('#search').dispatchEvent(new Event('input', { bubbles: true }));
-
-      feedbackStatus.value = 'keep';
-      feedbackNote.value = 'Browser E2E note';
-      await saveFeedbackForDetail({ preventDefault() {}, stopPropagation() {} });
-
-      evaluationDecision.value = 'approve';
-      evaluationScore.value = '5';
-      evaluationUseCase.value = 'homepage hero';
-      evaluationRationale.value = 'Browser E2E evaluation note';
-      evaluationNextStep.value = 'Export with the smoke bundle';
-      await saveEvaluationForDetail({ preventDefault() {}, stopPropagation() {} });
-
-      setRating(first.dataset.ratingKey, null);
-      applyRating(first, first.dataset.ratingKey);
-      setRating(first.dataset.ratingKey, 'star');
-      applyRating(first, first.dataset.ratingKey);
-      setRatingFilter('star');
-      const starFilterVisible = countVisible();
-      setRatingFilter('review-queue');
-      const reviewQueueVisible = countVisible();
-      setRatingFilter('all');
-
-      return {
-        title: document.title,
-        initialMode,
-        reviewVisible,
-        modeChecks: {
-          workflowVisible,
-          teachVisible,
-          generateVisible,
-          curateVisible,
-          spendVisible,
-        },
-        workflow: {
-          cardCount: workflowCardCount,
-          chainText: workflowChainText,
-          staged: workflowStaged,
-        },
-        styleReference: {
-          cardCount: styleKeys.length,
-          keys: styleKeys,
-          hopecodeText,
-          bcaiText,
-          searchVisible: styleSearchVisible,
-          composedStyle,
-          composedGuidance,
-          unknownGuidance,
-          unknownBuildMessage,
-        },
-        atlas: {
-          programs: atlasPrograms,
-          modules: atlasModules,
-          facilitatorNotes: atlasFacilitatorNotes,
-          rubricItems: atlasRubricItems,
-          conceptLinks: atlasConceptLinks,
-          graphNodes: atlasGraphNodes,
-          graphEdges: atlasGraphEdges,
-          filterVisible: atlasFilterVisible,
-          bannerVisible: atlasBannerVisible,
-        },
-        quality: {
-          focusedTeachModeButton: document.activeElement === teachButton,
-          teachFocusOutline: teachFocusStyle.outlineStyle,
-          teachFocusShadow: teachFocusStyle.boxShadow,
-          hasFocusVisibleCss: cssText.includes(':focus-visible'),
-          hasReducedMotionCss: cssText.includes('prefers-reduced-motion'),
-          hasTransitionAll: /transition\s*:\s*all\b/i.test(cssText),
-          lineageChips: document.querySelectorAll('.lineage-chip').length,
-          copyPromptButtons: document.querySelectorAll('.lineage-copy').length,
-          reviewQueueCount: document.querySelector('#fc-review-queue')?.textContent?.trim() || '',
-          evaluationBadges: document.querySelectorAll('.evaluation-badge.evaluation-on').length,
-        },
-        cards: document.querySelectorAll('.card').length,
-        visibleCards: countVisible(),
-        imageNaturalWidths: Array.from(document.querySelectorAll('.card img')).map((img) => img.naturalWidth),
-        searchVisible,
-        detailOpen: document.querySelector('#run-detail-panel').getAttribute('aria-hidden') === 'false',
-        metadataStatus: document.querySelector('#metadata-status-message').textContent.trim(),
-        metadataBadgeText,
-        artifactSearchVisible,
-        feedbackStatus: document.querySelector('#feedback-status-message').textContent.trim(),
-        evaluationStatus: document.querySelector('#evaluation-status-message').textContent.trim(),
-        runDecisionSummary: document.querySelector('#run-decision-summary')?.textContent || '',
-        starFilterVisible,
-        reviewQueueVisible,
-        overflow: {
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-          bodyScrollWidth: document.body.scrollWidth,
-        },
-        ops: {
-          images: document.querySelector('#usage-image-count')?.textContent?.trim(),
-          runs: document.querySelector('#usage-run-count')?.textContent?.trim(),
-        },
-      };
-    });
-
-    assert(desktopState.title === 'Rafiki Library', `unexpected title: ${desktopState.title}`);
-    assert(desktopState.initialMode === 'review', `expected review mode by default, got ${desktopState.initialMode}`);
-    assert(desktopState.reviewVisible, 'review mode was hidden by default');
-    assert(desktopState.modeChecks.workflowVisible, 'workflow mode did not become visible');
-    assert(desktopState.modeChecks.teachVisible, 'teach mode did not become visible');
-    assert(desktopState.modeChecks.generateVisible, 'generate mode did not become visible');
-    assert(desktopState.modeChecks.curateVisible, 'curate mode did not become visible');
-    assert(desktopState.modeChecks.spendVisible, 'spend mode did not become visible');
-    assert(desktopState.workflow.cardCount >= 2, `expected workflow cards, got ${desktopState.workflow.cardCount}`);
-    assert(desktopState.workflow.chainText.includes('Prompt Pack'), 'workflow chain did not show prompt pack step');
-    assert(desktopState.workflow.staged.activeMode === 'generate', `workflow stage should switch to generate, got ${desktopState.workflow.staged.activeMode}`);
-    assert(desktopState.workflow.staged.mode === 'batch', `workflow stage should choose batch mode, got ${desktopState.workflow.staged.mode}`);
-    assert(desktopState.workflow.staged.project === 'keynote-visual-workflow', `workflow project was not staged, got ${desktopState.workflow.staged.project}`);
-    assert(desktopState.workflow.staged.style === 'hopecode', `workflow style was not staged, got ${desktopState.workflow.staged.style}`);
-    assert(desktopState.workflow.staged.aspectRatio === '16:9', `workflow aspect ratio was not staged, got ${desktopState.workflow.staged.aspectRatio}`);
-    assert(desktopState.workflow.staged.promptFile === 'examples/keynote-visual-workflow-prompt-pack.md', `workflow prompt file was not staged, got ${desktopState.workflow.staged.promptFile}`);
-    assert(desktopState.workflow.staged.dryRun, 'workflow stage should default to dry run');
-    assert(desktopState.workflow.staged.status.includes('Workflow batch staged as a dry run'), 'workflow stage did not set Prompt Studio status');
-    assert(desktopState.styleReference.cardCount >= 4, `expected style reference cards, got ${desktopState.styleReference.cardCount}`);
-    assert(desktopState.styleReference.keys.includes('none'), 'style reference did not include none');
-    assert(desktopState.styleReference.keys.includes('kk'), 'style reference did not include default kk style');
-    assert(desktopState.styleReference.keys.includes('hopecode'), 'style reference did not include HOPECODE');
-    assert(desktopState.styleReference.keys.includes('bcai'), 'style reference did not include BC AI');
-    assert(desktopState.styleReference.hopecodeText.includes('HOPECODE'), 'HOPECODE card did not show display name');
-    assert(desktopState.styleReference.hopecodeText.includes('Solarpunk'), 'HOPECODE card did not show description/context');
-    assert(desktopState.styleReference.bcaiText.includes('BC AI Community Centre'), 'BC AI card did not show display name');
-    assert(desktopState.styleReference.bcaiText.includes('mycelial'), 'BC AI card did not show registry context');
-    assert(desktopState.styleReference.searchVisible === 1, `style search should show one HOPECODE match, got ${desktopState.styleReference.searchVisible}`);
-    assert(desktopState.styleReference.composedStyle === 'kk+bcai', `composed style was not preserved, got ${desktopState.styleReference.composedStyle}`);
-    assert(desktopState.styleReference.composedGuidance.includes('Using kk'), 'composed style guidance did not name kk');
-    assert(desktopState.styleReference.composedGuidance.includes('bcai'), 'composed style guidance did not name bcai');
-    assert(desktopState.styleReference.unknownGuidance.includes('Unknown style mystery-style'), 'unknown style guidance was not visible');
-    assert(desktopState.styleReference.unknownBuildMessage.includes('Unknown style mystery-style'), 'unknown style was not blocked before submit');
-    assert(desktopState.atlas.programs >= 1, 'curriculum atlas did not render programs');
-    assert(desktopState.atlas.modules >= 1, 'curriculum atlas did not render modules');
-    assert(desktopState.atlas.facilitatorNotes >= 1, 'curriculum atlas did not render facilitator notes');
-    assert(desktopState.atlas.rubricItems >= 1, 'curriculum atlas did not render critique rubric items');
-    assert(desktopState.atlas.conceptLinks >= 1, 'curriculum atlas did not render concept links');
-    assert(desktopState.atlas.graphNodes >= 1, 'curriculum atlas concept graph did not render nodes');
-    assert(desktopState.atlas.graphEdges >= 1, 'curriculum atlas concept graph did not render edges');
-    assert(desktopState.atlas.filterVisible === 2, `unmapped atlas filter should show two cards, got ${desktopState.atlas.filterVisible}`);
-    assert(desktopState.atlas.bannerVisible, 'atlas filter banner did not appear');
-    assert(desktopState.quality.focusedTeachModeButton, 'teach mode button did not accept focus');
-    assert(desktopState.quality.hasFocusVisibleCss, 'portal CSS is missing focus-visible guardrails');
-    assert(desktopState.quality.hasReducedMotionCss, 'portal CSS is missing prefers-reduced-motion guardrails');
-    assert(!desktopState.quality.hasTransitionAll, 'portal CSS still contains transition: all');
-    assert(desktopState.quality.lineageChips >= 6, 'card lineage chips did not render');
-    assert(desktopState.quality.copyPromptButtons === 2, `expected two copy prompt buttons, got ${desktopState.quality.copyPromptButtons}`);
-    assert(desktopState.cards === 2, `expected two cards, got ${desktopState.cards}`);
-    assert(desktopState.visibleCards === 2, `expected two visible cards, got ${desktopState.visibleCards}`);
-    assert(desktopState.imageNaturalWidths.every((width) => width > 0), 'desktop images did not load');
-    assert(desktopState.searchVisible === 1, `search should show one card, got ${desktopState.searchVisible}`);
-    assert(desktopState.detailOpen, 'detail panel did not open');
-    assert(desktopState.metadataStatus === 'Saved', `metadata save failed: ${desktopState.metadataStatus}`);
-    assert(desktopState.metadataBadgeText.includes('artifact: manual rebuild'), 'artifact review state was not visible on the card metadata badge');
-    assert(desktopState.artifactSearchVisible === 1, `artifact metadata search should show one card, got ${desktopState.artifactSearchVisible}`);
-    assert(desktopState.feedbackStatus === 'Saved', `feedback save failed: ${desktopState.feedbackStatus}`);
-    assert(desktopState.evaluationStatus === 'Saved', `evaluation save failed: ${desktopState.evaluationStatus}`);
-    assert(desktopState.quality.evaluationBadges >= 1, 'evaluation badge did not render after save');
-    assert(desktopState.runDecisionSummary.includes('Approve 1'), `run decision summary did not count approval: ${desktopState.runDecisionSummary}`);
-    assert(desktopState.runDecisionSummary.includes('Avg score 5.0'), `run decision summary did not average score: ${desktopState.runDecisionSummary}`);
-    assert(desktopState.starFilterVisible === 1, `star filter should show one card, got ${desktopState.starFilterVisible}`);
-    assert(desktopState.reviewQueueVisible === 2, `review queue should show two cards, got ${desktopState.reviewQueueVisible}`);
-    assert(desktopState.overflow.scrollWidth <= desktopState.overflow.clientWidth, 'desktop has horizontal overflow');
+    const desktopScreenshot = path.join(tmpRoot, 'portal-desktop-library.png');
+    await desktop.screenshot({ path: desktopScreenshot, fullPage: true });
+    const desktopScreenshotStats = await screenshotStats(desktopScreenshot);
+    assert(desktopScreenshotStats.nonblank, 'desktop library screenshot was blank');
 
     if (visualModeEnabled) {
       const result = await captureVisual(desktop, tmpRoot, visualArtifactDir, visualCaptures.desktopReview);
@@ -796,8 +587,82 @@ async function main() {
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
 
-    await desktop.evaluate(() => setPortalMode('teach'));
-    await desktop.waitForFunction(() => !document.querySelector('#portal-mode-teach').hidden);
+    await desktop.goto(`${url}library/${encodeURIComponent(firstRun.id)}`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('File missing'));
+    const runState = await desktop.evaluate(() => ({
+      text: document.body.textContent || '',
+      viewerLinks: Array.from(document.querySelectorAll('a[href^="/viewer/"]')).length,
+      outputImages: Array.from(document.querySelectorAll('img[src^="/output/"]')).map((img) => img.naturalWidth),
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    }));
+    assert(runState.viewerLinks >= 2, `expected viewer links on run page, got ${runState.viewerLinks}`);
+    assert(runState.text.includes('File missing'), 'run page did not show missing image placeholder');
+    assert(runState.outputImages.some((width) => width > 0), 'run page present image did not load');
+    assert(runState.overflow.scrollWidth <= runState.overflow.clientWidth, 'run page has horizontal overflow');
+
+    await desktop.goto(`${url}viewer/${encodeURIComponent(firstPresent.id)}`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction((name) => document.body.textContent?.includes(name), {}, firstPresent.name);
+    const viewerState = await desktop.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const starButton = buttons.find((button) => button.textContent?.includes('Star'));
+      const trayButton = buttons.find((button) => button.textContent?.includes('Add to export tray'));
+      starButton?.click();
+      trayButton?.click();
+      return {
+        title: document.querySelector('h1')?.textContent?.trim() || '',
+        clickedStar: Boolean(starButton),
+        clickedTray: Boolean(trayButton),
+        imageLoaded: Array.from(document.querySelectorAll('img[src^="/output/"]')).some((img) => img.naturalWidth > 0),
+      };
+    });
+    assert(viewerState.title === firstPresent.name, `viewer title mismatch: ${viewerState.title}`);
+    assert(viewerState.clickedStar, 'viewer star button was not found');
+    assert(viewerState.clickedTray, 'viewer export tray button was not found');
+    assert(viewerState.imageLoaded, 'viewer image did not load from /output');
+
+    await waitForCondition(async () => {
+      const ratings = await fetch(`${url}api/ratings`).then((response) => response.json());
+      return ratings[firstPresent.key] === 'star';
+    }, 'rating write persistence');
+
+    await desktop.goto(`${url}export`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Staged for delivery'));
+    const exportState = await desktop.evaluate(() => ({
+      text: document.body.textContent || '',
+      stagedImages: Array.from(document.querySelectorAll('img[src^="/output/"]')).filter((img) => img.naturalWidth > 0).length,
+    }));
+    assert(exportState.text.includes('Staged for delivery'), 'export route did not render');
+    assert(exportState.stagedImages >= 1, 'export route did not show the staged real image');
+
+    await desktop.goto(`${url}registry`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Asset registry'));
+    const registryState = await desktop.evaluate(() => ({
+      hasTitle: Boolean(Array.from(document.querySelectorAll('h1')).find((node) => node.textContent?.includes('Asset registry'))),
+      hasStatusText: Boolean(document.body.textContent?.includes('indexed')),
+    }));
+    assert(registryState.hasTitle, 'registry route did not render');
+
+    await desktop.goto(`${url}health`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Advisories'));
+    const healthState = await desktop.evaluate(() => ({
+      hasMissingAdvisory: Boolean(document.body.textContent?.includes('Missing files')),
+      hasManifestCount: Boolean(document.body.textContent?.includes('Manifest images')),
+    }));
+    assert(healthState.hasMissingAdvisory, 'health route did not show missing-file advisory');
+
+    await desktop.goto(`${url}spend`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Cost basis'));
+    const spendState = await desktop.evaluate(() => ({
+      hasSpend: Boolean(document.body.textContent?.includes('Spend')),
+      hasImageCount: Boolean(document.body.textContent?.includes('Images3')),
+      hasCostBasis: Boolean(document.body.textContent?.includes('Cost basis')),
+    }));
+    assert(spendState.hasSpend, 'spend route did not render');
+    assert(spendState.hasImageCount, 'spend route did not reflect live image count');
+
     if (visualModeEnabled) {
       const result = await captureVisual(desktop, tmpRoot, visualArtifactDir, visualCaptures.desktopTeach);
       visualResults.push(result);
@@ -811,76 +676,33 @@ async function main() {
     });
     await mobile.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true });
     await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
-    await mobile.waitForSelector('.card', { timeout: 5000 });
+    await mobile.waitForFunction(() => document.body.textContent?.includes('Projects'));
+    await mobile.waitForFunction(() => Array.from(document.querySelectorAll('img[src^="/output/"]')).some((img) => img.naturalWidth > 0));
+    const mobileState = await mobile.evaluate(() => ({
+      title: document.title,
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
+      loadedImages: Array.from(document.querySelectorAll('img[src^="/output/"]')).filter((img) => img.naturalWidth > 0).length,
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+        bodyScrollWidth: document.body.scrollWidth,
+      },
+    }));
+    assert(mobileState.title.includes('Library'), `unexpected mobile title: ${mobileState.title}`);
+    assert(mobileState.h1 === 'Projects', `expected mobile Projects heading, got ${mobileState.h1}`);
+    assert(mobileState.loadedImages >= 1, 'mobile library image did not load');
+    assert(mobileState.overflow.scrollWidth <= mobileState.overflow.clientWidth, 'mobile library has horizontal overflow');
 
-    const mobileState = await mobile.evaluate(async () => {
-      const firstCard = document.querySelector('.card');
-      const initialRect = firstCard.getBoundingClientRect();
-      firstCard.scrollIntoView({ block: 'center' });
-      await new Promise((resolve, reject) => {
-        const started = Date.now();
-        const tick = () => {
-          const images = Array.from(document.querySelectorAll('.card img'));
-          const loaded = images.every((img) => img.naturalWidth > 0);
-          if (loaded) resolve();
-          else if (Date.now() - started > 5000) reject(new Error('mobile images did not load after scroll'));
-          else requestAnimationFrame(tick);
-        };
-        tick();
-      });
-      const rect = firstCard.getBoundingClientRect();
-      return {
-        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
-        cards: document.querySelectorAll('.card').length,
-        loadedImages: Array.from(document.querySelectorAll('.card img')).filter((img) => img.naturalWidth > 0).length,
-        imageNaturalWidths: Array.from(document.querySelectorAll('.card img')).map((img) => img.naturalWidth),
-        firstCardInitialY: Math.round(initialRect.y),
-        firstCardRect: {
-          x: Math.round(rect.x),
-          y: Math.round(rect.y),
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        },
-        overflow: {
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-          bodyScrollWidth: document.body.scrollWidth,
-        },
-      };
-    });
-
-    assert(mobileState.activeMode === 'review', `expected mobile review mode by default, got ${mobileState.activeMode}`);
-    assert(mobileState.firstCardInitialY < 900, `mobile review cards start too low: ${mobileState.firstCardInitialY}`);
-    assert(mobileState.cards === 2, `expected two mobile cards, got ${mobileState.cards}`);
-    assert(mobileState.loadedImages === 2, `expected two loaded mobile images, got ${mobileState.loadedImages}`);
-    assert(mobileState.overflow.scrollWidth <= mobileState.overflow.clientWidth, 'mobile has horizontal overflow');
+    const mobileScreenshot = path.join(tmpRoot, 'portal-mobile-library.png');
+    await mobile.screenshot({ path: mobileScreenshot, fullPage: true });
+    const mobileScreenshotStats = await screenshotStats(mobileScreenshot);
+    assert(mobileScreenshotStats.nonblank, 'mobile library screenshot was blank');
 
     if (visualModeEnabled) {
       const result = await captureVisual(mobile, tmpRoot, visualArtifactDir, visualCaptures.mobileReview);
       visualResults.push(result);
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
-
-    const mobileGenerateState = await mobile.evaluate(() => {
-      setPortalMode('generate');
-      const reference = document.querySelector('.studio-style-reference');
-      const rect = reference?.getBoundingClientRect();
-      return {
-        activeMode: document.querySelector('.portal-mode-btn.active')?.dataset.modeTarget || '',
-        styleCards: document.querySelectorAll('.studio-style-card').length,
-        referenceWidth: rect ? Math.round(rect.width) : 0,
-        overflow: {
-          scrollWidth: document.documentElement.scrollWidth,
-          clientWidth: document.documentElement.clientWidth,
-          bodyScrollWidth: document.body.scrollWidth,
-        },
-      };
-    });
-
-    assert(mobileGenerateState.activeMode === 'generate', `expected mobile generate mode, got ${mobileGenerateState.activeMode}`);
-    assert(mobileGenerateState.styleCards >= 4, `expected mobile style cards, got ${mobileGenerateState.styleCards}`);
-    assert(mobileGenerateState.referenceWidth > 0, 'mobile style reference did not render');
-    assert(mobileGenerateState.overflow.scrollWidth <= mobileGenerateState.overflow.clientWidth, 'mobile generate has horizontal overflow');
 
     assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
 
@@ -901,10 +723,25 @@ async function main() {
         project,
         run_id: path.basename(runDir),
       },
-      suite: suiteState,
-      desktop: desktopState,
+      library_state: {
+        projects: libraryState.projects.length,
+        runs: libraryState.runs.length,
+        images: libraryState.images.length,
+        missing: libraryState.health.missingRecords,
+        rated_key: firstPresent.key,
+      },
+      desktop: {
+        library: desktopState,
+        run: runState,
+        viewer: viewerState,
+        export: exportState,
+        registry: registryState,
+        health: healthState,
+        spend: spendState,
+        screenshot: desktopScreenshotStats,
+      },
       mobile: mobileState,
-      mobile_generate: mobileGenerateState,
+      mobile_screenshot: mobileScreenshotStats,
       screenshots: visualModeEnabled ? Object.fromEntries(
         visualResults.map((result) => [result.capture.id, result.stats]),
       ) : null,
@@ -919,10 +756,21 @@ async function main() {
   } finally {
     if (browser) await browser.close().catch(() => {});
     if (server && server.exitCode === null) {
-      server.kill('SIGTERM');
+      const targetPid = process.platform === 'win32' ? server.pid : -server.pid;
+      try {
+        process.kill(targetPid, 'SIGTERM');
+      } catch {
+        server.kill('SIGTERM');
+      }
       await new Promise((resolve) => {
         const timeout = setTimeout(() => {
-          if (server.exitCode === null) server.kill('SIGKILL');
+          if (server.exitCode === null) {
+            try {
+              process.kill(targetPid, 'SIGKILL');
+            } catch {
+              server.kill('SIGKILL');
+            }
+          }
           resolve();
         }, 1500);
         server.once('exit', () => {
@@ -931,6 +779,8 @@ async function main() {
         });
       });
     }
+    server?.stdout?.destroy();
+    server?.stderr?.destroy();
     if (!keepTmp) {
       fs.rmSync(tmpRoot, { recursive: true, force: true });
     } else {

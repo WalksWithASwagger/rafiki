@@ -12,11 +12,19 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from tests.server_harness import http_get, http_post_json, http_post_raw, raw_get
+from tests.server_harness import (
+    make_handler_class,
+    http_get,
+    http_post_json,
+    http_post_raw,
+    raw_get,
+)
 
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
@@ -48,6 +56,49 @@ def test_library_endpoint_returns_html(server):
     assert resp.status == 200
     assert resp.headers.get("Content-Type", "").startswith("text/html")
     assert b"<" in resp.read()
+
+
+def test_frontend_route_without_frontend_returns_migration_fallback(server):
+    resp = http_get(f"{server}/viewer/demo-image")
+    assert resp.status == 503
+    assert json.loads(resp.read().decode("utf-8")) == {"error": "frontend unavailable"}
+
+
+def test_frontend_route_proxies_to_configured_frontend(tmp_path):
+    class FakeFrontend(BaseHTTPRequestHandler):
+        def do_GET(self):
+            body = f"proxied:{self.path}".encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, fmt, *args):
+            pass
+
+    frontend = HTTPServer(("127.0.0.1", 0), FakeFrontend)
+    frontend_thread = threading.Thread(target=frontend.serve_forever, daemon=True)
+    frontend_thread.start()
+
+    Handler = make_handler_class(tmp_path)
+    Handler.frontend_origin = f"http://127.0.0.1:{frontend.server_address[1]}"
+    portal = HTTPServer(("127.0.0.1", 0), Handler)
+    portal_thread = threading.Thread(target=portal.serve_forever, daemon=True)
+    portal_thread.start()
+    try:
+        base = f"http://127.0.0.1:{portal.server_address[1]}"
+        resp = http_get(f"{base}/library?view=list")
+        assert resp.status == 200
+        assert resp.headers.get("Content-Type", "").startswith("text/plain")
+        assert resp.read() == b"proxied:/library?view=list"
+    finally:
+        portal.shutdown()
+        portal.server_close()
+        portal_thread.join(timeout=2)
+        frontend.shutdown()
+        frontend.server_close()
+        frontend_thread.join(timeout=2)
 
 
 # ── _serve_static (GET /output/<file>) ─────────────────────────────────────
@@ -105,6 +156,74 @@ def test_runs_endpoint_lists_project_runs(server, tmp_path):
     by_file = {img["file"]: img for img in entry["images"]}
     assert by_file["demo/run-20260101-100000/hero.png"]["ok"] is True
     assert by_file["demo/run-20260101-100000/gone.png"]["ok"] is False
+
+
+# ── _serve_library_state (GET /api/library-state) ──────────────────────────
+
+def test_library_state_endpoint_returns_normalized_frontend_payload(server, tmp_path):
+    run_dir = tmp_path / "output" / "demo" / "run-20260101-100000"
+    long_prompt = "make it luminous " * 40
+    _write_run(
+        run_dir,
+        [
+            {
+                "name": "Hero",
+                "prompt": long_prompt,
+                "file": "hero.png",
+                "seed": 123,
+                "steps": 28,
+                "cfg": 7,
+                "slot": 1,
+            },
+            {
+                "name": "Broken",
+                "prompt": "provider failed",
+                "file": "broken.png",
+                "error": "provider failed",
+                "slot": 2,
+            },
+            {"name": "Gone", "prompt": "missing file", "file": "gone.png", "slot": 3},
+        ],
+    )
+    (run_dir / "gone.png").unlink()
+    rating_key = "demo/run-20260101-100000/hero.png"
+    (tmp_path / "output" / "ratings.json").write_text(
+        json.dumps({rating_key: "star"}),
+        encoding="utf-8",
+    )
+
+    payload = json.loads(http_get(f"{server}/api/library-state").read().decode("utf-8"))
+    assert payload["version"] == 1
+    assert payload["source"] == "rafiki-local"
+    assert payload["ratings"][rating_key] == "star"
+    assert payload["health"]["totalProjects"] == 1
+    assert payload["health"]["totalRuns"] == 1
+    assert payload["health"]["manifestImages"] == 3
+    assert payload["health"]["presentImages"] == 2
+    assert payload["health"]["missingRecords"] == 1
+    assert payload["health"]["failedImages"] == 1
+
+    project = payload["projects"][0]
+    assert project["id"] == "demo"
+    assert project["presentCount"] == 1
+    assert project["failedCount"] == 1
+    assert project["missingCount"] == 1
+
+    run = payload["runs"][0]
+    assert run["key"] == "demo/run-20260101-100000"
+    assert run["projectId"] == "demo"
+    assert "/" not in run["id"]
+
+    images = {image["key"]: image for image in payload["images"]}
+    hero = images[rating_key]
+    assert hero["url"] == "/output/demo/run-20260101-100000/hero.png"
+    assert hero["thumbnailUrl"] == hero["url"]
+    assert hero["rating"] == "starred"
+    assert hero["status"] == "present"
+    assert len(hero["prompt"]) <= 323
+    assert hero["prompt"].endswith("...")
+    assert images["demo/run-20260101-100000/broken.png"]["status"] == "failed"
+    assert images["demo/run-20260101-100000/gone.png"]["status"] == "missing"
 
 
 # ── _serve_actions (GET /api/actions) ──────────────────────────────────────

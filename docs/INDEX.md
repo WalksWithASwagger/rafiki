@@ -33,9 +33,11 @@ deeper operating docs by surface area.
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
+- [Frontend Shell](FRONTEND.md) - TypeScript portal shell, Python proxy/API
+  boundary, rollback routes, local build behavior, and verification commands.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
-  summary, mode navigation, feedback, evaluation, archive metadata state,
-  revision staging, Curriculum Atlas surface, and API endpoints.
+  summary, legacy rollback surfaces, feedback, evaluation, archive metadata
+  state, revision staging, Curriculum Atlas surface, and API endpoints.
 - [Spend Accounting](SPEND-ACCOUNTING.md) - pricing profile semantics,
   estimate rules, and source-of-truth boundaries.
 
