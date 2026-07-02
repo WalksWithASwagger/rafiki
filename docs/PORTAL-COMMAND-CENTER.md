@@ -1,27 +1,40 @@
 # Portal Command Center
 
-`python generate.py serve` turns the master library into Rafiki's local command
-center. It still runs on the operator's machine, reads the same `output/`
-archive, and uses the same generation path as the CLI.
+`python generate.py serve` now serves the TypeScript frontend shell documented
+in [Frontend Shell](FRONTEND.md) as the primary `/` and `/library` experience.
+Python still runs on the operator's machine, reads the same `output/` archive,
+owns `/api/*`, `/output/*`, `/media/*`, and uses the same generation path as
+the CLI.
+
+The mode-heavy HTML command center described below is retained as a rollback and
+static-rendering surface during the migration. Use `/legacy-suite` for the old
+media-suite command center and `/legacy-library` for the old image-only library.
+Static generated run/project viewers are still supported for file-open/export
+workflows.
 
 ## Surfaces
 
-- **Review** is the image-first default mode. It contains archive filters,
+- **Current frontend shell** owns the live `/`, `/library`, `/viewer/*`,
+  `/export`, `/registry`, `/health`, and `/spend` routes through the Python
+  proxy. It reads normalized archive data from `/api/library-state` and writes
+  review state through the existing sidecar APIs.
+- **Legacy Review** is the image-first default mode in `/legacy-library`. It
+  contains archive filters,
   Review Queue, lineage chips, copy-prompt actions, search, ratings, metadata
   badges, feedback badges, evaluation badges, keyboard review, and the run
   detail panel.
-- **Workflow** stages repeatable artifact chains before generation. The first
+- **Legacy Workflow** stages repeatable artifact chains before generation. The first
   template stages the public keynote visual workflow prompt pack as a dry-run
   batch, then sends the operator into Prompt Studio to inspect the prompt file,
   style, aspect ratio, and project before running.
-- **Generate** contains Prompt Studio and launches single-prompt or Markdown
+- **Legacy Generate** contains Prompt Studio and launches single-prompt or Markdown
   batch runs through `/api/regen`. It keeps the latest submitted payload in the
   browser so failed or reset runs can be retried directly or restored into the
   form for review before another attempt.
-- **Curate** exposes local action helpers such as approve starred, Canva export,
+- **Legacy Curate** exposes local action helpers such as approve starred, Canva export,
   Notion dry run, registry export, and static deploy helper.
-- **Spend** contains local spend, billing imports, usage, and deploy readiness.
-- **Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json`,
+- **Legacy Spend** contains local spend, billing imports, usage, and deploy readiness.
+- **Legacy Teach** renders the Curriculum Atlas from `config/curriculum-atlas.json`,
   including facilitator notes, discussion prompts, critique rubrics, concept
   links, a compact concept graph, and links from programs/modules back to
   matching archive cards.
@@ -179,6 +192,7 @@ copies the source prompt for quick reuse or review notes.
 
 | Endpoint | Method | Behavior |
 |---|---|---|
+| `/api/library-state` | `GET` | Read-only normalized state for the TypeScript frontend: projects, runs, images, ratings, health, and registry summary. |
 | `/api/usage` | `GET` | Read-only local usage and manifest summary. |
 | `/api/billing-imports` | `GET` | Read-only imported provider billing summary. |
 | `/api/billing-imports` | `POST` | Add one or more local billing rows with `provider`, `model`, `amount`, `currency`, and `note`. |
@@ -190,6 +204,8 @@ copies the source prompt for quick reuse or review notes.
 | `/api/archive-metadata` | `GET` | Return `output/archive-metadata.json` as `{version, items}`. |
 | `/api/archive-metadata` | `POST` | Upsert one metadata item using `key`, `title`, `tags`, `states`, `superseded_by`, `source_use_case`, `source_url`, `prompt_pack`, `prompt_pack_section`, `artifact_review_state`, `export_targets`, and `downstream_uses`. |
 | `/api/regen` | `POST` | Run Prompt Studio generation or dry run through `lib.batch.run_batch`. |
+| `/legacy-suite` | `GET` | Render the old media-suite command center rollback surface. |
+| `/legacy-library` | `GET` | Render the old image-only library rollback surface. |
 
 Supported feedback statuses are `needs-change`, `keep`, `maybe`, `blocked`, and
 `done`.
@@ -211,24 +227,20 @@ npm run e2e:portal
 The smoke uses a temporary output root, creates a dry-run archive from
 `examples/quickstart-image-prompts.md`, writes local fixture images without
 calling a provider, starts `generate.py serve` on a random localhost port, then
-checks the portal in Chromium. It verifies the home page, mode navigation,
-Teach/Curriculum Atlas rendering, usage and readiness APIs, search, run detail,
-metadata save, feedback save, evaluation save, run decision summary, rating
-filters, desktop and mobile overflow, and mobile lazy image loading after
-scroll. The quality lane also checks concept graph rendering, Review Queue
-behavior, lineage/copy affordances, focusable mode controls, reduced-motion
-CSS, absence of `transition: all`, and a clean browser console. The default
-smoke does not save or analyze screenshots, so it stays fast and avoids
-accidental generated artifacts.
+checks the new frontend in Chromium. It verifies `/api/library-state`, live
+library/run/viewer/export/registry/health/spend routes, rating persistence
+through `/api/ratings`, present image loading from `/output/*`, missing-image
+placeholders, desktop and mobile overflow, nonblank desktop/mobile screenshot
+metrics, and a clean browser console.
 
 The smoke runs its fixture subprocesses with `RAFIKI_DISABLE_EXTRA_OUTPUTS=1`,
 so machine-local `config/extra-outputs.local.json` mappings do not affect the
 strict archive-count assertions.
 
 Use the explicit visual baseline modes only when reviewing portal layout drift.
-They capture desktop Review, desktop Teach, and mobile Review screenshots and
-record coarse metrics: dimensions, luminance, contrast distribution, color
-variety, and saturation. The manifest at
+They capture named desktop/mobile screenshots and record coarse metrics:
+dimensions, luminance, contrast distribution, color variety, and saturation. The
+manifest at
 `docs/portal-visual-baselines.json` stores reviewed metric ranges, not
 pixel-perfect image fixtures.
 
@@ -239,7 +251,7 @@ RAFIKI_E2E_ARTIFACT_DIR=/tmp/rafiki-portal-visuals \
   node scripts/portal-e2e-smoke.mjs --visual-baseline=review
 ```
 
-The run writes named PNGs for desktop Review, desktop Teach, and mobile Review:
+The run keeps the existing named PNGs for compatibility:
 `portal-desktop-review.png`, `portal-desktop-teach.png`, and
 `portal-mobile-review.png`. The JSON output includes
 `visual_artifacts.directory`, `visual_artifacts.files`, and `screenshots` with

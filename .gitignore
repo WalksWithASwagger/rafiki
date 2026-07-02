@@ -32,6 +32,10 @@ assets/kb-import/prompt-stashes/
 
 # Node modules
 node_modules/
+frontend/node_modules/
+frontend/.output/
+frontend/.vinxi/
+frontend/.wrangler/
 
 # Usage tracking (local data)
 data/usage-log.json
