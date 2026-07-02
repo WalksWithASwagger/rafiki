@@ -210,6 +210,38 @@ async function getFreePort() {
   });
 }
 
+async function readMobileShell(page) {
+  return page.evaluate(() => {
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const main = document.querySelector('main')?.getBoundingClientRect();
+    const desktopSidebar = document
+      .querySelector('[data-shell-sidebar="desktop"]')
+      ?.getBoundingClientRect();
+    const mobileNav = document
+      .querySelector('[data-shell-mobile-nav]')
+      ?.getBoundingClientRect();
+    return {
+      viewport,
+      mainWidth: Math.round(main?.width || 0),
+      mainLeft: Math.round(main?.left || 0),
+      desktopSidebarWidth: Math.round(desktopSidebar?.width || 0),
+      mobileNavVisible: Boolean(
+        mobileNav &&
+          mobileNav.width >= viewport.width - 2 &&
+          mobileNav.top < viewport.height &&
+          mobileNav.height > 0,
+      ),
+    };
+  });
+}
+
+function assertMobileShellUsable(shell, label) {
+  assert(shell.mainWidth >= 360, `${label} mobile main content is too narrow: ${shell.mainWidth}px`);
+  assert(shell.mainLeft <= 1, `${label} mobile main content is offset by ${shell.mainLeft}px`);
+  assert(shell.desktopSidebarWidth === 0, `${label} desktop sidebar is visible on mobile`);
+  assert(shell.mobileNavVisible, `${label} mobile navigation is not visible`);
+}
+
 async function writeFixtureImage(target, index, aspectRatio) {
   const [w, h] = aspectRatio === '16:9' ? [960, 540] : [720, 720];
   const hue = index === 0 ? '#18b7a5' : '#8b6cff';
@@ -539,6 +571,10 @@ async function main() {
     assert(libraryState.runs.length === 1, `expected one library run, got ${libraryState.runs.length}`);
     assert(libraryState.images.length === 3, `expected three library images, got ${libraryState.images.length}`);
     assert(libraryState.health.missingRecords === 1, `expected one missing image, got ${libraryState.health.missingRecords}`);
+    assert(libraryState.totals.visible.projects === 1, 'library state visible project total was wrong');
+    assert(libraryState.totals.visible.images === 3, 'library state visible image total was wrong');
+    assert(libraryState.totals.visible.missing === 1, 'library state visible missing total was wrong');
+    assert(Array.isArray(libraryState.sourceWarnings), 'library state did not return source warnings');
     const firstRun = libraryState.runs[0];
     const firstPresent = libraryState.images.find((image) => image.status === 'present');
     const missingRecord = libraryState.images.find((image) => image.status === 'missing');
@@ -590,6 +626,7 @@ async function main() {
     await desktop.goto(`${url}library/${encodeURIComponent(firstRun.id)}`, { waitUntil: 'networkidle0' });
     await desktop.waitForFunction(() => document.body.textContent?.includes('File missing'));
     const runState = await desktop.evaluate(() => ({
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
       text: document.body.textContent || '',
       viewerLinks: Array.from(document.querySelectorAll('a[href^="/viewer/"]')).length,
       outputImages: Array.from(document.querySelectorAll('img[src^="/output/"]')).map((img) => img.naturalWidth),
@@ -598,6 +635,7 @@ async function main() {
         clientWidth: document.documentElement.clientWidth,
       },
     }));
+    assert(runState.h1 === firstRun.label, `expected run heading ${firstRun.label}, got ${runState.h1}`);
     assert(runState.viewerLinks >= 2, `expected viewer links on run page, got ${runState.viewerLinks}`);
     assert(runState.text.includes('File missing'), 'run page did not show missing image placeholder');
     assert(runState.outputImages.some((width) => width > 0), 'run page present image did not load');
@@ -650,8 +688,12 @@ async function main() {
     const healthState = await desktop.evaluate(() => ({
       hasMissingAdvisory: Boolean(document.body.textContent?.includes('Missing files')),
       hasManifestCount: Boolean(document.body.textContent?.includes('Manifest images')),
+      hasReadOnlyLabel: Boolean(document.body.textContent?.includes('Read-only report')),
+      hasQueuedCopy: Boolean(document.body.textContent?.includes('Queued:')),
     }));
     assert(healthState.hasMissingAdvisory, 'health route did not show missing-file advisory');
+    assert(healthState.hasReadOnlyLabel, 'health route did not identify itself as read-only');
+    assert(!healthState.hasQueuedCopy, 'health route still includes fake queued action copy');
 
     await desktop.goto(`${url}spend`, { waitUntil: 'networkidle0' });
     await desktop.waitForFunction(() => document.body.textContent?.includes('Cost basis'));
@@ -688,17 +730,64 @@ async function main() {
         bodyScrollWidth: document.body.scrollWidth,
       },
     }));
+    mobileState.shell = await readMobileShell(mobile);
     assert(mobileState.title.includes('Library'), `unexpected mobile title: ${mobileState.title}`);
     assert(mobileState.h1 === 'Projects', `expected mobile Projects heading, got ${mobileState.h1}`);
     assert(mobileState.loadedImages >= 1, 'mobile library image did not load');
     assert(mobileState.overflow.scrollWidth <= mobileState.overflow.clientWidth, 'mobile library has horizontal overflow');
+    assertMobileShellUsable(mobileState.shell, 'library');
 
     const mobileScreenshot = path.join(tmpRoot, 'portal-mobile-library.png');
     await mobile.screenshot({ path: mobileScreenshot, fullPage: true });
     const mobileScreenshotStats = await screenshotStats(mobileScreenshot);
     assert(mobileScreenshotStats.nonblank, 'mobile library screenshot was blank');
 
+    await mobile.goto(`${url}viewer/${encodeURIComponent(firstPresent.id)}`, { waitUntil: 'networkidle0' });
+    await mobile.waitForFunction((name) => document.body.textContent?.includes(name), {}, firstPresent.name);
+    const mobileViewerState = await mobile.evaluate(() => ({
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
+      imageLoaded: Array.from(document.querySelectorAll('img[src^="/output/"]')).some((img) => img.naturalWidth > 0),
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    }));
+    mobileViewerState.shell = await readMobileShell(mobile);
+    assert(mobileViewerState.h1 === firstPresent.name, `mobile viewer title mismatch: ${mobileViewerState.h1}`);
+    assert(mobileViewerState.imageLoaded, 'mobile viewer image did not load from /output');
+    assert(mobileViewerState.overflow.scrollWidth <= mobileViewerState.overflow.clientWidth, 'mobile viewer has horizontal overflow');
+    assertMobileShellUsable(mobileViewerState.shell, 'viewer');
+
+    const mobileViewerScreenshot = path.join(tmpRoot, 'portal-mobile-viewer.png');
+    await mobile.screenshot({ path: mobileViewerScreenshot, fullPage: true });
+    const mobileViewerScreenshotStats = await screenshotStats(mobileViewerScreenshot);
+    assert(mobileViewerScreenshotStats.nonblank, 'mobile viewer screenshot was blank');
+
+    await mobile.goto(`${url}health`, { waitUntil: 'networkidle0' });
+    await mobile.waitForFunction(() => document.body.textContent?.includes('Advisories'));
+    const mobileHealthState = await mobile.evaluate(() => ({
+      hasReadOnlyLabel: Boolean(document.body.textContent?.includes('Read-only report')),
+      hasMissingAdvisory: Boolean(document.body.textContent?.includes('Missing files')),
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    }));
+    mobileHealthState.shell = await readMobileShell(mobile);
+    assert(mobileHealthState.hasReadOnlyLabel, 'mobile health did not show read-only label');
+    assert(mobileHealthState.hasMissingAdvisory, 'mobile health did not show missing advisory');
+    assert(mobileHealthState.overflow.scrollWidth <= mobileHealthState.overflow.clientWidth, 'mobile health has horizontal overflow');
+    assertMobileShellUsable(mobileHealthState.shell, 'health');
+
+    const mobileHealthScreenshot = path.join(tmpRoot, 'portal-mobile-health.png');
+    await mobile.screenshot({ path: mobileHealthScreenshot, fullPage: true });
+    const mobileHealthScreenshotStats = await screenshotStats(mobileHealthScreenshot);
+    assert(mobileHealthScreenshotStats.nonblank, 'mobile health screenshot was blank');
+
     if (visualModeEnabled) {
+      await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
+      await mobile.waitForFunction(() => document.body.textContent?.includes('Projects'));
+      await mobile.waitForFunction(() => Array.from(document.querySelectorAll('img[src^="/output/"]')).some((img) => img.naturalWidth > 0));
       const result = await captureVisual(mobile, tmpRoot, visualArtifactDir, visualCaptures.mobileReview);
       visualResults.push(result);
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
@@ -742,6 +831,10 @@ async function main() {
       },
       mobile: mobileState,
       mobile_screenshot: mobileScreenshotStats,
+      mobile_viewer: mobileViewerState,
+      mobile_viewer_screenshot: mobileViewerScreenshotStats,
+      mobile_health: mobileHealthState,
+      mobile_health_screenshot: mobileHealthScreenshotStats,
       screenshots: visualModeEnabled ? Object.fromEntries(
         visualResults.map((result) => [result.capture.id, result.stats]),
       ) : null,

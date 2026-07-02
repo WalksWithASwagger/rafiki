@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTriageStore } from "@/stores/triage-store";
 
 export type ImageStatus = "present" | "failed" | "missing";
 export type Rating = "starred" | "rejected" | null;
@@ -63,8 +64,28 @@ export interface RegistryEntry {
   refs: number;
   lastSeen: string;
   status: "indexed" | "orphan" | "missing";
+  exists: boolean;
   title?: string;
   approvalStatus?: string;
+}
+
+export interface LibraryTotals {
+  projects: number;
+  runs: number;
+  images: number;
+  present: number;
+  missing: number;
+  failed: number;
+  files?: number;
+  starred?: number;
+  rejected?: number;
+}
+
+export interface SourceWarning {
+  kind: string;
+  project: string;
+  path: string;
+  message: string;
 }
 
 export interface HealthReport {
@@ -92,6 +113,11 @@ export interface LibraryState {
   runs: RunRecord[];
   images: ImageRecord[];
   ratings: Record<string, Rating>;
+  totals: {
+    archive: LibraryTotals;
+    visible: LibraryTotals;
+  };
+  sourceWarnings: SourceWarning[];
   health: HealthReport;
   registry: {
     entries: RegistryEntry[];
@@ -108,19 +134,55 @@ function toUiRating(value: unknown): Rating {
 }
 
 function normalizeState(
-  payload: LibraryState & { ratings?: Record<string, unknown> },
+  payload: Omit<LibraryState, "ratings" | "totals" | "sourceWarnings"> & {
+    ratings?: Record<string, unknown>;
+    totals?: LibraryState["totals"];
+    sourceWarnings?: SourceWarning[];
+  },
 ): LibraryState {
   const ratings: Record<string, Rating> = {};
   for (const [key, value] of Object.entries(payload.ratings ?? {})) {
     ratings[key] = toUiRating(value);
   }
+  const images = payload.images.map((image) => ({
+    ...image,
+    rating: toUiRating(image.rating ?? ratings[image.key]),
+  }));
+  const visible =
+    payload.totals?.visible ?? deriveVisibleTotals(payload.projects, payload.runs, images, ratings);
+  const archive = payload.totals?.archive ?? {
+    projects: payload.health.totalProjects,
+    runs: payload.health.totalRuns,
+    images: payload.health.manifestImages,
+    present: payload.health.presentImages,
+    missing: payload.health.missingRecords,
+    failed: payload.health.failedImages,
+    files: payload.health.imageFiles,
+  };
   return {
     ...payload,
     ratings,
-    images: payload.images.map((image) => ({
-      ...image,
-      rating: toUiRating(image.rating ?? ratings[image.key]),
-    })),
+    images,
+    totals: { archive, visible },
+    sourceWarnings: payload.sourceWarnings ?? [],
+  };
+}
+
+function deriveVisibleTotals(
+  projects: ProjectRecord[],
+  runs: RunRecord[],
+  images: ImageRecord[],
+  ratings: Record<string, Rating>,
+): LibraryTotals {
+  return {
+    projects: projects.length,
+    runs: runs.length,
+    images: images.length,
+    present: images.filter((image) => image.status === "present").length,
+    missing: images.filter((image) => image.status === "missing").length,
+    failed: images.filter((image) => image.status === "failed").length,
+    starred: Object.values(ratings).filter((rating) => rating === "starred").length,
+    rejected: Object.values(ratings).filter((rating) => rating === "rejected").length,
   };
 }
 
@@ -130,6 +192,7 @@ export async function fetchLibraryState(): Promise<LibraryState> {
     throw new Error(`Library state failed: ${response.status}`);
   }
   cachedState = normalizeState(await response.json());
+  useTriageStore.getState().hydrateRatings(cachedState.ratings);
   return cachedState;
 }
 

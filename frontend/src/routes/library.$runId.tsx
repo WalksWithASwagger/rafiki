@@ -131,7 +131,13 @@ function RunContent({
       />
 
       <div className="relative flex-1 overflow-y-auto">
-        <div className="p-8 pb-32">
+        <div className="p-4 pb-32 sm:p-8">
+          <div className="mb-6">
+            <h1 className="text-2xl font-semibold tracking-tight">{run.label}</h1>
+            <p className="mt-1 text-xs font-mono text-muted-foreground">
+              {project?.name ?? run.projectId} · {runImages.length} images
+            </p>
+          </div>
           {runImages.length === 0 ? (
             <EmptyBlock
               icon={ImageOff}

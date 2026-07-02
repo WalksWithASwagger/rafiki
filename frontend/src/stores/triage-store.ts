@@ -82,6 +82,7 @@ interface TriageState {
   setDockExpanded: (open: boolean) => void;
   toggleDockExpanded: () => void;
   setManifestPrefs: (prefs: Partial<ManifestPrefs>) => void;
+  hydrateRatings: (ratings: Record<string, Rating>) => void;
   setSelectMode: (on: boolean) => void;
   toggleSelectMode: () => void;
   toggleLibrarySelection: (id: string) => void;
@@ -150,6 +151,7 @@ export const useTriageStore = create<TriageState>()(
       toggleDockExpanded: () => set((s) => ({ dockExpanded: !s.dockExpanded })),
       setManifestPrefs: (prefs) =>
         set((s) => ({ manifestPrefs: { ...s.manifestPrefs, ...prefs } })),
+      hydrateRatings: (ratings) => set({ ratings }),
       setSelectMode: (on) =>
         set({ selectMode: on, librarySelection: on ? get().librarySelection : [] }),
       toggleSelectMode: () =>

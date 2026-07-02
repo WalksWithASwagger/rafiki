@@ -1,15 +1,6 @@
 import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useMemo, useRef } from "react";
-import {
-  Plus,
-  Search,
-  X,
-  PackageOpen,
-  CheckSquare,
-  Square,
-  ArrowUp,
-  ArrowDown,
-} from "lucide-react";
+import { Search, X, PackageOpen, CheckSquare, Square, ArrowUp, ArrowDown } from "lucide-react";
 import { z } from "zod";
 import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { retainSearchParams } from "@tanstack/react-router";
@@ -142,7 +133,8 @@ function LibraryContent({ state }: { state: LibraryState }) {
   const searchRef = useRef<HTMLInputElement>(null);
   const projects = state.projects;
   const images = state.images;
-  const healthReport = state.health;
+  const visibleTotals = state.totals.visible;
+  const archiveTotals = state.totals.archive;
 
   const tagOptions = useMemo(
     () => Array.from(new Set(projects.flatMap((project) => project.tags))).slice(0, 12),
@@ -284,7 +276,7 @@ function LibraryContent({ state }: { state: LibraryState }) {
       <PageHeader
         crumbs={[{ label: "LOCAL", mono: true }, { label: "Library" }]}
         actions={
-          <>
+          <div className="flex items-center gap-2">
             <button
               onClick={toggleSelectMode}
               className={cn(
@@ -298,21 +290,21 @@ function LibraryContent({ state }: { state: LibraryState }) {
               {selectMode ? "Cancel" : "Select"}
               <kbd className="border border-border/60 px-1 rounded text-[9px] ml-1">A</kbd>
             </button>
-            <button className="px-4 py-1.5 bg-brand text-black text-xs font-bold rounded hover:bg-brand/90 transition-colors font-mono tracking-wider uppercase flex items-center gap-2">
-              <Plus className="size-3.5" strokeWidth={3} />
-              New Run
-            </button>
-          </>
+          </div>
         }
       />
 
       <div className="relative flex-1 overflow-y-auto">
-        <div className="p-8 pb-32">
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-border border border-border rounded-lg overflow-hidden mb-8">
-            <Stat label="Projects" value={healthReport.totalProjects} />
-            <Stat label="Runs" value={healthReport.totalRuns} />
-            <Stat label="Present" value={healthReport.presentImages.toLocaleString()} />
-            <Stat label="Failed" value={healthReport.failedImages} tone="destructive" />
+        <div className="p-4 pb-32 sm:p-8">
+          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border mb-8 md:grid-cols-5">
+            <Stat label="Visible projects" value={visibleTotals.projects} />
+            <Stat label="Visible runs" value={visibleTotals.runs} />
+            <Stat label="Visible images" value={visibleTotals.images.toLocaleString()} />
+            <Stat
+              label="Needs review"
+              value={(visibleTotals.failed + visibleTotals.missing).toLocaleString()}
+              tone="destructive"
+            />
             <Stat
               label="Starred"
               value={Object.values(ratings).filter((r) => r === "starred").length}
@@ -334,7 +326,7 @@ function LibraryContent({ state }: { state: LibraryState }) {
                 /
               </kbd>
             </div>
-            <div className="flex gap-1 p-1 border border-border rounded bg-sidebar">
+            <div className="flex max-w-full gap-1 overflow-x-auto rounded border border-border bg-sidebar p-1">
               {STATUSES.map((f, i) => (
                 <button
                   key={f}
@@ -383,7 +375,7 @@ function LibraryContent({ state }: { state: LibraryState }) {
               );
             })}
 
-            <div className="ml-auto flex items-center gap-2">
+            <div className="flex w-full flex-wrap items-center gap-2 pt-2 sm:ml-auto sm:w-auto sm:pt-0">
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
                 Sort
               </span>
@@ -476,8 +468,9 @@ function LibraryContent({ state }: { state: LibraryState }) {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
               <p className="text-xs text-muted-foreground font-mono mt-1">
-                {visibleProjects.length} of {projects.length} shown · {healthReport.outputSizeGb} GB
-                on disk · sort {sort}/{dir}
+                {visibleProjects.length} of {projects.length} visible projects shown · archive scan{" "}
+                {archiveTotals.projects} projects / {archiveTotals.images.toLocaleString()} records
+                · sort {sort}/{dir}
               </p>
             </div>
           </div>

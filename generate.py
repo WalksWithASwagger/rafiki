@@ -24,6 +24,7 @@ Usage:
     python generate.py approve <project> [--run <run-id>]
     python generate.py clean <project> [--keep-approved] [--older-than 30d] [--dry-run]
     python generate.py archive-health [--json]
+    python generate.py archive-repair [--apply]
     python generate.py archive-thumbnails [--output-dir output] [--width 480]
 
     # Start the generative portal with persistent ratings + search:
@@ -61,6 +62,7 @@ from lib.batch import run_batch
 from lib.commands import (
     _cmd_approve,
     _cmd_archive_health,
+    _cmd_archive_repair,
     _cmd_archive_thumbnails,
     _cmd_billing,
     _cmd_clean,
@@ -949,6 +951,7 @@ def main() -> None:
         "registry": _cmd_registry,
         "billing": _cmd_billing,
         "archive-health": _cmd_archive_health,
+        "archive-repair": _cmd_archive_repair,
         "archive-thumbnails": _cmd_archive_thumbnails,
         "social-expand": _cmd_social_expand,
         "media": _cmd_media,

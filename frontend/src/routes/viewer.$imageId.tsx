@@ -135,7 +135,7 @@ function ViewerContent({ state, image }: { state: LibraryState; image: ImageReco
 
   return (
     <AppShell>
-      <header className="h-16 border-b border-border flex items-center justify-between px-8 shrink-0 bg-background/80 backdrop-blur">
+      <header className="min-h-16 border-b border-border flex flex-wrap items-center justify-between gap-3 px-4 py-3 shrink-0 bg-background/80 backdrop-blur sm:px-8">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             to="/library/$runId"
@@ -176,14 +176,14 @@ function ViewerContent({ state, image }: { state: LibraryState; image: ImageReco
         </div>
       </header>
 
-      <div className="flex-1 flex overflow-hidden">
-        <section className="flex-1 grid place-items-center p-8 bg-black/40 overflow-hidden">
-          <div className="w-full h-full max-w-4xl max-h-full aspect-square">
+      <div className="flex-1 flex flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
+        <section className="grid min-h-[45vh] place-items-center overflow-hidden bg-black/40 p-4 sm:p-8 lg:min-h-0 lg:flex-1">
+          <div className="h-full max-h-full w-full max-w-4xl aspect-square">
             <Thumbnail image={image} className="w-full h-full rounded" showLabel={false} />
           </div>
         </section>
 
-        <aside className="w-96 border-l border-border bg-sidebar shrink-0 flex flex-col overflow-hidden">
+        <aside className="w-full shrink-0 border-t border-border bg-sidebar flex flex-col overflow-hidden lg:w-96 lg:border-l lg:border-t-0">
           <div className="p-6 border-b border-border">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">

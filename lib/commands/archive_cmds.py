@@ -124,6 +124,71 @@ def _cmd_archive_thumbnails(argv: list[str]) -> None:
             print(f"- {error['file']}: {error['error']}")
 
 
+def _cmd_archive_repair(argv: list[str]) -> None:
+    """Repair missing records, duplicates, and sidecars with backups."""
+    p = argparse.ArgumentParser(
+        prog="generate.py archive-repair",
+        description="Reversibly repair missing archive records, exact duplicates, malformed runs, and orphaned sidecars.",
+    )
+    p.add_argument(
+        "--output-dir", "-d", default=None,
+        help="Root output directory (default: output/ next to generate.py)",
+    )
+    p.add_argument(
+        "--apply",
+        action="store_true",
+        help="Apply the repair plan. Without this flag, archive-repair is a dry-run.",
+    )
+    p.add_argument(
+        "--backup-dir",
+        default=None,
+        help="Backup/quarantine directory (default: output/.rafiki-cleanup/<timestamp>)",
+    )
+    p.add_argument(
+        "--no-registry",
+        action="store_true",
+        help="Skip rebuilding data/asset-registry.json after applying repairs.",
+    )
+    p.add_argument("--json", action="store_true", dest="json_output", help="Emit JSON result")
+    args = p.parse_args(argv)
+
+    output_root = Path(args.output_dir) if args.output_dir else REPO_ROOT / "output"
+    backup_dir = Path(args.backup_dir).expanduser() if args.backup_dir else None
+    from lib.archive_repair import repair_archive
+
+    result = repair_archive(
+        output_root,
+        apply=args.apply,
+        backup_dir=backup_dir,
+        rebuild_registry=not args.no_registry,
+    )
+    if args.json_output:
+        print(json.dumps(result, indent=2))
+        return
+
+    mode = "Applied" if args.apply else "Dry-run"
+    counts = result["counts"]
+    missing_count = counts.get("missing_records", counts.get("missing_records_removed", 0))
+    print(f"{mode} archive repair: {Path(result['output_root'])}")
+    print(f"Backup/quarantine: {result['backup_dir']}")
+    print(
+        "Planned/applied: "
+        f"missing_records={missing_count} "
+        f"exact_duplicates={counts.get('exact_duplicate_files', counts.get('duplicate_files_quarantined', 0))} "
+        f"rewrites={counts.get('run_json_rewrites', 0)} "
+        f"quarantined_runs={counts.get('runs_quarantined', 0)} "
+        f"synthesized_runs={counts.get('malformed_runs_synthesized', 0)} "
+        f"sidecar_orphans={counts.get('sidecar_orphans', counts.get('sidecar_orphans_removed', 0))}"
+    )
+    if not args.apply:
+        print("No files changed. Re-run with --apply to write backups and repair the archive.")
+    elif result.get("registry", {}).get("registry_refreshed"):
+        print(
+            f"Registry rebuilt ({result['registry']['registry_scope']}): "
+            f"{result['registry']['registry_count']} entries"
+        )
+
+
 def _print_archive_cleanup_report(report: dict) -> None:
     cleanup = report["cleanup_report"]
     summary = cleanup["summary"]

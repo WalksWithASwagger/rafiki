@@ -12,6 +12,7 @@ from lib.archive_health import archive_health_report
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 PROMPT_PREVIEW_CHARS = 320
+REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def build_library_state(
@@ -70,6 +71,7 @@ def build_library_state(
 
     health = _health_payload(output_root, ratings)
     registry = _registry_payload(registry_file)
+    visible_totals = _visible_totals(projects, runs, images, ratings)
     return {
         "version": 1,
         "source": "rafiki-local",
@@ -78,6 +80,19 @@ def build_library_state(
         "runs": sorted(runs, key=lambda r: r["createdAt"], reverse=True),
         "images": sorted(images, key=lambda i: (i["createdAt"], i["projectId"], i["slot"]), reverse=True),
         "ratings": ratings,
+        "totals": {
+            "archive": {
+                "projects": health["totalProjects"],
+                "runs": health["totalRuns"],
+                "images": health["manifestImages"],
+                "present": health["presentImages"],
+                "missing": health["missingRecords"],
+                "failed": health["failedImages"],
+                "files": health["imageFiles"],
+            },
+            "visible": visible_totals,
+        },
+        "sourceWarnings": _source_warnings(extra_roots),
         "health": health,
         "registry": registry,
     }
@@ -197,20 +212,56 @@ def _health_payload(output_root: Path, ratings: dict[str, Any]) -> dict[str, Any
     }
 
 
+def _visible_totals(
+    projects: dict[str, dict[str, Any]],
+    runs: list[dict[str, Any]],
+    images: list[dict[str, Any]],
+    ratings: dict[str, Any],
+) -> dict[str, int]:
+    return {
+        "projects": len(projects),
+        "runs": len(runs),
+        "images": len(images),
+        "present": sum(1 for image in images if image["status"] == "present"),
+        "missing": sum(1 for image in images if image["status"] == "missing"),
+        "failed": sum(1 for image in images if image["status"] == "failed"),
+        "starred": sum(1 for value in ratings.values() if value == "star"),
+        "rejected": sum(1 for value in ratings.values() if value == "reject"),
+    }
+
+
+def _source_warnings(extra_roots: dict[str, Path]) -> list[dict[str, str]]:
+    warnings: list[dict[str, str]] = []
+    for project, path in sorted(extra_roots.items()):
+        if path.exists() and path.is_dir():
+            continue
+        warnings.append({
+            "kind": "missing-extra-root",
+            "project": project,
+            "path": str(path),
+            "message": f"Configured extra output root for {project} is not available on disk.",
+        })
+    return warnings
+
+
 def _registry_payload(registry_file: Path | None) -> dict[str, Any]:
     items = _load_json_list(registry_file) if registry_file else []
     approved = sum(1 for item in items if item.get("approval_status") == "approved")
     entries = []
     for item in items:
         path = str(item.get("path") or "")
+        resolved = _resolve_registry_path(path)
+        exists = bool(resolved and resolved.exists() and resolved.is_file())
+        size_mb = round(resolved.stat().st_size / 1_000_000, 2) if exists and resolved else 0
         entries.append({
             "id": str(item.get("id") or _route_id(path)),
             "projectId": str(item.get("project") or ""),
             "path": path,
-            "sizeMb": 0,
-            "refs": 1,
+            "sizeMb": size_mb,
+            "refs": _registry_ref_count(item),
             "lastSeen": str(item.get("indexed_at") or ""),
-            "status": "indexed" if path else "missing",
+            "status": "indexed" if exists else "missing",
+            "exists": exists,
             "title": str(item.get("title") or ""),
             "approvalStatus": str(item.get("approval_status") or ""),
         })
@@ -222,6 +273,33 @@ def _registry_payload(registry_file: Path | None) -> dict[str, Any]:
             "unapproved": len(items) - approved,
         },
     }
+
+
+def _resolve_registry_path(path: str) -> Path | None:
+    if not path:
+        return None
+    candidate = Path(path)
+    if not candidate.is_absolute():
+        candidate = REPO_ROOT / candidate
+    return candidate
+
+
+def _registry_ref_count(item: dict[str, Any]) -> int:
+    count = 0
+    for field in ("metadata_states", "export_targets", "downstream_uses"):
+        value = item.get(field)
+        if isinstance(value, list):
+            count += len(value)
+    for field in (
+        "source_run",
+        "source_url",
+        "prompt_pack",
+        "prompt_pack_section",
+        "superseded_by",
+    ):
+        if item.get(field):
+            count += 1
+    return count
 
 
 def _created_at(manifest: dict[str, Any]) -> str:

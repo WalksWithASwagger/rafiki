@@ -18,6 +18,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from lib.frontend_state import build_library_state
 from tests.server_harness import (
     make_handler_class,
     http_get,
@@ -202,6 +203,26 @@ def test_library_state_endpoint_returns_normalized_frontend_payload(server, tmp_
     assert payload["health"]["presentImages"] == 2
     assert payload["health"]["missingRecords"] == 1
     assert payload["health"]["failedImages"] == 1
+    assert payload["totals"]["archive"] == {
+        "projects": 1,
+        "runs": 1,
+        "images": 3,
+        "present": 2,
+        "missing": 1,
+        "failed": 1,
+        "files": 2,
+    }
+    assert payload["totals"]["visible"] == {
+        "projects": 1,
+        "runs": 1,
+        "images": 3,
+        "present": 1,
+        "missing": 1,
+        "failed": 1,
+        "starred": 1,
+        "rejected": 0,
+    }
+    assert payload["sourceWarnings"] == []
 
     project = payload["projects"][0]
     assert project["id"] == "demo"
@@ -224,6 +245,63 @@ def test_library_state_endpoint_returns_normalized_frontend_payload(server, tmp_
     assert hero["prompt"].endswith("...")
     assert images["demo/run-20260101-100000/broken.png"]["status"] == "failed"
     assert images["demo/run-20260101-100000/gone.png"]["status"] == "missing"
+
+
+def test_library_state_reports_source_warnings_and_registry_details(tmp_path):
+    output_root = tmp_path / "output"
+    run_dir = output_root / "demo" / "run-20260101-100000"
+    _write_run(run_dir, [{"name": "Hero", "prompt": "p", "file": "hero.png"}])
+    asset = run_dir / "hero.png"
+    asset.write_bytes(PNG_HEADER + (b"x" * 20_000))
+
+    registry_file = tmp_path / "asset-registry.json"
+    registry_file.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "hero",
+                    "project": "demo",
+                    "path": str(asset),
+                    "approval_status": "approved",
+                    "indexed_at": "2026-01-01T10:00:00",
+                    "source_run": "run-20260101-100000",
+                    "export_targets": ["zip"],
+                    "downstream_uses": ["deck"],
+                },
+                {
+                    "id": "gone",
+                    "project": "demo",
+                    "path": str(run_dir / "gone.png"),
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    payload = build_library_state(
+        output_root,
+        extra_roots={"missing-project": tmp_path / "not-here"},
+        registry_file=registry_file,
+    )
+
+    assert payload["totals"]["visible"]["projects"] == 1
+    assert payload["sourceWarnings"] == [
+        {
+            "kind": "missing-extra-root",
+            "project": "missing-project",
+            "path": str(tmp_path / "not-here"),
+            "message": "Configured extra output root for missing-project is not available on disk.",
+        }
+    ]
+    assert payload["registry"]["summary"] == {"entries": 2, "approved": 1, "unapproved": 1}
+
+    entries = {entry["id"]: entry for entry in payload["registry"]["entries"]}
+    assert entries["hero"]["exists"] is True
+    assert entries["hero"]["status"] == "indexed"
+    assert entries["hero"]["sizeMb"] > 0
+    assert entries["hero"]["refs"] == 3
+    assert entries["gone"]["exists"] is False
+    assert entries["gone"]["status"] == "missing"
 
 
 # ── _serve_actions (GET /api/actions) ──────────────────────────────────────
