@@ -13,6 +13,7 @@ import { Route as SpendRouteImport } from './routes/spend'
 import { Route as RegistryRouteImport } from './routes/registry'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as HealthRouteImport } from './routes/health'
+import { Route as GenerateRouteImport } from './routes/generate'
 import { Route as ExportRouteImport } from './routes/export'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ViewerIndexRouteImport } from './routes/viewer.index'
@@ -38,6 +39,11 @@ const LibraryRoute = LibraryRouteImport.update({
 const HealthRoute = HealthRouteImport.update({
   id: '/health',
   path: '/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GenerateRoute = GenerateRouteImport.update({
+  id: '/generate',
+  path: '/generate',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExportRoute = ExportRouteImport.update({
@@ -74,6 +80,7 @@ const LibraryRunIdRoute = LibraryRunIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/export': typeof ExportRoute
+  '/generate': typeof GenerateRoute
   '/health': typeof HealthRoute
   '/library': typeof LibraryRouteWithChildren
   '/registry': typeof RegistryRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/export': typeof ExportRoute
+  '/generate': typeof GenerateRoute
   '/health': typeof HealthRoute
   '/registry': typeof RegistryRoute
   '/spend': typeof SpendRoute
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/export': typeof ExportRoute
+  '/generate': typeof GenerateRoute
   '/health': typeof HealthRoute
   '/library': typeof LibraryRouteWithChildren
   '/registry': typeof RegistryRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/export'
+    | '/generate'
     | '/health'
     | '/library'
     | '/registry'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/export'
+    | '/generate'
     | '/health'
     | '/registry'
     | '/spend'
@@ -135,6 +146,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/export'
+    | '/generate'
     | '/health'
     | '/library'
     | '/registry'
@@ -148,6 +160,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExportRoute: typeof ExportRoute
+  GenerateRoute: typeof GenerateRoute
   HealthRoute: typeof HealthRoute
   LibraryRoute: typeof LibraryRouteWithChildren
   RegistryRoute: typeof RegistryRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       path: '/health'
       fullPath: '/health'
       preLoaderRoute: typeof HealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/generate': {
+      id: '/generate'
+      path: '/generate'
+      fullPath: '/generate'
+      preLoaderRoute: typeof GenerateRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/export': {
@@ -247,6 +267,7 @@ const LibraryRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExportRoute: ExportRoute,
+  GenerateRoute: GenerateRoute,
   HealthRoute: HealthRoute,
   LibraryRoute: LibraryRouteWithChildren,
   RegistryRoute: RegistryRoute,

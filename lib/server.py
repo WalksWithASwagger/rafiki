@@ -19,7 +19,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from urllib.request import Request, urlopen
 
 from lib.batch import run_batch
-from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
+from lib.models import ALIASES, DEFAULT_IMAGE_MODEL, resolve_model
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -27,7 +27,28 @@ DEFAULT_MODEL = DEFAULT_IMAGE_MODEL
 _TRUE_VALUES = {"1", "true", "yes", "on"}
 FRONTEND_DIR = REPO_ROOT / "frontend"
 FRONTEND_ENTRY = FRONTEND_DIR / ".output" / "server" / "index.mjs"
-FRONTEND_ROUTES = ("/", "/library", "/viewer", "/export", "/registry", "/health", "/spend", "/assets")
+FRONTEND_ROUTES = (
+    "/",
+    "/generate",
+    "/library",
+    "/viewer",
+    "/export",
+    "/registry",
+    "/health",
+    "/spend",
+    "/assets",
+)
+PORTAL_MODEL_OPTIONS = (
+    "gemini-2.5-flash-image",
+    "gemini-3-pro-image-preview",
+    "gpt-image-2",
+    "gpt-image-1",
+    "dall-e-3",
+    "dall-e-2",
+)
+QUALITY_OPTIONS = ("low", "medium", "high")
+RESOLUTION_OPTIONS = ("1K", "2K", "4K")
+REFERENCE_ROLES = ("style", "brand", "mockup")
 
 
 def _basic_auth_credentials() -> tuple[str, str] | None:
@@ -199,10 +220,221 @@ def _resolve_ref_paths(
     return [None] * prompt_count
 
 
+def _normalise_reference_request_path(value: str) -> str:
+    parsed = urlparse(value)
+    if parsed.scheme in {"http", "https"}:
+        return parsed.path
+    return value
+
+
+def _resolve_output_reference(
+    value: str,
+    *,
+    output_root: Path,
+    extra_roots: dict[str, Path] | None = None,
+) -> str:
+    rel_path = unquote(value.removeprefix("/output/")).lstrip("/")
+    if not rel_path:
+        raise ValueError("output reference must include a file path")
+
+    extra_roots = extra_roots or {}
+    project, _, rest = rel_path.partition("/")
+    if project in extra_roots:
+        root = Path(extra_roots[project]).expanduser().resolve()
+        rest_path = Path(os.path.normpath(rest))
+        if not rest or rest_path.is_absolute() or ".git" in rest_path.parts or rest_path.name == ".env":
+            raise ValueError("output reference is not allowed")
+        target = (root / rest_path).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError as e:
+            raise ValueError("output reference escapes its project root") from e
+    else:
+        root = output_root.expanduser().resolve()
+        rel_norm = Path(os.path.normpath(rel_path))
+        if rel_norm.is_absolute() or ".git" in rel_norm.parts or rel_norm.name == ".env":
+            raise ValueError("output reference is not allowed")
+        target = (root / rel_norm).resolve()
+        try:
+            target.relative_to(root)
+        except ValueError as e:
+            raise ValueError("output reference escapes the output root") from e
+
+    if not target.exists() or not target.is_file():
+        raise ValueError(f"output reference not found: {value}")
+    return str(target)
+
+
+def _resolve_media_reference(value: str, *, media_roots: dict[str, object] | None = None) -> str:
+    rel_path = unquote(value.removeprefix("/media/")).lstrip("/")
+    root_key, _, rest = rel_path.partition("/")
+    if not root_key or not rest:
+        raise ValueError("media reference must include a root and file path")
+    root = (media_roots or {}).get(root_key)
+    if root is None:
+        raise ValueError(f"unknown media reference root: {root_key}")
+    root_path = Path(getattr(root, "path", root)).expanduser().resolve()
+    rest_path = Path(os.path.normpath(rest))
+    if rest_path.is_absolute() or ".git" in rest_path.parts or rest_path.name == ".env":
+        raise ValueError("media reference is not allowed")
+    target = (root_path / rest_path).resolve()
+    try:
+        target.relative_to(root_path)
+    except ValueError as e:
+        raise ValueError("media reference escapes its root") from e
+    if not target.exists() or not target.is_file():
+        raise ValueError(f"media reference not found: {value}")
+    return str(target)
+
+
+def _resolve_reference_source(
+    value: str,
+    *,
+    output_root: Path,
+    extra_roots: dict[str, Path] | None = None,
+    media_roots: dict[str, object] | None = None,
+) -> str:
+    path = _normalise_reference_request_path(value.strip())
+    if path.startswith("/output/"):
+        return _resolve_output_reference(path, output_root=output_root, extra_roots=extra_roots)
+    if path.startswith("/media/"):
+        return _resolve_media_reference(path, media_roots=media_roots)
+    return value.strip()
+
+
+def _resolve_reference_sources(
+    value: object,
+    *,
+    field: str,
+    output_root: Path,
+    extra_roots: dict[str, Path] | None = None,
+    media_roots: dict[str, object] | None = None,
+) -> list[str]:
+    return [
+        _resolve_reference_source(
+            item,
+            output_root=output_root,
+            extra_roots=extra_roots,
+            media_roots=media_roots,
+        )
+        for item in _coerce_list_of_paths(value, field=field)
+    ]
+
+
 def _prompt_name_from_text(prompt: str) -> str:
     first_line = prompt.strip().splitlines()[0] if prompt.strip() else "Prompt Studio"
     compact = re.sub(r"\s+", " ", first_line).strip()
     return compact[:60] if compact else "Prompt Studio"
+
+
+def _coerce_inline_prompts(value: object) -> list[dict]:
+    if value in (None, "", []):
+        return []
+    if not isinstance(value, list):
+        raise ValueError("prompts must be an array of prompt objects")
+    prompts: list[dict] = []
+    for index, item in enumerate(value, start=1):
+        if not isinstance(item, dict):
+            raise ValueError(f"prompts[{index}] must be an object")
+        prompt = _coerce_str(item.get("prompt"), field=f"prompts[{index}].prompt", required=True)
+        name = _coerce_str(item.get("name"), field=f"prompts[{index}].name") or _prompt_name_from_text(prompt)
+        row = {"name": name, "prompt": prompt}
+        model = _coerce_str(item.get("model"), field=f"prompts[{index}].model")
+        style = _coerce_str(item.get("style"), field=f"prompts[{index}].style")
+        quality = _coerce_str(item.get("quality"), field=f"prompts[{index}].quality")
+        aspect_ratio = _coerce_str(item.get("aspect_ratio"), field=f"prompts[{index}].aspect_ratio")
+        usage = _coerce_str(item.get("usage"), field=f"prompts[{index}].usage")
+        if model:
+            row["model"] = resolve_model(model)
+        if style:
+            row["style"] = style
+        if quality:
+            row["quality"] = quality
+        if aspect_ratio:
+            row["aspect_ratio"] = _normalise_aspect_ratio(aspect_ratio)
+        if usage:
+            row["usage"] = usage
+        prompts.append(row)
+    return prompts
+
+
+def _style_registry_entries() -> list[dict]:
+    try:
+        from lib.styles import get_default_style, load_styles
+
+        styles = load_styles()
+        default_style = get_default_style()
+    except Exception:
+        styles = {}
+        default_style = "none"
+
+    entries = [
+        {
+            "key": "none",
+            "name": "No style",
+            "description": "Use the prompt without an appended style preset.",
+            "default": default_style == "none",
+            "special": True,
+        }
+    ]
+    for key, cfg in sorted(styles.items()):
+        if not isinstance(cfg, dict):
+            continue
+        entries.append(
+            {
+                "key": key,
+                "name": cfg.get("name") or key.replace("-", " ").title(),
+                "description": cfg.get("description", ""),
+                "useContext": cfg.get("use_context", ""),
+                "default": key == default_style,
+                "special": False,
+            }
+        )
+    return entries
+
+
+def _generate_options_payload() -> dict:
+    aliases_by_model: dict[str, list[str]] = {}
+    for alias, model in ALIASES.items():
+        aliases_by_model.setdefault(model, []).append(alias)
+    return {
+        "defaultModel": DEFAULT_MODEL,
+        "models": [
+            {
+                "id": model,
+                "label": model,
+                "aliases": sorted(aliases_by_model.get(model, [])),
+            }
+            for model in PORTAL_MODEL_OPTIONS
+        ],
+        "aliases": ALIASES,
+        "aspectPresets": [
+            {"key": key, "label": key, "value": value}
+            for key, value in sorted(ASPECT_RATIOS.items())
+        ],
+        "aspectRatios": ["16:9", "1:1", "9:16", "4:3", "3:4"],
+        "qualities": list(QUALITY_OPTIONS),
+        "resolutions": list(RESOLUTION_OPTIONS),
+        "referenceRoles": list(REFERENCE_ROLES),
+        "styles": _style_registry_entries(),
+    }
+
+
+def _prompt_preview_payload(payload: dict) -> dict:
+    if not isinstance(payload, dict):
+        raise ValueError("request body must be a JSON object")
+    prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
+    prompts = parse_image_prompts_md(prompt_file)
+    return {
+        "ok": True,
+        "promptFile": _coerce_str(payload.get("prompt_file"), field="prompt_file", required=True),
+        "count": len(prompts),
+        "prompts": prompts,
+        "metadata": {
+            "source": "markdown",
+            "format": prompt_file.suffix.lower().lstrip("."),
+        },
+    }
 
 
 def _result_payload(result, *, mode: str, project: str, registry_refresh: dict | None = None) -> dict:
@@ -256,7 +488,13 @@ def _safe_error_text(value: object) -> str:
     return text[:2000]
 
 
-def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
+def _run_portal_job(
+    payload: dict,
+    *,
+    output_root: Path,
+    extra_roots: dict[str, Path] | None = None,
+    media_roots: dict[str, object] | None = None,
+) -> dict:
     if not isinstance(payload, dict):
         raise ValueError("request body must be a JSON object")
 
@@ -271,17 +509,33 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
     resolution = _coerce_str(payload.get("resolution"), field="resolution") or "1K"
     quality = _coerce_str(payload.get("quality"), field="quality") or "high"
     style = _coerce_str(payload.get("style"), field="style") or None
-    reference_image = _coerce_str(payload.get("reference_image"), field="reference_image")
-    global_reference_images = _coerce_list_of_paths(
+    reference_image_raw = _coerce_str(payload.get("reference_image"), field="reference_image")
+    reference_image = (
+        _resolve_reference_source(
+            reference_image_raw,
+            output_root=output_root,
+            extra_roots=extra_roots,
+            media_roots=media_roots,
+        )
+        if reference_image_raw
+        else ""
+    )
+    global_reference_images = _resolve_reference_sources(
         payload.get("global_reference_images"),
         field="global_reference_images",
+        output_root=output_root,
+        extra_roots=extra_roots,
+        media_roots=media_roots,
     )
     reference_role = _coerce_str(payload.get("reference_role"), field="reference_role") or "style"
-    if reference_role not in {"style", "brand", "mockup"}:
+    if reference_role not in set(REFERENCE_ROLES):
         raise ValueError("reference_role must be 'style', 'brand', or 'mockup'")
-    composition_references = _coerce_list_of_paths(
+    composition_references = _resolve_reference_sources(
         payload.get("composition_references"),
         field="composition_references",
+        output_root=output_root,
+        extra_roots=extra_roots,
+        media_roots=media_roots,
     ) or None
     dry_run = _coerce_bool(payload.get("dry_run"))
     workers = _coerce_workers(payload.get("workers"))
@@ -310,14 +564,27 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
         return _result_payload(result, mode=mode, project=project, registry_refresh=refresh)
 
-    prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
-    prompts = parse_image_prompts_md(prompt_file)
+    inline_prompts = _coerce_inline_prompts(payload.get("prompts"))
+    prompt_file: Path | None = None
+    if inline_prompts:
+        prompts = inline_prompts
+    else:
+        prompt_file = _resolve_prompt_file(payload.get("prompt_file"))
+        prompts = parse_image_prompts_md(prompt_file)
     if not prompts:
-        raise ValueError(f"no prompts found in {prompt_file}")
+        source = prompt_file if prompt_file else "inline prompts"
+        raise ValueError(f"no prompts found in {source}")
+    reference_images = _resolve_reference_sources(
+        payload.get("reference_images"),
+        field="reference_images",
+        output_root=output_root,
+        extra_roots=extra_roots,
+        media_roots=media_roots,
+    )
     ref_paths = _resolve_ref_paths(
         prompt_count=len(prompts),
         reference_image=reference_image,
-        reference_images=payload.get("reference_images"),
+        reference_images=reference_images,
     )
     result = run_batch(
         prompts=prompts,
@@ -334,7 +601,7 @@ def _run_portal_job(payload: dict, *, output_root: Path) -> dict:
         dry_run=dry_run,
         workers=workers,
         generate_viewer_html=True,
-        prompt_file=str(prompt_file),
+        prompt_file=str(prompt_file) if prompt_file else "",
         invocation_source="portal",
     )
     refresh = _refresh_registry_after_generation(result, output_root=output_root, dry_run=dry_run)
@@ -395,6 +662,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         path = parsed.path
         if path == "/api/library-state":
             self._serve_library_state()
+        elif path == "/api/generate-options":
+            self._serve_generate_options()
         elif path in ("/legacy-suite", "/legacy-suite/"):
             self._serve_legacy_suite()
         elif path in ("/legacy-library", "/legacy-library/"):
@@ -460,6 +729,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             self._update_billing_imports()
         elif path == "/api/regen":
             self._regen()
+        elif path == "/api/prompt-preview":
+            self._prompt_preview()
         elif path == "/api/actions":
             self._run_action()
         elif path == "/api/media/selections/import":
@@ -531,6 +802,9 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             registry_file=REPO_ROOT / "data" / "asset-registry.json",
         )
         self._respond(200, "application/json", json.dumps(payload).encode())
+
+    def _serve_generate_options(self):
+        self._respond(200, "application/json", json.dumps(_generate_options_payload()).encode())
 
     def _serve_static(self, rel_path: str):
         """Serve a file from output_root or, for registered projects, from
@@ -925,7 +1199,12 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            result = _run_portal_job(payload, output_root=self.output_root)
+            result = _run_portal_job(
+                payload,
+                output_root=self.output_root,
+                extra_roots=self.extra_roots,
+                media_roots=self.media_roots,
+            )
         except ValueError as e:
             self._respond(
                 400,
@@ -941,6 +1220,24 @@ class _RafikiHandler(BaseHTTPRequestHandler):
             )
             return
 
+        self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
+
+    def _prompt_preview(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            payload = json.loads(body or b"{}")
+            result = _prompt_preview_payload(payload)
+        except ValueError as e:
+            self._respond(400, "application/json", json.dumps({"error": _safe_error_text(e)}).encode("utf-8"))
+            return
+        except Exception as e:
+            self._respond(
+                500,
+                "application/json",
+                json.dumps({"error": "prompt preview failed", "detail": _safe_error_text(e)}).encode("utf-8"),
+            )
+            return
         self._respond(200, "application/json", json.dumps(result).encode("utf-8"))
 
     def _run_action(self):

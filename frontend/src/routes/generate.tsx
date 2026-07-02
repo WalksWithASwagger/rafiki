@@ -1,0 +1,1301 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  FileSearch,
+  Loader2,
+  Play,
+  Plus,
+  RefreshCw,
+  Sparkles,
+  Square,
+  Trash2,
+  X,
+} from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { PageHeader } from "@/components/page-header";
+import { ErrorBlock } from "@/components/state/error-block";
+import {
+  fetchMediaReferences,
+  mediaReferenceUrl,
+  previewPromptFile,
+  resultImageUrl,
+  runGenerate,
+  useGenerateOptions,
+  type GeneratePayload,
+  type GenerateResult,
+  type InlinePrompt,
+  type PromptPreviewResult,
+} from "@/lib/generate";
+import { useLibraryState, type ImageRecord } from "@/lib/rafiki-data";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/generate")({
+  head: () => ({
+    meta: [
+      { title: "Generate - Rafiki" },
+      {
+        name: "description",
+        content: "Create image generation runs from local prompts, styles, and references.",
+      },
+    ],
+  }),
+  errorComponent: ({ error, reset }) => (
+    <AppShell>
+      <ErrorBlock error={error} reset={reset} />
+    </AppShell>
+  ),
+  component: GeneratePage,
+});
+
+type Mode = "single" | "batch-inline" | "batch-file";
+type ReferenceBucket = "primary" | "global" | "composition";
+
+interface PromptRow {
+  id: string;
+  name: string;
+  prompt: string;
+}
+
+const makePromptRow = (): PromptRow => ({
+  id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  name: "",
+  prompt: "",
+});
+
+function GeneratePage() {
+  const optionsQuery = useGenerateOptions();
+  const libraryQuery = useLibraryState();
+  const queryClient = useQueryClient();
+  const mediaQuery = useQuery({
+    queryKey: ["generate-media-refs"],
+    queryFn: fetchMediaReferences,
+    staleTime: 30_000,
+  });
+
+  const options = optionsQuery.data;
+  const defaultStyle = options?.styles.find((style) => style.default)?.key || "none";
+  const [mode, setMode] = useState<Mode>("single");
+  const [project, setProject] = useState("studio");
+  const [model, setModel] = useState("");
+  const [style, setStyle] = useState("none");
+  const [aspectRatio, setAspectRatio] = useState("16:9");
+  const [quality, setQuality] = useState("high");
+  const [resolution, setResolution] = useState("1K");
+  const [workers, setWorkers] = useState(1);
+  const [dryRun, setDryRun] = useState(true);
+  const [confirmExecute, setConfirmExecute] = useState(false);
+  const [singleName, setSingleName] = useState("");
+  const [singlePrompt, setSinglePrompt] = useState("");
+  const [promptRows, setPromptRows] = useState<PromptRow[]>([makePromptRow(), makePromptRow()]);
+  const [promptFile, setPromptFile] = useState("");
+  const [promptPreview, setPromptPreview] = useState<PromptPreviewResult | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
+  const [referenceRole, setReferenceRole] = useState("style");
+  const [localReference, setLocalReference] = useState("");
+  const [primaryReference, setPrimaryReference] = useState("");
+  const [globalReferences, setGlobalReferences] = useState<string[]>([]);
+  const [compositionReferences, setCompositionReferences] = useState<string[]>([]);
+  const [perPromptReferences, setPerPromptReferences] = useState("");
+  const [referenceSearch, setReferenceSearch] = useState("");
+  const [result, setResult] = useState<GenerateResult | null>(null);
+  const [lastPayload, setLastPayload] = useState<GeneratePayload | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!options) return;
+    setModel((current) => current || options.defaultModel);
+    setStyle((current) => current || defaultStyle);
+    setAspectRatio((current) => current || options.aspectRatios[0] || "16:9");
+    setQuality((current) => current || options.qualities[0] || "high");
+    setResolution((current) => current || options.resolutions[0] || "1K");
+    setReferenceRole((current) => current || options.referenceRoles[0] || "style");
+  }, [defaultStyle, options]);
+
+  const presentImages = useMemo(
+    () =>
+      (libraryQuery.data?.images ?? [])
+        .filter((image) => image.status === "present" && image.url)
+        .slice(0, 80),
+    [libraryQuery.data],
+  );
+
+  const filteredImages = useMemo(() => {
+    const query = referenceSearch.trim().toLowerCase();
+    if (!query) return presentImages.slice(0, 18);
+    return presentImages
+      .filter((image) =>
+        [image.name, image.projectId, image.prompt, image.model].some((value) =>
+          value.toLowerCase().includes(query),
+        ),
+      )
+      .slice(0, 18);
+  }, [presentImages, referenceSearch]);
+
+  const mediaReferences = useMemo(
+    () =>
+      (mediaQuery.data ?? [])
+        .map((entry) => ({
+          id: entry.id,
+          title: entry.title || entry.relative_path || entry.id,
+          url: mediaReferenceUrl(entry),
+        }))
+        .filter((entry) => entry.url)
+        .slice(0, 10),
+    [mediaQuery.data],
+  );
+
+  const selectedReferenceCount =
+    (primaryReference ? 1 : 0) + globalReferences.length + compositionReferences.length;
+
+  const addReference = (source: string, bucket: ReferenceBucket) => {
+    const value = source.trim();
+    if (!value) return;
+    if (bucket === "primary") {
+      setPrimaryReference(value);
+    } else if (bucket === "global") {
+      setGlobalReferences((current) => uniq([...current, value]));
+    } else {
+      setCompositionReferences((current) => uniq([...current, value]));
+    }
+    setNotice(`${bucketLabel(bucket)} reference added.`);
+  };
+
+  const addLocalReference = (bucket: ReferenceBucket) => {
+    addReference(localReference, bucket);
+    setLocalReference("");
+  };
+
+  const buildPayload = (): GeneratePayload => {
+    const shared = {
+      project,
+      model: model || options?.defaultModel || "gemini-2.5-flash-image",
+      aspect_ratio: aspectRatio || "16:9",
+      quality,
+      resolution,
+      style: style && style !== "none" ? style : undefined,
+      workers,
+      dry_run: dryRun,
+      confirm_execute: confirmExecute,
+      reference_image: primaryReference || undefined,
+      reference_images: splitReferences(perPromptReferences),
+      global_reference_images: globalReferences,
+      reference_role: referenceRole,
+      composition_references: compositionReferences,
+    };
+
+    if (!shared.project.trim()) throw new Error("Project slug is required.");
+
+    if (mode === "single") {
+      if (!singlePrompt.trim()) throw new Error("Single prompt is required.");
+      return {
+        ...shared,
+        mode: "single",
+        name: singleName.trim() || undefined,
+        prompt: singlePrompt.trim(),
+      };
+    }
+
+    if (mode === "batch-file") {
+      if (!promptFile.trim()) throw new Error("Prompt file path is required.");
+      return {
+        ...shared,
+        mode: "batch",
+        prompt_file: promptFile.trim(),
+      };
+    }
+
+    const prompts = promptRows
+      .map((row): InlinePrompt => ({ name: row.name.trim(), prompt: row.prompt.trim() }))
+      .filter((row) => row.prompt);
+    if (!prompts.length) throw new Error("Add at least one inline batch prompt.");
+    return {
+      ...shared,
+      mode: "batch",
+      prompts,
+    };
+  };
+
+  const submit = async () => {
+    setError("");
+    setNotice("");
+    let payload: GeneratePayload;
+    try {
+      payload = buildPayload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    if (!payload.dry_run && !confirmExecute) {
+      setError("Real provider execution requires the confirmation checkbox.");
+      return;
+    }
+
+    const controller = new AbortController();
+    setAbortController(controller);
+    setBusy(true);
+    setLastPayload(payload);
+    try {
+      const response = await runGenerate(payload, controller.signal);
+      setResult(response);
+      setNotice(
+        payload.dry_run
+          ? "Dry run complete. No provider spend was triggered."
+          : "Run complete. Refresh the library to load the new archive state.",
+      );
+      if (!payload.dry_run) {
+        void queryClient.invalidateQueries({ queryKey: ["library-state"] });
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setNotice(
+          "Stopped waiting in this browser. This does not cancel provider work already handed off.",
+        );
+      } else {
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    } finally {
+      setBusy(false);
+      setAbortController(null);
+    }
+  };
+
+  const previewPrompt = async () => {
+    setError("");
+    setPromptPreview(null);
+    if (!promptFile.trim()) {
+      setError("Prompt file path is required.");
+      return;
+    }
+    setPreviewBusy(true);
+    try {
+      setPromptPreview(await previewPromptFile(promptFile.trim()));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPreviewBusy(false);
+    }
+  };
+
+  if (optionsQuery.error || libraryQuery.error) {
+    return (
+      <AppShell>
+        <ErrorBlock
+          error={optionsQuery.error || libraryQuery.error}
+          reset={() => {
+            void optionsQuery.refetch();
+            void libraryQuery.refetch();
+          }}
+        />
+      </AppShell>
+    );
+  }
+
+  const loading = optionsQuery.isLoading || libraryQuery.isLoading || !options;
+
+  return (
+    <AppShell>
+      <PageHeader
+        crumbs={[{ label: "PROJECT", mono: true }, { label: "Generate" }]}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <span
+              className={cn(
+                "rounded border px-2 py-1 text-[10px] font-mono uppercase tracking-widest",
+                dryRun
+                  ? "border-brand/30 bg-brand/10 text-brand"
+                  : "border-amber-400/30 bg-amber-400/10 text-amber-300",
+              )}
+            >
+              {dryRun ? "Dry-run default" : "Provider run"}
+            </span>
+            <button
+              onClick={() => void queryClient.invalidateQueries({ queryKey: ["library-state"] })}
+              className="flex items-center gap-2 rounded border border-border px-3 py-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+            >
+              <RefreshCw className="size-3.5" strokeWidth={1.5} />
+              Refresh library
+            </button>
+          </div>
+        }
+      />
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8">
+        {loading ? (
+          <div className="grid min-h-[420px] place-items-center text-xs font-mono uppercase tracking-widest text-muted-foreground">
+            Loading generation controls...
+          </div>
+        ) : (
+          <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-brand">
+                  <Sparkles className="size-3.5" strokeWidth={1.5} />
+                  Image generation
+                </div>
+                <h1 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">Generate</h1>
+                <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+                  Build a run from local prompt text, prompt packs, and existing archive references.
+                  Dry-run stays on until you explicitly confirm provider spend.
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-px overflow-hidden rounded border border-border bg-border text-center">
+                <MiniStat label="Mode" value={modeLabel(mode)} />
+                <MiniStat label="Refs" value={selectedReferenceCount} />
+                <MiniStat label="Model" value={model || options.defaultModel} compact />
+              </div>
+            </div>
+
+            {(error || notice) && (
+              <StatusBanner
+                tone={error ? "error" : "info"}
+                message={error || notice}
+                onClear={() => {
+                  setError("");
+                  setNotice("");
+                }}
+              />
+            )}
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
+              <SectionPanel title="Run setup" eyebrow="Config">
+                <div className="space-y-4">
+                  <TextField
+                    label="Project slug"
+                    value={project}
+                    onChange={setProject}
+                    placeholder="campaign-visuals"
+                    testId="generate-project"
+                  />
+
+                  <div>
+                    <FieldLabel>Mode</FieldLabel>
+                    <div className="grid grid-cols-3 gap-1 rounded border border-border bg-background p-1">
+                      {(["single", "batch-inline", "batch-file"] as const).map((nextMode) => (
+                        <button
+                          key={nextMode}
+                          onClick={() => setMode(nextMode)}
+                          data-generate-mode={nextMode}
+                          className={cn(
+                            "rounded px-2 py-2 text-[10px] font-mono uppercase tracking-widest transition-colors",
+                            mode === nextMode
+                              ? "bg-brand text-black"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {modeLabel(nextMode)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <SelectField
+                    label="Model"
+                    value={model}
+                    onChange={setModel}
+                    options={options.models.map((entry) => ({
+                      value: entry.id,
+                      label: entry.aliases.length
+                        ? `${entry.id} (${entry.aliases.join(", ")})`
+                        : entry.id,
+                    }))}
+                  />
+
+                  <SelectField
+                    label="Style composition"
+                    value={style}
+                    onChange={setStyle}
+                    options={options.styles.map((entry) => ({
+                      value: entry.key,
+                      label: entry.default ? `${entry.name} - default` : entry.name,
+                    }))}
+                  />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <SelectField
+                      label="Aspect"
+                      value={aspectRatio}
+                      onChange={setAspectRatio}
+                      options={[
+                        ...options.aspectRatios.map((ratio) => ({ value: ratio, label: ratio })),
+                        ...options.aspectPresets.map((preset) => ({
+                          value: preset.key,
+                          label: `${preset.key} -> ${preset.value}`,
+                        })),
+                      ]}
+                    />
+                    <SelectField
+                      label="Quality"
+                      value={quality}
+                      onChange={setQuality}
+                      options={options.qualities.map((entry) => ({ value: entry, label: entry }))}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <SelectField
+                      label="Resolution"
+                      value={resolution}
+                      onChange={setResolution}
+                      options={options.resolutions.map((entry) => ({
+                        value: entry,
+                        label: entry,
+                      }))}
+                    />
+                    <NumberField
+                      label="Workers"
+                      value={workers}
+                      onChange={(value) => setWorkers(Math.min(Math.max(value, 1), 8))}
+                    />
+                  </div>
+
+                  <ToggleRow
+                    label="Dry-run"
+                    hint="Validates and writes run metadata without provider spend."
+                    checked={dryRun}
+                    onChange={(checked) => {
+                      setDryRun(checked);
+                      if (checked) setConfirmExecute(false);
+                    }}
+                  />
+
+                  {!dryRun && (
+                    <ToggleRow
+                      label="Confirm provider spend"
+                      hint="Required before a real generation request leaves the browser."
+                      checked={confirmExecute}
+                      onChange={setConfirmExecute}
+                      tone="warn"
+                    />
+                  )}
+
+                  <div className="flex flex-col gap-2 pt-2">
+                    <button
+                      onClick={() => void submit()}
+                      disabled={busy}
+                      data-testid="generate-submit"
+                      className="flex items-center justify-center gap-2 rounded bg-brand px-4 py-3 text-xs font-bold uppercase tracking-widest text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {busy ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <Play className="size-4" fill="currentColor" />
+                      )}
+                      {busy ? "Running" : dryRun ? "Dry-run" : "Execute run"}
+                    </button>
+                    {busy && (
+                      <button
+                        onClick={() => abortController?.abort()}
+                        className="flex items-center justify-center gap-2 rounded border border-border px-4 py-2 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                      >
+                        <Square className="size-3.5" />
+                        Stop waiting
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </SectionPanel>
+
+              <SectionPanel title="Prompt editor" eyebrow="Input">
+                {mode === "single" && (
+                  <div className="space-y-4">
+                    <TextField
+                      label="Image name"
+                      value={singleName}
+                      onChange={setSingleName}
+                      placeholder="Hero portrait"
+                      testId="generate-single-name"
+                    />
+                    <TextAreaField
+                      label="Prompt"
+                      value={singlePrompt}
+                      onChange={setSinglePrompt}
+                      placeholder="Describe the image you want Rafiki to make..."
+                      minRows={14}
+                      testId="generate-single-prompt"
+                    />
+                  </div>
+                )}
+
+                {mode === "batch-inline" && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs text-muted-foreground">
+                        Add one prompt per row. Run-level settings apply unless a future row adds
+                        overrides.
+                      </p>
+                      <button
+                        onClick={() => setPromptRows((current) => [...current, makePromptRow()])}
+                        className="flex shrink-0 items-center gap-2 rounded border border-border px-3 py-1.5 text-[11px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                      >
+                        <Plus className="size-3.5" />
+                        Row
+                      </button>
+                    </div>
+                    <div className="space-y-3">
+                      {promptRows.map((row, index) => (
+                        <div
+                          key={row.id}
+                          className="rounded border border-border bg-background p-3"
+                        >
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                              Prompt {index + 1}
+                            </span>
+                            <button
+                              onClick={() =>
+                                setPromptRows((current) =>
+                                  current.length === 1
+                                    ? [makePromptRow()]
+                                    : current.filter((item) => item.id !== row.id),
+                                )
+                              }
+                              className="grid size-7 place-items-center rounded border border-border text-muted-foreground hover:text-foreground"
+                              aria-label="Remove prompt row"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
+                          <input
+                            value={row.name}
+                            onChange={(event) =>
+                              updatePromptRow(setPromptRows, row.id, { name: event.target.value })
+                            }
+                            placeholder="Optional name"
+                            data-testid="generate-batch-name"
+                            className="mb-2 w-full rounded border border-border bg-sidebar px-3 py-2 text-sm outline-none focus:border-brand"
+                          />
+                          <textarea
+                            value={row.prompt}
+                            onChange={(event) =>
+                              updatePromptRow(setPromptRows, row.id, { prompt: event.target.value })
+                            }
+                            placeholder="Prompt text"
+                            rows={5}
+                            data-testid="generate-batch-prompt"
+                            className="w-full resize-y rounded border border-border bg-sidebar px-3 py-2 text-sm outline-none focus:border-brand"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {mode === "batch-file" && (
+                  <div className="space-y-4">
+                    <TextField
+                      label="Markdown prompt file"
+                      value={promptFile}
+                      onChange={setPromptFile}
+                      placeholder="examples/quickstart-image-prompts.md"
+                      testId="generate-prompt-file"
+                    />
+                    <button
+                      onClick={() => void previewPrompt()}
+                      disabled={previewBusy}
+                      data-testid="generate-preview-prompt-file"
+                      className="flex items-center gap-2 rounded border border-brand px-4 py-2 text-xs font-mono uppercase tracking-widest text-brand hover:bg-brand hover:text-black disabled:opacity-50"
+                    >
+                      {previewBusy ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <FileSearch className="size-3.5" />
+                      )}
+                      Preview prompt file
+                    </button>
+                    {promptPreview && (
+                      <div className="rounded border border-border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold">
+                              {promptPreview.count} prompt
+                              {promptPreview.count === 1 ? "" : "s"} parsed
+                            </div>
+                            <div className="mt-1 text-xs font-mono text-muted-foreground">
+                              {promptPreview.promptFile}
+                            </div>
+                          </div>
+                          <CheckCircle2 className="size-5 text-brand" strokeWidth={1.5} />
+                        </div>
+                        <div className="mt-4 max-h-72 space-y-2 overflow-y-auto pr-1">
+                          {promptPreview.prompts.slice(0, 8).map((prompt, index) => (
+                            <div
+                              key={`${prompt.name}-${index}`}
+                              className="rounded border border-border bg-sidebar p-3"
+                            >
+                              <div className="text-xs font-semibold">{prompt.name}</div>
+                              <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">
+                                {prompt.prompt}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="mt-6 rounded border border-border bg-background p-4">
+                  <FieldLabel>Per-prompt reference list</FieldLabel>
+                  <textarea
+                    value={perPromptReferences}
+                    onChange={(event) => setPerPromptReferences(event.target.value)}
+                    placeholder="/output/project/run-20260101-100000/ref.png&#10;/output/project/run-20260101-100000/second.png"
+                    rows={3}
+                    className="w-full resize-y rounded border border-border bg-sidebar px-3 py-2 text-xs font-mono outline-none focus:border-brand"
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Optional. One source is reused for all prompts; multiple sources must match the
+                    prompt count.
+                  </p>
+                </div>
+              </SectionPanel>
+
+              <SectionPanel title="Reference rail" eyebrow="Sources">
+                <div className="space-y-5">
+                  <SelectField
+                    label="Reference role"
+                    value={referenceRole}
+                    onChange={setReferenceRole}
+                    options={options.referenceRoles.map((entry) => ({
+                      value: entry,
+                      label: entry,
+                    }))}
+                  />
+
+                  <div>
+                    <FieldLabel>Local or archive path</FieldLabel>
+                    <input
+                      value={localReference}
+                      onChange={(event) => setLocalReference(event.target.value)}
+                      placeholder="/output/project/run-.../image.png"
+                      className="w-full rounded border border-border bg-background px-3 py-2 text-xs font-mono outline-none focus:border-brand"
+                    />
+                    <div className="mt-2 grid grid-cols-3 gap-1">
+                      {(["primary", "global", "composition"] as const).map((bucket) => (
+                        <button
+                          key={bucket}
+                          onClick={() => addLocalReference(bucket)}
+                          className="rounded border border-border px-2 py-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                        >
+                          {bucketLabel(bucket)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <SelectedReferences
+                    primary={primaryReference}
+                    global={globalReferences}
+                    composition={compositionReferences}
+                    onClearPrimary={() => setPrimaryReference("")}
+                    onRemoveGlobal={(source) =>
+                      setGlobalReferences((current) => current.filter((item) => item !== source))
+                    }
+                    onRemoveComposition={(source) =>
+                      setCompositionReferences((current) =>
+                        current.filter((item) => item !== source),
+                      )
+                    }
+                  />
+
+                  <div>
+                    <FieldLabel>Pick from library</FieldLabel>
+                    <input
+                      value={referenceSearch}
+                      onChange={(event) => setReferenceSearch(event.target.value)}
+                      placeholder="Search project, prompt, model"
+                      className="mb-3 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+                    />
+                    <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+                      {filteredImages.map((image) => (
+                        <ReferenceImageRow
+                          key={image.id}
+                          image={image}
+                          onUsePrimary={() => addReference(image.url, "primary")}
+                          onUseGlobal={() => addReference(image.url, "global")}
+                        />
+                      ))}
+                      {!filteredImages.length && (
+                        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
+                          No present library images match.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {mediaReferences.length > 0 && (
+                    <div>
+                      <FieldLabel>Media image references</FieldLabel>
+                      <div className="space-y-2">
+                        {mediaReferences.map((entry) => (
+                          <div
+                            key={entry.id}
+                            className="flex items-center justify-between gap-3 rounded border border-border bg-background p-2"
+                          >
+                            <div className="min-w-0">
+                              <div className="truncate text-xs">{entry.title}</div>
+                              <div className="truncate font-mono text-[10px] text-muted-foreground">
+                                {entry.url}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => addReference(entry.url, "global")}
+                              className="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                            >
+                              Global
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </SectionPanel>
+            </div>
+
+            <ResultPanel
+              result={result}
+              payload={lastPayload}
+              onRefreshLibrary={() => {
+                void queryClient.invalidateQueries({ queryKey: ["library-state"] });
+                setNotice("Library refresh requested.");
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function SectionPanel({
+  title,
+  eyebrow,
+  children,
+}: {
+  title: string;
+  eyebrow: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-sidebar">
+      <div className="border-b border-border px-4 py-3">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          {eyebrow}
+        </div>
+        <h2 className="mt-1 text-lg font-semibold">{title}</h2>
+      </div>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function FieldLabel({ children }: { children: ReactNode }) {
+  return (
+    <label className="mb-1.5 block text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+      {children}
+    </label>
+  );
+}
+
+function TextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  testId,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  testId?: string;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        data-testid={testId}
+        className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+      />
+    </div>
+  );
+}
+
+function TextAreaField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  minRows,
+  testId,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  minRows: number;
+  testId?: string;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <textarea
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        rows={minRows}
+        data-testid={testId}
+        className="w-full resize-y rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+      />
+    </div>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+      >
+        {options.map((entry) => (
+          <option key={entry.value} value={entry.value}>
+            {entry.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div>
+      <FieldLabel>{label}</FieldLabel>
+      <input
+        type="number"
+        min={1}
+        max={8}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value || 1))}
+        className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+      />
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  tone = "default",
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  tone?: "default" | "warn";
+}) {
+  return (
+    <label
+      className={cn(
+        "flex cursor-pointer items-start gap-3 rounded border p-3",
+        tone === "warn" ? "border-amber-400/30 bg-amber-400/5" : "border-border bg-background",
+      )}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1"
+      />
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
+      </span>
+    </label>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  compact,
+}: {
+  label: string;
+  value: string | number;
+  compact?: boolean;
+}) {
+  return (
+    <div className="min-w-0 bg-sidebar px-4 py-3">
+      <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        {label}
+      </div>
+      <div
+        className={cn(
+          "mt-1 truncate font-mono text-sm text-foreground",
+          compact && "max-w-[180px]",
+        )}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function StatusBanner({
+  tone,
+  message,
+  onClear,
+}: {
+  tone: "info" | "error";
+  message: string;
+  onClear: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex items-start justify-between gap-3 rounded border px-4 py-3 text-sm",
+        tone === "error"
+          ? "border-destructive/30 bg-destructive/5 text-destructive"
+          : "border-brand/30 bg-brand/5 text-foreground",
+      )}
+    >
+      <div className="flex min-w-0 items-start gap-2">
+        {tone === "error" ? (
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+        ) : (
+          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" />
+        )}
+        <span className="break-words">{message}</span>
+      </div>
+      <button
+        onClick={onClear}
+        className="grid size-6 shrink-0 place-items-center rounded text-muted-foreground hover:text-foreground"
+        aria-label="Clear status"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+function ReferenceImageRow({
+  image,
+  onUsePrimary,
+  onUseGlobal,
+}: {
+  image: ImageRecord;
+  onUsePrimary: () => void;
+  onUseGlobal: () => void;
+}) {
+  return (
+    <div className="flex gap-3 rounded border border-border bg-background p-2">
+      <img
+        src={image.thumbnailUrl}
+        alt=""
+        className="h-16 w-16 shrink-0 rounded object-cover"
+        loading="lazy"
+      />
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-xs font-medium">{image.name || image.file}</div>
+        <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">{image.url}</div>
+        <div className="mt-2 flex flex-wrap gap-1">
+          <button
+            onClick={onUsePrimary}
+            data-testid="generate-reference-primary"
+            className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            Primary
+          </button>
+          <button
+            onClick={onUseGlobal}
+            data-testid="generate-reference-global"
+            className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            Global
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SelectedReferences({
+  primary,
+  global,
+  composition,
+  onClearPrimary,
+  onRemoveGlobal,
+  onRemoveComposition,
+}: {
+  primary: string;
+  global: string[];
+  composition: string[];
+  onClearPrimary: () => void;
+  onRemoveGlobal: (source: string) => void;
+  onRemoveComposition: (source: string) => void;
+}) {
+  const empty = !primary && global.length === 0 && composition.length === 0;
+  return (
+    <div>
+      <FieldLabel>Selected references</FieldLabel>
+      {empty ? (
+        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
+          No references selected.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {primary && <ReferenceChip label="Primary" source={primary} onRemove={onClearPrimary} />}
+          {global.map((source) => (
+            <ReferenceChip
+              key={`global-${source}`}
+              label="Global"
+              source={source}
+              onRemove={() => onRemoveGlobal(source)}
+            />
+          ))}
+          {composition.map((source) => (
+            <ReferenceChip
+              key={`composition-${source}`}
+              label="Composition"
+              source={source}
+              onRemove={() => onRemoveComposition(source)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferenceChip({
+  label,
+  source,
+  onRemove,
+}: {
+  label: string;
+  source: string;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded border border-border bg-background px-3 py-2">
+      <span className="shrink-0 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-widest text-brand">
+        {label}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
+        {source}
+      </span>
+      <button
+        onClick={onRemove}
+        className="grid size-6 place-items-center rounded text-muted-foreground hover:text-foreground"
+        aria-label={`Remove ${label} reference`}
+      >
+        <X className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function ResultPanel({
+  result,
+  payload,
+  onRefreshLibrary,
+}: {
+  result: GenerateResult | null;
+  payload: GeneratePayload | null;
+  onRefreshLibrary: () => void;
+}) {
+  if (!result && !payload) return null;
+  return (
+    <section className="rounded-lg border border-border bg-sidebar" data-testid="generate-result">
+      <div className="border-b border-border px-4 py-3">
+        <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          Result
+        </div>
+        <h2 className="mt-1 text-lg font-semibold">
+          {result ? "Generation response" : "Planned run"}
+        </h2>
+      </div>
+      <div className="grid grid-cols-1 gap-5 p-4 lg:grid-cols-[1fr_360px]">
+        <div>
+          {result ? (
+            <>
+              <div className="grid grid-cols-2 gap-px overflow-hidden rounded border border-border bg-border sm:grid-cols-4">
+                <MiniStat label="Project" value={result.project} />
+                <MiniStat label="Run" value={result.run_id} compact />
+                <MiniStat label="Generated" value={`${result.generated}/${result.total}`} />
+                <MiniStat label="Status" value={result.all_ok ? "ok" : "partial"} />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {result.run_viewer_url && (
+                  <a
+                    href={result.run_viewer_url}
+                    className="rounded border border-brand px-3 py-1.5 text-xs font-mono uppercase tracking-widest text-brand hover:bg-brand hover:text-black"
+                  >
+                    Open run
+                  </a>
+                )}
+                {result.viewer_url && (
+                  <a
+                    href={result.viewer_url}
+                    className="rounded border border-border px-3 py-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                  >
+                    Open viewer
+                  </a>
+                )}
+                <Link
+                  to="/library"
+                  className="rounded border border-border px-3 py-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                >
+                  Library
+                </Link>
+                <button
+                  onClick={onRefreshLibrary}
+                  className="rounded border border-border px-3 py-1.5 text-xs font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                >
+                  Refresh library
+                </button>
+              </div>
+              <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+                {result.images.map((image, index) => {
+                  const url = resultImageUrl(result, image);
+                  const showImage = Boolean(url && image.ok && !payload?.dry_run);
+                  return (
+                    <div
+                      key={`${image.name}-${index}`}
+                      className="rounded border border-border p-2"
+                    >
+                      {showImage ? (
+                        <img
+                          src={url}
+                          alt=""
+                          className="aspect-square w-full rounded object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="grid aspect-square place-items-center rounded bg-background text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                          {payload?.dry_run && image.ok ? "Dry run" : "Failed"}
+                        </div>
+                      )}
+                      <div className="mt-2 truncate text-xs">{image.name}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="rounded border border-border bg-background p-4 text-sm text-muted-foreground">
+              Submit a dry-run to validate the payload and create a planned run summary.
+            </div>
+          )}
+        </div>
+        {payload && (
+          <div className="rounded border border-border bg-background p-4">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+              Last payload
+            </div>
+            <dl className="mt-3 space-y-2 text-xs">
+              <MetaRow label="Mode" value={payload.mode} />
+              <MetaRow label="Project" value={payload.project} />
+              <MetaRow label="Model" value={payload.model} />
+              <MetaRow label="Style" value={payload.style || "none"} />
+              <MetaRow label="Aspect" value={payload.aspect_ratio} />
+              <MetaRow label="Dry run" value={payload.dry_run ? "true" : "false"} />
+              <MetaRow
+                label="Prompts"
+                value={payload.mode === "single" ? "1" : String(payload.prompts?.length || "file")}
+              />
+              <MetaRow
+                label="Refs"
+                value={String(
+                  (payload.reference_image ? 1 : 0) +
+                    (payload.global_reference_images?.length || 0) +
+                    (payload.composition_references?.length || 0),
+                )}
+              />
+            </dl>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function MetaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <dt className="font-mono uppercase tracking-widest text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 truncate text-right font-mono text-foreground">{value}</dd>
+    </div>
+  );
+}
+
+function modeLabel(mode: Mode) {
+  if (mode === "single") return "Single";
+  if (mode === "batch-file") return "Prompt file";
+  return "Inline batch";
+}
+
+function bucketLabel(bucket: ReferenceBucket) {
+  if (bucket === "primary") return "Primary";
+  if (bucket === "global") return "Global";
+  return "Comp";
+}
+
+function splitReferences(value: string) {
+  return value
+    .split(/[\n,]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function uniq(values: string[]) {
+  return Array.from(new Set(values));
+}
+
+function updatePromptRow(
+  setRows: Dispatch<SetStateAction<PromptRow[]>>,
+  id: string,
+  patch: Partial<PromptRow>,
+) {
+  setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+}

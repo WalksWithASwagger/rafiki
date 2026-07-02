@@ -1,12 +1,22 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Library, Eye, Package, Database, Activity, DollarSign, Keyboard } from "lucide-react";
+import {
+  Library,
+  Eye,
+  Package,
+  Database,
+  Activity,
+  DollarSign,
+  Keyboard,
+  Sparkles,
+} from "lucide-react";
 import { useTriageStore } from "@/stores/triage-store";
 import { cn } from "@/lib/utils";
 import { useSequenceShortcuts, useShortcuts } from "@/lib/shortcuts";
 import { ShortcutSheet } from "@/components/shortcut-sheet";
 
 const projectNav = [
+  { to: "/generate", label: "Generate", icon: Sparkles },
   { to: "/library", label: "Library", icon: Library },
   { to: "/viewer", label: "Viewer", icon: Eye },
   { to: "/export", label: "Export", icon: Package },
@@ -110,7 +120,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? pathname === "/library" || pathname.startsWith("/library/")
       : to === "/viewer"
         ? pathname.startsWith("/viewer")
-        : pathname === to;
+        : to === "/generate"
+          ? pathname.startsWith("/generate")
+          : pathname === to;
 
   useShortcuts([
     { combo: "?", handler: () => setSheetOpen(true) },
@@ -119,6 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ]);
 
   useSequenceShortcuts([
+    { combo: "gg", handler: () => navigate({ to: "/generate" }) },
     { combo: "gl", handler: () => navigate({ to: "/library" }) },
     { combo: "gv", handler: () => navigate({ to: "/viewer" }) },
     { combo: "ge", handler: () => navigate({ to: "/export" }) },

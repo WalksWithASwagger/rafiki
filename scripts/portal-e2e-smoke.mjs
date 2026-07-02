@@ -195,6 +195,19 @@ async function waitForCondition(check, label, timeoutMs = 5000) {
   throw new Error(`${label} did not become true${lastError ? `: ${lastError.message}` : ''}`);
 }
 
+async function setFieldValue(page, selector, value) {
+  await page.waitForSelector(selector);
+  await page.$eval(selector, (element, nextValue) => {
+    const prototype = element.tagName === 'TEXTAREA'
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, 'value');
+    descriptor?.set?.call(element, nextValue);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const server = http.createServer();
@@ -488,6 +501,21 @@ async function main() {
 
   try {
     fs.mkdirSync(outputRoot, { recursive: true });
+    const generatePromptFile = path.join(tmpRoot, 'generate-prompts.md');
+    fs.writeFileSync(
+      generatePromptFile,
+      [
+        '## 1. Generate Smoke Hero',
+        '**Prompt:**',
+        '> A dry-run browser smoke hero image for the Rafiki generate route.',
+        '',
+        '## 2. Generate Smoke Detail',
+        '**Prompt:**',
+        '> A dry-run browser smoke detail image for the Rafiki generate route.',
+        '',
+      ].join('\n'),
+      'utf8',
+    );
     run(python, [
       'generate.py',
       '--prompt-file',
@@ -623,6 +651,88 @@ async function main() {
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
 
+    await desktop.goto(`${url}generate`, { waitUntil: 'networkidle0' });
+    await desktop.waitForFunction(() => document.body.textContent?.includes('Image generation'));
+    await desktop.waitForSelector('[data-testid="generate-single-prompt"]');
+    await desktop.waitForSelector('[data-testid="generate-reference-primary"]');
+    await desktop.click('[data-testid="generate-reference-primary"]');
+    await setFieldValue(desktop, '[data-testid="generate-project"]', 'e2e-generate-smoke');
+    await setFieldValue(
+      desktop,
+      '[data-testid="generate-single-prompt"]',
+      'A dry-run generate smoke image using a saved Rafiki library reference.',
+    );
+    await desktop.click('[data-testid="generate-submit"]');
+    let generateSingleLastState = null;
+    try {
+      await waitForCondition(async () => {
+        const state = await desktop.evaluate(() => ({
+          text: document.body.textContent || '',
+          result: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
+          project: document.querySelector('[data-testid="generate-project"]')?.value || '',
+          prompt: document.querySelector('[data-testid="generate-single-prompt"]')?.value || '',
+        }));
+        generateSingleLastState = {
+          ...state,
+          text: state.text.slice(0, 900),
+          result: state.result.slice(0, 500),
+        };
+        if (state.text.includes('Single prompt is required')) {
+          throw new Error('single prompt was not bound before submit');
+        }
+        if (state.text.includes('generation failed') || state.text.includes('Generation failed')) {
+          throw new Error(state.text.slice(0, 500));
+        }
+        return state.result.includes('1/1') && state.text.includes('Dry run complete');
+      }, 'generate single dry run', 30000);
+    } catch (error) {
+      throw new Error(`${error.message}: ${JSON.stringify(generateSingleLastState)}`);
+    }
+    await desktop.click('[data-generate-mode="batch-inline"]');
+    const batchPromptSelectors = await desktop.$$('[data-testid="generate-batch-prompt"]');
+    assert(batchPromptSelectors.length >= 2, 'generate inline batch prompts were not rendered');
+    await batchPromptSelectors[0].evaluate((element) => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(
+        element,
+        'A dry-run inline batch smoke hero.',
+      );
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await batchPromptSelectors[1].evaluate((element) => {
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(
+        element,
+        'A dry-run inline batch smoke detail.',
+      );
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await desktop.click('[data-testid="generate-submit"]');
+    await desktop.waitForFunction(() => (
+      document.querySelector('[data-testid="generate-result"]')?.textContent?.includes('2/2')
+    ));
+    await desktop.click('[data-generate-mode="batch-file"]');
+    await setFieldValue(desktop, '[data-testid="generate-prompt-file"]', generatePromptFile);
+    await desktop.click('[data-testid="generate-preview-prompt-file"]');
+    await desktop.waitForFunction(() => document.body.textContent?.includes('2 prompts parsed'));
+    const generateState = await desktop.evaluate(() => ({
+      title: document.title,
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
+      text: document.body.textContent || '',
+      selectedReference: Boolean(document.body.textContent?.includes('/output/')),
+      resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    }));
+    assert(generateState.title.includes('Generate'), `unexpected generate title: ${generateState.title}`);
+    assert(generateState.h1 === 'Generate', `expected Generate heading, got ${generateState.h1}`);
+    assert(generateState.selectedReference, 'generate route did not select a library reference');
+    assert(generateState.resultText.includes('2/2'), 'generate inline batch dry-run did not complete');
+    assert(generateState.text.includes('2 prompts parsed'), 'generate prompt-file preview did not render');
+    assert(generateState.overflow.scrollWidth <= generateState.overflow.clientWidth, 'desktop generate has horizontal overflow');
+
     await desktop.goto(`${url}library/${encodeURIComponent(firstRun.id)}`, { waitUntil: 'networkidle0' });
     await desktop.waitForFunction(() => document.body.textContent?.includes('File missing'));
     const runState = await desktop.evaluate(() => ({
@@ -697,11 +807,13 @@ async function main() {
 
     await desktop.goto(`${url}spend`, { waitUntil: 'networkidle0' });
     await desktop.waitForFunction(() => document.body.textContent?.includes('Cost basis'));
-    const spendState = await desktop.evaluate(() => ({
+    const currentUsage = await fetch(`${url}api/usage`).then((response) => response.json());
+    const expectedSpendImages = String(currentUsage.archive.images);
+    const spendState = await desktop.evaluate((expectedImages) => ({
       hasSpend: Boolean(document.body.textContent?.includes('Spend')),
-      hasImageCount: Boolean(document.body.textContent?.includes('Images3')),
+      hasImageCount: Boolean(document.body.textContent?.includes(`Images${expectedImages}`)),
       hasCostBasis: Boolean(document.body.textContent?.includes('Cost basis')),
-    }));
+    }), expectedSpendImages);
     assert(spendState.hasSpend, 'spend route did not render');
     assert(spendState.hasImageCount, 'spend route did not reflect live image count');
 
@@ -784,6 +896,29 @@ async function main() {
     const mobileHealthScreenshotStats = await screenshotStats(mobileHealthScreenshot);
     assert(mobileHealthScreenshotStats.nonblank, 'mobile health screenshot was blank');
 
+    await mobile.goto(`${url}generate`, { waitUntil: 'networkidle0' });
+    await mobile.waitForFunction(() => document.body.textContent?.includes('Image generation'));
+    const mobileGenerateState = await mobile.evaluate(() => ({
+      title: document.title,
+      h1: document.querySelector('h1')?.textContent?.trim() || '',
+      hasDryRunBadge: Boolean(document.body.textContent?.includes('Dry-run default')),
+      overflow: {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    }));
+    mobileGenerateState.shell = await readMobileShell(mobile);
+    assert(mobileGenerateState.title.includes('Generate'), `unexpected mobile generate title: ${mobileGenerateState.title}`);
+    assert(mobileGenerateState.h1 === 'Generate', `expected mobile Generate heading, got ${mobileGenerateState.h1}`);
+    assert(mobileGenerateState.hasDryRunBadge, 'mobile generate did not show dry-run default');
+    assert(mobileGenerateState.overflow.scrollWidth <= mobileGenerateState.overflow.clientWidth, 'mobile generate has horizontal overflow');
+    assertMobileShellUsable(mobileGenerateState.shell, 'generate');
+
+    const mobileGenerateScreenshot = path.join(tmpRoot, 'portal-mobile-generate.png');
+    await mobile.screenshot({ path: mobileGenerateScreenshot, fullPage: true });
+    const mobileGenerateScreenshotStats = await screenshotStats(mobileGenerateScreenshot);
+    assert(mobileGenerateScreenshotStats.nonblank, 'mobile generate screenshot was blank');
+
     if (visualModeEnabled) {
       await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
       await mobile.waitForFunction(() => document.body.textContent?.includes('Projects'));
@@ -827,6 +962,7 @@ async function main() {
         registry: registryState,
         health: healthState,
         spend: spendState,
+        generate: generateState,
         screenshot: desktopScreenshotStats,
       },
       mobile: mobileState,
@@ -835,6 +971,8 @@ async function main() {
       mobile_viewer_screenshot: mobileViewerScreenshotStats,
       mobile_health: mobileHealthState,
       mobile_health_screenshot: mobileHealthScreenshotStats,
+      mobile_generate: mobileGenerateState,
+      mobile_generate_screenshot: mobileGenerateScreenshotStats,
       screenshots: visualModeEnabled ? Object.fromEntries(
         visualResults.map((result) => [result.capture.id, result.stats]),
       ) : null,

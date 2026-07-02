@@ -9,14 +9,22 @@ server.
 
 ## Runtime Boundary
 
-- Primary UI routes `/`, `/library`, `/viewer/*`, `/export`, `/registry`,
-  `/health`, `/spend`, and frontend assets proxy to the TypeScript shell when
-  its Nitro `node-server` build is available.
+- Primary UI routes `/`, `/generate`, `/library`, `/viewer/*`, `/export`,
+  `/registry`, `/health`, `/spend`, and frontend assets proxy to the TypeScript
+  shell when its Nitro `node-server` build is available.
 - Python continues to serve `/api/*`, `/output/*`, `/media/*`, auth, local
   sidecars, generation, registry, usage, and media APIs.
 - `GET /api/library-state` is the read-only normalized archive payload used by
   the frontend for projects, runs, images, ratings, health, and registry
   summary data.
+- `GET /api/generate-options` exposes safe model/style/aspect/reference-role
+  options for the Generate screen.
+- `POST /api/prompt-preview` parses Markdown prompt packs without writing files
+  or calling providers.
+- `POST /api/regen` remains the generation path. The React `/generate` route
+  defaults to dry-run and requires an explicit confirmation before submitting
+  `dry_run=false`; Python still resolves references, owns provider keys, and
+  runs `run_batch`.
 - Rollback routes stay available during migration: `/legacy-suite` for the old
   media-suite command center and `/legacy-library` for the old image library.
 
