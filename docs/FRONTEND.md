@@ -24,6 +24,19 @@ If `frontend/.output/server/index.mjs` does not exist, `generate.py serve`
 attempts `npm --prefix frontend run build`. Set `RAFIKI_DISABLE_FRONTEND=1` to
 force legacy fallback behavior while debugging.
 
+## Open The Library
+
+Start the local portal from the repo root:
+
+```bash
+python3 generate.py serve
+```
+
+Then open `http://localhost:7433/library`. The `/library` route is the new
+TypeScript library, backed by `GET /api/library-state` and image files from
+`/output/*`. The root route redirects into the same shell, and the legacy
+rollback surfaces remain at `/legacy-suite` and `/legacy-library`.
+
 ## Development
 
 Root scripts delegate into `frontend/`:
