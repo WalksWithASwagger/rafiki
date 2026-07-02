@@ -513,6 +513,11 @@ async function main() {
     server.stderr.on('data', (chunk) => { serverOutput += chunk.toString(); });
 
     await waitForServer(url, server);
+    await waitForCondition(() => serverOutput.includes('Frontend:'), 'portal server frontend status', 10000);
+    assert(
+      !serverOutput.includes('Frontend:      legacy fallback'),
+      `expected React frontend to start, got legacy fallback\n${serverOutput}`,
+    );
 
     const usage = await fetch(`${url}api/usage`).then((response) => response.json());
     assert(usage.archive.projects === 1, `expected one project, got ${usage.archive.projects}`);

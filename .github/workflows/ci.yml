@@ -30,6 +30,9 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+
       - name: Audit Node runtime dependencies
         # Gate on high+ only: the outstanding moderate is a js-yaml DoS reached
         # solely via gray-matter frontmatter parsing of our own local prompt
@@ -49,6 +52,9 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Verify frontend
+        run: npm run frontend:verify
 
       - name: Run portal E2E smoke
         run: npm run e2e:portal
