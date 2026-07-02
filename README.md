@@ -162,27 +162,29 @@ Details: [docs/MCP.md](docs/MCP.md)
 
 ## Local Portal
 
-Start the portal:
+Start the live portal shell:
 
 ```bash
-python generate.py serve --open
+python3 generate.py serve
 ```
 
-By default it runs on `http://localhost:7433/`.
+By default it runs on `http://localhost:7433/`. Open
+`http://localhost:7433/library` to use the current TypeScript image library.
 
 The portal adds:
 
 - persistent ratings stored on disk
 - cross-project browsing and search
-- lightbox review
-- run detail with feedback, evaluation decisions, and local metadata
-- run-level decision summaries
-- library rebuilding on page load
+- viewer pages for image triage and metadata review
+- run pages with missing-image placeholders and direct viewer links
+- export, registry, health, and spend routes backed by local APIs
 - prompt studio for single prompts and Markdown batches
 
 The prompt studio writes into `output/<project>/run-*` using the same
 generation path as the CLI, so portal-generated runs show up in the normal
-viewer and library flow.
+viewer and library flow. Python remains the local filesystem and API authority;
+the frontend is spawned behind the Python server. The legacy rollback surfaces
+are available at `/legacy-suite` and `/legacy-library`.
 
 Useful commands:
 
