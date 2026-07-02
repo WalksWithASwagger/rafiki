@@ -63,6 +63,9 @@ deeper operating docs by surface area.
 
 - [Canva Export](CANVA-EXPORT.md) - approved-image export layout and metadata
   enrichment for Canva handoff packages.
+- [RAP Capstone Thumbnail And YouTube Handoff](RAP-CAPSTONE-THUMBNAILS-YOUTUBE-HANDOFF-2026-07-01.md) -
+  V3 thumbnail package location, YouTube upload results, pending rate-limit
+  retries, and missing-video follow-up.
 - [Notion Export](NOTION-EXPORT.md) - Notion setup, export commands,
   idempotency, and database targeting.
 - [Social-Post Expansion](SOCIAL-EXPANSION.md) - platform constraints, source
