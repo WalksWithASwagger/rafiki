@@ -48,7 +48,9 @@ def _image_files(root: Path) -> list[Path]:
     return [
         path
         for path in root.rglob("*")
-        if path.is_file() and path.suffix.lower() in IMAGE_SUFFIXES
+        if path.is_file()
+        and path.suffix.lower() in IMAGE_SUFFIXES
+        and not any(part.startswith(".") for part in path.relative_to(root).parts)
     ]
 
 
@@ -169,6 +171,9 @@ def archive_health_report(output_root: Path) -> dict[str, Any]:
                 else:
                     run_missing_images += 1
                     missing_images.append({
+                        "project": project,
+                        "run": run_dir.name,
+                        "file": filename,
                         "key": key,
                         "path": str(run_dir / filename),
                         "prompt": str(image.get("prompt") or "")[:160],
@@ -367,8 +372,6 @@ def _recommendations(
         recs.append("Rebuild viewers after deciding whether missing image records should stay in the archive.")
     if any(orphaned.values()):
         recs.append("Review orphaned ratings, feedback, evaluations, and metadata before deleting sidecar state.")
-    if duplicate_filenames:
-        recs.append("Inspect duplicate filename groups before approving or removing reruns.")
     if not recs:
         recs.append("Archive health is clean enough for normal review and export work.")
     return recs

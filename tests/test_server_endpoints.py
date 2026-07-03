@@ -18,6 +18,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from lib import server as server_module
+from lib.frontend_state import build_library_state
 from tests.server_harness import (
     make_handler_class,
     http_get,
@@ -135,6 +137,49 @@ def test_static_endpoint_rejects_path_traversal(server, tmp_path):
         assert b"TOP-SECRET" not in body, target
 
 
+# ── generation options/preview ─────────────────────────────────────────────
+
+def test_generate_options_endpoint_returns_defaults(server):
+    resp = http_get(f"{server}/api/generate-options")
+    payload = json.loads(resp.read().decode("utf-8"))
+
+    assert resp.status == 200
+    assert payload["defaultModel"] == "gemini-2.5-flash-image"
+    assert "gemini-2.5-flash-image" in [model["id"] for model in payload["models"]]
+    assert "linkedin" in [preset["key"] for preset in payload["aspectPresets"]]
+    assert "style" in payload["referenceRoles"]
+    assert any(style["key"] == "none" for style in payload["styles"])
+
+
+def test_prompt_preview_endpoint_parses_markdown(server, tmp_path, monkeypatch):
+    prompt_file = tmp_path / "prompts" / "pack.md"
+    prompt_file.parent.mkdir(parents=True)
+    prompt_file.write_text(
+        "## 1. Hero\n**Prompt:**\n> first prompt\n\n## 2. Detail\n**Prompt:**\n> second prompt\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(server_module, "REPO_ROOT", tmp_path)
+
+    resp = http_post_json(f"{server}/api/prompt-preview", {"prompt_file": "prompts/pack.md"})
+    payload = json.loads(resp.read().decode("utf-8"))
+
+    assert resp.status == 200
+    assert payload["ok"] is True
+    assert payload["count"] == 2
+    assert payload["prompts"][0]["name"] == "Hero"
+    assert payload["metadata"] == {"source": "markdown", "format": "md"}
+
+
+def test_prompt_preview_endpoint_rejects_missing_file(server, tmp_path, monkeypatch):
+    monkeypatch.setattr(server_module, "REPO_ROOT", tmp_path)
+
+    resp = http_post_json(f"{server}/api/prompt-preview", {"prompt_file": "prompts/missing.md"})
+    payload = json.loads(resp.read().decode("utf-8"))
+
+    assert resp.status == 400
+    assert "prompt_file not found" in payload["error"]
+
+
 # ── _serve_runs (GET /api/runs) ────────────────────────────────────────────
 
 def test_runs_endpoint_lists_project_runs(server, tmp_path):
@@ -202,6 +247,26 @@ def test_library_state_endpoint_returns_normalized_frontend_payload(server, tmp_
     assert payload["health"]["presentImages"] == 2
     assert payload["health"]["missingRecords"] == 1
     assert payload["health"]["failedImages"] == 1
+    assert payload["totals"]["archive"] == {
+        "projects": 1,
+        "runs": 1,
+        "images": 3,
+        "present": 2,
+        "missing": 1,
+        "failed": 1,
+        "files": 2,
+    }
+    assert payload["totals"]["visible"] == {
+        "projects": 1,
+        "runs": 1,
+        "images": 3,
+        "present": 1,
+        "missing": 1,
+        "failed": 1,
+        "starred": 1,
+        "rejected": 0,
+    }
+    assert payload["sourceWarnings"] == []
 
     project = payload["projects"][0]
     assert project["id"] == "demo"
@@ -224,6 +289,63 @@ def test_library_state_endpoint_returns_normalized_frontend_payload(server, tmp_
     assert hero["prompt"].endswith("...")
     assert images["demo/run-20260101-100000/broken.png"]["status"] == "failed"
     assert images["demo/run-20260101-100000/gone.png"]["status"] == "missing"
+
+
+def test_library_state_reports_source_warnings_and_registry_details(tmp_path):
+    output_root = tmp_path / "output"
+    run_dir = output_root / "demo" / "run-20260101-100000"
+    _write_run(run_dir, [{"name": "Hero", "prompt": "p", "file": "hero.png"}])
+    asset = run_dir / "hero.png"
+    asset.write_bytes(PNG_HEADER + (b"x" * 20_000))
+
+    registry_file = tmp_path / "asset-registry.json"
+    registry_file.write_text(
+        json.dumps(
+            [
+                {
+                    "id": "hero",
+                    "project": "demo",
+                    "path": str(asset),
+                    "approval_status": "approved",
+                    "indexed_at": "2026-01-01T10:00:00",
+                    "source_run": "run-20260101-100000",
+                    "export_targets": ["zip"],
+                    "downstream_uses": ["deck"],
+                },
+                {
+                    "id": "gone",
+                    "project": "demo",
+                    "path": str(run_dir / "gone.png"),
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    payload = build_library_state(
+        output_root,
+        extra_roots={"missing-project": tmp_path / "not-here"},
+        registry_file=registry_file,
+    )
+
+    assert payload["totals"]["visible"]["projects"] == 1
+    assert payload["sourceWarnings"] == [
+        {
+            "kind": "missing-extra-root",
+            "project": "missing-project",
+            "path": str(tmp_path / "not-here"),
+            "message": "Configured extra output root for missing-project is not available on disk.",
+        }
+    ]
+    assert payload["registry"]["summary"] == {"entries": 2, "approved": 1, "unapproved": 1}
+
+    entries = {entry["id"]: entry for entry in payload["registry"]["entries"]}
+    assert entries["hero"]["exists"] is True
+    assert entries["hero"]["status"] == "indexed"
+    assert entries["hero"]["sizeMb"] > 0
+    assert entries["hero"]["refs"] == 3
+    assert entries["gone"]["exists"] is False
+    assert entries["gone"]["status"] == "missing"
 
 
 # ── _serve_actions (GET /api/actions) ──────────────────────────────────────
@@ -271,6 +393,65 @@ def test_regen_post_dry_run_returns_result(server):
     assert payload["ok"] is True
     assert payload["mode"] == "single"
     assert payload["project"] == "studio"
+
+
+def test_regen_post_inline_batch_dry_run_returns_result(server):
+    resp = http_post_json(
+        f"{server}/api/regen",
+        {
+            "mode": "batch",
+            "project": "inline",
+            "prompts": [
+                {"name": "One", "prompt": "first image"},
+                {"name": "Two", "prompt": "second image"},
+            ],
+            "dry_run": True,
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+    assert payload["mode"] == "batch"
+    assert payload["project"] == "inline"
+    assert payload["total"] == 2
+
+
+def test_regen_post_resolves_output_reference_url(server, tmp_path):
+    reference = tmp_path / "output" / "refs" / "run-20260101-100000" / "reference.png"
+    reference.parent.mkdir(parents=True)
+    reference.write_bytes(PNG_HEADER + b"fake")
+
+    resp = http_post_json(
+        f"{server}/api/regen",
+        {
+            "mode": "single",
+            "project": "studio",
+            "prompt": "use a saved reference",
+            "reference_image": "/output/refs/run-20260101-100000/reference.png",
+            "dry_run": True,
+        },
+    )
+
+    assert resp.status == 200
+    payload = json.loads(resp.read().decode("utf-8"))
+    assert payload["ok"] is True
+
+
+def test_regen_post_rejects_missing_output_reference(server):
+    resp = http_post_json(
+        f"{server}/api/regen",
+        {
+            "mode": "single",
+            "project": "studio",
+            "prompt": "missing ref",
+            "reference_image": "/output/refs/run-20260101-100000/missing.png",
+            "dry_run": True,
+        },
+    )
+
+    assert resp.status == 400
+    assert "output reference not found" in json.loads(resp.read().decode("utf-8"))["error"]
 
 
 def test_regen_post_malformed_json_returns_400(server):

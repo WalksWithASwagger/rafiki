@@ -18,7 +18,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "h-16 border-b border-border flex items-center justify-between px-8 shrink-0 bg-background/80 backdrop-blur",
+        "min-h-16 border-b border-border flex flex-wrap items-center justify-between gap-3 px-4 py-3 shrink-0 bg-background/80 backdrop-blur sm:px-8",
         className,
       )}
     >
@@ -37,13 +37,7 @@ export function PageHeader({
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-3 shrink-0">
-        <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded border border-border bg-white/5 text-[11px] font-mono text-muted-foreground">
-          <span>Search</span>
-          <kbd className="text-[10px] bg-white/5 border border-border px-1 rounded">⌘K</kbd>
-        </div>
-        {actions}
-      </div>
+      {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
     </header>
   );
 }

@@ -1,5 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Eye } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { EmptyBlock } from "@/components/state/empty-block";
@@ -25,19 +24,7 @@ export const Route = createFileRoute("/viewer/")({
 });
 
 function ViewerIndex() {
-  const navigate = useNavigate();
   const { data, error, isLoading, refetch } = useLibraryState();
-
-  useEffect(() => {
-    const first = data?.images.find((image) => image.status === "present");
-    if (first) {
-      void navigate({
-        to: "/viewer/$imageId",
-        params: { imageId: first.id },
-        replace: true,
-      });
-    }
-  }, [data, navigate]);
 
   if (error) {
     return (
@@ -52,9 +39,11 @@ function ViewerIndex() {
       <div className="p-16">
         <EmptyBlock
           icon={Eye}
-          title={isLoading ? "Loading viewer" : "No images available to view"}
+          title={isLoading ? "Loading viewer" : "Choose an image to view"}
           hint={
-            isLoading ? "Reading the local archive." : "Generate a run or check archive health."
+            isLoading
+              ? "Reading the local archive."
+              : `${data?.images.filter((image) => image.status === "present").length ?? 0} present images are available from the library.`
           }
           action={
             <Link

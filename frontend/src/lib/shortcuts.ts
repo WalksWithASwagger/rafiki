@@ -10,6 +10,7 @@ export interface Shortcut {
 
 export const SHORTCUT_CATALOG: Shortcut[] = [
   { combo: "?", label: "Show shortcuts", scope: "global" },
+  { combo: "g g", label: "Go to Generate", scope: "global" },
   { combo: "g l", label: "Go to Library", scope: "global" },
   { combo: "g v", label: "Go to Viewer", scope: "global" },
   { combo: "g e", label: "Go to Export", scope: "global" },

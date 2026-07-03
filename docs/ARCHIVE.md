@@ -85,6 +85,32 @@ the rest.
    When archive health is used as a release gate, point it at a controlled
    fixture or disposable output root with `--output-dir`; the default live
    `output/` archive is an operator advisory surface.
+7. **Repair archive state reversibly**:
+   ```bash
+   python generate.py archive-repair
+   python generate.py archive-repair --apply
+   ```
+   The default mode is a dry-run. `--apply` writes a rollback bundle under
+   `output/.rafiki-cleanup/<timestamp>/` before changing local archive state.
+   Repair removes missing manifest records, synthesizes manifests for image
+   folders that lost `run.json`, quarantines exact byte-duplicate images, clears
+   backed-up orphaned sidecar keys, and rebuilds the all-runs registry. It does
+   not permanently delete quarantined files.
+
+## Health page semantics
+
+The live `/health` surface treats missing image records, malformed manifests,
+orphaned sidecars, and cleanup-risk items as repair blockers. Failed generation
+records are historical run state, not a regeneration queue; keep them unless an
+operator explicitly chooses to rewrite history. Duplicate filename groups are
+also informational after `archive-repair` reports no exact byte-duplicate
+candidates remaining. They are useful for manual rerun comparison, but they are
+not safe deletion instructions by themselves.
+
+Machine-local extra-output mappings live in `config/extra-outputs.local.json`.
+Prune stale entries there when `/health` reports offline local mounts; do not
+replace those warnings with shared repo config unless the path exists for every
+operator.
 
 ## Layout
 
@@ -151,6 +177,10 @@ or trace it later:
   images, ratings, feedback, evaluations, archive metadata, manifests, or
   approved sets. The `--cleanup-report` view is also advisory only; candidate
   runs still require a separate `clean --keep-approved --dry-run` review.
+- **`archive-repair --apply` is reversible-first.** It can rewrite manifests
+  and move duplicate/empty runs into `output/.rafiki-cleanup/`, but it keeps a
+  repair manifest, sidecar backups, run-json backups, and quarantined files for
+  human review before any permanent deletion.
 - **Thumbnail/cache paths are explicit.** Default library and viewer rebuilds
   continue to reference original images directly. Use `archive-thumbnails`,
   `library --thumbnail-cache`, or `view --thumbnail-cache` when a large local

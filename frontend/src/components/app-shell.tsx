@@ -1,12 +1,22 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Library, Eye, Package, Database, Activity, DollarSign, Keyboard } from "lucide-react";
+import {
+  Library,
+  Eye,
+  Package,
+  Database,
+  Activity,
+  DollarSign,
+  Keyboard,
+  Sparkles,
+} from "lucide-react";
 import { useTriageStore } from "@/stores/triage-store";
 import { cn } from "@/lib/utils";
 import { useSequenceShortcuts, useShortcuts } from "@/lib/shortcuts";
 import { ShortcutSheet } from "@/components/shortcut-sheet";
 
 const projectNav = [
+  { to: "/generate", label: "Generate", icon: Sparkles },
   { to: "/library", label: "Library", icon: Library },
   { to: "/viewer", label: "Viewer", icon: Eye },
   { to: "/export", label: "Export", icon: Package },
@@ -14,9 +24,11 @@ const projectNav = [
 
 const systemNav = [
   { to: "/registry", label: "Registry", icon: Database },
-  { to: "/health", label: "Health", icon: Activity, badge: "98%" },
+  { to: "/health", label: "Health", icon: Activity },
   { to: "/spend", label: "Spend", icon: DollarSign },
 ] as const;
+
+const allNav = [...projectNav, ...systemNav] as const;
 
 function NavLink({
   to,
@@ -71,6 +83,31 @@ function NavLink({
   );
 }
 
+function MobileNavLink({
+  to,
+  label,
+  icon: Icon,
+  active,
+}: {
+  to: string;
+  label: string;
+  icon: typeof Library;
+  active: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 px-1 py-2 text-[10px] font-mono uppercase tracking-wide",
+        active ? "text-brand" : "text-muted-foreground",
+      )}
+    >
+      <Icon className="size-4 shrink-0" strokeWidth={1.6} />
+      <span className="truncate">{label}</span>
+    </Link>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const tray = useTriageStore((s) => s.tray);
@@ -83,7 +120,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       ? pathname === "/library" || pathname.startsWith("/library/")
       : to === "/viewer"
         ? pathname.startsWith("/viewer")
-        : pathname === to;
+        : to === "/generate"
+          ? pathname.startsWith("/generate")
+          : pathname === to;
 
   useShortcuts([
     { combo: "?", handler: () => setSheetOpen(true) },
@@ -92,6 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   ]);
 
   useSequenceShortcuts([
+    { combo: "gg", handler: () => navigate({ to: "/generate" }) },
     { combo: "gl", handler: () => navigate({ to: "/library" }) },
     { combo: "gv", handler: () => navigate({ to: "/viewer" }) },
     { combo: "ge", handler: () => navigate({ to: "/export" }) },
@@ -100,15 +140,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   ]);
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
-      <aside className="w-64 shrink-0 border-r border-border bg-sidebar flex flex-col">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground lg:flex-row">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-sidebar px-4 lg:hidden">
+        <Link to="/library" className="flex items-center gap-3">
+          <div className="grid size-7 place-items-center rounded bg-brand font-mono text-base font-bold tracking-tighter text-black">
+            R
+          </div>
+          <div className="flex flex-col leading-none">
+            <span className="text-sm font-semibold tracking-tight">RAFIKI</span>
+            <span className="mt-1 font-mono text-[10px] text-muted-foreground">Local archive</span>
+          </div>
+        </Link>
+        <button
+          onClick={() => setSheetOpen(true)}
+          className="grid size-9 place-items-center rounded border border-border text-muted-foreground"
+          aria-label="Open shortcuts"
+        >
+          <Keyboard className="size-4" strokeWidth={1.5} />
+        </button>
+      </header>
+
+      <aside
+        data-shell-sidebar="desktop"
+        className="hidden w-64 shrink-0 flex-col border-r border-border bg-sidebar lg:flex"
+      >
         <div className="p-6 flex items-center gap-3">
           <div className="size-8 bg-brand text-black rounded flex items-center justify-center font-bold text-lg tracking-tighter font-mono">
             R
           </div>
           <div className="flex flex-col leading-none">
             <span className="font-semibold tracking-tight">RAFIKI</span>
-            <span className="text-[10px] text-muted-foreground font-mono mt-1">v0.8.2 local</span>
+            <span className="text-[10px] text-muted-foreground font-mono mt-1">Local archive</span>
           </div>
         </div>
 
@@ -134,7 +196,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-60" />
               <span className="relative inline-flex rounded-full size-2 bg-brand" />
             </span>
-            <span>Local Node: Active</span>
+            <span>Python API: Local</span>
           </div>
           {tray.length > 0 && (
             <Link
@@ -160,9 +222,21 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main key={pathname} className="flex-1 flex flex-col overflow-hidden rf-fade-in">
+      <main
+        key={pathname}
+        className="min-w-0 flex-1 flex flex-col overflow-hidden pb-16 rf-fade-in lg:pb-0"
+      >
         {children}
       </main>
+
+      <nav
+        data-shell-mobile-nav
+        className="fixed inset-x-0 bottom-0 z-30 flex h-16 border-t border-border bg-sidebar/95 backdrop-blur lg:hidden"
+      >
+        {allNav.map((n) => (
+          <MobileNavLink key={n.to} {...n} active={isActive(n.to)} />
+        ))}
+      </nav>
 
       <ShortcutSheet />
     </div>

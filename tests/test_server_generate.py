@@ -114,6 +114,128 @@ def test_run_portal_job_batch_uses_prompt_file_and_derived_project(tmp_path, mon
     assert "registry" not in result
 
 
+def test_run_portal_job_batch_accepts_inline_prompts(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    captured: dict = {}
+
+    def fake_run_batch(**kwargs):
+        captured.update(kwargs)
+        return _fake_batch_result(kwargs["project_dir"], success_count=2, total=2)
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    result = server._run_portal_job(
+        {
+            "mode": "batch",
+            "project": "Inline Studio",
+            "prompts": [
+                {"name": "One", "prompt": "first image", "model": "gpt"},
+                {"name": "Two", "prompt": "second image", "aspect_ratio": "story"},
+            ],
+            "dry_run": True,
+            "workers": 2,
+        },
+        output_root=output_root,
+    )
+
+    assert captured["project_dir"] == output_root / "inline-studio"
+    assert captured["workers"] == 2
+    assert captured["prompt_file"] == ""
+    assert captured["prompts"] == [
+        {"name": "One", "prompt": "first image", "model": "gpt-image-2"},
+        {"name": "Two", "prompt": "second image", "aspect_ratio": "9:16"},
+    ]
+    assert result["generated"] == 2
+    assert result["total"] == 2
+
+
+def test_run_portal_job_resolves_output_reference_urls(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    reference = output_root / "refs" / "run-20260101-100000" / "reference.png"
+    reference.parent.mkdir(parents=True)
+    reference.write_bytes(b"fake")
+    captured: dict = {}
+
+    def fake_run_batch(**kwargs):
+        captured.update(kwargs)
+        return _fake_batch_result(kwargs["project_dir"])
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    server._run_portal_job(
+        {
+            "mode": "single",
+            "project": "Studio",
+            "prompt": "use the archive reference",
+            "reference_image": "/output/refs/run-20260101-100000/reference.png",
+            "dry_run": True,
+        },
+        output_root=output_root,
+    )
+
+    assert captured["ref_paths"] == [str(reference.resolve())]
+
+
+def test_run_portal_job_resolves_extra_root_output_references(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    extra_root = tmp_path / "external-project"
+    reference = extra_root / "run-20260101-100000" / "reference.png"
+    reference.parent.mkdir(parents=True)
+    reference.write_bytes(b"fake")
+    captured: dict = {}
+
+    def fake_run_batch(**kwargs):
+        captured.update(kwargs)
+        return _fake_batch_result(kwargs["project_dir"])
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    server._run_portal_job(
+        {
+            "mode": "single",
+            "project": "Studio",
+            "prompt": "use the external archive reference",
+            "reference_image": "/output/external/run-20260101-100000/reference.png",
+            "dry_run": True,
+        },
+        output_root=output_root,
+        extra_roots={"external": extra_root},
+    )
+
+    assert captured["ref_paths"] == [str(reference.resolve())]
+
+
+def test_run_portal_job_rejects_missing_output_reference(tmp_path):
+    with pytest.raises(ValueError, match="output reference not found"):
+        server._run_portal_job(
+            {
+                "mode": "single",
+                "project": "Studio",
+                "prompt": "missing reference",
+                "reference_image": "/output/demo/run-20260101-100000/missing.png",
+                "dry_run": True,
+            },
+            output_root=tmp_path / "output",
+        )
+
+
+def test_run_portal_job_rejects_traversal_output_reference(tmp_path):
+    secret = tmp_path / "secret.png"
+    secret.write_bytes(b"fake")
+
+    with pytest.raises(ValueError, match="escapes the output root"):
+        server._run_portal_job(
+            {
+                "mode": "single",
+                "project": "Studio",
+                "prompt": "traversal reference",
+                "reference_image": "/output/../secret.png",
+                "dry_run": True,
+            },
+            output_root=tmp_path / "output",
+        )
+
+
 def test_run_portal_job_success_refreshes_registry_cache(tmp_path, monkeypatch):
     output_root = tmp_path / "output"
     data_dir = tmp_path / "data"

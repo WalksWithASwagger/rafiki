@@ -95,8 +95,8 @@ function RegistryPage() {
           </div>
         </div>
 
-        <div className="border border-border rounded-lg overflow-hidden bg-sidebar">
-          <div className="grid grid-cols-[1.5fr_1fr_.7fr_.5fr_.8fr_.7fr] gap-4 px-4 py-3 border-b border-border text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+        <div className="overflow-x-auto rounded-lg border border-border bg-sidebar">
+          <div className="grid min-w-[760px] grid-cols-[1.5fr_1fr_.7fr_.5fr_.8fr_.7fr] gap-4 px-4 py-3 border-b border-border text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
             <div>Path</div>
             <div>Project</div>
             <div>Size</div>
@@ -109,17 +109,15 @@ function RegistryPage() {
             return (
               <div
                 key={r.id}
-                className="grid grid-cols-[1.5fr_1fr_.7fr_.5fr_.8fr_.7fr] gap-4 px-4 py-3 border-b border-border last:border-b-0 text-xs font-mono hover:bg-white/5"
+                className="grid min-w-[760px] grid-cols-[1.5fr_1fr_.7fr_.5fr_.8fr_.7fr] gap-4 px-4 py-3 border-b border-border last:border-b-0 text-xs font-mono hover:bg-white/5"
               >
                 <div className="truncate text-foreground/90">{r.path}</div>
                 <div className="truncate text-muted-foreground">
-                  {p?.code} · {p?.name}
+                  {p ? `${p.code} · ${p.name}` : r.projectId || "Unknown"}
                 </div>
-                <div className="text-muted-foreground">{r.sizeMb} MB</div>
+                <div className="text-muted-foreground">{formatSize(r.sizeMb, r.exists)}</div>
                 <div className="text-muted-foreground">{r.refs}</div>
-                <div className="text-muted-foreground">
-                  {new Date(r.lastSeen).toLocaleDateString()}
-                </div>
+                <div className="text-muted-foreground">{formatDate(r.lastSeen)}</div>
                 <div>
                   <span
                     className={cn(
@@ -146,4 +144,17 @@ function RegistryPage() {
       </div>
     </AppShell>
   );
+}
+
+function formatSize(sizeMb: number, exists: boolean) {
+  if (!exists) return "Missing";
+  if (sizeMb < 0.01) return "<0.01 MB";
+  return `${sizeMb.toLocaleString()} MB`;
+}
+
+function formatDate(value: string) {
+  if (!value) return "Unknown";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return date.toLocaleDateString();
 }

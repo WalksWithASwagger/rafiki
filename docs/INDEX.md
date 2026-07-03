@@ -35,6 +35,9 @@ deeper operating docs by surface area.
   portable single-file mode, wrappers, schema, and content-series workflow.
 - [Frontend Shell](FRONTEND.md) - TypeScript portal shell, Python proxy/API
   boundary, rollback routes, local build behavior, and verification commands.
+- [Generate UI Next Work Plan](GENERATE-UI-NEXT-WORK-PLAN-2026-07.md) -
+  stabilization plan for the React generation workspace, dry-run safety,
+  reference selection, and future job handling.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, legacy rollback surfaces, feedback, evaluation, archive metadata
   state, revision staging, Curriculum Atlas surface, and API endpoints.
