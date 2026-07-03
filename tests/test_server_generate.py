@@ -129,8 +129,20 @@ def test_run_portal_job_batch_accepts_inline_prompts(tmp_path, monkeypatch):
             "mode": "batch",
             "project": "Inline Studio",
             "prompts": [
-                {"name": "One", "prompt": "first image", "model": "gpt"},
-                {"name": "Two", "prompt": "second image", "aspect_ratio": "story"},
+                {
+                    "name": "One",
+                    "prompt": "first image",
+                    "model": "gpt",
+                    "style": "bcai",
+                    "aspect_ratio": "square",
+                    "quality": "low",
+                },
+                {
+                    "name": "Two",
+                    "prompt": "second image",
+                    "aspect_ratio": "story",
+                    "quality": "medium",
+                },
             ],
             "dry_run": True,
             "workers": 2,
@@ -142,8 +154,20 @@ def test_run_portal_job_batch_accepts_inline_prompts(tmp_path, monkeypatch):
     assert captured["workers"] == 2
     assert captured["prompt_file"] == ""
     assert captured["prompts"] == [
-        {"name": "One", "prompt": "first image", "model": "gpt-image-2"},
-        {"name": "Two", "prompt": "second image", "aspect_ratio": "9:16"},
+        {
+            "name": "One",
+            "prompt": "first image",
+            "model": "gpt-image-2",
+            "style": "bcai",
+            "aspect_ratio": "1:1",
+            "quality": "low",
+        },
+        {
+            "name": "Two",
+            "prompt": "second image",
+            "aspect_ratio": "9:16",
+            "quality": "medium",
+        },
     ]
     assert result["generated"] == 2
     assert result["total"] == 2

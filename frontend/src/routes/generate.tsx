@@ -34,6 +34,7 @@ import {
   resultImageUrl,
   runGenerate,
   useGenerateOptions,
+  type GenerateOptions,
   type GeneratePayload,
   type GenerateResult,
   type InlinePrompt,
@@ -67,6 +68,10 @@ interface PromptRow {
   id: string;
   name: string;
   prompt: string;
+  model?: string;
+  style?: string;
+  aspectRatio?: string;
+  quality?: string;
 }
 
 interface GenerateHistoryItem {
@@ -194,6 +199,14 @@ function GeneratePage() {
   const totalReferenceCount = selectedReferenceCount + splitReferences(perPromptReferences).length;
   const currentModel = model || options?.defaultModel || "gemini-2.5-flash-image";
   const currentPromptCount = promptCountForDraft(mode, singlePrompt, promptRows, promptPreview);
+  const modelSelectOptions = modelOptionsFor(options);
+  const styleSelectOptions = styleOptionsFor(options);
+  const aspectSelectOptions = aspectOptionsFor(options);
+  const qualitySelectOptions = qualityOptionsFor(options);
+  const rowModelOptions = inheritOptions("Run model", modelSelectOptions);
+  const rowStyleOptions = inheritOptions("Run style", styleSelectOptions);
+  const rowAspectOptions = inheritOptions("Run aspect", aspectSelectOptions);
+  const rowQualityOptions = inheritOptions("Run quality", qualitySelectOptions);
   const currentDraftHash = useMemo(
     () =>
       draftHashForState({
@@ -309,9 +322,7 @@ function GeneratePage() {
       };
     }
 
-    const prompts = promptRows
-      .map((row): InlinePrompt => ({ name: row.name.trim(), prompt: row.prompt.trim() }))
-      .filter((row) => row.prompt);
+    const prompts = promptRows.map(inlinePromptFromRow).filter((row) => row.prompt);
     if (!prompts.length) throw new Error("Add at least one inline batch prompt.");
     return {
       ...shared,
@@ -511,22 +522,14 @@ function GeneratePage() {
                     label="Model"
                     value={model}
                     onChange={setModel}
-                    options={options.models.map((entry) => ({
-                      value: entry.id,
-                      label: entry.aliases.length
-                        ? `${entry.id} (${entry.aliases.join(", ")})`
-                        : entry.id,
-                    }))}
+                    options={modelSelectOptions}
                   />
 
                   <SelectField
                     label="Style composition"
                     value={style}
                     onChange={setStyle}
-                    options={options.styles.map((entry) => ({
-                      value: entry.key,
-                      label: entry.default ? `${entry.name} - default` : entry.name,
-                    }))}
+                    options={styleSelectOptions}
                   />
 
                   <div className="grid grid-cols-2 gap-3">
@@ -534,19 +537,13 @@ function GeneratePage() {
                       label="Aspect"
                       value={aspectRatio}
                       onChange={setAspectRatio}
-                      options={[
-                        ...options.aspectRatios.map((ratio) => ({ value: ratio, label: ratio })),
-                        ...options.aspectPresets.map((preset) => ({
-                          value: preset.key,
-                          label: `${preset.key} -> ${preset.value}`,
-                        })),
-                      ]}
+                      options={aspectSelectOptions}
                     />
                     <SelectField
                       label="Quality"
                       value={quality}
                       onChange={setQuality}
-                      options={options.qualities.map((entry) => ({ value: entry, label: entry }))}
+                      options={qualitySelectOptions}
                     />
                   </div>
 
@@ -651,8 +648,8 @@ function GeneratePage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs text-muted-foreground">
-                        Add one prompt per row. Run-level settings apply unless a future row adds
-                        overrides.
+                        Add one prompt per row. Leave row controls on run defaults or choose
+                        prompt-specific overrides.
                       </p>
                       <button
                         onClick={() => setPromptRows((current) => [...current, makePromptRow()])}
@@ -705,6 +702,44 @@ function GeneratePage() {
                             data-testid="generate-batch-prompt"
                             className="w-full resize-y rounded border border-border bg-sidebar px-3 py-2 text-sm outline-none focus:border-brand"
                           />
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
+                            <SelectField
+                              label="Model override"
+                              value={row.model || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { model: value })
+                              }
+                              options={rowModelOptions}
+                              testId="generate-batch-model"
+                            />
+                            <SelectField
+                              label="Style override"
+                              value={row.style || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { style: value })
+                              }
+                              options={rowStyleOptions}
+                              testId="generate-batch-style"
+                            />
+                            <SelectField
+                              label="Aspect override"
+                              value={row.aspectRatio || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { aspectRatio: value })
+                              }
+                              options={rowAspectOptions}
+                              testId="generate-batch-aspect"
+                            />
+                            <SelectField
+                              label="Quality override"
+                              value={row.quality || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { quality: value })
+                              }
+                              options={rowQualityOptions}
+                              testId="generate-batch-quality"
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -991,11 +1026,13 @@ function SelectField({
   value,
   onChange,
   options,
+  testId,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
+  testId?: string;
 }) {
   return (
     <div>
@@ -1003,6 +1040,7 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        data-testid={testId}
         className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
       >
         {options.map((entry) => (
@@ -1539,6 +1577,31 @@ function ResultPanel({
                 )}
               />
             </dl>
+            {payload.prompts?.length ? (
+              <div
+                className="mt-4 rounded border border-border bg-sidebar p-3"
+                data-testid="generate-row-overrides"
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  Inline row overrides
+                </div>
+                <dl className="mt-2 space-y-2 text-xs">
+                  {payload.prompts.map((prompt, index) => (
+                    <MetaRow
+                      key={`${prompt.name || "prompt"}-${index}`}
+                      label={inlinePromptLabel(prompt, index)}
+                      value={inlinePromptOverrideText(prompt)}
+                    />
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+            <pre
+              data-testid="generate-last-payload-json"
+              className="mt-4 max-h-56 overflow-auto rounded border border-border bg-sidebar p-3 text-[10px] leading-relaxed text-muted-foreground"
+            >
+              {JSON.stringify(payload, null, 2)}
+            </pre>
           </div>
         )}
       </div>
@@ -1567,6 +1630,38 @@ function bucketLabel(bucket: ReferenceBucket) {
   return "Comp";
 }
 
+function modelOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.models ?? []).map((entry) => ({
+    value: entry.id,
+    label: entry.aliases.length ? `${entry.id} (${entry.aliases.join(", ")})` : entry.id,
+  }));
+}
+
+function styleOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.styles ?? []).map((entry) => ({
+    value: entry.key,
+    label: entry.default ? `${entry.name} - default` : entry.name,
+  }));
+}
+
+function aspectOptionsFor(options: GenerateOptions | undefined) {
+  return [
+    ...(options?.aspectRatios ?? []).map((ratio) => ({ value: ratio, label: ratio })),
+    ...(options?.aspectPresets ?? []).map((preset) => ({
+      value: preset.key,
+      label: `${preset.key} -> ${preset.value}`,
+    })),
+  ];
+}
+
+function qualityOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.qualities ?? []).map((entry) => ({ value: entry, label: entry }));
+}
+
+function inheritOptions(label: string, options: Array<{ value: string; label: string }>) {
+  return [{ value: "", label }, ...options];
+}
+
 function splitReferences(value: string) {
   return value
     .split(/[\n,]/)
@@ -1584,6 +1679,36 @@ function updatePromptRow(
   patch: Partial<PromptRow>,
 ) {
   setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+}
+
+function inlinePromptFromRow(row: PromptRow): InlinePrompt {
+  const prompt: InlinePrompt = {
+    name: row.name.trim(),
+    prompt: row.prompt.trim(),
+  };
+  const model = row.model?.trim();
+  const style = row.style?.trim();
+  const aspectRatio = row.aspectRatio?.trim();
+  const quality = row.quality?.trim();
+  if (model) prompt.model = model;
+  if (style) prompt.style = style;
+  if (aspectRatio) prompt.aspect_ratio = aspectRatio;
+  if (quality) prompt.quality = quality;
+  return prompt;
+}
+
+function inlinePromptLabel(prompt: InlinePrompt, index: number) {
+  return prompt.name?.trim() || `Prompt ${index + 1}`;
+}
+
+function inlinePromptOverrideText(prompt: InlinePrompt) {
+  const overrides = [
+    prompt.model ? `model: ${prompt.model}` : "",
+    prompt.style ? `style: ${prompt.style}` : "",
+    prompt.aspect_ratio ? `aspect: ${prompt.aspect_ratio}` : "",
+    prompt.quality ? `quality: ${prompt.quality}` : "",
+  ].filter(Boolean);
+  return overrides.length ? overrides.join(" / ") : "run defaults";
 }
 
 function readGenerateHistory(): GenerateHistoryItem[] {
@@ -1705,6 +1830,10 @@ function draftHashForState(state: {
       promptRows: state.promptRows.map((row) => ({
         name: row.name.trim(),
         prompt: row.prompt.trim(),
+        model: row.model?.trim() || "",
+        style: row.style?.trim() || "",
+        aspectRatio: row.aspectRatio?.trim() || "",
+        quality: row.quality?.trim() || "",
       })),
       promptFile: state.promptFile.trim(),
       primaryReference: state.primaryReference.trim(),
