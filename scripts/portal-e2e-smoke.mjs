@@ -623,9 +623,19 @@ async function main() {
     assert(missingRecord, 'library state did not include a missing image');
 
     const desktop = await browser.newPage();
+    const generateRequests = [];
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
     desktop.on('console', (msg) => {
       if (['error', 'warning'].includes(msg.type())) errors.push(`desktop console ${msg.type()}: ${msg.text()}`);
+    });
+    desktop.on('request', (request) => {
+      const requestUrl = new URL(request.url());
+      if (requestUrl.pathname === '/api/regen') {
+        generateRequests.push({
+          method: request.method(),
+          postData: request.postData() || '',
+        });
+      }
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await desktop.goto(libraryUrl, { waitUntil: 'networkidle0' });
@@ -712,6 +722,19 @@ async function main() {
     assert(generateHistoryAfterSingle.includes('Run history'), 'generate history panel did not render');
     assert(generateHistoryAfterSingle.includes('Manifest'), 'generate history did not include manifest link');
     assert(generateHistoryAfterSingle.includes('Run viewer'), 'generate history did not include run viewer link');
+    const storedGenerateHistoryAfterSingle = await desktop.evaluate(() => {
+      try {
+        return JSON.parse(window.localStorage.getItem('rafiki.generate.history.v1') || '[]');
+      } catch {
+        return [];
+      }
+    });
+    assert(
+      storedGenerateHistoryAfterSingle.some((item) => (
+        item.project === 'e2e-generate-smoke' && item.dryRun === true && item.manifestUrl
+      )),
+      'generate history was not persisted to localStorage after dry-run',
+    );
 
     await setFieldValue(
       desktop,
@@ -719,10 +742,15 @@ async function main() {
       'A changed prompt that should require a fresh dry-run before provider execution.',
     );
     await desktop.click('[data-testid="generate-dry-run-toggle"]');
+    const regenRequestCountBeforeStale = generateRequests.length;
     await desktop.click('[data-testid="generate-submit"]');
     await waitForCondition(() => (
       desktop.evaluate(() => document.body.textContent?.includes('Run a matching dry-run before provider execution.'))
     ), 'generate real-run dry-run gate');
+    assert(
+      generateRequests.length === regenRequestCountBeforeStale,
+      'stale real-run gate still submitted /api/regen',
+    );
     const generateRealGate = await desktop.evaluate(() => ({
       gate: document.querySelector('[data-testid="generate-real-gate"]')?.textContent || '',
       brief: document.querySelector('[data-testid="generate-real-brief"]')?.textContent || '',
@@ -869,6 +897,19 @@ async function main() {
     assert(generateState.historyText.includes('Run history'), 'generate history was missing after batch dry-run');
     assert(generateState.text.includes('2 prompts parsed'), 'generate prompt-file preview did not render');
     assert(generateState.overflow.scrollWidth <= generateState.overflow.clientWidth, 'desktop generate has horizontal overflow');
+    await desktop.click('[data-testid="generate-history-clear"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => (
+        document
+          .querySelector('[data-testid="generate-history"]')
+          ?.textContent
+          ?.includes('Dry-runs and provider runs from this browser will appear here.')
+      ))
+    ), 'generate history clear');
+    const clearedGenerateHistory = await desktop.evaluate(() => (
+      window.localStorage.getItem('rafiki.generate.history.v1')
+    ));
+    assert(clearedGenerateHistory === '[]', 'generate history clear did not empty localStorage');
 
     await desktop.goto(`${url}library/${encodeURIComponent(firstRun.id)}`, { waitUntil: 'networkidle0' });
     await desktop.waitForFunction(() => document.body.textContent?.includes('File missing'));

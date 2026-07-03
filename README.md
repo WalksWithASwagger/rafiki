@@ -189,6 +189,12 @@ explicit confirmation in the UI. Python remains the local filesystem, provider,
 and API authority; the frontend is spawned behind the Python server. The legacy
 rollback surfaces are available at `/legacy-suite` and `/legacy-library`.
 
+The TypeScript portal is currently a repo-checkout capability. The public npm
+package intentionally excludes `frontend/`, so `npx rafiki serve` from a package
+install falls back to the legacy portal routes instead of building or starting
+the React shell. See [Frontend Shell](docs/FRONTEND.md) for the package
+boundary and release-policy checkpoint.
+
 Useful commands:
 
 ```bash
@@ -260,7 +266,9 @@ generated review outputs, and local-only paths outside the repo or untracked.
 The public npm package stays narrower by design. It ships runtime code, docs,
 styles, config examples, and only explicitly listed example prompt packs such
 as `examples/quickstart-image-prompts.md` and
-`examples/keynote-visual-workflow-prompt-pack.md`.
+`examples/keynote-visual-workflow-prompt-pack.md`. It does not ship the
+`frontend/` workspace or frontend build artifacts until a maintainer approves a
+package-policy change.
 
 Details: [docs/PROMPT-MEDIA-POLICY.md](docs/PROMPT-MEDIA-POLICY.md)
 
