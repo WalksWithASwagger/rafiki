@@ -41,7 +41,12 @@ import {
   type InlinePrompt,
   type PromptPreviewResult,
 } from "@/lib/generate";
-import { effectiveRating, useLibraryState, type ImageRecord, type RunRecord } from "@/lib/rafiki-data";
+import {
+  effectiveRating,
+  useLibraryState,
+  type ImageRecord,
+  type RunRecord,
+} from "@/lib/rafiki-data";
 import { useTriageStore } from "@/stores/triage-store";
 import { cn } from "@/lib/utils";
 
@@ -182,8 +187,7 @@ function GeneratePage() {
 
   const presentImages = useMemo(
     () =>
-      (libraryQuery.data?.images ?? [])
-        .filter((image) => image.status === "present" && image.url),
+      (libraryQuery.data?.images ?? []).filter((image) => image.status === "present" && image.url),
     [libraryQuery.data],
   );
 
@@ -535,12 +539,14 @@ function GeneratePage() {
   }
 
   const loading = optionsQuery.isLoading || libraryQuery.isLoading || !options;
-  const loadingTitle = optionsQuery.isLoading || !options
-    ? "Loading generation options"
-    : "Loading library references";
-  const loadingMessage = optionsQuery.isLoading || !options
-    ? "Fetching models, styles, aspect ratios, and safety gates before runs can start."
-    : "Scanning present archive images so reference pickers do not look empty by accident.";
+  const loadingTitle =
+    optionsQuery.isLoading || !options
+      ? "Loading generation options"
+      : "Loading library references";
+  const loadingMessage =
+    optionsQuery.isLoading || !options
+      ? "Fetching models, styles, aspect ratios, and safety gates before runs can start."
+      : "Scanning present archive images so reference pickers do not look empty by accident.";
 
   return (
     <AppShell>
@@ -1038,7 +1044,9 @@ function GeneratePage() {
                           { value: "all", label: "All projects" },
                           {
                             value: "current",
-                            label: project.trim() ? `Current: ${project.trim()}` : "Current project",
+                            label: project.trim()
+                              ? `Current: ${project.trim()}`
+                              : "Current project",
                           },
                         ]}
                       />
@@ -1605,9 +1613,7 @@ function StatusBanner({ status, onClear }: { status: GenerateStatus; onClear: ()
       <div className="flex min-w-0 items-start gap-2">
         <Icon className={cn("mt-0.5 size-4 shrink-0", visual.iconClassName)} strokeWidth={1.5} />
         <div className="min-w-0">
-          <div className="text-[10px] font-mono uppercase tracking-widest">
-            {status.title}
-          </div>
+          <div className="text-[10px] font-mono uppercase tracking-widest">{status.title}</div>
           <p className="mt-1 break-words text-foreground">{status.message}</p>
           {status.detail && (
             <p className="mt-1 break-words text-xs text-muted-foreground">{status.detail}</p>
