@@ -14,6 +14,7 @@ import {
   Clock3,
   ExternalLink,
   FileSearch,
+  ImageOff,
   Loader2,
   Play,
   Plus,
@@ -63,6 +64,15 @@ export const Route = createFileRoute("/generate")({
 
 type Mode = "single" | "batch-inline" | "batch-file";
 type ReferenceBucket = "primary" | "global" | "composition";
+type GenerateStatusKind = "notice" | "validation" | "generation-error" | "loading";
+type InlineStateKind = "empty" | "loading" | "preview-error";
+
+interface GenerateStatus {
+  kind: GenerateStatusKind;
+  title: string;
+  message: string;
+  detail?: string;
+}
 
 interface PromptRow {
   id: string;
@@ -131,6 +141,7 @@ function GeneratePage() {
   const [promptRows, setPromptRows] = useState<PromptRow[]>([makePromptRow(), makePromptRow()]);
   const [promptFile, setPromptFile] = useState("");
   const [promptPreview, setPromptPreview] = useState<PromptPreviewResult | null>(null);
+  const [promptPreviewError, setPromptPreviewError] = useState("");
   const [previewBusy, setPreviewBusy] = useState(false);
   const [referenceRole, setReferenceRole] = useState("style");
   const [localReference, setLocalReference] = useState("");
@@ -142,8 +153,7 @@ function GeneratePage() {
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [lastPayload, setLastPayload] = useState<GeneratePayload | null>(null);
   const [history, setHistory] = useState<GenerateHistoryItem[]>([]);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [status, setStatus] = useState<GenerateStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
 
@@ -264,7 +274,11 @@ function GeneratePage() {
     } else {
       setCompositionReferences((current) => uniq([...current, value]));
     }
-    setNotice(`${bucketLabel(bucket)} reference added.`);
+    setStatus({
+      kind: "notice",
+      title: "Reference added",
+      message: `${bucketLabel(bucket)} reference added.`,
+    });
   };
 
   const saveHistoryItem = (item: GenerateHistoryItem) => {
@@ -334,21 +348,35 @@ function GeneratePage() {
   };
 
   const submit = async () => {
-    setError("");
-    setNotice("");
+    setStatus(null);
     let payload: GeneratePayload;
     try {
       payload = buildPayload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setStatus({
+        kind: "validation",
+        title: "Check the form",
+        message: messageFromUnknown(err),
+        detail: "Nothing was sent to the generation backend.",
+      });
       return;
     }
     if (!payload.dry_run && !latestDryRunForDraft) {
-      setError("Run a matching dry-run before provider execution.");
+      setStatus({
+        kind: "validation",
+        title: "Run the dry-run first",
+        message: "Run a matching dry-run before provider execution.",
+        detail: "The draft changed, so Rafiki needs a fresh no-spend validation pass.",
+      });
       return;
     }
     if (!payload.dry_run && !confirmExecute) {
-      setError("Real provider execution requires the confirmation checkbox.");
+      setStatus({
+        kind: "validation",
+        title: "Confirm provider spend",
+        message: "Real provider execution requires the confirmation checkbox.",
+        detail: "No provider request was sent.",
+      });
       return;
     }
 
@@ -357,25 +385,42 @@ function GeneratePage() {
     setAbortController(controller);
     setBusy(true);
     setLastPayload(payload);
+    setStatus({
+      kind: "loading",
+      title: payload.dry_run ? "Dry-run in progress" : "Provider run in progress",
+      message: payload.dry_run
+        ? "Validating the payload and writing planned run metadata. No provider spend is triggered."
+        : "Sending the request to the configured provider and waiting for files to land in the archive.",
+    });
     try {
       const response = await runGenerate(payload, controller.signal);
       setResult(response);
       saveHistoryItem(historyItemFromResult(response, payload, submittedDraftHash));
-      setNotice(
-        payload.dry_run
-          ? "Dry run complete. No provider spend was triggered."
-          : "Run complete. Refresh the library to load the new archive state.",
-      );
+      setStatus({
+        kind: "notice",
+        title: payload.dry_run ? "Dry run complete" : "Run complete",
+        message: payload.dry_run
+          ? "No provider spend was triggered."
+          : "Refresh the library to load the new archive state.",
+      });
       if (!payload.dry_run) {
         void queryClient.invalidateQueries({ queryKey: ["library-state"] });
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setNotice(
-          "Stopped waiting in this browser. This does not cancel provider work already handed off.",
-        );
+        setStatus({
+          kind: "notice",
+          title: "Stopped waiting",
+          message:
+            "This browser stopped waiting. Provider work already handed off may still continue.",
+        });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        setStatus({
+          kind: "generation-error",
+          title: "Generation/backend failure",
+          message: messageFromUnknown(err),
+          detail: "Form validation passed; this came back from the generation endpoint.",
+        });
       }
     } finally {
       setBusy(false);
@@ -384,17 +429,17 @@ function GeneratePage() {
   };
 
   const previewPrompt = async () => {
-    setError("");
+    setPromptPreviewError("");
     setPromptPreview(null);
     if (!promptFile.trim()) {
-      setError("Prompt file path is required.");
+      setPromptPreviewError("Prompt file path is required.");
       return;
     }
     setPreviewBusy(true);
     try {
       setPromptPreview(await previewPromptFile(promptFile.trim()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setPromptPreviewError(messageFromUnknown(err));
     } finally {
       setPreviewBusy(false);
     }
@@ -415,6 +460,14 @@ function GeneratePage() {
   }
 
   const loading = optionsQuery.isLoading || libraryQuery.isLoading || !options;
+  const loadingTitle =
+    optionsQuery.isLoading || !options
+      ? "Loading generation options"
+      : "Loading library references";
+  const loadingMessage =
+    optionsQuery.isLoading || !options
+      ? "Fetching models, styles, aspect ratios, and safety gates before runs can start."
+      : "Scanning present archive images so reference pickers do not look empty by accident.";
 
   return (
     <AppShell>
@@ -445,9 +498,7 @@ function GeneratePage() {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         {loading ? (
-          <div className="grid min-h-[420px] place-items-center text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            Loading generation controls...
-          </div>
+          <GenerateLoadingBlock title={loadingTitle} message={loadingMessage} />
         ) : (
           <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -469,13 +520,11 @@ function GeneratePage() {
               </div>
             </div>
 
-            {(error || notice) && (
+            {status && (
               <StatusBanner
-                tone={error ? "error" : "info"}
-                message={error || notice}
+                status={status}
                 onClear={() => {
-                  setError("");
-                  setNotice("");
+                  setStatus(null);
                 }}
               />
             )}
@@ -753,7 +802,11 @@ function GeneratePage() {
                     <TextField
                       label="Markdown prompt file"
                       value={promptFile}
-                      onChange={setPromptFile}
+                      onChange={(value) => {
+                        setPromptFile(value);
+                        setPromptPreview(null);
+                        setPromptPreviewError("");
+                      }}
                       placeholder="examples/quickstart-image-prompts.md"
                       testId="generate-prompt-file"
                     />
@@ -770,8 +823,27 @@ function GeneratePage() {
                       )}
                       Preview prompt file
                     </button>
+                    {previewBusy && (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Checking prompt file"
+                        message="Parsing the Markdown file before this batch can estimate prompt count."
+                        testId="generate-preview-state"
+                      />
+                    )}
+                    {promptPreviewError && !previewBusy && (
+                      <InlineStatePanel
+                        kind="preview-error"
+                        title="Prompt preview failed"
+                        message={promptPreviewError}
+                        testId="generate-preview-state"
+                      />
+                    )}
                     {promptPreview && (
-                      <div className="rounded border border-border bg-background p-4">
+                      <div
+                        className="rounded border border-border bg-background p-4"
+                        data-testid="generate-preview-success"
+                      >
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="text-sm font-semibold">
@@ -874,6 +946,13 @@ function GeneratePage() {
                       placeholder="Search project, prompt, model"
                       className="mb-3 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
                     />
+                    {libraryQuery.isFetching && !libraryQuery.isLoading && (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Refreshing library references"
+                        message="Updating the present-image list from the archive scan."
+                      />
+                    )}
                     <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
                       {filteredImages.map((image) => (
                         <ReferenceImageRow
@@ -884,16 +963,38 @@ function GeneratePage() {
                         />
                       ))}
                       {!filteredImages.length && (
-                        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
-                          No present library images match.
-                        </div>
+                        <InlineStatePanel
+                          kind="empty"
+                          title={
+                            presentImages.length
+                              ? "No library references match"
+                              : "No library reference images yet"
+                          }
+                          message={
+                            presentImages.length
+                              ? "Try a broader project, prompt, or model search."
+                              : "Present archive images will appear here. You can still paste a local or archive path above."
+                          }
+                        />
                       )}
                     </div>
                   </div>
 
-                  {mediaReferences.length > 0 && (
-                    <div>
-                      <FieldLabel>Media image references</FieldLabel>
+                  <div>
+                    <FieldLabel>Media image references</FieldLabel>
+                    {mediaQuery.isLoading ? (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Loading media references"
+                        message="Reading review-ready image entries from the media registry."
+                      />
+                    ) : mediaQuery.error ? (
+                      <InlineStatePanel
+                        kind="preview-error"
+                        title="Media references unavailable"
+                        message="The media registry could not be loaded. Paste a path above or refresh later."
+                      />
+                    ) : mediaReferences.length > 0 ? (
                       <div className="space-y-2">
                         {mediaReferences.map((entry) => (
                           <div
@@ -915,8 +1016,14 @@ function GeneratePage() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <InlineStatePanel
+                        kind="empty"
+                        title="No media image references found"
+                        message="Review-ready media images will appear here after the media registry has indexed them."
+                      />
+                    )}
+                  </div>
                 </div>
               </SectionPanel>
             </div>
@@ -926,7 +1033,11 @@ function GeneratePage() {
               payload={lastPayload}
               onRefreshLibrary={() => {
                 void queryClient.invalidateQueries({ queryKey: ["library-state"] });
-                setNotice("Library refresh requested.");
+                setStatus({
+                  kind: "notice",
+                  title: "Library refresh requested",
+                  message: "Rafiki is rechecking archive state for new references and run links.",
+                });
               }}
             />
           </div>
@@ -1308,31 +1419,41 @@ function HistoryLink({ href, label }: { href?: string; label: string }) {
   );
 }
 
-function StatusBanner({
-  tone,
-  message,
-  onClear,
-}: {
-  tone: "info" | "error";
-  message: string;
-  onClear: () => void;
-}) {
+function GenerateLoadingBlock({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="grid min-h-[420px] place-items-center">
+      <div className="max-w-md rounded border border-border bg-sidebar p-6 text-center">
+        <Loader2 className="mx-auto size-6 animate-spin text-brand" strokeWidth={1.5} />
+        <div className="mt-4 text-[10px] font-mono uppercase tracking-widest text-brand">
+          {title}
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusBanner({ status, onClear }: { status: GenerateStatus; onClear: () => void }) {
+  const visual = statusVisual(status.kind);
+  const Icon = visual.icon;
   return (
     <div
+      data-testid="generate-status"
+      data-generate-status={status.kind}
       className={cn(
         "flex items-start justify-between gap-3 rounded border px-4 py-3 text-sm",
-        tone === "error"
-          ? "border-destructive/30 bg-destructive/5 text-destructive"
-          : "border-brand/30 bg-brand/5 text-foreground",
+        visual.className,
       )}
     >
       <div className="flex min-w-0 items-start gap-2">
-        {tone === "error" ? (
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-        ) : (
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" />
-        )}
-        <span className="break-words">{message}</span>
+        <Icon className={cn("mt-0.5 size-4 shrink-0", visual.iconClassName)} strokeWidth={1.5} />
+        <div className="min-w-0">
+          <div className="text-[10px] font-mono uppercase tracking-widest">{status.title}</div>
+          <p className="mt-1 break-words text-foreground">{status.message}</p>
+          {status.detail && (
+            <p className="mt-1 break-words text-xs text-muted-foreground">{status.detail}</p>
+          )}
+        </div>
       </div>
       <button
         onClick={onClear}
@@ -1343,6 +1464,87 @@ function StatusBanner({
       </button>
     </div>
   );
+}
+
+function InlineStatePanel({
+  kind,
+  title,
+  message,
+  testId,
+}: {
+  kind: InlineStateKind;
+  title: string;
+  message: string;
+  testId?: string;
+}) {
+  const visual = inlineStateVisual(kind);
+  const Icon = visual.icon;
+  return (
+    <div
+      data-testid={testId}
+      data-generate-state={kind}
+      className={cn("rounded border p-4 text-xs", visual.className)}
+    >
+      <div className="flex items-start gap-3">
+        <Icon className={cn("mt-0.5 size-4 shrink-0", visual.iconClassName)} strokeWidth={1.5} />
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] uppercase tracking-widest">{title}</div>
+          <p className="mt-1 break-words text-muted-foreground">{message}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function statusVisual(kind: GenerateStatusKind) {
+  if (kind === "validation") {
+    return {
+      icon: AlertTriangle,
+      className: "border-amber-400/30 bg-amber-400/5 text-amber-300",
+      iconClassName: "text-amber-300",
+    };
+  }
+  if (kind === "generation-error") {
+    return {
+      icon: AlertTriangle,
+      className: "border-destructive/30 bg-destructive/5 text-destructive",
+      iconClassName: "text-destructive",
+    };
+  }
+  if (kind === "loading") {
+    return {
+      icon: Loader2,
+      className: "border-brand/30 bg-brand/5 text-brand",
+      iconClassName: "animate-spin text-brand",
+    };
+  }
+  return {
+    icon: CheckCircle2,
+    className: "border-brand/30 bg-brand/5 text-brand",
+    iconClassName: "text-brand",
+  };
+}
+
+function inlineStateVisual(kind: InlineStateKind) {
+  if (kind === "loading") {
+    return {
+      icon: Loader2,
+      className: "border-brand/30 bg-brand/5 text-brand",
+      iconClassName: "animate-spin text-brand",
+    };
+  }
+  if (kind === "preview-error") {
+    return {
+      icon: AlertTriangle,
+      className: "border-amber-400/30 bg-amber-400/5 text-amber-300",
+      iconClassName: "text-amber-300",
+    };
+  }
+  return {
+    icon: ImageOff,
+    className: "border-border bg-background text-muted-foreground",
+    iconClassName: "text-muted-foreground",
+  };
 }
 
 function ReferenceImageRow({
@@ -1406,9 +1608,11 @@ function SelectedReferences({
     <div>
       <FieldLabel>Selected references</FieldLabel>
       {empty ? (
-        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
-          No references selected.
-        </div>
+        <InlineStatePanel
+          kind="empty"
+          title="No references selected"
+          message="This is valid for prompt-only runs. Add library, media, or pasted paths when the image should follow a visual source."
+        />
       ) : (
         <div className="space-y-2">
           {primary && <ReferenceChip label="Primary" source={primary} onRemove={onClearPrimary} />}
@@ -1663,6 +1867,10 @@ function qualityOptionsFor(options: GenerateOptions | undefined) {
 
 function inheritOptions(label: string, options: Array<{ value: string; label: string }>) {
   return [{ value: "", label }, ...options];
+}
+
+function messageFromUnknown(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function splitReferences(value: string) {
