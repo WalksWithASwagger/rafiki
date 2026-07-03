@@ -21,9 +21,9 @@ system.
 
 ## Next Milestone: Generation Workflow Stabilization
 
-- Add an operator-friendly run history panel for recent `/generate` attempts,
+- In progress: add an operator-friendly run history panel for recent `/generate` attempts,
   with links to the run viewer, project viewer, library project, and manifest.
-- Make real-run execution more explicit: show estimated provider, model,
+- In progress: make real-run execution more explicit by showing estimated provider, model,
   prompt count, reference count, and dry-run manifest path before enabling
   `dry_run=false`.
 - Add per-row inline batch overrides for model, style, aspect ratio, and

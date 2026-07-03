@@ -11,11 +11,14 @@ import {
 import {
   AlertTriangle,
   CheckCircle2,
+  Clock3,
+  ExternalLink,
   FileSearch,
   Loader2,
   Play,
   Plus,
   RefreshCw,
+  ShieldCheck,
   Sparkles,
   Square,
   Trash2,
@@ -66,6 +69,30 @@ interface PromptRow {
   prompt: string;
 }
 
+interface GenerateHistoryItem {
+  id: string;
+  createdAt: string;
+  project: string;
+  runId: string;
+  mode: GeneratePayload["mode"];
+  dryRun: boolean;
+  status: "ok" | "partial";
+  provider: string;
+  model: string;
+  promptCount: number;
+  referenceCount: number;
+  generated: number;
+  total: number;
+  draftHash: string;
+  viewerUrl?: string;
+  runViewerUrl?: string;
+  libraryRunUrl: string;
+  manifestUrl: string;
+}
+
+const HISTORY_KEY = "rafiki.generate.history.v1";
+const HISTORY_LIMIT = 8;
+
 const makePromptRow = (): PromptRow => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
   name: "",
@@ -109,10 +136,15 @@ function GeneratePage() {
   const [referenceSearch, setReferenceSearch] = useState("");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [lastPayload, setLastPayload] = useState<GeneratePayload | null>(null);
+  const [history, setHistory] = useState<GenerateHistoryItem[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+
+  useEffect(() => {
+    setHistory(readGenerateHistory());
+  }, []);
 
   useEffect(() => {
     if (!options) return;
@@ -159,6 +191,53 @@ function GeneratePage() {
 
   const selectedReferenceCount =
     (primaryReference ? 1 : 0) + globalReferences.length + compositionReferences.length;
+  const totalReferenceCount = selectedReferenceCount + splitReferences(perPromptReferences).length;
+  const currentModel = model || options?.defaultModel || "gemini-2.5-flash-image";
+  const currentPromptCount = promptCountForDraft(mode, singlePrompt, promptRows, promptPreview);
+  const currentDraftHash = useMemo(
+    () =>
+      draftHashForState({
+        project,
+        mode,
+        model: currentModel,
+        style,
+        aspectRatio,
+        quality,
+        resolution,
+        singleName,
+        singlePrompt,
+        promptRows,
+        promptFile,
+        primaryReference,
+        globalReferences,
+        compositionReferences,
+        perPromptReferences,
+        referenceRole,
+      }),
+    [
+      project,
+      mode,
+      currentModel,
+      style,
+      aspectRatio,
+      quality,
+      resolution,
+      singleName,
+      singlePrompt,
+      promptRows,
+      promptFile,
+      primaryReference,
+      globalReferences,
+      compositionReferences,
+      perPromptReferences,
+      referenceRole,
+    ],
+  );
+  const latestDryRunForDraft = useMemo(
+    () => history.find((item) => item.dryRun && item.draftHash === currentDraftHash),
+    [currentDraftHash, history],
+  );
+  const currentProvider = providerLabelForModel(currentModel);
 
   const addReference = (source: string, bucket: ReferenceBucket) => {
     const value = source.trim();
@@ -171,6 +250,19 @@ function GeneratePage() {
       setCompositionReferences((current) => uniq([...current, value]));
     }
     setNotice(`${bucketLabel(bucket)} reference added.`);
+  };
+
+  const saveHistoryItem = (item: GenerateHistoryItem) => {
+    setHistory((current) => {
+      const next = [
+        item,
+        ...current.filter(
+          (entry) => !(entry.project === item.project && entry.runId === item.runId),
+        ),
+      ].slice(0, HISTORY_LIMIT);
+      writeGenerateHistory(next);
+      return next;
+    });
   };
 
   const addLocalReference = (bucket: ReferenceBucket) => {
@@ -238,18 +330,24 @@ function GeneratePage() {
       setError(err instanceof Error ? err.message : String(err));
       return;
     }
+    if (!payload.dry_run && !latestDryRunForDraft) {
+      setError("Run a matching dry-run before provider execution.");
+      return;
+    }
     if (!payload.dry_run && !confirmExecute) {
       setError("Real provider execution requires the confirmation checkbox.");
       return;
     }
 
     const controller = new AbortController();
+    const submittedDraftHash = currentDraftHash;
     setAbortController(controller);
     setBusy(true);
     setLastPayload(payload);
     try {
       const response = await runGenerate(payload, controller.signal);
       setResult(response);
+      saveHistoryItem(historyItemFromResult(response, payload, submittedDraftHash));
       setNotice(
         payload.dry_run
           ? "Dry run complete. No provider spend was triggered."
@@ -353,8 +451,8 @@ function GeneratePage() {
               </div>
               <div className="grid grid-cols-3 gap-px overflow-hidden rounded border border-border bg-border text-center">
                 <MiniStat label="Mode" value={modeLabel(mode)} />
-                <MiniStat label="Refs" value={selectedReferenceCount} />
-                <MiniStat label="Model" value={model || options.defaultModel} compact />
+                <MiniStat label="Refs" value={totalReferenceCount} />
+                <MiniStat label="Model" value={currentModel} compact />
               </div>
             </div>
 
@@ -368,6 +466,14 @@ function GeneratePage() {
                 }}
               />
             )}
+
+            <RunHistoryPanel
+              items={history}
+              onClear={() => {
+                writeGenerateHistory([]);
+                setHistory([]);
+              }}
+            />
 
             <div className="grid grid-cols-1 gap-6 xl:grid-cols-[320px_minmax(0,1fr)_360px]">
               <SectionPanel title="Run setup" eyebrow="Config">
@@ -465,10 +571,21 @@ function GeneratePage() {
                     label="Dry-run"
                     hint="Validates and writes run metadata without provider spend."
                     checked={dryRun}
+                    testId="generate-dry-run-toggle"
                     onChange={(checked) => {
                       setDryRun(checked);
                       if (checked) setConfirmExecute(false);
                     }}
+                  />
+
+                  <ExecutionBrief
+                    dryRun={dryRun}
+                    provider={currentProvider}
+                    model={currentModel}
+                    promptCount={currentPromptCount}
+                    referenceCount={totalReferenceCount}
+                    manifestUrl={latestDryRunForDraft?.manifestUrl || ""}
+                    confirmed={confirmExecute}
                   />
 
                   {!dryRun && (
@@ -478,6 +595,7 @@ function GeneratePage() {
                       checked={confirmExecute}
                       onChange={setConfirmExecute}
                       tone="warn"
+                      testId="generate-confirm-execute"
                     />
                   )}
 
@@ -927,12 +1045,14 @@ function ToggleRow({
   checked,
   onChange,
   tone = "default",
+  testId,
 }: {
   label: string;
   hint: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   tone?: "default" | "warn";
+  testId?: string;
 }) {
   return (
     <label
@@ -945,6 +1065,7 @@ function ToggleRow({
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
+        data-testid={testId}
         className="mt-1"
       />
       <span>
@@ -952,6 +1073,79 @@ function ToggleRow({
         <span className="mt-1 block text-xs text-muted-foreground">{hint}</span>
       </span>
     </label>
+  );
+}
+
+function ExecutionBrief({
+  dryRun,
+  provider,
+  model,
+  promptCount,
+  referenceCount,
+  manifestUrl,
+  confirmed,
+}: {
+  dryRun: boolean;
+  provider: string;
+  model: string;
+  promptCount: string;
+  referenceCount: number;
+  manifestUrl: string;
+  confirmed: boolean;
+}) {
+  const gateText = dryRun
+    ? "Dry-run mode"
+    : manifestUrl
+      ? confirmed
+        ? "Ready for provider execution"
+        : "Confirmation required"
+      : "Matching dry-run required";
+
+  return (
+    <div
+      data-testid="generate-real-brief"
+      className={cn(
+        "rounded border p-3",
+        dryRun || manifestUrl
+          ? "border-border bg-background"
+          : "border-amber-400/30 bg-amber-400/5",
+      )}
+    >
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          <ShieldCheck className="size-3.5" strokeWidth={1.5} />
+          Execution gate
+        </div>
+        <span
+          data-testid="generate-real-gate"
+          className={cn(
+            "rounded border px-2 py-1 text-[10px] font-mono uppercase tracking-widest",
+            dryRun || (manifestUrl && confirmed)
+              ? "border-brand/30 bg-brand/10 text-brand"
+              : "border-amber-400/30 bg-amber-400/10 text-amber-300",
+          )}
+        >
+          {gateText}
+        </span>
+      </div>
+      <dl className="space-y-2 text-xs">
+        <MetaRow label="Provider" value={provider} />
+        <MetaRow label="Model" value={model} />
+        <MetaRow label="Prompts" value={promptCount} />
+        <MetaRow label="Refs" value={String(referenceCount)} />
+        <MetaRow label="Manifest" value={manifestUrl || "Run dry-run first"} />
+      </dl>
+      {manifestUrl && (
+        <a
+          href={manifestUrl}
+          data-testid="generate-dry-run-manifest"
+          className="mt-3 inline-flex min-w-0 max-w-full items-center gap-2 rounded border border-border px-2 py-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+        >
+          <ExternalLink className="size-3.5 shrink-0" strokeWidth={1.5} />
+          <span className="truncate">Dry-run manifest</span>
+        </a>
+      )}
+    </div>
   );
 }
 
@@ -978,6 +1172,98 @@ function MiniStat({
         {value}
       </div>
     </div>
+  );
+}
+
+function RunHistoryPanel({
+  items,
+  onClear,
+}: {
+  items: GenerateHistoryItem[];
+  onClear: () => void;
+}) {
+  return (
+    <section className="rounded-lg border border-border bg-sidebar" data-testid="generate-history">
+      <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+            <Clock3 className="size-3.5" strokeWidth={1.5} />
+            Recent attempts
+          </div>
+          <h2 className="mt-1 text-lg font-semibold">Run history</h2>
+        </div>
+        {items.length > 0 && (
+          <button
+            onClick={onClear}
+            className="flex items-center gap-2 self-start rounded border border-border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground sm:self-auto"
+          >
+            <Trash2 className="size-3.5" strokeWidth={1.5} />
+            Clear
+          </button>
+        )}
+      </div>
+      {items.length === 0 ? (
+        <div className="p-4 text-sm text-muted-foreground">
+          Dry-runs and provider runs from this browser will appear here.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2 2xl:grid-cols-4">
+          {items.map((item) => (
+            <article
+              key={item.id}
+              data-testid="generate-history-item"
+              className="min-w-0 rounded border border-border bg-background p-3"
+            >
+              <div className="mb-3 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+                    {item.dryRun ? "Dry-run" : "Provider"} · {item.provider}
+                  </div>
+                  <div className="mt-1 truncate text-sm font-semibold">
+                    {item.project} / {runDirectorySegment(item.runId)}
+                  </div>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-widest",
+                    item.status === "ok"
+                      ? "border-brand/30 bg-brand/10 text-brand"
+                      : "border-amber-400/30 bg-amber-400/10 text-amber-300",
+                  )}
+                >
+                  {item.generated}/{item.total}
+                </span>
+              </div>
+              <dl className="space-y-1.5 text-[11px]">
+                <MetaRow label="Model" value={item.model} />
+                <MetaRow label="Prompts" value={String(item.promptCount)} />
+                <MetaRow label="Refs" value={String(item.referenceCount)} />
+                <MetaRow label="When" value={formatHistoryTime(item.createdAt)} />
+              </dl>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                <HistoryLink href={item.runViewerUrl} label="Run viewer" />
+                <HistoryLink href={item.viewerUrl} label="Project viewer" />
+                <HistoryLink href={item.libraryRunUrl} label="Library run" />
+                <HistoryLink href={item.manifestUrl} label="Manifest" />
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HistoryLink({ href, label }: { href?: string; label: string }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+    >
+      {label}
+      <ExternalLink className="size-3" strokeWidth={1.5} />
+    </a>
   );
 }
 
@@ -1298,4 +1584,169 @@ function updatePromptRow(
   patch: Partial<PromptRow>,
 ) {
   setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+}
+
+function readGenerateHistory(): GenerateHistoryItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(HISTORY_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((entry): entry is GenerateHistoryItem => isGenerateHistoryItem(entry))
+      .slice(0, HISTORY_LIMIT);
+  } catch {
+    return [];
+  }
+}
+
+function writeGenerateHistory(items: GenerateHistoryItem[]) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(items.slice(0, HISTORY_LIMIT)));
+  } catch {
+    // Browser storage can be disabled; generation should still work without history.
+  }
+}
+
+function isGenerateHistoryItem(entry: unknown): entry is GenerateHistoryItem {
+  if (!entry || typeof entry !== "object") return false;
+  const item = entry as Partial<GenerateHistoryItem>;
+  return Boolean(item.id && item.project && item.runId && item.manifestUrl && item.libraryRunUrl);
+}
+
+function historyItemFromResult(
+  result: GenerateResult,
+  payload: GeneratePayload,
+  draftHash: string,
+): GenerateHistoryItem {
+  const runId = normaliseRunId(result.run_id);
+  return {
+    id: `${Date.now()}-${result.project}-${runId}`,
+    createdAt: new Date().toISOString(),
+    project: result.project,
+    runId,
+    mode: result.mode,
+    dryRun: payload.dry_run,
+    status: result.all_ok ? "ok" : "partial",
+    provider: providerLabelForModel(payload.model),
+    model: payload.model,
+    promptCount: promptCountFromPayload(payload, result),
+    referenceCount: referenceCountFromPayload(payload),
+    generated: result.generated,
+    total: result.total,
+    draftHash,
+    viewerUrl: result.viewer_url,
+    runViewerUrl: result.run_viewer_url,
+    libraryRunUrl: libraryRunUrlFor(result.project, runId),
+    manifestUrl: manifestUrlFor(result.project, runId),
+  };
+}
+
+function promptCountForDraft(
+  mode: Mode,
+  singlePrompt: string,
+  promptRows: PromptRow[],
+  promptPreview: PromptPreviewResult | null,
+) {
+  if (mode === "single") return singlePrompt.trim() ? "1" : "0";
+  if (mode === "batch-file") return promptPreview ? String(promptPreview.count) : "file";
+  return String(promptRows.filter((row) => row.prompt.trim()).length);
+}
+
+function promptCountFromPayload(payload: GeneratePayload, result: GenerateResult) {
+  if (payload.mode === "single") return 1;
+  if (payload.prompts?.length) return payload.prompts.length;
+  return result.total || 0;
+}
+
+function referenceCountFromPayload(payload: GeneratePayload) {
+  return (
+    (payload.reference_image ? 1 : 0) +
+    (payload.reference_images?.length || 0) +
+    (payload.global_reference_images?.length || 0) +
+    (payload.composition_references?.length || 0)
+  );
+}
+
+function providerLabelForModel(model: string) {
+  const text = model.toLowerCase();
+  if (text.includes("gemini")) return "Google Gemini";
+  if (text.includes("gpt") || text.includes("dall")) return "OpenAI";
+  return "Configured provider";
+}
+
+function draftHashForState(state: {
+  project: string;
+  mode: Mode;
+  model: string;
+  style: string;
+  aspectRatio: string;
+  quality: string;
+  resolution: string;
+  singleName: string;
+  singlePrompt: string;
+  promptRows: PromptRow[];
+  promptFile: string;
+  primaryReference: string;
+  globalReferences: string[];
+  compositionReferences: string[];
+  perPromptReferences: string;
+  referenceRole: string;
+}) {
+  return hashString(
+    JSON.stringify({
+      ...state,
+      project: state.project.trim(),
+      style: state.style || "none",
+      singleName: state.singleName.trim(),
+      singlePrompt: state.singlePrompt.trim(),
+      promptRows: state.promptRows.map((row) => ({
+        name: row.name.trim(),
+        prompt: row.prompt.trim(),
+      })),
+      promptFile: state.promptFile.trim(),
+      primaryReference: state.primaryReference.trim(),
+      globalReferences: state.globalReferences.slice().sort(),
+      compositionReferences: state.compositionReferences.slice().sort(),
+      perPromptReferences: splitReferences(state.perPromptReferences),
+    }),
+  );
+}
+
+function hashString(value: string) {
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(index);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
+function normaliseRunId(runId: string) {
+  return runId.startsWith("run-") ? runId.slice(4) : runId;
+}
+
+function runDirectorySegment(runId: string) {
+  return runId.startsWith("run-") ? runId : `run-${runId}`;
+}
+
+function manifestUrlFor(project: string, runId: string) {
+  return `/output/${encodeURIComponent(project)}/${encodeURIComponent(runDirectorySegment(runId))}/run.json`;
+}
+
+function libraryRunUrlFor(project: string, runId: string) {
+  return `/library/${encodeURIComponent(`${project}/${runDirectorySegment(runId)}`)}`;
+}
+
+function formatHistoryTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
