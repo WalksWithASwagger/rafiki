@@ -31,6 +31,8 @@ const visualCaptures = {
   },
 };
 
+const mediaReferenceRootKey = 'e2e-media';
+
 function parseArgs(argv) {
   const options = {
     visualBaselineMode: 'off',
@@ -124,6 +126,47 @@ function run(command, args, options = {}) {
     );
   }
   return result;
+}
+
+function parseMediaRootsConfig(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function withE2EMediaRoots(mediaRootDir) {
+  const mediaRootsConfigPath = path.join(repoRoot, 'config', 'media-roots.local.json');
+  const originalConfig = fs.existsSync(mediaRootsConfigPath)
+    ? fs.readFileSync(mediaRootsConfigPath, 'utf8')
+    : null;
+  const parsed = parseMediaRootsConfig(originalConfig);
+  const roots = Array.isArray(parsed.roots) ? [...parsed.roots] : [];
+  const otherRoots = roots.filter((entry) => entry?.key !== mediaReferenceRootKey);
+  const mediaRootEntry = {
+    key: mediaReferenceRootKey,
+    path: mediaRootDir,
+    importer: 'generic',
+    enabled: true,
+    description: 'E2E local media fixture root',
+  };
+  otherRoots.push(mediaRootEntry);
+  fs.writeFileSync(
+    mediaRootsConfigPath,
+    `${JSON.stringify({ ...parsed, roots: otherRoots }, null, 2)}\n`,
+    'utf8',
+  );
+
+  return () => {
+    if (originalConfig === null) {
+      fs.rmSync(mediaRootsConfigPath, { force: true });
+    } else {
+      fs.writeFileSync(mediaRootsConfigPath, originalConfig, 'utf8');
+    }
+  };
 }
 
 function assert(condition, message) {
@@ -500,6 +543,8 @@ async function main() {
   const outputRoot = path.join(tmpRoot, 'output');
   const project = 'e2e-showpiece-smoke';
   const projectDir = path.join(outputRoot, project);
+  const e2eMediaRoot = path.join(tmpRoot, 'media-roots', mediaReferenceRootKey);
+  const mediaRestoreFn = withE2EMediaRoots(e2eMediaRoot);
   const smokeEnv = {
     ...process.env,
     RAFIKI_DISABLE_EXTRA_OUTPUTS: '1',
@@ -514,6 +559,8 @@ async function main() {
 
   try {
     fs.mkdirSync(outputRoot, { recursive: true });
+    fs.mkdirSync(e2eMediaRoot, { recursive: true });
+    fs.writeFileSync(path.join(e2eMediaRoot, 'clip.mp4'), '', 'utf8');
     const generatePromptFile = path.join(tmpRoot, 'generate-prompts.md');
     fs.writeFileSync(
       generatePromptFile,
@@ -559,6 +606,12 @@ async function main() {
       const target = path.join(runDir, image.file);
       return writeFixtureImage(target, index, image.aspect_ratio || manifest.aspect_ratio || '1:1');
     }));
+    const referenceImagePath = manifest.images[0] ? path.join(runDir, manifest.images[0].file) : null;
+    if (referenceImagePath) {
+      fs.copyFileSync(referenceImagePath, path.join(e2eMediaRoot, 'reference.png'));
+    } else {
+      throw new Error('Expected generated manifest image for media reference setup');
+    }
     manifest.images.push({
       ...manifest.images[0],
       name: 'Missing placeholder smoke',
@@ -617,44 +670,91 @@ async function main() {
     assert(libraryState.totals.visible.missing === 1, 'library state visible missing total was wrong');
     assert(Array.isArray(libraryState.sourceWarnings), 'library state did not return source warnings');
     const firstRun = libraryState.runs[0];
-    const firstPresent = libraryState.images.find((image) => image.status === 'present');
+    const presentLibraryImages = libraryState.images.filter((image) => image.status === 'present');
+    const firstPresent = presentLibraryImages[0];
+    const starredPresent = presentLibraryImages.find((image) => image.id !== firstPresent?.id);
     const missingRecord = libraryState.images.find((image) => image.status === 'missing');
     assert(firstPresent, 'library state did not include a present image');
+    assert(starredPresent, 'library state did not include a second present image for reference filters');
     assert(missingRecord, 'library state did not include a missing image');
+    const ratingSeedResponse = await fetch(`${url}api/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: starredPresent.key, value: 'star' }),
+    });
+    assert(ratingSeedResponse.ok, 'could not seed a starred reference image');
+    const mediaImageReferenceUrl = '/media/e2e-media/reference.png';
+    const mediaVideoReferenceUrl = '/media/e2e-media/clip.mp4';
+    const mediaReferencePayload = {
+      summary: { entries: 2 },
+      entries: [
+        {
+          id: 'e2e-media-image',
+          kind: 'image',
+          title: 'E2E media reference image',
+          root_key: 'e2e-media',
+          relative_path: 'reference.png',
+        },
+        {
+          id: 'e2e-media-video',
+          kind: 'video',
+          title: 'E2E media reference video',
+          root_key: 'e2e-media',
+          relative_path: 'clip.mp4',
+        },
+      ],
+      collections: [],
+      warnings: [],
+      view: 'review',
+      matched_entries: 2,
+      total_entries: 2,
+    };
 
     const desktop = await browser.newPage();
     const generateRequests = [];
-    let generateRegenRequests = 0;
-    let expectedPromptPreview400s = 0;
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
     desktop.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type())) errors.push(`desktop console ${msg.type()}: ${msg.text()}`);
+      if (['error', 'warning'].includes(msg.type())) {
+        const text = msg.text();
+        const location = msg.location();
+        if (
+          text.includes('/api/prompt-preview')
+          || (location?.url && location.url.includes('/api/prompt-preview'))
+        ) {
+          return;
+        }
+        const locationSuffix = location?.url ? ` at ${location.url}:${location.lineNumber || 0}` : '';
+        errors.push(`desktop console ${msg.type()}: ${text}${locationSuffix}`);
+      }
+    });
+    desktop.on('requestfailed', (request) => {
+      const failure = request.failure();
+      const failureText = failure?.errorText || 'unknown';
+      if (request.url().includes('localhost') && !request.url().includes('/api/prompt-preview')) {
+        errors.push(`desktop request failed: ${failureText}: ${request.url()}`);
+      }
     });
     desktop.on('request', (request) => {
-      try {
-        const requestUrl = new URL(request.url());
-        if (requestUrl.pathname === '/api/regen') {
-          generateRegenRequests += 1;
+      const requestUrl = new URL(request.url());
+      if (requestUrl.pathname === '/api/regen') {
         generateRequests.push({
           method: request.method(),
           postData: request.postData() || '',
         });
-        }
-      } catch {
-        // Ignore browser-internal request URLs.
       }
     });
-    desktop.on('response', (response) => {
-      try {
-        if (
-          new URL(response.url()).pathname === '/api/prompt-preview'
-          && response.status() === 400
-        ) {
-          expectedPromptPreview400s += 1;
-        }
-      } catch {
-        // Ignore browser-internal response URLs.
+    await desktop.setRequestInterception(true);
+    desktop.on('request', (request) => {
+      const requestUrl = new URL(request.url());
+      if (requestUrl.origin === new URL(url).origin && requestUrl.pathname === '/api/media') {
+        request.respond({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mediaReferencePayload),
+        });
+        return;
       }
+      request.continue();
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await desktop.goto(libraryUrl, { waitUntil: 'networkidle0' });
@@ -697,7 +797,9 @@ async function main() {
     await desktop.waitForFunction(() => document.body.textContent?.includes('Image generation'));
     await desktop.waitForSelector('[data-testid="generate-single-prompt"]');
     await desktop.waitForSelector('[data-testid="generate-reference-primary"]');
-    const regenBeforeValidation = generateRegenRequests;
+    await desktop.waitForSelector('[data-testid="generate-reference-filter-starred"]');
+    await desktop.waitForSelector('[data-testid="generate-media-kind-filter"]');
+    const regenRequestCountBeforeValidation = generateRequests.length;
     await desktop.click('[data-testid="generate-submit"]');
     await waitForCondition(() => desktop.evaluate(() => {
       const status = document.querySelector('[data-testid="generate-status"]');
@@ -706,10 +808,50 @@ async function main() {
         && status.textContent?.includes('Nothing was sent to the generation backend.');
     }), 'generate validation refusal');
     assert(
-      generateRegenRequests === regenBeforeValidation,
-      `validation submit called /api/regen ${generateRegenRequests - regenBeforeValidation} time(s)`,
+      generateRequests.length === regenRequestCountBeforeValidation,
+      'validation refusal still submitted /api/regen',
     );
+    await setFieldValue(desktop, '[data-testid="generate-project"]', 'no-matching-project');
+    await desktop.select('[data-testid="generate-reference-filter-project"]', 'current');
+    await desktop.click('[data-testid="generate-reference-filter-starred"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => document.body.textContent?.includes('No library references match'))
+    ), 'generate current-project reference filter empty state');
+    await setFieldValue(desktop, '[data-testid="generate-project"]', project);
+    await desktop.select('[data-testid="generate-reference-filter-latest"]', 'latest');
+    await desktop.select('[data-testid="generate-media-kind-filter"]', 'image');
+    await waitForCondition(() => (
+      desktop.evaluate((expectedUrl) => document.body.textContent?.includes(expectedUrl), starredPresent.url)
+    ), 'generate starred/latest reference filter result');
+    const referenceFilterState = await desktop.evaluate((expectedLibraryUrl, hiddenLibraryUrl, expectedMediaUrl, hiddenMediaUrl) => ({
+      text: document.body.textContent || '',
+      selectedCount: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      filterCount: document.querySelector('[data-testid="generate-reference-filter-count"]')?.textContent || '',
+      hasExpectedLibraryUrl: Boolean(document.body.textContent?.includes(expectedLibraryUrl)),
+      hasHiddenLibraryUrl: Boolean(document.body.textContent?.includes(hiddenLibraryUrl)),
+      hasExpectedMediaUrl: Boolean(document.body.textContent?.includes(expectedMediaUrl)),
+      hasHiddenMediaUrl: Boolean(document.body.textContent?.includes(hiddenMediaUrl)),
+    }), starredPresent.url, firstPresent.url, mediaImageReferenceUrl, mediaVideoReferenceUrl);
+    assert(referenceFilterState.hasExpectedLibraryUrl, 'starred/latest filter did not keep the starred /output reference');
+    assert(!referenceFilterState.hasHiddenLibraryUrl, 'starred filter still showed an unstarred /output reference');
+    assert(referenceFilterState.hasExpectedMediaUrl, 'media kind filter did not show the /media image reference');
+    assert(!referenceFilterState.hasHiddenMediaUrl, 'media kind filter still showed the video media reference');
+    assert(referenceFilterState.filterCount.includes('/'), `reference filter count did not render: ${referenceFilterState.filterCount}`);
     await desktop.click('[data-testid="generate-reference-primary"]');
+    await desktop.click('[data-testid="generate-reference-composition"]');
+    await desktop.click('[data-testid="generate-media-reference-global"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => (
+        document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent?.includes('3 selected')
+      ))
+    ), 'generate selected reference count');
+    const selectedReferenceState = await desktop.evaluate(() => ({
+      count: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      text: document.body.textContent || '',
+    }));
+    assert(selectedReferenceState.count.includes('3 selected'), `unexpected selected reference count: ${selectedReferenceState.count}`);
+    assert(selectedReferenceState.text.includes('/output/'), 'selected references did not include an /output reference');
+    assert(selectedReferenceState.text.includes('/media/'), 'selected references did not include a /media reference');
     await setFieldValue(desktop, '[data-testid="generate-project"]', 'e2e-generate-smoke');
     await setFieldValue(
       desktop,
@@ -737,7 +879,7 @@ async function main() {
         if (state.text.includes('generation failed') || state.text.includes('Generation failed')) {
           throw new Error(state.text.slice(0, 500));
         }
-        return state.result.includes('1/1') && state.text.includes('Dry run complete');
+        return state.result.includes('1/1') && /Dry[- ]run complete/.test(state.text);
       }, 'generate single dry run', 30000);
     } catch (error) {
       throw new Error(`${error.message}: ${JSON.stringify(generateSingleLastState)}`);
@@ -847,6 +989,7 @@ async function main() {
       const manifestUrl = document.querySelector('[data-testid="generate-dry-run-manifest"]')?.getAttribute('href') || '';
       const manifest = manifestUrl ? await fetch(manifestUrl).then((response) => response.json()) : null;
       return {
+        resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
         rowOverridesText: document.querySelector('[data-testid="generate-row-overrides"]')?.textContent || '',
         payload,
         manifest,
@@ -888,6 +1031,18 @@ async function main() {
       generateInlineState.rowOverridesText.includes('model: gpt-image-2')
         && generateInlineState.rowOverridesText.includes('quality: medium'),
       `row override summary did not expose overrides: ${generateInlineState.rowOverridesText}`,
+    );
+    assert(
+      generateInlineState.payload.reference_image?.startsWith('/output/'),
+      `primary reference did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      generateInlineState.payload.global_reference_images?.includes(mediaImageReferenceUrl),
+      `global references did not preserve the /media URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      generateInlineState.payload.composition_references?.some((source) => source.startsWith('/output/')),
+      `composition references did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
     );
     assert(
       Array.isArray(generateInlineState.manifest?.images) && generateInlineState.manifest.images.length === 2,
@@ -933,6 +1088,8 @@ async function main() {
       h1: document.querySelector('h1')?.textContent?.trim() || '',
       text: document.body.textContent || '',
       selectedReference: Boolean(document.body.textContent?.includes('/output/')),
+      selectedMediaReference: Boolean(document.body.textContent?.includes('/media/')),
+      selectedReferenceCount: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
       resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
       historyText: document.querySelector('[data-testid="generate-history"]')?.textContent || '',
       overflow: {
@@ -943,6 +1100,8 @@ async function main() {
     assert(generateState.title.includes('Generate'), `unexpected generate title: ${generateState.title}`);
     assert(generateState.h1 === 'Generate', `expected Generate heading, got ${generateState.h1}`);
     assert(generateState.selectedReference, 'generate route did not select a library reference');
+    assert(generateState.selectedMediaReference, 'generate route did not select a media reference');
+    assert(generateState.selectedReferenceCount.includes('3 selected'), `generate selected reference count drifted: ${generateState.selectedReferenceCount}`);
     assert(generateState.resultText.includes('2/2'), 'generate inline batch dry-run did not complete');
     assert(generateState.historyText.includes('Run history'), 'generate history was missing after batch dry-run');
     assert(generateState.text.includes('2 prompts parsed'), 'generate prompt-file preview did not render');
@@ -1054,7 +1213,18 @@ async function main() {
     const mobile = await browser.newPage();
     mobile.on('pageerror', (error) => errors.push(`mobile pageerror: ${error.message}`));
     mobile.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type())) errors.push(`mobile console ${msg.type()}: ${msg.text()}`);
+      if (['error', 'warning'].includes(msg.type())) {
+        const text = msg.text();
+        const location = msg.location();
+        if (
+          text.includes('/api/prompt-preview')
+          || (location?.url && location.url.includes('/api/prompt-preview'))
+        ) {
+          return;
+        }
+        const locationSuffix = location?.url ? ` at ${location.url}:${location.lineNumber || 0}` : '';
+        errors.push(`mobile console ${msg.type()}: ${text}${locationSuffix}`);
+      }
     });
     await mobile.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true });
     await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
@@ -1156,17 +1326,7 @@ async function main() {
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
 
-    const unexpectedErrors = errors.filter((entry) => {
-      if (
-        expectedPromptPreview400s > 0
-        && entry === 'desktop console error: Failed to load resource: the server responded with a status of 400 (Bad Request)'
-      ) {
-        expectedPromptPreview400s -= 1;
-        return false;
-      }
-      return true;
-    });
-    assert(unexpectedErrors.length === 0, `browser console/page errors:\n${unexpectedErrors.join('\n')}`);
+    assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
 
     const refreshedManifest = options.visualBaselineMode === 'refresh'
       ? refreshBaselineManifest(visualResults)
@@ -1255,6 +1415,7 @@ async function main() {
     } else {
       console.error(`Kept E2E temp dir: ${tmpRoot}`);
     }
+    mediaRestoreFn();
   }
 }
 

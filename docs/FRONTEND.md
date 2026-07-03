@@ -23,10 +23,10 @@ server.
   or calling providers.
 - `POST /api/regen` remains the generation path. The React `/generate` route
   defaults to dry-run, records clearable recent attempts in browser-local
-  storage, and requires both a dry-run manifest matching the active
+  storage, requires both a dry-run manifest matching the active
   prompt/config draft and explicit confirmation before submitting
   `dry_run=false`; Python still resolves references, owns provider keys, and
-  runs `run_batch`.
+  runs `run_batch` synchronously before the request returns.
 - Rollback routes stay available during migration: `/legacy-suite` for the old
   media-suite command center and `/legacy-library` for the old image library.
 
@@ -57,6 +57,27 @@ Verification of the TypeScript UI through `npx rafiki serve` from a published
 package is deferred until the maintainer chooses whether to ship frontend source
 or prebuilt frontend artifacts.
 
+## Generate Wait Semantics
+
+V1/V1.5 Generate runs are request-scoped from the frontend perspective and
+synchronous from the Python perspective. The `/generate` route submits one
+`/api/regen` request, then waits for Python to finish `run_batch` and return
+the run payload or an error. There is no durable local job record, provider
+polling loop, resumable run state, or provider cancellation path behind the React
+screen today.
+
+**Stop Waiting** aborts only the current browser wait/request and returns the UI
+to an operator-ready state. It does not cancel Python work already running,
+cancel provider work already handed off, or prove that the local output path is
+final. After stopping the wait, operators should verify the run folder or library
+state before retrying.
+
+Any future background job design should start with a Python-owned local job
+ledger. Python must be the only writer for ledger entries, provider identifiers,
+status transitions, terminal states, errors, timestamps, and output paths. React
+should remain a reader/operator shell that displays that state and submits operator
+intents; it should not own provider state persistence. Implementing that ledger,
+true cancellation, provider polling, and resumable runs is intentionally deferred.
 ## Open The Library
 
 Start the local portal from the repo root:

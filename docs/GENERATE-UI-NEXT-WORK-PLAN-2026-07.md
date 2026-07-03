@@ -20,6 +20,9 @@ adding video, uploads, LoRA training, or a background job system.
   boundaries.
 - Backend support is intentionally small: `GET /api/generate-options`,
   `POST /api/prompt-preview`, and backward-compatible `POST /api/regen`.
+- Generate execution is synchronous in V1/V1.5: the React submit action waits on
+  one `/api/regen` request, and Python handles that request by running
+  `run_batch` directly before returning success, partial success, or an error.
 
 ## Shipped: Generation Workflow Stabilization
 
@@ -44,12 +47,26 @@ adding video, uploads, LoRA training, or a background job system.
 
 ## Follow-On Milestone: Jobs And Cancellation Clarity
 
-- Keep provider work synchronous in V1/V1.5; document that "Stop waiting" only
-  aborts the browser wait.
-- Design a local job ledger before adding true background cancellation,
-  resumable runs, or provider polling.
-- If a job ledger is introduced, make Python the only writer and keep React as
-  a reader/operator shell.
+Keep provider work synchronous in V1/V1.5. The `/generate` screen may let an
+operator stop waiting in the browser, but that action only aborts the active
+browser request and unlocks the UI. It does not cancel Python work already
+running inside `/api/regen`, revoke provider work already handed off, or prove
+that no files will still be written to the local run folder. Operators should
+check the run folder or library state before spending on a retry after stopping
+the wait.
+
+Future background execution requires a Python-owned local job ledger before the
+UI can honestly present durable job state. The ledger direction is:
+
+- Python is the sole writer for job records, provider identifiers, status
+  transitions, terminal states, timestamps, errors, and output paths.
+- React remains a reader/operator shell that displays job state and submits
+  explicit operator intents, such as retry or cancel request.
+- Browser-local Generate history stays a convenience history, not the
+  authoritative job record.
+- True cancellation, provider polling, resumable runs, and provider-state
+  persistence remain follow-up implementation work for a maintainer-approved
+  design.
 
 ## Verification Targets
 

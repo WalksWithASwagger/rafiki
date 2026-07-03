@@ -41,7 +41,13 @@ import {
   type InlinePrompt,
   type PromptPreviewResult,
 } from "@/lib/generate";
-import { useLibraryState, type ImageRecord } from "@/lib/rafiki-data";
+import {
+  effectiveRating,
+  useLibraryState,
+  type ImageRecord,
+  type RunRecord,
+} from "@/lib/rafiki-data";
+import { useTriageStore } from "@/stores/triage-store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/generate")({
@@ -64,6 +70,7 @@ export const Route = createFileRoute("/generate")({
 
 type Mode = "single" | "batch-inline" | "batch-file";
 type ReferenceBucket = "primary" | "global" | "composition";
+type LatestRunFilter = "all" | "prefer" | "latest";
 type GenerateStatusKind = "notice" | "validation" | "generation-error" | "loading";
 type InlineStateKind = "empty" | "loading" | "preview-error";
 
@@ -107,6 +114,8 @@ interface GenerateHistoryItem {
 
 const HISTORY_KEY = "rafiki.generate.history.v1";
 const HISTORY_LIMIT = 8;
+const LIBRARY_REFERENCE_LIMIT = 18;
+const MEDIA_REFERENCE_LIMIT = 10;
 
 const makePromptRow = (): PromptRow => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -150,12 +159,17 @@ function GeneratePage() {
   const [compositionReferences, setCompositionReferences] = useState<string[]>([]);
   const [perPromptReferences, setPerPromptReferences] = useState("");
   const [referenceSearch, setReferenceSearch] = useState("");
+  const [starredReferencesOnly, setStarredReferencesOnly] = useState(false);
+  const [projectReferenceFilter, setProjectReferenceFilter] = useState("all");
+  const [latestRunFilter, setLatestRunFilter] = useState<LatestRunFilter>("all");
+  const [mediaKindFilter, setMediaKindFilter] = useState("all");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [lastPayload, setLastPayload] = useState<GeneratePayload | null>(null);
   const [history, setHistory] = useState<GenerateHistoryItem[]>([]);
   const [status, setStatus] = useState<GenerateStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const ratings = useTriageStore((state) => state.ratings);
 
   useEffect(() => {
     setHistory(readGenerateHistory());
@@ -173,36 +187,101 @@ function GeneratePage() {
 
   const presentImages = useMemo(
     () =>
-      (libraryQuery.data?.images ?? [])
-        .filter((image) => image.status === "present" && image.url)
-        .slice(0, 80),
+      (libraryQuery.data?.images ?? []).filter((image) => image.status === "present" && image.url),
     [libraryQuery.data],
   );
 
-  const filteredImages = useMemo(() => {
-    const query = referenceSearch.trim().toLowerCase();
-    if (!query) return presentImages.slice(0, 18);
-    return presentImages
-      .filter((image) =>
-        [image.name, image.projectId, image.prompt, image.model].some((value) =>
-          value.toLowerCase().includes(query),
-        ),
-      )
-      .slice(0, 18);
-  }, [presentImages, referenceSearch]);
+  const latestRunIds = useMemo(
+    () => latestRunIdsFor(libraryQuery.data?.runs ?? []),
+    [libraryQuery.data?.runs],
+  );
+  const hasLatestRunData = latestRunIds.size > 0;
 
-  const mediaReferences = useMemo(
+  const matchingImages = useMemo(() => {
+    const query = referenceSearch.trim().toLowerCase();
+    const currentProject = project.trim().toLowerCase();
+    const filtered = presentImages.filter((image) => {
+      if (starredReferencesOnly && effectiveRating(image, ratings) !== "starred") return false;
+      if (
+        projectReferenceFilter === "current" &&
+        (!currentProject || image.projectId.toLowerCase() !== currentProject)
+      ) {
+        return false;
+      }
+      if (latestRunFilter === "latest" && hasLatestRunData && !latestRunIds.has(image.runId)) {
+        return false;
+      }
+      if (!query) return true;
+      return [image.name, image.projectId, image.prompt, image.model].some((value) =>
+        value.toLowerCase().includes(query),
+      );
+    });
+
+    if (latestRunFilter !== "prefer" || !hasLatestRunData) return filtered;
+    return filtered.slice().sort((a, b) => {
+      const latestDelta = Number(latestRunIds.has(b.runId)) - Number(latestRunIds.has(a.runId));
+      if (latestDelta) return latestDelta;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [
+    hasLatestRunData,
+    latestRunFilter,
+    latestRunIds,
+    presentImages,
+    project,
+    projectReferenceFilter,
+    ratings,
+    referenceSearch,
+    starredReferencesOnly,
+  ]);
+
+  const filteredImages = matchingImages.slice(0, LIBRARY_REFERENCE_LIMIT);
+
+  const mediaReferenceOptions = useMemo(
     () =>
       (mediaQuery.data ?? [])
         .map((entry) => ({
           id: entry.id,
+          kind: entry.kind || "unknown",
           title: entry.title || entry.relative_path || entry.id,
           url: mediaReferenceUrl(entry),
         }))
-        .filter((entry) => entry.url)
-        .slice(0, 10),
+        .filter((entry) => entry.url),
     [mediaQuery.data],
   );
+
+  const mediaKindOptions = useMemo(
+    () => [
+      { value: "all", label: "All kinds" },
+      ...Array.from(new Set(mediaReferenceOptions.map((entry) => entry.kind)))
+        .sort()
+        .map((kind) => ({ value: kind, label: labelFromToken(kind) })),
+    ],
+    [mediaReferenceOptions],
+  );
+
+  const matchingMediaReferences = useMemo(
+    () =>
+      mediaReferenceOptions.filter(
+        (entry) => mediaKindFilter === "all" || entry.kind === mediaKindFilter,
+      ),
+    [mediaKindFilter, mediaReferenceOptions],
+  );
+
+  const mediaReferences = matchingMediaReferences.slice(0, MEDIA_REFERENCE_LIMIT);
+
+  useEffect(() => {
+    if (!hasLatestRunData && latestRunFilter !== "all") setLatestRunFilter("all");
+  }, [hasLatestRunData, latestRunFilter]);
+
+  useEffect(() => {
+    if (
+      mediaKindFilter !== "all" &&
+      !mediaKindOptions.some((option) => option.value === mediaKindFilter)
+    ) {
+      setMediaKindFilter("all");
+    }
+  }, [mediaKindFilter, mediaKindOptions]);
 
   const selectedReferenceCount =
     (primaryReference ? 1 : 0) + globalReferences.length + compositionReferences.length;
@@ -398,7 +477,7 @@ function GeneratePage() {
       saveHistoryItem(historyItemFromResult(response, payload, submittedDraftHash));
       setStatus({
         kind: "notice",
-        title: payload.dry_run ? "Dry run complete" : "Run complete",
+        title: payload.dry_run ? "Dry-run complete" : "Run complete",
         message: payload.dry_run
           ? "No provider spend was triggered."
           : "Refresh the library to load the new archive state.",
@@ -946,6 +1025,56 @@ function GeneratePage() {
                       placeholder="Search project, prompt, model"
                       className="mb-3 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
                     />
+                    <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                      <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={starredReferencesOnly}
+                          onChange={(event) => setStarredReferencesOnly(event.target.checked)}
+                          data-testid="generate-reference-filter-starred"
+                        />
+                        <span className="font-mono uppercase tracking-widest">Starred</span>
+                      </label>
+                      <SelectField
+                        label="Project"
+                        value={projectReferenceFilter}
+                        onChange={setProjectReferenceFilter}
+                        testId="generate-reference-filter-project"
+                        options={[
+                          { value: "all", label: "All projects" },
+                          {
+                            value: "current",
+                            label: project.trim()
+                              ? `Current: ${project.trim()}`
+                              : "Current project",
+                          },
+                        ]}
+                      />
+                      <SelectField
+                        label="Run recency"
+                        value={latestRunFilter}
+                        onChange={(value) => setLatestRunFilter(value as LatestRunFilter)}
+                        disabled={!hasLatestRunData}
+                        testId="generate-reference-filter-latest"
+                        options={
+                          hasLatestRunData
+                            ? [
+                                { value: "all", label: "All runs" },
+                                { value: "prefer", label: "Prefer latest" },
+                                { value: "latest", label: "Latest only" },
+                              ]
+                            : [{ value: "all", label: "Run data unavailable" }]
+                        }
+                      />
+                      <div className="flex items-end">
+                        <div
+                          className="w-full rounded border border-border bg-background px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground"
+                          data-testid="generate-reference-filter-count"
+                        >
+                          {filteredImages.length}/{matchingImages.length} shown
+                        </div>
+                      </div>
+                    </div>
                     {libraryQuery.isFetching && !libraryQuery.isLoading && (
                       <InlineStatePanel
                         kind="loading"
@@ -960,6 +1089,7 @@ function GeneratePage() {
                           image={image}
                           onUsePrimary={() => addReference(image.url, "primary")}
                           onUseGlobal={() => addReference(image.url, "global")}
+                          onUseComposition={() => addReference(image.url, "composition")}
                         />
                       ))}
                       {!filteredImages.length && (
@@ -972,7 +1102,7 @@ function GeneratePage() {
                           }
                           message={
                             presentImages.length
-                              ? "Try a broader project, prompt, or model search."
+                              ? "Try broader reference filters or search terms."
                               : "Present archive images will appear here. You can still paste a local or archive path above."
                           }
                         />
@@ -981,12 +1111,12 @@ function GeneratePage() {
                   </div>
 
                   <div>
-                    <FieldLabel>Media image references</FieldLabel>
+                    <FieldLabel>Media references</FieldLabel>
                     {mediaQuery.isLoading ? (
                       <InlineStatePanel
                         kind="loading"
                         title="Loading media references"
-                        message="Reading review-ready image entries from the media registry."
+                        message="Reading review-ready entries from the media registry."
                       />
                     ) : mediaQuery.error ? (
                       <InlineStatePanel
@@ -994,33 +1124,62 @@ function GeneratePage() {
                         title="Media references unavailable"
                         message="The media registry could not be loaded. Paste a path above or refresh later."
                       />
-                    ) : mediaReferences.length > 0 ? (
+                    ) : mediaReferenceOptions.length > 0 ? (
                       <div className="space-y-2">
+                        <SelectField
+                          label="Kind"
+                          value={mediaKindFilter}
+                          onChange={setMediaKindFilter}
+                          testId="generate-media-kind-filter"
+                          options={mediaKindOptions}
+                        />
                         {mediaReferences.map((entry) => (
                           <div
                             key={entry.id}
                             className="flex items-center justify-between gap-3 rounded border border-border bg-background p-2"
                           >
                             <div className="min-w-0">
-                              <div className="truncate text-xs">{entry.title}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-xs">{entry.title}</span>
+                                <span className="shrink-0 rounded bg-sidebar px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                                  {entry.kind}
+                                </span>
+                              </div>
                               <div className="truncate font-mono text-[10px] text-muted-foreground">
                                 {entry.url}
                               </div>
                             </div>
-                            <button
-                              onClick={() => addReference(entry.url, "global")}
-                              className="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                            >
-                              Global
-                            </button>
+                            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                              <button
+                                onClick={() => addReference(entry.url, "global")}
+                                data-testid="generate-media-reference-global"
+                                className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                              >
+                                Global
+                              </button>
+                              <button
+                                onClick={() => addReference(entry.url, "composition")}
+                                data-testid="generate-media-reference-composition"
+                                className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                              >
+                                Comp
+                              </button>
+                            </div>
                           </div>
                         ))}
+                        {!mediaReferences.length && (
+                          <InlineStatePanel
+                            kind="empty"
+                            title="No media references match"
+                            message="Choose another media kind or paste a path above."
+                          />
+                        )}
                       </div>
                     ) : (
                       <InlineStatePanel
                         kind="empty"
-                        title="No media image references found"
-                        message="Review-ready media images will appear here after the media registry has indexed them."
+                        title="No media references found"
+                        message="Review-ready media entries will appear here after the media registry has indexed them."
                       />
                     )}
                   </div>
@@ -1140,12 +1299,14 @@ function SelectField({
   onChange,
   options,
   testId,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
   testId?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -1154,7 +1315,11 @@ function SelectField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         data-testid={testId}
-        className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+        disabled={disabled}
+        className={cn(
+          "w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand",
+          disabled && "cursor-not-allowed opacity-60",
+        )}
       >
         {options.map((entry) => (
           <option key={entry.value} value={entry.value}>
@@ -1551,10 +1716,12 @@ function ReferenceImageRow({
   image,
   onUsePrimary,
   onUseGlobal,
+  onUseComposition,
 }: {
   image: ImageRecord;
   onUsePrimary: () => void;
   onUseGlobal: () => void;
+  onUseComposition: () => void;
 }) {
   return (
     <div className="flex gap-3 rounded border border-border bg-background p-2">
@@ -1582,6 +1749,13 @@ function ReferenceImageRow({
           >
             Global
           </button>
+          <button
+            onClick={onUseComposition}
+            data-testid="generate-reference-composition"
+            className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            Comp
+          </button>
         </div>
       </div>
     </div>
@@ -1604,9 +1778,20 @@ function SelectedReferences({
   onRemoveComposition: (source: string) => void;
 }) {
   const empty = !primary && global.length === 0 && composition.length === 0;
+  const count = (primary ? 1 : 0) + global.length + composition.length;
   return (
     <div>
-      <FieldLabel>Selected references</FieldLabel>
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          Selected references
+        </span>
+        <span
+          className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"
+          data-testid="generate-selected-reference-count"
+        >
+          {count} selected
+        </span>
+      </div>
       {empty ? (
         <InlineStatePanel
           kind="empty"
@@ -1837,6 +2022,10 @@ function bucketLabel(bucket: ReferenceBucket) {
   return "Comp";
 }
 
+function messageFromUnknown(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function modelOptionsFor(options: GenerateOptions | undefined) {
   return (options?.models ?? []).map((entry) => ({
     value: entry.id,
@@ -1869,10 +2058,6 @@ function inheritOptions(label: string, options: Array<{ value: string; label: st
   return [{ value: "", label }, ...options];
 }
 
-function messageFromUnknown(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function splitReferences(value: string) {
   return value
     .split(/[\n,]/)
@@ -1882,6 +2067,25 @@ function splitReferences(value: string) {
 
 function uniq(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function latestRunIdsFor(runs: RunRecord[]) {
+  const latestByProject = new Map<string, RunRecord>();
+  for (const run of runs) {
+    const current = latestByProject.get(run.projectId);
+    if (!current || run.createdAt.localeCompare(current.createdAt) > 0) {
+      latestByProject.set(run.projectId, run);
+    }
+  }
+  return new Set(Array.from(latestByProject.values()).map((run) => run.id));
+}
+
+function labelFromToken(value: string) {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
 }
 
 function updatePromptRow(
@@ -2036,6 +2240,10 @@ function draftHashForState(state: {
     .map((row) => ({
       name: row.name.trim(),
       prompt: row.prompt.trim(),
+      model: row.model?.trim() || "",
+      style: row.style?.trim() || "",
+      aspectRatio: row.aspectRatio?.trim() || "",
+      quality: row.quality?.trim() || "",
     }))
     .filter((row) => row.prompt);
   const activePromptInput =
@@ -2051,17 +2259,6 @@ function draftHashForState(state: {
       mode: state.mode,
       model: state.model,
       style: state.style || "none",
-      singleName: state.singleName.trim(),
-      singlePrompt: state.singlePrompt.trim(),
-      promptRows: state.promptRows.map((row) => ({
-        name: row.name.trim(),
-        prompt: row.prompt.trim(),
-        model: row.model?.trim() || "",
-        style: row.style?.trim() || "",
-        aspectRatio: row.aspectRatio?.trim() || "",
-        quality: row.quality?.trim() || "",
-      })),
-      promptFile: state.promptFile.trim(),
       aspectRatio: state.aspectRatio,
       quality: state.quality,
       resolution: state.resolution,

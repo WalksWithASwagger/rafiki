@@ -156,7 +156,7 @@ export async function runGenerate(
 }
 
 export async function fetchMediaReferences(): Promise<MediaReference[]> {
-  const response = await fetch("/api/media?kind=image&view=review", {
+  const response = await fetch("/api/media?view=review", {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) return [];
