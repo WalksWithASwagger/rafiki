@@ -31,6 +31,8 @@ const visualCaptures = {
   },
 };
 
+const mediaReferenceRootKey = 'e2e-media';
+
 function parseArgs(argv) {
   const options = {
     visualBaselineMode: 'off',
@@ -124,6 +126,47 @@ function run(command, args, options = {}) {
     );
   }
   return result;
+}
+
+function parseMediaRootsConfig(raw) {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function withE2EMediaRoots(mediaRootDir) {
+  const mediaRootsConfigPath = path.join(repoRoot, 'config', 'media-roots.local.json');
+  const originalConfig = fs.existsSync(mediaRootsConfigPath)
+    ? fs.readFileSync(mediaRootsConfigPath, 'utf8')
+    : null;
+  const parsed = parseMediaRootsConfig(originalConfig);
+  const roots = Array.isArray(parsed.roots) ? [...parsed.roots] : [];
+  const otherRoots = roots.filter((entry) => entry?.key !== mediaReferenceRootKey);
+  const mediaRootEntry = {
+    key: mediaReferenceRootKey,
+    path: mediaRootDir,
+    importer: 'generic',
+    enabled: true,
+    description: 'E2E local media fixture root',
+  };
+  otherRoots.push(mediaRootEntry);
+  fs.writeFileSync(
+    mediaRootsConfigPath,
+    `${JSON.stringify({ ...parsed, roots: otherRoots }, null, 2)}\n`,
+    'utf8',
+  );
+
+  return () => {
+    if (originalConfig === null) {
+      fs.rmSync(mediaRootsConfigPath, { force: true });
+    } else {
+      fs.writeFileSync(mediaRootsConfigPath, originalConfig, 'utf8');
+    }
+  };
 }
 
 function assert(condition, message) {
@@ -500,6 +543,8 @@ async function main() {
   const outputRoot = path.join(tmpRoot, 'output');
   const project = 'e2e-showpiece-smoke';
   const projectDir = path.join(outputRoot, project);
+  const e2eMediaRoot = path.join(tmpRoot, 'media-roots', mediaReferenceRootKey);
+  const mediaRestoreFn = withE2EMediaRoots(e2eMediaRoot);
   const smokeEnv = {
     ...process.env,
     RAFIKI_DISABLE_EXTRA_OUTPUTS: '1',
@@ -514,6 +559,9 @@ async function main() {
 
   try {
     fs.mkdirSync(outputRoot, { recursive: true });
+    fs.mkdirSync(e2eMediaRoot, { recursive: true });
+    fs.copyFileSync(path.join(repoRoot, 'test-image.png'), path.join(e2eMediaRoot, 'reference.png'));
+    fs.writeFileSync(path.join(e2eMediaRoot, 'clip.mp4'), '', 'utf8');
     const generatePromptFile = path.join(tmpRoot, 'generate-prompts.md');
     fs.writeFileSync(
       generatePromptFile,
@@ -1333,6 +1381,7 @@ async function main() {
     } else {
       console.error(`Kept E2E temp dir: ${tmpRoot}`);
     }
+    mediaRestoreFn();
   }
 }
 
