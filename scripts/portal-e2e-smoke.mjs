@@ -793,10 +793,21 @@ async function main() {
     assert(selectedReferenceState.text.includes('/output/'), 'selected references did not include an /output reference');
     await desktop.click('[data-testid="generate-media-reference-global"]');
     await waitForCondition(() => (
+      desktop.evaluate(() => (
+        document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent?.includes('4 selected')
+      ))
+    ), 'generate media reference selection count');
+    await waitForCondition(() => (
       desktop.evaluate((expectedUrl) => (
         document.querySelector('[data-testid="generate-selected-references"]')?.textContent?.includes(expectedUrl)
       ), mediaImageReferenceUrl)
     ), 'generate media reference selection');
+    const mediaSelectedState = await desktop.evaluate(() => ({
+      count: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      text: document.querySelector('[data-testid="generate-selected-references"]')?.textContent || '',
+    }));
+    assert(mediaSelectedState.count.includes('4 selected'), `unexpected selected reference count: ${mediaSelectedState.count}`);
+    assert(mediaSelectedState.text.includes(mediaImageReferenceUrl), 'media reference was not added to selected refs');
     await desktop.evaluate((mediaUrl) => {
       const selected = document.querySelector('[data-testid="generate-selected-references"]');
       const removeButton = Array.from(selected?.querySelectorAll('button') ?? []).find((button) =>
@@ -805,10 +816,17 @@ async function main() {
       removeButton?.click();
     }, mediaImageReferenceUrl);
     await waitForCondition(() => (
-      desktop.evaluate(() => (
-        document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent?.includes('3 selected')
-      ))
+      desktop.evaluate((expectedUrl) => (
+        !document.querySelector('[data-testid="generate-selected-references"]')?.textContent?.includes(expectedUrl)
+        && document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent?.includes('3 selected')
+      ), mediaImageReferenceUrl)
     ), 'generate media reference removal');
+    const mediaRemovedState = await desktop.evaluate(() => ({
+      count: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      text: document.querySelector('[data-testid="generate-selected-references"]')?.textContent || '',
+    }));
+    assert(mediaRemovedState.count.includes('3 selected'), `unexpected selected reference count: ${mediaRemovedState.count}`);
+    assert(!mediaRemovedState.text.includes(mediaImageReferenceUrl), 'media reference did not clear after removal');
     await setFieldValue(desktop, '[data-testid="generate-project"]', 'e2e-generate-smoke');
     await setFieldValue(
       desktop,
@@ -987,6 +1005,18 @@ async function main() {
       generateInlineState.rowOverridesText.includes('model: gpt-image-2')
         && generateInlineState.rowOverridesText.includes('quality: medium'),
       `row override summary did not expose overrides: ${generateInlineState.rowOverridesText}`,
+    );
+    assert(
+      generateInlineState.payload.reference_image?.startsWith('/output/'),
+      `primary reference did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      !generateInlineState.payload.global_reference_images?.includes(mediaImageReferenceUrl),
+      `global references still preserved /media URL after removal: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      generateInlineState.payload.composition_references?.some((source) => source.startsWith('/output/')),
+      `composition references did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
     );
     assert(
       Array.isArray(generateInlineState.manifest?.images) && generateInlineState.manifest.images.length === 2,
