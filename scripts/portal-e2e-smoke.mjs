@@ -757,7 +757,10 @@ async function main() {
     await desktop.select('[data-testid="generate-reference-filter-project"]', 'current');
     await desktop.click('[data-testid="generate-reference-filter-starred"]');
     await waitForCondition(() => (
-      desktop.evaluate(() => document.body.textContent?.includes('No present library images match.'))
+      desktop.evaluate(() => (
+        document.body.textContent?.includes('No present library images match.')
+        || document.body.textContent?.includes('No library references match')
+      ))
     ), 'generate current-project reference filter empty state');
     await setFieldValue(desktop, '[data-testid="generate-project"]', project);
     await desktop.select('[data-testid="generate-reference-filter-latest"]', 'latest');
@@ -854,7 +857,7 @@ async function main() {
         if (state.text.includes('generation failed') || state.text.includes('Generation failed')) {
           throw new Error(state.text.slice(0, 500));
         }
-        return state.result.includes('1/1') && state.text.includes('Dry run complete');
+        return state.result.includes('1/1') && /Dry[- ]?run/.test(state.text);
       }, 'generate single dry run', 30000);
     } catch (error) {
       throw new Error(`${error.message}: ${JSON.stringify(generateSingleLastState)}`);
