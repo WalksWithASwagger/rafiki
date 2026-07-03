@@ -688,6 +688,42 @@ async function main() {
     } catch (error) {
       throw new Error(`${error.message}: ${JSON.stringify(generateSingleLastState)}`);
     }
+    await waitForCondition(() => (
+      desktop.evaluate(() => (
+        document.querySelector('[data-testid="generate-history"]')?.textContent?.includes('Run history')
+      ))
+    ), 'generate history after single dry run');
+    const generateHistoryAfterSingle = await desktop.evaluate(() => (
+      document.querySelector('[data-testid="generate-history"]')?.textContent || ''
+    ));
+    assert(generateHistoryAfterSingle.includes('Run history'), 'generate history panel did not render');
+    assert(generateHistoryAfterSingle.includes('Manifest'), 'generate history did not include manifest link');
+    assert(generateHistoryAfterSingle.includes('Run viewer'), 'generate history did not include run viewer link');
+
+    await setFieldValue(
+      desktop,
+      '[data-testid="generate-single-prompt"]',
+      'A changed prompt that should require a fresh dry-run before provider execution.',
+    );
+    await desktop.click('[data-testid="generate-dry-run-toggle"]');
+    await desktop.click('[data-testid="generate-submit"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => document.body.textContent?.includes('Run a matching dry-run before provider execution.'))
+    ), 'generate real-run dry-run gate');
+    const generateRealGate = await desktop.evaluate(() => ({
+      gate: document.querySelector('[data-testid="generate-real-gate"]')?.textContent || '',
+      brief: document.querySelector('[data-testid="generate-real-brief"]')?.textContent || '',
+    }));
+    assert(
+      generateRealGate.gate.includes('Matching dry-run required'),
+      `unexpected generate real-run gate: ${generateRealGate.gate}`,
+    );
+    assert(
+      generateRealGate.brief.includes('Run dry-run first'),
+      'generate real-run brief did not show missing manifest state',
+    );
+    await desktop.click('[data-testid="generate-dry-run-toggle"]');
+
     await desktop.click('[data-generate-mode="batch-inline"]');
     const batchPromptSelectors = await desktop.$$('[data-testid="generate-batch-prompt"]');
     assert(batchPromptSelectors.length >= 2, 'generate inline batch prompts were not rendered');
@@ -721,6 +757,7 @@ async function main() {
       text: document.body.textContent || '',
       selectedReference: Boolean(document.body.textContent?.includes('/output/')),
       resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
+      historyText: document.querySelector('[data-testid="generate-history"]')?.textContent || '',
       overflow: {
         scrollWidth: document.documentElement.scrollWidth,
         clientWidth: document.documentElement.clientWidth,
@@ -730,6 +767,7 @@ async function main() {
     assert(generateState.h1 === 'Generate', `expected Generate heading, got ${generateState.h1}`);
     assert(generateState.selectedReference, 'generate route did not select a library reference');
     assert(generateState.resultText.includes('2/2'), 'generate inline batch dry-run did not complete');
+    assert(generateState.historyText.includes('Run history'), 'generate history was missing after batch dry-run');
     assert(generateState.text.includes('2 prompts parsed'), 'generate prompt-file preview did not render');
     assert(generateState.overflow.scrollWidth <= generateState.overflow.clientWidth, 'desktop generate has horizontal overflow');
 
