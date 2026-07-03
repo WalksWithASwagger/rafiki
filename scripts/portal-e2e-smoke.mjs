@@ -208,6 +208,19 @@ async function setFieldValue(page, selector, value) {
   }, value);
 }
 
+async function setSelectValue(page, selector, value, index = 0) {
+  await page.waitForSelector(selector);
+  await page.$$eval(selector, (elements, nextValue, elementIndex) => {
+    const element = elements[elementIndex];
+    if (!(element instanceof HTMLSelectElement)) {
+      throw new Error(`element at index ${elementIndex} is not a select`);
+    }
+    element.value = nextValue;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value, index);
+}
+
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const server = http.createServer();
@@ -755,6 +768,20 @@ async function main() {
     await desktop.click('[data-generate-mode="batch-inline"]');
     const batchPromptSelectors = await desktop.$$('[data-testid="generate-batch-prompt"]');
     assert(batchPromptSelectors.length >= 2, 'generate inline batch prompts were not rendered');
+    const batchModelSelectors = await desktop.$$('[data-testid="generate-batch-model"]');
+    const batchStyleSelectors = await desktop.$$('[data-testid="generate-batch-style"]');
+    const batchAspectSelectors = await desktop.$$('[data-testid="generate-batch-aspect"]');
+    const batchQualitySelectors = await desktop.$$('[data-testid="generate-batch-quality"]');
+    assert(batchModelSelectors.length >= 2, 'generate inline batch model overrides were not rendered');
+    assert(batchStyleSelectors.length >= 2, 'generate inline batch style overrides were not rendered');
+    assert(batchAspectSelectors.length >= 2, 'generate inline batch aspect overrides were not rendered');
+    assert(batchQualitySelectors.length >= 2, 'generate inline batch quality overrides were not rendered');
+    const batchStyleValues = await desktop.$$eval('[data-testid="generate-batch-style"]', (elements) => (
+      Array.from(elements[0].options).map((option) => option.value).filter(Boolean)
+    ));
+    const rowOneStyle = batchStyleValues.includes('bcai')
+      ? 'bcai'
+      : batchStyleValues.find((value) => value !== 'none') || 'none';
     await batchPromptSelectors[0].evaluate((element) => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(
         element,
@@ -771,10 +798,82 @@ async function main() {
       element.dispatchEvent(new Event('input', { bubbles: true }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    await setSelectValue(desktop, '[data-testid="generate-batch-model"]', 'gpt-image-2', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-style"]', rowOneStyle, 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-aspect"]', '1:1', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-quality"]', 'low', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-aspect"]', '9:16', 1);
+    await setSelectValue(desktop, '[data-testid="generate-batch-quality"]', 'medium', 1);
     await desktop.click('[data-testid="generate-submit"]');
     await desktop.waitForFunction(() => (
       document.querySelector('[data-testid="generate-result"]')?.textContent?.includes('2/2')
     ));
+    await desktop.waitForSelector('[data-testid="generate-last-payload-json"]');
+    await desktop.waitForSelector('[data-testid="generate-dry-run-manifest"]');
+    const generateInlineState = await desktop.evaluate(async () => {
+      const payloadText = document.querySelector('[data-testid="generate-last-payload-json"]')?.textContent || '{}';
+      const payload = JSON.parse(payloadText);
+      const manifestUrl = document.querySelector('[data-testid="generate-dry-run-manifest"]')?.getAttribute('href') || '';
+      const manifest = manifestUrl ? await fetch(manifestUrl).then((response) => response.json()) : null;
+      return {
+        rowOverridesText: document.querySelector('[data-testid="generate-row-overrides"]')?.textContent || '',
+        payload,
+        manifest,
+      };
+    });
+    assert(
+      generateInlineState.payload.prompts?.[0]?.model === 'gpt-image-2',
+      `row one model override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.style === rowOneStyle,
+      `row one style override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.aspect_ratio === '1:1',
+      `row one aspect override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.quality === 'low',
+      `row one quality override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(generateInlineState.payload.prompts?.[1] || {}, 'model'),
+      `row two empty model override was serialized: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(generateInlineState.payload.prompts?.[1] || {}, 'style'),
+      `row two empty style override was serialized: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[1]?.aspect_ratio === '9:16',
+      `row two aspect override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[1]?.quality === 'medium',
+      `row two quality override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.rowOverridesText.includes('model: gpt-image-2')
+        && generateInlineState.rowOverridesText.includes('quality: medium'),
+      `row override summary did not expose overrides: ${generateInlineState.rowOverridesText}`,
+    );
+    assert(
+      Array.isArray(generateInlineState.manifest?.images) && generateInlineState.manifest.images.length === 2,
+      `inline dry-run manifest did not include two images: ${JSON.stringify(generateInlineState.manifest)}`,
+    );
+    assert(
+      generateInlineState.manifest.images[0].model === 'gpt-image-2'
+        && generateInlineState.manifest.images[0].style === rowOneStyle
+        && generateInlineState.manifest.images[0].aspect_ratio === '1:1'
+        && generateInlineState.manifest.images[0].quality === 'low',
+      `row one manifest overrides were wrong: ${JSON.stringify(generateInlineState.manifest.images[0])}`,
+    );
+    assert(
+      generateInlineState.manifest.images[1].aspect_ratio === '9:16'
+        && generateInlineState.manifest.images[1].quality === 'medium',
+      `row two manifest overrides were wrong: ${JSON.stringify(generateInlineState.manifest.images[1])}`,
+    );
     await desktop.click('[data-generate-mode="batch-file"]');
     await setFieldValue(desktop, '[data-testid="generate-prompt-file"]', generatePromptFile);
     await desktop.click('[data-testid="generate-preview-prompt-file"]');
