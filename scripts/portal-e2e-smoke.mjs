@@ -624,17 +624,36 @@ async function main() {
 
     const desktop = await browser.newPage();
     const generateRequests = [];
+    let generateRegenRequests = 0;
+    let expectedPromptPreview400s = 0;
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
     desktop.on('console', (msg) => {
       if (['error', 'warning'].includes(msg.type())) errors.push(`desktop console ${msg.type()}: ${msg.text()}`);
     });
     desktop.on('request', (request) => {
-      const requestUrl = new URL(request.url());
-      if (requestUrl.pathname === '/api/regen') {
+      try {
+        const requestUrl = new URL(request.url());
+        if (requestUrl.pathname === '/api/regen') {
+          generateRegenRequests += 1;
         generateRequests.push({
           method: request.method(),
           postData: request.postData() || '',
         });
+        }
+      } catch {
+        // Ignore browser-internal request URLs.
+      }
+    });
+    desktop.on('response', (response) => {
+      try {
+        if (
+          new URL(response.url()).pathname === '/api/prompt-preview'
+          && response.status() === 400
+        ) {
+          expectedPromptPreview400s += 1;
+        }
+      } catch {
+        // Ignore browser-internal response URLs.
       }
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
@@ -678,6 +697,18 @@ async function main() {
     await desktop.waitForFunction(() => document.body.textContent?.includes('Image generation'));
     await desktop.waitForSelector('[data-testid="generate-single-prompt"]');
     await desktop.waitForSelector('[data-testid="generate-reference-primary"]');
+    const regenBeforeValidation = generateRegenRequests;
+    await desktop.click('[data-testid="generate-submit"]');
+    await waitForCondition(() => desktop.evaluate(() => {
+      const status = document.querySelector('[data-testid="generate-status"]');
+      return status?.getAttribute('data-generate-status') === 'validation'
+        && status.textContent?.includes('Single prompt is required.')
+        && status.textContent?.includes('Nothing was sent to the generation backend.');
+    }), 'generate validation refusal');
+    assert(
+      generateRegenRequests === regenBeforeValidation,
+      `validation submit called /api/regen ${generateRegenRequests - regenBeforeValidation} time(s)`,
+    );
     await desktop.click('[data-testid="generate-reference-primary"]');
     await setFieldValue(desktop, '[data-testid="generate-project"]', 'e2e-generate-smoke');
     await setFieldValue(
@@ -875,6 +906,25 @@ async function main() {
       `row two manifest overrides were wrong: ${JSON.stringify(generateInlineState.manifest.images[1])}`,
     );
     await desktop.click('[data-generate-mode="batch-file"]');
+    await setFieldValue(
+      desktop,
+      '[data-testid="generate-prompt-file"]',
+      path.join(tmpRoot, 'missing-prompts.md'),
+    );
+    await desktop.click('[data-testid="generate-preview-prompt-file"]');
+    await waitForCondition(() => desktop.evaluate(() => {
+      const preview = document.querySelector('[data-testid="generate-preview-state"]');
+      return preview?.getAttribute('data-generate-state') === 'preview-error'
+        && preview.textContent?.includes('Prompt preview failed')
+        && preview.textContent?.includes('prompt_file not found');
+    }), 'generate prompt preview missing file');
+    const promptPreviewErrorText = await desktop.evaluate(() => (
+      document.querySelector('[data-testid="generate-preview-state"]')?.textContent || ''
+    ));
+    assert(
+      !promptPreviewErrorText.includes(tmpRoot),
+      'prompt preview error leaked the resolved temporary filesystem path',
+    );
     await setFieldValue(desktop, '[data-testid="generate-prompt-file"]', generatePromptFile);
     await desktop.click('[data-testid="generate-preview-prompt-file"]');
     await desktop.waitForFunction(() => document.body.textContent?.includes('2 prompts parsed'));
@@ -1106,7 +1156,17 @@ async function main() {
       if (baselineManifest) compareCaptureToBaseline(result.capture, result.stats, baselineManifest, result.artifact);
     }
 
-    assert(errors.length === 0, `browser console/page errors:\n${errors.join('\n')}`);
+    const unexpectedErrors = errors.filter((entry) => {
+      if (
+        expectedPromptPreview400s > 0
+        && entry === 'desktop console error: Failed to load resource: the server responded with a status of 400 (Bad Request)'
+      ) {
+        expectedPromptPreview400s -= 1;
+        return false;
+      }
+      return true;
+    });
+    assert(unexpectedErrors.length === 0, `browser console/page errors:\n${unexpectedErrors.join('\n')}`);
 
     const refreshedManifest = options.visualBaselineMode === 'refresh'
       ? refreshBaselineManifest(visualResults)
