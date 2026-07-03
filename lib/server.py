@@ -194,7 +194,7 @@ def _resolve_prompt_file(value: object) -> Path:
     else:
         path = path.resolve()
     if not path.exists() or not path.is_file():
-        raise ValueError(f"prompt_file not found: {path}")
+        raise ValueError("prompt_file not found")
     if path.suffix.lower() not in {".md", ".markdown"}:
         raise ValueError("prompt_file must be a Markdown file")
     return path

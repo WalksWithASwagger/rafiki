@@ -178,6 +178,7 @@ def test_prompt_preview_endpoint_rejects_missing_file(server, tmp_path, monkeypa
 
     assert resp.status == 400
     assert "prompt_file not found" in payload["error"]
+    assert str(tmp_path) not in payload["error"]
 
 
 # ── _serve_runs (GET /api/runs) ────────────────────────────────────────────

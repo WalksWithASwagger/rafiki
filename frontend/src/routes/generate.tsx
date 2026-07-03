@@ -14,6 +14,7 @@ import {
   Clock3,
   ExternalLink,
   FileSearch,
+  ImageOff,
   Loader2,
   Play,
   Plus,
@@ -34,12 +35,14 @@ import {
   resultImageUrl,
   runGenerate,
   useGenerateOptions,
+  type GenerateOptions,
   type GeneratePayload,
   type GenerateResult,
   type InlinePrompt,
   type PromptPreviewResult,
 } from "@/lib/generate";
-import { useLibraryState, type ImageRecord } from "@/lib/rafiki-data";
+import { effectiveRating, useLibraryState, type ImageRecord, type RunRecord } from "@/lib/rafiki-data";
+import { useTriageStore } from "@/stores/triage-store";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/generate")({
@@ -62,11 +65,25 @@ export const Route = createFileRoute("/generate")({
 
 type Mode = "single" | "batch-inline" | "batch-file";
 type ReferenceBucket = "primary" | "global" | "composition";
+type LatestRunFilter = "all" | "prefer" | "latest";
+type GenerateStatusKind = "notice" | "validation" | "generation-error" | "loading";
+type InlineStateKind = "empty" | "loading" | "preview-error";
+
+interface GenerateStatus {
+  kind: GenerateStatusKind;
+  title: string;
+  message: string;
+  detail?: string;
+}
 
 interface PromptRow {
   id: string;
   name: string;
   prompt: string;
+  model?: string;
+  style?: string;
+  aspectRatio?: string;
+  quality?: string;
 }
 
 interface GenerateHistoryItem {
@@ -92,6 +109,8 @@ interface GenerateHistoryItem {
 
 const HISTORY_KEY = "rafiki.generate.history.v1";
 const HISTORY_LIMIT = 8;
+const LIBRARY_REFERENCE_LIMIT = 18;
+const MEDIA_REFERENCE_LIMIT = 10;
 
 const makePromptRow = (): PromptRow => ({
   id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -126,6 +145,7 @@ function GeneratePage() {
   const [promptRows, setPromptRows] = useState<PromptRow[]>([makePromptRow(), makePromptRow()]);
   const [promptFile, setPromptFile] = useState("");
   const [promptPreview, setPromptPreview] = useState<PromptPreviewResult | null>(null);
+  const [promptPreviewError, setPromptPreviewError] = useState("");
   const [previewBusy, setPreviewBusy] = useState(false);
   const [referenceRole, setReferenceRole] = useState("style");
   const [localReference, setLocalReference] = useState("");
@@ -134,13 +154,17 @@ function GeneratePage() {
   const [compositionReferences, setCompositionReferences] = useState<string[]>([]);
   const [perPromptReferences, setPerPromptReferences] = useState("");
   const [referenceSearch, setReferenceSearch] = useState("");
+  const [starredReferencesOnly, setStarredReferencesOnly] = useState(false);
+  const [projectReferenceFilter, setProjectReferenceFilter] = useState("all");
+  const [latestRunFilter, setLatestRunFilter] = useState<LatestRunFilter>("all");
+  const [mediaKindFilter, setMediaKindFilter] = useState("all");
   const [result, setResult] = useState<GenerateResult | null>(null);
   const [lastPayload, setLastPayload] = useState<GeneratePayload | null>(null);
   const [history, setHistory] = useState<GenerateHistoryItem[]>([]);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [status, setStatus] = useState<GenerateStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [abortController, setAbortController] = useState<AbortController | null>(null);
+  const ratings = useTriageStore((state) => state.ratings);
 
   useEffect(() => {
     setHistory(readGenerateHistory());
@@ -159,41 +183,115 @@ function GeneratePage() {
   const presentImages = useMemo(
     () =>
       (libraryQuery.data?.images ?? [])
-        .filter((image) => image.status === "present" && image.url)
-        .slice(0, 80),
+        .filter((image) => image.status === "present" && image.url),
     [libraryQuery.data],
   );
 
-  const filteredImages = useMemo(() => {
-    const query = referenceSearch.trim().toLowerCase();
-    if (!query) return presentImages.slice(0, 18);
-    return presentImages
-      .filter((image) =>
-        [image.name, image.projectId, image.prompt, image.model].some((value) =>
-          value.toLowerCase().includes(query),
-        ),
-      )
-      .slice(0, 18);
-  }, [presentImages, referenceSearch]);
+  const latestRunIds = useMemo(
+    () => latestRunIdsFor(libraryQuery.data?.runs ?? []),
+    [libraryQuery.data?.runs],
+  );
+  const hasLatestRunData = latestRunIds.size > 0;
 
-  const mediaReferences = useMemo(
+  const matchingImages = useMemo(() => {
+    const query = referenceSearch.trim().toLowerCase();
+    const currentProject = project.trim().toLowerCase();
+    const filtered = presentImages.filter((image) => {
+      if (starredReferencesOnly && effectiveRating(image, ratings) !== "starred") return false;
+      if (
+        projectReferenceFilter === "current" &&
+        (!currentProject || image.projectId.toLowerCase() !== currentProject)
+      ) {
+        return false;
+      }
+      if (latestRunFilter === "latest" && hasLatestRunData && !latestRunIds.has(image.runId)) {
+        return false;
+      }
+      if (!query) return true;
+      return [image.name, image.projectId, image.prompt, image.model].some((value) =>
+        value.toLowerCase().includes(query),
+      );
+    });
+
+    if (latestRunFilter !== "prefer" || !hasLatestRunData) return filtered;
+    return filtered.slice().sort((a, b) => {
+      const latestDelta = Number(latestRunIds.has(b.runId)) - Number(latestRunIds.has(a.runId));
+      if (latestDelta) return latestDelta;
+      return b.createdAt.localeCompare(a.createdAt);
+    });
+  }, [
+    hasLatestRunData,
+    latestRunFilter,
+    latestRunIds,
+    presentImages,
+    project,
+    projectReferenceFilter,
+    ratings,
+    referenceSearch,
+    starredReferencesOnly,
+  ]);
+
+  const filteredImages = matchingImages.slice(0, LIBRARY_REFERENCE_LIMIT);
+
+  const mediaReferenceOptions = useMemo(
     () =>
       (mediaQuery.data ?? [])
         .map((entry) => ({
           id: entry.id,
+          kind: entry.kind || "unknown",
           title: entry.title || entry.relative_path || entry.id,
           url: mediaReferenceUrl(entry),
         }))
-        .filter((entry) => entry.url)
-        .slice(0, 10),
+        .filter((entry) => entry.url),
     [mediaQuery.data],
   );
+
+  const mediaKindOptions = useMemo(
+    () => [
+      { value: "all", label: "All kinds" },
+      ...Array.from(new Set(mediaReferenceOptions.map((entry) => entry.kind)))
+        .sort()
+        .map((kind) => ({ value: kind, label: labelFromToken(kind) })),
+    ],
+    [mediaReferenceOptions],
+  );
+
+  const matchingMediaReferences = useMemo(
+    () =>
+      mediaReferenceOptions.filter(
+        (entry) => mediaKindFilter === "all" || entry.kind === mediaKindFilter,
+      ),
+    [mediaKindFilter, mediaReferenceOptions],
+  );
+
+  const mediaReferences = matchingMediaReferences.slice(0, MEDIA_REFERENCE_LIMIT);
+
+  useEffect(() => {
+    if (!hasLatestRunData && latestRunFilter !== "all") setLatestRunFilter("all");
+  }, [hasLatestRunData, latestRunFilter]);
+
+  useEffect(() => {
+    if (
+      mediaKindFilter !== "all" &&
+      !mediaKindOptions.some((option) => option.value === mediaKindFilter)
+    ) {
+      setMediaKindFilter("all");
+    }
+  }, [mediaKindFilter, mediaKindOptions]);
 
   const selectedReferenceCount =
     (primaryReference ? 1 : 0) + globalReferences.length + compositionReferences.length;
   const totalReferenceCount = selectedReferenceCount + splitReferences(perPromptReferences).length;
   const currentModel = model || options?.defaultModel || "gemini-2.5-flash-image";
   const currentPromptCount = promptCountForDraft(mode, singlePrompt, promptRows, promptPreview);
+  const modelSelectOptions = modelOptionsFor(options);
+  const styleSelectOptions = styleOptionsFor(options);
+  const aspectSelectOptions = aspectOptionsFor(options);
+  const qualitySelectOptions = qualityOptionsFor(options);
+  const rowModelOptions = inheritOptions("Run model", modelSelectOptions);
+  const rowStyleOptions = inheritOptions("Run style", styleSelectOptions);
+  const rowAspectOptions = inheritOptions("Run aspect", aspectSelectOptions);
+  const rowQualityOptions = inheritOptions("Run quality", qualitySelectOptions);
   const currentDraftHash = useMemo(
     () =>
       draftHashForState({
@@ -251,7 +349,11 @@ function GeneratePage() {
     } else {
       setCompositionReferences((current) => uniq([...current, value]));
     }
-    setNotice(`${bucketLabel(bucket)} reference added.`);
+    setStatus({
+      kind: "notice",
+      title: "Reference added",
+      message: `${bucketLabel(bucket)} reference added.`,
+    });
   };
 
   const saveHistoryItem = (item: GenerateHistoryItem) => {
@@ -311,9 +413,7 @@ function GeneratePage() {
       };
     }
 
-    const prompts = promptRows
-      .map((row): InlinePrompt => ({ name: row.name.trim(), prompt: row.prompt.trim() }))
-      .filter((row) => row.prompt);
+    const prompts = promptRows.map(inlinePromptFromRow).filter((row) => row.prompt);
     if (!prompts.length) throw new Error("Add at least one inline batch prompt.");
     return {
       ...shared,
@@ -323,21 +423,35 @@ function GeneratePage() {
   };
 
   const submit = async () => {
-    setError("");
-    setNotice("");
+    setStatus(null);
     let payload: GeneratePayload;
     try {
       payload = buildPayload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setStatus({
+        kind: "validation",
+        title: "Check the form",
+        message: messageFromUnknown(err),
+        detail: "Nothing was sent to the generation backend.",
+      });
       return;
     }
     if (!payload.dry_run && !latestDryRunForDraft) {
-      setError("Run a matching dry-run before provider execution.");
+      setStatus({
+        kind: "validation",
+        title: "Run the dry-run first",
+        message: "Run a matching dry-run before provider execution.",
+        detail: "The draft changed, so Rafiki needs a fresh no-spend validation pass.",
+      });
       return;
     }
     if (!payload.dry_run && !confirmExecute) {
-      setError("Real provider execution requires the confirmation checkbox.");
+      setStatus({
+        kind: "validation",
+        title: "Confirm provider spend",
+        message: "Real provider execution requires the confirmation checkbox.",
+        detail: "No provider request was sent.",
+      });
       return;
     }
 
@@ -346,25 +460,42 @@ function GeneratePage() {
     setAbortController(controller);
     setBusy(true);
     setLastPayload(payload);
+    setStatus({
+      kind: "loading",
+      title: payload.dry_run ? "Dry-run in progress" : "Provider run in progress",
+      message: payload.dry_run
+        ? "Validating the payload and writing planned run metadata. No provider spend is triggered."
+        : "Sending the request to the configured provider and waiting for files to land in the archive.",
+    });
     try {
       const response = await runGenerate(payload, controller.signal);
       setResult(response);
       saveHistoryItem(historyItemFromResult(response, payload, submittedDraftHash));
-      setNotice(
-        payload.dry_run
-          ? "Dry run complete. No provider spend was triggered."
-          : "Run complete. Refresh the library to load the new archive state.",
-      );
+      setStatus({
+        kind: "notice",
+        title: payload.dry_run ? "Dry-run complete" : "Run complete",
+        message: payload.dry_run
+          ? "No provider spend was triggered."
+          : "Refresh the library to load the new archive state.",
+      });
       if (!payload.dry_run) {
         void queryClient.invalidateQueries({ queryKey: ["library-state"] });
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
-        setNotice(
-          "Stopped waiting in this browser. This does not cancel provider work already handed off.",
-        );
+        setStatus({
+          kind: "notice",
+          title: "Stopped waiting",
+          message:
+            "This browser stopped waiting. Provider work already handed off may still continue.",
+        });
       } else {
-        setError(err instanceof Error ? err.message : String(err));
+        setStatus({
+          kind: "generation-error",
+          title: "Generation/backend failure",
+          message: messageFromUnknown(err),
+          detail: "Form validation passed; this came back from the generation endpoint.",
+        });
       }
     } finally {
       setBusy(false);
@@ -373,17 +504,17 @@ function GeneratePage() {
   };
 
   const previewPrompt = async () => {
-    setError("");
+    setPromptPreviewError("");
     setPromptPreview(null);
     if (!promptFile.trim()) {
-      setError("Prompt file path is required.");
+      setPromptPreviewError("Prompt file path is required.");
       return;
     }
     setPreviewBusy(true);
     try {
       setPromptPreview(await previewPromptFile(promptFile.trim()));
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setPromptPreviewError(messageFromUnknown(err));
     } finally {
       setPreviewBusy(false);
     }
@@ -404,6 +535,12 @@ function GeneratePage() {
   }
 
   const loading = optionsQuery.isLoading || libraryQuery.isLoading || !options;
+  const loadingTitle = optionsQuery.isLoading || !options
+    ? "Loading generation options"
+    : "Loading library references";
+  const loadingMessage = optionsQuery.isLoading || !options
+    ? "Fetching models, styles, aspect ratios, and safety gates before runs can start."
+    : "Scanning present archive images so reference pickers do not look empty by accident.";
 
   return (
     <AppShell>
@@ -434,9 +571,7 @@ function GeneratePage() {
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-8">
         {loading ? (
-          <div className="grid min-h-[420px] place-items-center text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            Loading generation controls...
-          </div>
+          <GenerateLoadingBlock title={loadingTitle} message={loadingMessage} />
         ) : (
           <div className="mx-auto flex max-w-[1600px] flex-col gap-6">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -458,13 +593,11 @@ function GeneratePage() {
               </div>
             </div>
 
-            {(error || notice) && (
+            {status && (
               <StatusBanner
-                tone={error ? "error" : "info"}
-                message={error || notice}
+                status={status}
                 onClear={() => {
-                  setError("");
-                  setNotice("");
+                  setStatus(null);
                 }}
               />
             )}
@@ -513,22 +646,14 @@ function GeneratePage() {
                     label="Model"
                     value={model}
                     onChange={setModel}
-                    options={options.models.map((entry) => ({
-                      value: entry.id,
-                      label: entry.aliases.length
-                        ? `${entry.id} (${entry.aliases.join(", ")})`
-                        : entry.id,
-                    }))}
+                    options={modelSelectOptions}
                   />
 
                   <SelectField
                     label="Style composition"
                     value={style}
                     onChange={setStyle}
-                    options={options.styles.map((entry) => ({
-                      value: entry.key,
-                      label: entry.default ? `${entry.name} - default` : entry.name,
-                    }))}
+                    options={styleSelectOptions}
                   />
 
                   <div className="grid grid-cols-2 gap-3">
@@ -536,19 +661,13 @@ function GeneratePage() {
                       label="Aspect"
                       value={aspectRatio}
                       onChange={setAspectRatio}
-                      options={[
-                        ...options.aspectRatios.map((ratio) => ({ value: ratio, label: ratio })),
-                        ...options.aspectPresets.map((preset) => ({
-                          value: preset.key,
-                          label: `${preset.key} -> ${preset.value}`,
-                        })),
-                      ]}
+                      options={aspectSelectOptions}
                     />
                     <SelectField
                       label="Quality"
                       value={quality}
                       onChange={setQuality}
-                      options={options.qualities.map((entry) => ({ value: entry, label: entry }))}
+                      options={qualitySelectOptions}
                     />
                   </div>
 
@@ -653,8 +772,8 @@ function GeneratePage() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-3">
                       <p className="text-xs text-muted-foreground">
-                        Add one prompt per row. Run-level settings apply unless a future row adds
-                        overrides.
+                        Add one prompt per row. Leave row controls on run defaults or choose
+                        prompt-specific overrides.
                       </p>
                       <button
                         onClick={() => setPromptRows((current) => [...current, makePromptRow()])}
@@ -707,6 +826,44 @@ function GeneratePage() {
                             data-testid="generate-batch-prompt"
                             className="w-full resize-y rounded border border-border bg-sidebar px-3 py-2 text-sm outline-none focus:border-brand"
                           />
+                          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:grid-cols-4">
+                            <SelectField
+                              label="Model override"
+                              value={row.model || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { model: value })
+                              }
+                              options={rowModelOptions}
+                              testId="generate-batch-model"
+                            />
+                            <SelectField
+                              label="Style override"
+                              value={row.style || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { style: value })
+                              }
+                              options={rowStyleOptions}
+                              testId="generate-batch-style"
+                            />
+                            <SelectField
+                              label="Aspect override"
+                              value={row.aspectRatio || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { aspectRatio: value })
+                              }
+                              options={rowAspectOptions}
+                              testId="generate-batch-aspect"
+                            />
+                            <SelectField
+                              label="Quality override"
+                              value={row.quality || ""}
+                              onChange={(value) =>
+                                updatePromptRow(setPromptRows, row.id, { quality: value })
+                              }
+                              options={rowQualityOptions}
+                              testId="generate-batch-quality"
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -718,7 +875,11 @@ function GeneratePage() {
                     <TextField
                       label="Markdown prompt file"
                       value={promptFile}
-                      onChange={setPromptFile}
+                      onChange={(value) => {
+                        setPromptFile(value);
+                        setPromptPreview(null);
+                        setPromptPreviewError("");
+                      }}
                       placeholder="examples/quickstart-image-prompts.md"
                       testId="generate-prompt-file"
                     />
@@ -735,8 +896,27 @@ function GeneratePage() {
                       )}
                       Preview prompt file
                     </button>
+                    {previewBusy && (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Checking prompt file"
+                        message="Parsing the Markdown file before this batch can estimate prompt count."
+                        testId="generate-preview-state"
+                      />
+                    )}
+                    {promptPreviewError && !previewBusy && (
+                      <InlineStatePanel
+                        kind="preview-error"
+                        title="Prompt preview failed"
+                        message={promptPreviewError}
+                        testId="generate-preview-state"
+                      />
+                    )}
                     {promptPreview && (
-                      <div className="rounded border border-border bg-background p-4">
+                      <div
+                        className="rounded border border-border bg-background p-4"
+                        data-testid="generate-preview-success"
+                      >
                         <div className="flex items-center justify-between gap-3">
                           <div>
                             <div className="text-sm font-semibold">
@@ -839,6 +1019,61 @@ function GeneratePage() {
                       placeholder="Search project, prompt, model"
                       className="mb-3 w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
                     />
+                    <div className="mb-3 grid gap-2 sm:grid-cols-2">
+                      <label className="flex min-h-10 cursor-pointer items-center gap-2 rounded border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                        <input
+                          type="checkbox"
+                          checked={starredReferencesOnly}
+                          onChange={(event) => setStarredReferencesOnly(event.target.checked)}
+                          data-testid="generate-reference-filter-starred"
+                        />
+                        <span className="font-mono uppercase tracking-widest">Starred</span>
+                      </label>
+                      <SelectField
+                        label="Project"
+                        value={projectReferenceFilter}
+                        onChange={setProjectReferenceFilter}
+                        testId="generate-reference-filter-project"
+                        options={[
+                          { value: "all", label: "All projects" },
+                          {
+                            value: "current",
+                            label: project.trim() ? `Current: ${project.trim()}` : "Current project",
+                          },
+                        ]}
+                      />
+                      <SelectField
+                        label="Run recency"
+                        value={latestRunFilter}
+                        onChange={(value) => setLatestRunFilter(value as LatestRunFilter)}
+                        disabled={!hasLatestRunData}
+                        testId="generate-reference-filter-latest"
+                        options={
+                          hasLatestRunData
+                            ? [
+                                { value: "all", label: "All runs" },
+                                { value: "prefer", label: "Prefer latest" },
+                                { value: "latest", label: "Latest only" },
+                              ]
+                            : [{ value: "all", label: "Run data unavailable" }]
+                        }
+                      />
+                      <div className="flex items-end">
+                        <div
+                          className="w-full rounded border border-border bg-background px-3 py-2 text-[10px] font-mono uppercase tracking-widest text-muted-foreground"
+                          data-testid="generate-reference-filter-count"
+                        >
+                          {filteredImages.length}/{matchingImages.length} shown
+                        </div>
+                      </div>
+                    </div>
+                    {libraryQuery.isFetching && !libraryQuery.isLoading && (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Refreshing library references"
+                        message="Updating the present-image list from the archive scan."
+                      />
+                    )}
                     <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
                       {filteredImages.map((image) => (
                         <ReferenceImageRow
@@ -846,42 +1081,100 @@ function GeneratePage() {
                           image={image}
                           onUsePrimary={() => addReference(image.url, "primary")}
                           onUseGlobal={() => addReference(image.url, "global")}
+                          onUseComposition={() => addReference(image.url, "composition")}
                         />
                       ))}
                       {!filteredImages.length && (
-                        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
-                          No present library images match.
-                        </div>
+                        <InlineStatePanel
+                          kind="empty"
+                          title={
+                            presentImages.length
+                              ? "No library references match"
+                              : "No library reference images yet"
+                          }
+                          message={
+                            presentImages.length
+                              ? "Try broader reference filters or search terms."
+                              : "Present archive images will appear here. You can still paste a local or archive path above."
+                          }
+                        />
                       )}
                     </div>
                   </div>
 
-                  {mediaReferences.length > 0 && (
-                    <div>
-                      <FieldLabel>Media image references</FieldLabel>
+                  <div>
+                    <FieldLabel>Media references</FieldLabel>
+                    {mediaQuery.isLoading ? (
+                      <InlineStatePanel
+                        kind="loading"
+                        title="Loading media references"
+                        message="Reading review-ready entries from the media registry."
+                      />
+                    ) : mediaQuery.error ? (
+                      <InlineStatePanel
+                        kind="preview-error"
+                        title="Media references unavailable"
+                        message="The media registry could not be loaded. Paste a path above or refresh later."
+                      />
+                    ) : mediaReferenceOptions.length > 0 ? (
                       <div className="space-y-2">
+                        <SelectField
+                          label="Kind"
+                          value={mediaKindFilter}
+                          onChange={setMediaKindFilter}
+                          testId="generate-media-kind-filter"
+                          options={mediaKindOptions}
+                        />
                         {mediaReferences.map((entry) => (
                           <div
                             key={entry.id}
                             className="flex items-center justify-between gap-3 rounded border border-border bg-background p-2"
                           >
                             <div className="min-w-0">
-                              <div className="truncate text-xs">{entry.title}</div>
+                              <div className="flex items-center gap-2">
+                                <span className="truncate text-xs">{entry.title}</span>
+                                <span className="shrink-0 rounded bg-sidebar px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-widest text-muted-foreground">
+                                  {entry.kind}
+                                </span>
+                              </div>
                               <div className="truncate font-mono text-[10px] text-muted-foreground">
                                 {entry.url}
                               </div>
                             </div>
-                            <button
-                              onClick={() => addReference(entry.url, "global")}
-                              className="shrink-0 rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
-                            >
-                              Global
-                            </button>
+                            <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                              <button
+                                onClick={() => addReference(entry.url, "global")}
+                                data-testid="generate-media-reference-global"
+                                className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                              >
+                                Global
+                              </button>
+                              <button
+                                onClick={() => addReference(entry.url, "composition")}
+                                data-testid="generate-media-reference-composition"
+                                className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                              >
+                                Comp
+                              </button>
+                            </div>
                           </div>
                         ))}
+                        {!mediaReferences.length && (
+                          <InlineStatePanel
+                            kind="empty"
+                            title="No media references match"
+                            message="Choose another media kind or paste a path above."
+                          />
+                        )}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <InlineStatePanel
+                        kind="empty"
+                        title="No media references found"
+                        message="Review-ready media entries will appear here after the media registry has indexed them."
+                      />
+                    )}
+                  </div>
                 </div>
               </SectionPanel>
             </div>
@@ -891,7 +1184,11 @@ function GeneratePage() {
               payload={lastPayload}
               onRefreshLibrary={() => {
                 void queryClient.invalidateQueries({ queryKey: ["library-state"] });
-                setNotice("Library refresh requested.");
+                setStatus({
+                  kind: "notice",
+                  title: "Library refresh requested",
+                  message: "Rafiki is rechecking archive state for new references and run links.",
+                });
               }}
             />
           </div>
@@ -993,11 +1290,15 @@ function SelectField({
   value,
   onChange,
   options,
+  testId,
+  disabled = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: Array<{ value: string; label: string }>;
+  testId?: string;
+  disabled?: boolean;
 }) {
   return (
     <div>
@@ -1005,7 +1306,12 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand"
+        data-testid={testId}
+        disabled={disabled}
+        className={cn(
+          "w-full rounded border border-border bg-background px-3 py-2 text-sm outline-none focus:border-brand",
+          disabled && "cursor-not-allowed opacity-60",
+        )}
       >
         {options.map((entry) => (
           <option key={entry.value} value={entry.value}>
@@ -1270,31 +1576,43 @@ function HistoryLink({ href, label }: { href?: string; label: string }) {
   );
 }
 
-function StatusBanner({
-  tone,
-  message,
-  onClear,
-}: {
-  tone: "info" | "error";
-  message: string;
-  onClear: () => void;
-}) {
+function GenerateLoadingBlock({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="grid min-h-[420px] place-items-center">
+      <div className="max-w-md rounded border border-border bg-sidebar p-6 text-center">
+        <Loader2 className="mx-auto size-6 animate-spin text-brand" strokeWidth={1.5} />
+        <div className="mt-4 text-[10px] font-mono uppercase tracking-widest text-brand">
+          {title}
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatusBanner({ status, onClear }: { status: GenerateStatus; onClear: () => void }) {
+  const visual = statusVisual(status.kind);
+  const Icon = visual.icon;
   return (
     <div
+      data-testid="generate-status"
+      data-generate-status={status.kind}
       className={cn(
         "flex items-start justify-between gap-3 rounded border px-4 py-3 text-sm",
-        tone === "error"
-          ? "border-destructive/30 bg-destructive/5 text-destructive"
-          : "border-brand/30 bg-brand/5 text-foreground",
+        visual.className,
       )}
     >
       <div className="flex min-w-0 items-start gap-2">
-        {tone === "error" ? (
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-        ) : (
-          <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-brand" />
-        )}
-        <span className="break-words">{message}</span>
+        <Icon className={cn("mt-0.5 size-4 shrink-0", visual.iconClassName)} strokeWidth={1.5} />
+        <div className="min-w-0">
+          <div className="text-[10px] font-mono uppercase tracking-widest">
+            {status.title}
+          </div>
+          <p className="mt-1 break-words text-foreground">{status.message}</p>
+          {status.detail && (
+            <p className="mt-1 break-words text-xs text-muted-foreground">{status.detail}</p>
+          )}
+        </div>
       </div>
       <button
         onClick={onClear}
@@ -1307,14 +1625,97 @@ function StatusBanner({
   );
 }
 
+function InlineStatePanel({
+  kind,
+  title,
+  message,
+  testId,
+}: {
+  kind: InlineStateKind;
+  title: string;
+  message: string;
+  testId?: string;
+}) {
+  const visual = inlineStateVisual(kind);
+  const Icon = visual.icon;
+  return (
+    <div
+      data-testid={testId}
+      data-generate-state={kind}
+      className={cn("rounded border p-4 text-xs", visual.className)}
+    >
+      <div className="flex items-start gap-3">
+        <Icon className={cn("mt-0.5 size-4 shrink-0", visual.iconClassName)} strokeWidth={1.5} />
+        <div className="min-w-0">
+          <div className="font-mono text-[10px] uppercase tracking-widest">{title}</div>
+          <p className="mt-1 break-words text-muted-foreground">{message}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function statusVisual(kind: GenerateStatusKind) {
+  if (kind === "validation") {
+    return {
+      icon: AlertTriangle,
+      className: "border-amber-400/30 bg-amber-400/5 text-amber-300",
+      iconClassName: "text-amber-300",
+    };
+  }
+  if (kind === "generation-error") {
+    return {
+      icon: AlertTriangle,
+      className: "border-destructive/30 bg-destructive/5 text-destructive",
+      iconClassName: "text-destructive",
+    };
+  }
+  if (kind === "loading") {
+    return {
+      icon: Loader2,
+      className: "border-brand/30 bg-brand/5 text-brand",
+      iconClassName: "animate-spin text-brand",
+    };
+  }
+  return {
+    icon: CheckCircle2,
+    className: "border-brand/30 bg-brand/5 text-brand",
+    iconClassName: "text-brand",
+  };
+}
+
+function inlineStateVisual(kind: InlineStateKind) {
+  if (kind === "loading") {
+    return {
+      icon: Loader2,
+      className: "border-brand/30 bg-brand/5 text-brand",
+      iconClassName: "animate-spin text-brand",
+    };
+  }
+  if (kind === "preview-error") {
+    return {
+      icon: AlertTriangle,
+      className: "border-amber-400/30 bg-amber-400/5 text-amber-300",
+      iconClassName: "text-amber-300",
+    };
+  }
+  return {
+    icon: ImageOff,
+    className: "border-border bg-background text-muted-foreground",
+    iconClassName: "text-muted-foreground",
+  };
+}
+
 function ReferenceImageRow({
   image,
   onUsePrimary,
   onUseGlobal,
+  onUseComposition,
 }: {
   image: ImageRecord;
   onUsePrimary: () => void;
   onUseGlobal: () => void;
+  onUseComposition: () => void;
 }) {
   return (
     <div className="flex gap-3 rounded border border-border bg-background p-2">
@@ -1342,6 +1743,13 @@ function ReferenceImageRow({
           >
             Global
           </button>
+          <button
+            onClick={onUseComposition}
+            data-testid="generate-reference-composition"
+            className="rounded border border-border px-2 py-1 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground"
+          >
+            Comp
+          </button>
         </div>
       </div>
     </div>
@@ -1364,13 +1772,26 @@ function SelectedReferences({
   onRemoveComposition: (source: string) => void;
 }) {
   const empty = !primary && global.length === 0 && composition.length === 0;
+  const count = (primary ? 1 : 0) + global.length + composition.length;
   return (
     <div>
-      <FieldLabel>Selected references</FieldLabel>
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+          Selected references
+        </span>
+        <span
+          className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-muted-foreground"
+          data-testid="generate-selected-reference-count"
+        >
+          {count} selected
+        </span>
+      </div>
       {empty ? (
-        <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
-          No references selected.
-        </div>
+        <InlineStatePanel
+          kind="empty"
+          title="No references selected"
+          message="This is valid for prompt-only runs. Add library, media, or pasted paths when the image should follow a visual source."
+        />
       ) : (
         <div className="space-y-2">
           {primary && <ReferenceChip label="Primary" source={primary} onRemove={onClearPrimary} />}
@@ -1542,6 +1963,31 @@ function ResultPanel({
                 )}
               />
             </dl>
+            {payload.prompts?.length ? (
+              <div
+                className="mt-4 rounded border border-border bg-sidebar p-3"
+                data-testid="generate-row-overrides"
+              >
+                <div className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
+                  Inline row overrides
+                </div>
+                <dl className="mt-2 space-y-2 text-xs">
+                  {payload.prompts.map((prompt, index) => (
+                    <MetaRow
+                      key={`${prompt.name || "prompt"}-${index}`}
+                      label={inlinePromptLabel(prompt, index)}
+                      value={inlinePromptOverrideText(prompt)}
+                    />
+                  ))}
+                </dl>
+              </div>
+            ) : null}
+            <pre
+              data-testid="generate-last-payload-json"
+              className="mt-4 max-h-56 overflow-auto rounded border border-border bg-sidebar p-3 text-[10px] leading-relaxed text-muted-foreground"
+            >
+              {JSON.stringify(payload, null, 2)}
+            </pre>
           </div>
         )}
       </div>
@@ -1570,6 +2016,42 @@ function bucketLabel(bucket: ReferenceBucket) {
   return "Comp";
 }
 
+function messageFromUnknown(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function modelOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.models ?? []).map((entry) => ({
+    value: entry.id,
+    label: entry.aliases.length ? `${entry.id} (${entry.aliases.join(", ")})` : entry.id,
+  }));
+}
+
+function styleOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.styles ?? []).map((entry) => ({
+    value: entry.key,
+    label: entry.default ? `${entry.name} - default` : entry.name,
+  }));
+}
+
+function aspectOptionsFor(options: GenerateOptions | undefined) {
+  return [
+    ...(options?.aspectRatios ?? []).map((ratio) => ({ value: ratio, label: ratio })),
+    ...(options?.aspectPresets ?? []).map((preset) => ({
+      value: preset.key,
+      label: `${preset.key} -> ${preset.value}`,
+    })),
+  ];
+}
+
+function qualityOptionsFor(options: GenerateOptions | undefined) {
+  return (options?.qualities ?? []).map((entry) => ({ value: entry, label: entry }));
+}
+
+function inheritOptions(label: string, options: Array<{ value: string; label: string }>) {
+  return [{ value: "", label }, ...options];
+}
+
 function splitReferences(value: string) {
   return value
     .split(/[\n,]/)
@@ -1581,12 +2063,61 @@ function uniq(values: string[]) {
   return Array.from(new Set(values));
 }
 
+function latestRunIdsFor(runs: RunRecord[]) {
+  const latestByProject = new Map<string, RunRecord>();
+  for (const run of runs) {
+    const current = latestByProject.get(run.projectId);
+    if (!current || run.createdAt.localeCompare(current.createdAt) > 0) {
+      latestByProject.set(run.projectId, run);
+    }
+  }
+  return new Set(Array.from(latestByProject.values()).map((run) => run.id));
+}
+
+function labelFromToken(value: string) {
+  return value
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function updatePromptRow(
   setRows: Dispatch<SetStateAction<PromptRow[]>>,
   id: string,
   patch: Partial<PromptRow>,
 ) {
   setRows((current) => current.map((row) => (row.id === id ? { ...row, ...patch } : row)));
+}
+
+function inlinePromptFromRow(row: PromptRow): InlinePrompt {
+  const prompt: InlinePrompt = {
+    name: row.name.trim(),
+    prompt: row.prompt.trim(),
+  };
+  const model = row.model?.trim();
+  const style = row.style?.trim();
+  const aspectRatio = row.aspectRatio?.trim();
+  const quality = row.quality?.trim();
+  if (model) prompt.model = model;
+  if (style) prompt.style = style;
+  if (aspectRatio) prompt.aspect_ratio = aspectRatio;
+  if (quality) prompt.quality = quality;
+  return prompt;
+}
+
+function inlinePromptLabel(prompt: InlinePrompt, index: number) {
+  return prompt.name?.trim() || `Prompt ${index + 1}`;
+}
+
+function inlinePromptOverrideText(prompt: InlinePrompt) {
+  const overrides = [
+    prompt.model ? `model: ${prompt.model}` : "",
+    prompt.style ? `style: ${prompt.style}` : "",
+    prompt.aspect_ratio ? `aspect: ${prompt.aspect_ratio}` : "",
+    prompt.quality ? `quality: ${prompt.quality}` : "",
+  ].filter(Boolean);
+  return overrides.length ? overrides.join(" / ") : "run defaults";
 }
 
 function readGenerateHistory(): GenerateHistoryItem[] {
@@ -1703,6 +2234,10 @@ function draftHashForState(state: {
     .map((row) => ({
       name: row.name.trim(),
       prompt: row.prompt.trim(),
+      model: row.model?.trim() || "",
+      style: row.style?.trim() || "",
+      aspectRatio: row.aspectRatio?.trim() || "",
+      quality: row.quality?.trim() || "",
     }))
     .filter((row) => row.prompt);
   const activePromptInput =

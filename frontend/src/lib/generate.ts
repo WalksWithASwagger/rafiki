@@ -125,7 +125,7 @@ export async function previewPromptFile(promptFile: string): Promise<PromptPrevi
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload.error || `Prompt preview failed: ${response.status}`);
+    throw new Error(errorMessageFromPayload(payload, `Prompt preview failed: ${response.status}`));
   }
   return payload;
 }
@@ -142,7 +142,7 @@ export async function runGenerate(
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok) {
-    throw new Error(data.error || data.detail || `Generation failed: ${response.status}`);
+    throw new Error(errorMessageFromPayload(data, `Generation failed: ${response.status}`));
   }
   return {
     ...data,
@@ -156,7 +156,7 @@ export async function runGenerate(
 }
 
 export async function fetchMediaReferences(): Promise<MediaReference[]> {
-  const response = await fetch("/api/media?kind=image&view=review", {
+  const response = await fetch("/api/media?view=review", {
     headers: { Accept: "application/json" },
   });
   if (!response.ok) return [];
@@ -176,4 +176,11 @@ export function mediaReferenceUrl(entry: MediaReference) {
     return `/media/${entry.root_key}/${entry.relative_path}`;
   }
   return "";
+}
+
+function errorMessageFromPayload(payload: Record<string, unknown>, fallback: string) {
+  const error = typeof payload.error === "string" ? payload.error : "";
+  const detail = typeof payload.detail === "string" ? payload.detail : "";
+  if (error && detail && detail !== error) return `${error}: ${detail}`;
+  return error || detail || fallback;
 }

@@ -208,6 +208,19 @@ async function setFieldValue(page, selector, value) {
   }, value);
 }
 
+async function setSelectValue(page, selector, value, index = 0) {
+  await page.waitForSelector(selector);
+  await page.$$eval(selector, (elements, nextValue, elementIndex) => {
+    const element = elements[elementIndex];
+    if (!(element instanceof HTMLSelectElement)) {
+      throw new Error(`element at index ${elementIndex} is not a select`);
+    }
+    element.value = nextValue;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value, index);
+}
+
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const server = http.createServer();
@@ -604,10 +617,45 @@ async function main() {
     assert(libraryState.totals.visible.missing === 1, 'library state visible missing total was wrong');
     assert(Array.isArray(libraryState.sourceWarnings), 'library state did not return source warnings');
     const firstRun = libraryState.runs[0];
-    const firstPresent = libraryState.images.find((image) => image.status === 'present');
+    const presentLibraryImages = libraryState.images.filter((image) => image.status === 'present');
+    const firstPresent = presentLibraryImages[0];
+    const starredPresent = presentLibraryImages.find((image) => image.id !== firstPresent?.id);
     const missingRecord = libraryState.images.find((image) => image.status === 'missing');
     assert(firstPresent, 'library state did not include a present image');
+    assert(starredPresent, 'library state did not include a second present image for reference filters');
     assert(missingRecord, 'library state did not include a missing image');
+    const ratingSeedResponse = await fetch(`${url}api/ratings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: starredPresent.key, value: 'star' }),
+    });
+    assert(ratingSeedResponse.ok, 'could not seed a starred reference image');
+    const mediaImageReferenceUrl = '/media/e2e-media/reference.png';
+    const mediaVideoReferenceUrl = '/media/e2e-media/clip.mp4';
+    const mediaReferencePayload = {
+      summary: { entries: 2 },
+      entries: [
+        {
+          id: 'e2e-media-image',
+          kind: 'image',
+          title: 'E2E media reference image',
+          root_key: 'e2e-media',
+          relative_path: 'reference.png',
+        },
+        {
+          id: 'e2e-media-video',
+          kind: 'video',
+          title: 'E2E media reference video',
+          root_key: 'e2e-media',
+          relative_path: 'clip.mp4',
+        },
+      ],
+      collections: [],
+      warnings: [],
+      view: 'review',
+      matched_entries: 2,
+      total_entries: 2,
+    };
 
     const desktop = await browser.newPage();
     const generateRequests = [];
@@ -623,6 +671,19 @@ async function main() {
           postData: request.postData() || '',
         });
       }
+    });
+    await desktop.setRequestInterception(true);
+    desktop.on('request', (request) => {
+      const requestUrl = new URL(request.url());
+      if (requestUrl.origin === new URL(url).origin && requestUrl.pathname === '/api/media') {
+        request.respond({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(mediaReferencePayload),
+        });
+        return;
+      }
+      request.continue();
     });
     await desktop.setViewport({ width: 1440, height: 1000, deviceScaleFactor: 1 });
     await desktop.goto(libraryUrl, { waitUntil: 'networkidle0' });
@@ -665,7 +726,61 @@ async function main() {
     await desktop.waitForFunction(() => document.body.textContent?.includes('Image generation'));
     await desktop.waitForSelector('[data-testid="generate-single-prompt"]');
     await desktop.waitForSelector('[data-testid="generate-reference-primary"]');
+    await desktop.waitForSelector('[data-testid="generate-reference-filter-starred"]');
+    await desktop.waitForSelector('[data-testid="generate-media-kind-filter"]');
+    const regenRequestCountBeforeValidation = generateRequests.length;
+    await desktop.click('[data-testid="generate-submit"]');
+    await waitForCondition(() => desktop.evaluate(() => {
+      const status = document.querySelector('[data-testid="generate-status"]');
+      return status?.getAttribute('data-generate-status') === 'validation'
+        && status.textContent?.includes('Single prompt is required.')
+        && status.textContent?.includes('Nothing was sent to the generation backend.');
+    }), 'generate validation refusal');
+    assert(
+      generateRequests.length === regenRequestCountBeforeValidation,
+      'validation refusal still submitted /api/regen',
+    );
+    await setFieldValue(desktop, '[data-testid="generate-project"]', 'no-matching-project');
+    await desktop.select('[data-testid="generate-reference-filter-project"]', 'current');
+    await desktop.click('[data-testid="generate-reference-filter-starred"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => document.body.textContent?.includes('No library references match'))
+    ), 'generate current-project reference filter empty state');
+    await setFieldValue(desktop, '[data-testid="generate-project"]', project);
+    await desktop.select('[data-testid="generate-reference-filter-latest"]', 'latest');
+    await desktop.select('[data-testid="generate-media-kind-filter"]', 'image');
+    await waitForCondition(() => (
+      desktop.evaluate((expectedUrl) => document.body.textContent?.includes(expectedUrl), starredPresent.url)
+    ), 'generate starred/latest reference filter result');
+    const referenceFilterState = await desktop.evaluate((expectedLibraryUrl, hiddenLibraryUrl, expectedMediaUrl, hiddenMediaUrl) => ({
+      text: document.body.textContent || '',
+      selectedCount: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      filterCount: document.querySelector('[data-testid="generate-reference-filter-count"]')?.textContent || '',
+      hasExpectedLibraryUrl: Boolean(document.body.textContent?.includes(expectedLibraryUrl)),
+      hasHiddenLibraryUrl: Boolean(document.body.textContent?.includes(hiddenLibraryUrl)),
+      hasExpectedMediaUrl: Boolean(document.body.textContent?.includes(expectedMediaUrl)),
+      hasHiddenMediaUrl: Boolean(document.body.textContent?.includes(hiddenMediaUrl)),
+    }), starredPresent.url, firstPresent.url, mediaImageReferenceUrl, mediaVideoReferenceUrl);
+    assert(referenceFilterState.hasExpectedLibraryUrl, 'starred/latest filter did not keep the starred /output reference');
+    assert(!referenceFilterState.hasHiddenLibraryUrl, 'starred filter still showed an unstarred /output reference');
+    assert(referenceFilterState.hasExpectedMediaUrl, 'media kind filter did not show the /media image reference');
+    assert(!referenceFilterState.hasHiddenMediaUrl, 'media kind filter still showed the video media reference');
+    assert(referenceFilterState.filterCount.includes('/'), `reference filter count did not render: ${referenceFilterState.filterCount}`);
     await desktop.click('[data-testid="generate-reference-primary"]');
+    await desktop.click('[data-testid="generate-reference-composition"]');
+    await desktop.click('[data-testid="generate-media-reference-global"]');
+    await waitForCondition(() => (
+      desktop.evaluate(() => (
+        document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent?.includes('3 selected')
+      ))
+    ), 'generate selected reference count');
+    const selectedReferenceState = await desktop.evaluate(() => ({
+      count: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
+      text: document.body.textContent || '',
+    }));
+    assert(selectedReferenceState.count.includes('3 selected'), `unexpected selected reference count: ${selectedReferenceState.count}`);
+    assert(selectedReferenceState.text.includes('/output/'), 'selected references did not include an /output reference');
+    assert(selectedReferenceState.text.includes('/media/'), 'selected references did not include a /media reference');
     await setFieldValue(desktop, '[data-testid="generate-project"]', 'e2e-generate-smoke');
     await setFieldValue(
       desktop,
@@ -755,6 +870,20 @@ async function main() {
     await desktop.click('[data-generate-mode="batch-inline"]');
     const batchPromptSelectors = await desktop.$$('[data-testid="generate-batch-prompt"]');
     assert(batchPromptSelectors.length >= 2, 'generate inline batch prompts were not rendered');
+    const batchModelSelectors = await desktop.$$('[data-testid="generate-batch-model"]');
+    const batchStyleSelectors = await desktop.$$('[data-testid="generate-batch-style"]');
+    const batchAspectSelectors = await desktop.$$('[data-testid="generate-batch-aspect"]');
+    const batchQualitySelectors = await desktop.$$('[data-testid="generate-batch-quality"]');
+    assert(batchModelSelectors.length >= 2, 'generate inline batch model overrides were not rendered');
+    assert(batchStyleSelectors.length >= 2, 'generate inline batch style overrides were not rendered');
+    assert(batchAspectSelectors.length >= 2, 'generate inline batch aspect overrides were not rendered');
+    assert(batchQualitySelectors.length >= 2, 'generate inline batch quality overrides were not rendered');
+    const batchStyleValues = await desktop.$$eval('[data-testid="generate-batch-style"]', (elements) => (
+      Array.from(elements[0].options).map((option) => option.value).filter(Boolean)
+    ));
+    const rowOneStyle = batchStyleValues.includes('bcai')
+      ? 'bcai'
+      : batchStyleValues.find((value) => value !== 'none') || 'none';
     await batchPromptSelectors[0].evaluate((element) => {
       Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set?.call(
         element,
@@ -771,11 +900,115 @@ async function main() {
       element.dispatchEvent(new Event('input', { bubbles: true }));
       element.dispatchEvent(new Event('change', { bubbles: true }));
     });
+    await setSelectValue(desktop, '[data-testid="generate-batch-model"]', 'gpt-image-2', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-style"]', rowOneStyle, 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-aspect"]', '1:1', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-quality"]', 'low', 0);
+    await setSelectValue(desktop, '[data-testid="generate-batch-aspect"]', '9:16', 1);
+    await setSelectValue(desktop, '[data-testid="generate-batch-quality"]', 'medium', 1);
     await desktop.click('[data-testid="generate-submit"]');
     await desktop.waitForFunction(() => (
       document.querySelector('[data-testid="generate-result"]')?.textContent?.includes('2/2')
     ));
+    await desktop.waitForSelector('[data-testid="generate-last-payload-json"]');
+    await desktop.waitForSelector('[data-testid="generate-dry-run-manifest"]');
+    const generateInlineState = await desktop.evaluate(async () => {
+      const payloadText = document.querySelector('[data-testid="generate-last-payload-json"]')?.textContent || '{}';
+      const payload = JSON.parse(payloadText);
+      const manifestUrl = document.querySelector('[data-testid="generate-dry-run-manifest"]')?.getAttribute('href') || '';
+      const manifest = manifestUrl ? await fetch(manifestUrl).then((response) => response.json()) : null;
+      return {
+        resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
+        rowOverridesText: document.querySelector('[data-testid="generate-row-overrides"]')?.textContent || '',
+        payload,
+        manifest,
+      };
+    });
+    assert(
+      generateInlineState.payload.prompts?.[0]?.model === 'gpt-image-2',
+      `row one model override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.style === rowOneStyle,
+      `row one style override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.aspect_ratio === '1:1',
+      `row one aspect override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[0]?.quality === 'low',
+      `row one quality override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[0])}`,
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(generateInlineState.payload.prompts?.[1] || {}, 'model'),
+      `row two empty model override was serialized: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      !Object.prototype.hasOwnProperty.call(generateInlineState.payload.prompts?.[1] || {}, 'style'),
+      `row two empty style override was serialized: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[1]?.aspect_ratio === '9:16',
+      `row two aspect override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.payload.prompts?.[1]?.quality === 'medium',
+      `row two quality override missing from payload: ${JSON.stringify(generateInlineState.payload.prompts?.[1])}`,
+    );
+    assert(
+      generateInlineState.rowOverridesText.includes('model: gpt-image-2')
+        && generateInlineState.rowOverridesText.includes('quality: medium'),
+      `row override summary did not expose overrides: ${generateInlineState.rowOverridesText}`,
+    );
+    assert(
+      generateInlineState.payload.reference_image?.startsWith('/output/'),
+      `primary reference did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      generateInlineState.payload.global_reference_images?.includes(mediaImageReferenceUrl),
+      `global references did not preserve the /media URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      generateInlineState.payload.composition_references?.some((source) => source.startsWith('/output/')),
+      `composition references did not preserve an /output URL: ${JSON.stringify(generateInlineState.payload)}`,
+    );
+    assert(
+      Array.isArray(generateInlineState.manifest?.images) && generateInlineState.manifest.images.length === 2,
+      `inline dry-run manifest did not include two images: ${JSON.stringify(generateInlineState.manifest)}`,
+    );
+    assert(
+      generateInlineState.manifest.images[0].model === 'gpt-image-2'
+        && generateInlineState.manifest.images[0].style === rowOneStyle
+        && generateInlineState.manifest.images[0].aspect_ratio === '1:1'
+        && generateInlineState.manifest.images[0].quality === 'low',
+      `row one manifest overrides were wrong: ${JSON.stringify(generateInlineState.manifest.images[0])}`,
+    );
+    assert(
+      generateInlineState.manifest.images[1].aspect_ratio === '9:16'
+        && generateInlineState.manifest.images[1].quality === 'medium',
+      `row two manifest overrides were wrong: ${JSON.stringify(generateInlineState.manifest.images[1])}`,
+    );
     await desktop.click('[data-generate-mode="batch-file"]');
+    await setFieldValue(
+      desktop,
+      '[data-testid="generate-prompt-file"]',
+      path.join(tmpRoot, 'missing-prompts.md'),
+    );
+    await desktop.click('[data-testid="generate-preview-prompt-file"]');
+    await waitForCondition(() => desktop.evaluate(() => {
+      const preview = document.querySelector('[data-testid="generate-preview-state"]');
+      return preview?.getAttribute('data-generate-state') === 'preview-error'
+        && preview.textContent?.includes('Prompt preview failed')
+        && preview.textContent?.includes('prompt_file not found');
+    }), 'generate prompt preview missing file');
+    const promptPreviewErrorText = await desktop.evaluate(() => (
+      document.querySelector('[data-testid="generate-preview-state"]')?.textContent || ''
+    ));
+    assert(
+      !promptPreviewErrorText.includes(tmpRoot),
+      'prompt preview error leaked the resolved temporary filesystem path',
+    );
     await setFieldValue(desktop, '[data-testid="generate-prompt-file"]', generatePromptFile);
     await desktop.click('[data-testid="generate-preview-prompt-file"]');
     await desktop.waitForFunction(() => document.body.textContent?.includes('2 prompts parsed'));
@@ -784,6 +1017,8 @@ async function main() {
       h1: document.querySelector('h1')?.textContent?.trim() || '',
       text: document.body.textContent || '',
       selectedReference: Boolean(document.body.textContent?.includes('/output/')),
+      selectedMediaReference: Boolean(document.body.textContent?.includes('/media/')),
+      selectedReferenceCount: document.querySelector('[data-testid="generate-selected-reference-count"]')?.textContent || '',
       resultText: document.querySelector('[data-testid="generate-result"]')?.textContent || '',
       historyText: document.querySelector('[data-testid="generate-history"]')?.textContent || '',
       overflow: {
@@ -794,6 +1029,8 @@ async function main() {
     assert(generateState.title.includes('Generate'), `unexpected generate title: ${generateState.title}`);
     assert(generateState.h1 === 'Generate', `expected Generate heading, got ${generateState.h1}`);
     assert(generateState.selectedReference, 'generate route did not select a library reference');
+    assert(generateState.selectedMediaReference, 'generate route did not select a media reference');
+    assert(generateState.selectedReferenceCount.includes('3 selected'), `generate selected reference count drifted: ${generateState.selectedReferenceCount}`);
     assert(generateState.resultText.includes('2/2'), 'generate inline batch dry-run did not complete');
     assert(generateState.historyText.includes('Run history'), 'generate history was missing after batch dry-run');
     assert(generateState.text.includes('2 prompts parsed'), 'generate prompt-file preview did not render');
