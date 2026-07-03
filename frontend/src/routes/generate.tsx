@@ -204,6 +204,7 @@ function GeneratePage() {
         aspectRatio,
         quality,
         resolution,
+        workers,
         singleName,
         singlePrompt,
         promptRows,
@@ -222,6 +223,7 @@ function GeneratePage() {
       aspectRatio,
       quality,
       resolution,
+      workers,
       singleName,
       singlePrompt,
       promptRows,
@@ -1195,6 +1197,7 @@ function RunHistoryPanel({
         {items.length > 0 && (
           <button
             onClick={onClear}
+            data-testid="generate-history-clear"
             className="flex items-center gap-2 self-start rounded border border-border px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-muted-foreground hover:text-foreground sm:self-auto"
           >
             <Trash2 className="size-3.5" strokeWidth={1.5} />
@@ -1685,6 +1688,7 @@ function draftHashForState(state: {
   aspectRatio: string;
   quality: string;
   resolution: string;
+  workers: number;
   singleName: string;
   singlePrompt: string;
   promptRows: PromptRow[];
@@ -1695,22 +1699,35 @@ function draftHashForState(state: {
   perPromptReferences: string;
   referenceRole: string;
 }) {
+  const prompts = state.promptRows
+    .map((row) => ({
+      name: row.name.trim(),
+      prompt: row.prompt.trim(),
+    }))
+    .filter((row) => row.prompt);
+  const activePromptInput =
+    state.mode === "single"
+      ? { name: state.singleName.trim(), prompt: state.singlePrompt.trim() }
+      : state.mode === "batch-file"
+        ? { promptFile: state.promptFile.trim() }
+        : { prompts };
+
   return hashString(
     JSON.stringify({
-      ...state,
       project: state.project.trim(),
+      mode: state.mode,
+      model: state.model,
       style: state.style || "none",
-      singleName: state.singleName.trim(),
-      singlePrompt: state.singlePrompt.trim(),
-      promptRows: state.promptRows.map((row) => ({
-        name: row.name.trim(),
-        prompt: row.prompt.trim(),
-      })),
-      promptFile: state.promptFile.trim(),
+      aspectRatio: state.aspectRatio,
+      quality: state.quality,
+      resolution: state.resolution,
+      workers: state.workers,
+      ...activePromptInput,
       primaryReference: state.primaryReference.trim(),
-      globalReferences: state.globalReferences.slice().sort(),
-      compositionReferences: state.compositionReferences.slice().sort(),
+      globalReferences: state.globalReferences,
+      compositionReferences: state.compositionReferences,
       perPromptReferences: splitReferences(state.perPromptReferences),
+      referenceRole: state.referenceRole,
     }),
   );
 }

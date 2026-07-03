@@ -22,10 +22,11 @@ server.
 - `POST /api/prompt-preview` parses Markdown prompt packs without writing files
   or calling providers.
 - `POST /api/regen` remains the generation path. The React `/generate` route
-  defaults to dry-run, records recent attempts in browser-local storage, and
-  requires both a matching dry-run manifest and explicit confirmation before
-  submitting `dry_run=false`; Python still resolves references, owns provider
-  keys, and runs `run_batch`.
+  defaults to dry-run, records clearable recent attempts in browser-local
+  storage, and requires both a dry-run manifest matching the active
+  prompt/config draft and explicit confirmation before submitting
+  `dry_run=false`; Python still resolves references, owns provider keys, and
+  runs `run_batch`.
 - Rollback routes stay available during migration: `/legacy-suite` for the old
   media-suite command center and `/legacy-library` for the old image library.
 
