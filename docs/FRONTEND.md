@@ -34,6 +34,29 @@ If `frontend/.output/server/index.mjs` does not exist, `generate.py serve`
 attempts `npm --prefix frontend run build`. Set `RAFIKI_DISABLE_FRONTEND=1` to
 force legacy fallback behavior while debugging.
 
+## Package Boundary
+
+`npm pack --dry-run` is the source of truth for the public npm package. The
+issue #298 audit reports 146 package entries: the Node CLI entry, Python runtime
+code, selected scripts, docs, styles, config examples, requirements files, and
+the public example prompt packs. The dry run includes `README.md`,
+`docs/FRONTEND.md`, `generate.py`, `index.js`, `lib/server.py`, and
+`package.json`.
+
+The current release strategy is intentional fallback, not frontend inclusion.
+The root `package.json` `files` allowlist does not ship `frontend/`,
+`frontend/package.json`, frontend source, or `frontend/.output/` Nitro build
+artifacts. `npm run pack:check` verifies that boundary with
+`npm pack --dry-run --json` and fails if any `frontend/` path enters the tarball
+before a maintainer approves the package-content change.
+
+For package installs, `rafiki serve` can start the Python local server and the
+legacy portal routes, but it cannot build or start the TypeScript shell from the
+package alone because the frontend workspace and build output are absent.
+Verification of the TypeScript UI through `npx rafiki serve` from a published
+package is deferred until the maintainer chooses whether to ship frontend source
+or prebuilt frontend artifacts.
+
 ## Open The Library
 
 Start the local portal from the repo root:
@@ -80,13 +103,5 @@ checks rating persistence through `/api/ratings`, confirms present images load
 from `/output/*`, confirms missing records render placeholders, and captures
 desktop/mobile nonblank screenshot metrics.
 
-`npm run verify` remains the full repo closeout gate. It currently validates
-the package boundary but does not package the frontend into the npm tarball.
-
-## Packaging Follow-Up
-
-This replacement is repo-first. The root `package.json` `files` list does not
-yet ship `frontend/` in `npm pack`. Before an npm release depends on the new
-shell, add an explicit packaging strategy for frontend source/build artifacts
-and verify that `npx rafiki serve` can start the TypeScript UI from the
-published package.
+`npm run verify` remains the full repo closeout gate. It validates the package
+boundary but does not package the frontend into the npm tarball.
