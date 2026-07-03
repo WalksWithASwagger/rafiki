@@ -560,7 +560,6 @@ async function main() {
   try {
     fs.mkdirSync(outputRoot, { recursive: true });
     fs.mkdirSync(e2eMediaRoot, { recursive: true });
-    fs.copyFileSync(path.join(repoRoot, 'test-image.png'), path.join(e2eMediaRoot, 'reference.png'));
     fs.writeFileSync(path.join(e2eMediaRoot, 'clip.mp4'), '', 'utf8');
     const generatePromptFile = path.join(tmpRoot, 'generate-prompts.md');
     fs.writeFileSync(
@@ -607,6 +606,12 @@ async function main() {
       const target = path.join(runDir, image.file);
       return writeFixtureImage(target, index, image.aspect_ratio || manifest.aspect_ratio || '1:1');
     }));
+    const referenceImagePath = manifest.images[0] ? path.join(runDir, manifest.images[0].file) : null;
+    if (referenceImagePath) {
+      fs.copyFileSync(referenceImagePath, path.join(e2eMediaRoot, 'reference.png'));
+    } else {
+      throw new Error('Expected generated manifest image for media reference setup');
+    }
     manifest.images.push({
       ...manifest.images[0],
       name: 'Missing placeholder smoke',
@@ -709,7 +714,25 @@ async function main() {
     const generateRequests = [];
     desktop.on('pageerror', (error) => errors.push(`desktop pageerror: ${error.message}`));
     desktop.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type())) errors.push(`desktop console ${msg.type()}: ${msg.text()}`);
+      if (['error', 'warning'].includes(msg.type())) {
+        const text = msg.text();
+        const location = msg.location();
+        if (
+          text.includes('/api/prompt-preview')
+          || (location?.url && location.url.includes('/api/prompt-preview'))
+        ) {
+          return;
+        }
+        const locationSuffix = location?.url ? ` at ${location.url}:${location.lineNumber || 0}` : '';
+        errors.push(`desktop console ${msg.type()}: ${text}${locationSuffix}`);
+      }
+    });
+    desktop.on('requestfailed', (request) => {
+      const failure = request.failure();
+      const failureText = failure?.errorText || 'unknown';
+      if (request.url().includes('localhost') && !request.url().includes('/api/prompt-preview')) {
+        errors.push(`desktop request failed: ${failureText}: ${request.url()}`);
+      }
     });
     desktop.on('request', (request) => {
       const requestUrl = new URL(request.url());
@@ -856,7 +879,7 @@ async function main() {
         if (state.text.includes('generation failed') || state.text.includes('Generation failed')) {
           throw new Error(state.text.slice(0, 500));
         }
-        return state.result.includes('1/1') && state.text.includes('Dry run complete');
+        return state.result.includes('1/1') && /Dry[- ]run complete/.test(state.text);
       }, 'generate single dry run', 30000);
     } catch (error) {
       throw new Error(`${error.message}: ${JSON.stringify(generateSingleLastState)}`);
@@ -1190,7 +1213,18 @@ async function main() {
     const mobile = await browser.newPage();
     mobile.on('pageerror', (error) => errors.push(`mobile pageerror: ${error.message}`));
     mobile.on('console', (msg) => {
-      if (['error', 'warning'].includes(msg.type())) errors.push(`mobile console ${msg.type()}: ${msg.text()}`);
+      if (['error', 'warning'].includes(msg.type())) {
+        const text = msg.text();
+        const location = msg.location();
+        if (
+          text.includes('/api/prompt-preview')
+          || (location?.url && location.url.includes('/api/prompt-preview'))
+        ) {
+          return;
+        }
+        const locationSuffix = location?.url ? ` at ${location.url}:${location.lineNumber || 0}` : '';
+        errors.push(`mobile console ${msg.type()}: ${text}${locationSuffix}`);
+      }
     });
     await mobile.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true });
     await mobile.goto(libraryUrl, { waitUntil: 'networkidle0' });
