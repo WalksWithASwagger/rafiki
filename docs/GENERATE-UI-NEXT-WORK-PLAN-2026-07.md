@@ -3,29 +3,37 @@
 ## Summary
 
 Generate UI V1 gives Rafiki a first-class React `/generate` route backed by
-Python's existing `run_batch` path. The next milestone should stabilize real
-operator use before adding video, uploads, LoRA training, or a background job
-system.
+Python's existing `run_batch` path. The first stabilization pass shipped on
+July 3, 2026; the next milestone should deepen prompt/reference workflows before
+adding video, uploads, LoRA training, or a background job system.
 
 ## Current Baseline
 
 - `/generate` supports single prompt, inline batch, and Markdown prompt-file
   preview modes.
 - Runs default to `dry_run=true`; real provider execution requires an explicit
-  confirmation checkbox.
+  confirmation checkbox plus a matching dry-run manifest for the current draft.
+- Recent dry-runs and provider attempts are recorded in browser-local history
+  with links back to the run viewer, project viewer, library run, and manifest.
 - Library-picked references submit `/output/*` URLs, media references submit
   `/media/*` URLs, and Python resolves those through the existing local safety
   boundaries.
 - Backend support is intentionally small: `GET /api/generate-options`,
   `POST /api/prompt-preview`, and backward-compatible `POST /api/regen`.
 
-## Next Milestone: Generation Workflow Stabilization
+## Shipped: Generation Workflow Stabilization
 
-- In progress: add an operator-friendly run history panel for recent `/generate` attempts,
-  with links to the run viewer, project viewer, library project, and manifest.
-- In progress: make real-run execution more explicit by showing estimated provider, model,
-  prompt count, reference count, and dry-run manifest path before enabling
-  `dry_run=false`.
+- PR #290 added an operator-friendly run history panel for recent `/generate`
+  attempts, with links to the run viewer, project viewer, library project, and
+  manifest.
+- PR #290 made real-run execution more explicit by showing estimated provider,
+  model, prompt count, reference count, and dry-run manifest path before
+  enabling `dry_run=false`.
+- PR #291 added the July 3 issue-crush audit and recommended the next issue
+  order.
+
+## Next Milestone: Prompt And Reference Depth
+
 - Add per-row inline batch overrides for model, style, aspect ratio, and
   quality, matching the existing Markdown prompt-file override contract.
 - Improve reference selection with filters for starred images, current project,
@@ -46,8 +54,8 @@ system.
 ## Verification Targets
 
 - Extend unit tests for per-row inline overrides and reference-role handling.
-- Extend `npm run e2e:portal` to cover a real-run confirmation refusal path
-  without calling providers.
+- Extend `npm run e2e:portal` to cover real-run confirmation and matching
+  dry-run refusal paths without calling providers.
 - Keep desktop and mobile checks for `/generate` horizontal overflow and
   nonblank screenshots.
 - Continue running `npm --prefix frontend ci`, `npm run frontend:verify`,

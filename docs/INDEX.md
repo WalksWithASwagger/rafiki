@@ -38,6 +38,11 @@ deeper operating docs by surface area.
 - [Generate UI Next Work Plan](GENERATE-UI-NEXT-WORK-PLAN-2026-07.md) -
   stabilization plan for the React generation workspace, dry-run safety,
   reference selection, and future job handling.
+- [July 3 Issue-Crush Audit](../meta/audits/2026-07-03-issue-crush-audit.md) -
+  open-issue disposition, close candidates, blocked issues, and recommended
+  implementation order after Generate UI stabilization.
+- [July 3 Closeout](../meta/audits/2026-07-03-rafiki-closeout.md) - merged PRs,
+  stale branch cleanup proof, verification, and next work.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, legacy rollback surfaces, feedback, evaluation, archive metadata
   state, revision staging, Curriculum Atlas surface, and API endpoints.
