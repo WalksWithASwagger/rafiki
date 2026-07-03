@@ -70,9 +70,9 @@ export const Route = createFileRoute("/generate")({
 
 type Mode = "single" | "batch-inline" | "batch-file";
 type ReferenceBucket = "primary" | "global" | "composition";
-type LatestRunFilter = "all" | "prefer" | "latest";
 type GenerateStatusKind = "notice" | "validation" | "generation-error" | "loading";
 type InlineStateKind = "empty" | "loading" | "preview-error";
+type LatestRunFilter = "all" | "prefer" | "latest";
 
 interface GenerateStatus {
   kind: GenerateStatusKind;
@@ -477,7 +477,7 @@ function GeneratePage() {
       saveHistoryItem(historyItemFromResult(response, payload, submittedDraftHash));
       setStatus({
         kind: "notice",
-        title: payload.dry_run ? "Dry-run complete" : "Run complete",
+        title: payload.dry_run ? "Dry run complete" : "Run complete",
         message: payload.dry_run
           ? "No provider spend was triggered."
           : "Refresh the library to load the new archive state.",
@@ -1102,7 +1102,7 @@ function GeneratePage() {
                           }
                           message={
                             presentImages.length
-                              ? "Try broader reference filters or search terms."
+                              ? "Try a broader project, prompt, or model search."
                               : "Present archive images will appear here. You can still paste a local or archive path above."
                           }
                         />
@@ -1168,11 +1168,9 @@ function GeneratePage() {
                           </div>
                         ))}
                         {!mediaReferences.length && (
-                          <InlineStatePanel
-                            kind="empty"
-                            title="No media references match"
-                            message="Choose another media kind or paste a path above."
-                          />
+                          <div className="rounded border border-border bg-background p-4 text-xs text-muted-foreground">
+                            No media references match.
+                          </div>
                         )}
                       </div>
                     ) : (
@@ -1780,7 +1778,7 @@ function SelectedReferences({
   const empty = !primary && global.length === 0 && composition.length === 0;
   const count = (primary ? 1 : 0) + global.length + composition.length;
   return (
-    <div>
+    <div data-testid="generate-selected-references">
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <span className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">
           Selected references
@@ -2022,10 +2020,6 @@ function bucketLabel(bucket: ReferenceBucket) {
   return "Comp";
 }
 
-function messageFromUnknown(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function modelOptionsFor(options: GenerateOptions | undefined) {
   return (options?.models ?? []).map((entry) => ({
     value: entry.id,
@@ -2056,6 +2050,10 @@ function qualityOptionsFor(options: GenerateOptions | undefined) {
 
 function inheritOptions(label: string, options: Array<{ value: string; label: string }>) {
   return [{ value: "", label }, ...options];
+}
+
+function messageFromUnknown(error: unknown) {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function splitReferences(value: string) {
@@ -2240,10 +2238,6 @@ function draftHashForState(state: {
     .map((row) => ({
       name: row.name.trim(),
       prompt: row.prompt.trim(),
-      model: row.model?.trim() || "",
-      style: row.style?.trim() || "",
-      aspectRatio: row.aspectRatio?.trim() || "",
-      quality: row.quality?.trim() || "",
     }))
     .filter((row) => row.prompt);
   const activePromptInput =
@@ -2259,6 +2253,17 @@ function draftHashForState(state: {
       mode: state.mode,
       model: state.model,
       style: state.style || "none",
+      singleName: state.singleName.trim(),
+      singlePrompt: state.singlePrompt.trim(),
+      promptRows: state.promptRows.map((row) => ({
+        name: row.name.trim(),
+        prompt: row.prompt.trim(),
+        model: row.model?.trim() || "",
+        style: row.style?.trim() || "",
+        aspectRatio: row.aspectRatio?.trim() || "",
+        quality: row.quality?.trim() || "",
+      })),
+      promptFile: state.promptFile.trim(),
       aspectRatio: state.aspectRatio,
       quality: state.quality,
       resolution: state.resolution,
