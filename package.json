@@ -58,6 +58,7 @@
     "config/scheduled-regen.json.example",
     "examples/quickstart-image-prompts.md",
     "examples/keynote-visual-workflow-prompt-pack.md",
+    ".env.schema",
     ".env.example",
     "README.md",
     "LICENSE",

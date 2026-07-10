@@ -29,6 +29,10 @@ The smoke uses a disposable prompt file and output root. It runs the Node CLI in
 the resulting dry-run manifests. It clears provider-key environment variables
 inside the smoke process so a passing run never proves live provider access.
 
+Rafiki commits `.env.schema` as the agent-readable env contract. Agents should
+inspect it with `varlock load --agent --show-all` from an agent/operator shell
+that has Varlock on `PATH`, and should not read `.env` or `.env.local` directly.
+
 Codex:
 
 ```bash
@@ -54,8 +58,27 @@ Generic MCP JSON:
 }
 ```
 
-The server loads `.env` from the Rafiki repo root, so API keys do not need to
-be duplicated into every client config.
+The server loads `.env` from the Rafiki repo root for human local use, so API
+keys do not need to be duplicated into every client config. For agent sessions
+that may make real provider calls, wrap the MCP process with Varlock so the
+agent gets validated env injection without reading secret files:
+
+```bash
+codex mcp add rafiki -- /path/to/varlock run --inject vars --path /path/to/rafiki/ -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
+```
+
+Generic MCP JSON with Varlock injection:
+
+```json
+{
+  "mcpServers": {
+    "rafiki": {
+      "command": "/path/to/varlock",
+      "args": ["run", "--inject", "vars", "--path", "/path/to/rafiki/", "--", "/path/to/rafiki/.venv/bin/python", "/path/to/rafiki/mcp_server.py"]
+    }
+  }
+}
+```
 
 `rafiki_status` returns machine-specific install commands for the current
 checkout when you need copy-paste commands for your own client.
@@ -322,6 +345,13 @@ portal process. Start it directly when needed:
 
 ```bash
 ./.venv/bin/python generate.py serve --open
+```
+
+If an agent starts a provider-capable CLI command directly, keep the same
+secret boundary:
+
+```bash
+varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
 ```
 
 ## Safety Notes
