@@ -20,7 +20,6 @@
     "generate": "node index.js",
     "render": "node index.js --render",
     "doctor": "node index.js --doctor",
-    "env:validate": "varlock load --agent --show-all",
     "test": "node scripts/run-pytest.js",
     "test:python": "node scripts/run-pytest.js",
     "e2e:portal": "node scripts/portal-e2e-smoke.mjs",
@@ -94,8 +93,5 @@
     "html-to-image"
   ],
   "author": "Rafiki contributors",
-  "license": "MIT",
-  "devDependencies": {
-    "varlock": "^1.10.0"
-  }
+  "license": "MIT"
 }

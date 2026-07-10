@@ -56,6 +56,8 @@ python3 -m venv .venv
 Rafiki commits `.env.schema` as the agent-readable environment contract. Keep
 real values in your shell environment or an untracked `.env` file; agents should
 validate the contract without reading `.env` directly.
+The app itself still targets Node 20; run the Varlock CLI from an agent or
+operator shell that has Varlock available on `PATH`.
 
 ```bash
 cp .env.example .env
@@ -69,15 +71,15 @@ Add at least one of:
 To inspect the schema safely:
 
 ```bash
-npm run env:validate
+varlock load --agent --show-all
 ```
 
 When an agent needs to run a real provider-capable command, inject values
 through Varlock instead of reading `.env`:
 
 ```bash
-node_modules/.bin/varlock run --inject vars -- npx rafiki --prompt "..." --output output.png
-node_modules/.bin/varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
+varlock run --inject vars -- npx rafiki --prompt "..." --output output.png
+varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
 ```
 
 ### 3. Run setup diagnostics
@@ -346,10 +348,9 @@ python generate.py link-projects
 
 - Provider keys belong in your shell environment or an untracked `.env`
 - `.env.schema` is the committed env contract for agents; use
-  `npm run env:validate` or `node_modules/.bin/varlock load --agent --show-all`
-  instead of reading `.env`
+  `varlock load --agent --show-all` instead of reading `.env`
 - Agent-invoked commands that may make real provider calls should be wrapped
-  with `node_modules/.bin/varlock run --inject vars --`
+  with `varlock run --inject vars --`
 - `python generate.py serve` binds to `127.0.0.1` by default
 - `--public` refuses to start unless both `PORTAL_USERNAME` and
   `PORTAL_PASSWORD` are set

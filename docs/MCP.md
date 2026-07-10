@@ -30,8 +30,8 @@ the resulting dry-run manifests. It clears provider-key environment variables
 inside the smoke process so a passing run never proves live provider access.
 
 Rafiki commits `.env.schema` as the agent-readable env contract. Agents should
-inspect it with `node_modules/.bin/varlock load --agent --show-all` and should
-not read `.env` or `.env.local` directly.
+inspect it with `varlock load --agent --show-all` from an agent/operator shell
+that has Varlock on `PATH`, and should not read `.env` or `.env.local` directly.
 
 Codex:
 
@@ -64,7 +64,7 @@ that may make real provider calls, wrap the MCP process with Varlock so the
 agent gets validated env injection without reading secret files:
 
 ```bash
-codex mcp add rafiki -- /path/to/rafiki/node_modules/.bin/varlock run --inject vars --path /path/to/rafiki/ -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
+codex mcp add rafiki -- /path/to/varlock run --inject vars --path /path/to/rafiki/ -- /path/to/rafiki/.venv/bin/python /path/to/rafiki/mcp_server.py
 ```
 
 Generic MCP JSON with Varlock injection:
@@ -73,7 +73,7 @@ Generic MCP JSON with Varlock injection:
 {
   "mcpServers": {
     "rafiki": {
-      "command": "/path/to/rafiki/node_modules/.bin/varlock",
+      "command": "/path/to/varlock",
       "args": ["run", "--inject", "vars", "--path", "/path/to/rafiki/", "--", "/path/to/rafiki/.venv/bin/python", "/path/to/rafiki/mcp_server.py"]
     }
   }
@@ -351,7 +351,7 @@ If an agent starts a provider-capable CLI command directly, keep the same
 secret boundary:
 
 ```bash
-node_modules/.bin/varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
+varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
 ```
 
 ## Safety Notes
