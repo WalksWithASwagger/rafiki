@@ -68,11 +68,18 @@ Add at least one of:
 - `GOOGLE_API_KEY` for Gemini models
 - `OPENAI_API_KEY` for OpenAI image models
 
-To inspect the schema safely:
+Varlock is intentionally kept outside Rafiki's Node dependency graph because
+the app supports Node 20 while the Varlock CLI has its own runtime requirements.
+Install Varlock separately, then inspect and audit the contract safely:
 
 ```bash
-varlock load --agent --show-all
+npm run env:validate
+npm run env:audit
+npm run env:smoke
 ```
+
+The smoke checks only that the schema's non-secret sentinel reaches a child
+process. It does not inspect or print the process environment.
 
 When an agent needs to run a real provider-capable command, inject values
 through Varlock instead of reading `.env`:
@@ -349,6 +356,8 @@ python generate.py link-projects
 - Provider keys belong in your shell environment or an untracked `.env`
 - `.env.schema` is the committed env contract for agents; use
   `varlock load --agent --show-all` instead of reading `.env`
+- agents must not run `env`, `printenv`, `varlock reveal`, raw `varlock load`,
+  or any command that dumps the process environment
 - Agent-invoked commands that may make real provider calls should be wrapped
   with `varlock run --inject vars --`
 - `python generate.py serve` binds to `127.0.0.1` by default
