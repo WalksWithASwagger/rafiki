@@ -73,8 +73,7 @@ Floyo/FloTime is a **video** backend and **cannot load FLUX image LoRAs**, so th
 character image LoRA, e.g. `walkswithaswagger/alexandra-samuel`). Floyo then animates them.
 
 ```bash
-# from a project dir with keyframes.json + REPLICATE_API_TOKEN in rafiki/.env
-python generate.py keyframes generate --beat situ_02_backstage --num-outputs 4 --execute
+varlock run --inject vars -- python generate.py keyframes generate --beat situ_02_backstage --num-outputs 4 --execute
 # or by number:  --beat 02
 ```
 

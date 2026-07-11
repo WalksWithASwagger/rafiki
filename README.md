@@ -74,12 +74,19 @@ To inspect the schema safely:
 varlock load --agent --show-all
 ```
 
+To prove Varlock injection reaches a child process without printing a secret:
+
+```bash
+varlock run --inject vars -- node -e "console.log(process.env.OPENAI_API_KEY ? 'OPENAI_API_KEY=set' : 'OPENAI_API_KEY=not set')"
+```
+
 When an agent needs to run a real provider-capable command, inject values
 through Varlock instead of reading `.env`:
 
 ```bash
 varlock run --inject vars -- npx rafiki --prompt "..." --output output.png
 varlock run --inject vars -- ./.venv/bin/python generate.py --prompt "..." --output output.png
+varlock run --inject vars -- python3 scripts/agentic/provider_adapter.py --provider command --issue-file issue.md --json-output /tmp/agentic-provider-result.json
 ```
 
 ### 3. Run setup diagnostics
@@ -349,6 +356,9 @@ python generate.py link-projects
 - Provider keys belong in your shell environment or an untracked `.env`
 - `.env.schema` is the committed env contract for agents; use
   `varlock load --agent --show-all` instead of reading `.env`
+- Agents must not read env files, print raw Varlock load data, print
+  `process.env`/`os.environ`, or run `env`/`printenv`; report only redacted
+  set/not-set status.
 - Agent-invoked commands that may make real provider calls should be wrapped
   with `varlock run --inject vars --`
 - `python generate.py serve` binds to `127.0.0.1` by default
