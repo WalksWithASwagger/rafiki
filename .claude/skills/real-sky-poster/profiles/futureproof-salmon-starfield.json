@@ -1,0 +1,72 @@
+{
+  "$comment": "Geometry only. The artwork itself is never committed to this repo (see .gitignore: assets/, outputs/). Point `source` at a local file.",
+
+  "name": "futureproof-salmon-starfield",
+  "source": "~/Code/futureproof-festival/public/media/launch/futureproof-salmon-starfield.jpg",
+  "width": 1376,
+  "height": 768,
+
+  "observer": {
+    "$comment": "UTC, not local. 21:00 PDT on Wed 28 Oct 2026 is 04:00 UTC on the 29th.",
+    "utc": [2026, 10, 29, 4, 0, 0],
+    "lat": 49.2827,
+    "lon": -123.1207,
+    "place": "Vancouver, BC"
+  },
+
+  "protect": {
+    "$comment": "Painted elements the wipe must never touch. Generous on purpose: over-protecting costs a few square pixels of star field, under-protecting destroys the art.",
+    "title": [412, 0, 962, 188],
+    "figures": [
+      [968, 52, 1112, 222],
+      [676, 192, 816, 306],
+      [830, 156, 1000, 280],
+      [1036, 172, 1220, 334]
+    ]
+  },
+
+  "horizon": {
+    "$comment": "Top edge of the painted mass, left to right. Everything above is open sky. Where paint reaches high (x 350-560: kelp, eyes, a tail fin) the line must stay above it -- the wipe is destructive.",
+    "points": [
+      [0, 384], [100, 386], [170, 372], [240, 350], [300, 322], [350, 306],
+      [400, 302], [460, 300], [520, 294], [560, 288], [620, 250], [700, 264],
+      [780, 244], [860, 234], [920, 218], [990, 228], [1060, 266], [1120, 294],
+      [1180, 322], [1240, 340], [1300, 346], [1376, 348]
+    ],
+    "residual_zones": [[0, 340], [1120, 1376]]
+  },
+
+  "layout": {
+    "$comment": "Where each figure sits: [centre x, centre y, pixels per degree]. Shape and rotation are computed from the real sky; only placement is composed, and it follows the true bearings -- west left, north low and central, east right.",
+    "Cygnus":     [116, 96, 6.6],
+    "Lyra":       [306, 182, 7.4],
+    "Ursa Major": [176, 292, 7.8],
+    "Cassiopeia": [1232, 84, 8.2],
+    "Perseus":    [1298, 236, 5.4],
+    "Pleiades":   [1318, 308, 24.0]
+  },
+
+  "zenith": {
+    "$comment": "For tall formats, the canvas grows upward -- toward the zenith. These are the figures that actually live up there and cannot fit the 16:9 crop. [centre x, height as fraction of the extension, pixels per degree].",
+    "Ursa Minor": [430, 0.19, 11.0],
+    "Andromeda":  [1140, 0.34, 8.4],
+    "Pegasus":    [1180, 0.72, 11.5],
+    "Cepheus":    [742, 0.82, 10.0],
+    "Draco":      [300, 0.56, 5.2]
+  },
+
+  "copy": {
+    "$comment": "Verbatim from the festival repo. Never drafted, never paraphrased. The painting already carries the wordmark, the date and the presenter -- the type layer adds only what the painting does not say.",
+    "line": "The most honest AI conversation happening this year.",
+    "line_source": "lib/brand-guide.ts:37",
+    "date": "October 28-30, 2026",
+    "venue": "H.R. MacMillan Space Centre  ·  Vancouver",
+    "url": "futureproof.website",
+    "palette": {
+      "ink": [10, 10, 11],
+      "parchment": [245, 241, 232],
+      "aurora": [94, 234, 212],
+      "ember": [252, 165, 165]
+    }
+  }
+}
