@@ -54,10 +54,22 @@ python3 -m venv .venv
 ### 2. Add provider keys
 
 Rafiki commits `.env.schema` as the agent-readable environment contract. Keep
-real values in your shell environment or an untracked `.env` file; agents should
-validate the contract without reading `.env` directly.
-The app itself still targets Node 20; run the Varlock CLI from an agent or
-operator shell that has Varlock available on `PATH`.
+real values in your shell environment, an untracked repo-local value file, or
+the user-managed shared directory at `~/.agents/env/values/`. Agents validate
+the contract without reading any value file directly.
+
+The schema optionally imports reusable provider credentials from
+`.env.shared.local`, followed by `.env.rafiki.local` for repo-specific
+overrides. Both imports use `pick` allowlists and `allowMissing=true`, so Rafiki
+keeps its own declarations authoritative and cloud or CI checks do not depend
+on this Mac. The imported allowlist is limited to `GOOGLE_API_KEY`,
+`OPENAI_API_KEY`, `FLOYO_KEY`, `REPLICATE_API_TOKEN`, and `NOTION_API_KEY`.
+Portal credentials, Notion database IDs, executable paths, and Rafiki-only
+settings remain app-local.
+
+The shared directory and value files are created and maintained by the user,
+not by agents. The canonical directory is mode `0700`; `.env.shared.local` and
+optional `.env.<repo-slug>.local` files are mode `0600`.
 
 ```bash
 cp .env.example .env
@@ -70,18 +82,25 @@ Add at least one of:
 
 Varlock is intentionally kept outside Rafiki's Node dependency graph because
 the app supports Node 20 while the Varlock CLI has its own runtime requirements.
-Install Varlock separately, then inspect and audit the contract safely:
+Keep the application runtime unchanged. Run Varlock 1.10 with Node 22.3+ or use
+the standalone CLI, then inspect and audit the contract safely:
 
 ```bash
 npm run env:validate
 npm run env:audit
+npm run env:scan
 npm run env:smoke
+python3 -m pytest -q tests/test_varlock_contract.py
 ```
 
 The smoke checks only that the schema's non-secret sentinel reaches a child
-process. It does not inspect or print the process environment.
+process. The audit command explicitly excludes generated output, dependency,
+cache, and generated route-tree paths. The scan command checks staged files
+only and never opts into ignored output. The focused test runs redacted load,
+no-op run, and scan checks against sanitized present and missing import
+fixtures; it never reads the user-managed shared directory.
 
-When an agent needs to run a real provider-capable command, inject values
+When an agent needs to run a secret-dependent command, inject values
 through Varlock instead of reading `.env`:
 
 ```bash
@@ -358,7 +377,7 @@ python generate.py link-projects
   `varlock load --agent --show-all` instead of reading `.env`
 - agents must not run `env`, `printenv`, `varlock reveal`, raw `varlock load`,
   or any command that dumps the process environment
-- Agent-invoked commands that may make real provider calls should be wrapped
+- Agent-invoked commands that require resolved secrets should be wrapped
   with `varlock run --inject vars --`
 - `python generate.py serve` binds to `127.0.0.1` by default
 - `--public` refuses to start unless both `PORTAL_USERNAME` and
