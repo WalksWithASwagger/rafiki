@@ -386,7 +386,7 @@ async function runDoctor(c) {
     console.log(c.green(`Doctor found 0 critical issue(s) and ${warnings.length} warning(s).`));
   }
 
-  process.exit(criticalIssues.length > 0 ? 1 : 0);
+  process.exitCode = criticalIssues.length > 0 ? 1 : 0;
 }
 
 if (process.argv.includes('--doctor')) {
