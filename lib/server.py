@@ -650,6 +650,32 @@ class _RafikiHandler(BaseHTTPRequestHandler):
         self.end_headers()
         return False
 
+    def _is_same_origin(self, origin: str) -> bool:
+        parsed = urlparse(origin)
+        host = self.headers.get("Host", "")
+        return (
+            parsed.scheme == "http"
+            and bool(host)
+            and parsed.netloc.lower() == host.lower()
+            and not parsed.path
+            and not parsed.params
+            and not parsed.query
+            and not parsed.fragment
+        )
+
+    def _check_post_request(self) -> bool:
+        origin = self.headers.get("Origin")
+        if origin and not self._is_same_origin(origin):
+            self._respond(403, "application/json", b'{"error":"cross-origin POST requests are not allowed"}')
+            return False
+
+        content_type = self.headers.get("Content-Type", "")
+        media_type = content_type.partition(";")[0].strip().lower()
+        if media_type != "application/json":
+            self._respond(415, "application/json", b'{"error":"Content-Type must be application/json"}')
+            return False
+        return True
+
     def do_OPTIONS(self):
         if not self._check_auth():
             return
@@ -715,6 +741,8 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self._check_auth():
+            return
+        if not self._check_post_request():
             return
         path = urlparse(self.path).path
         if path == "/api/ratings":
@@ -1534,10 +1562,7 @@ class _RafikiHandler(BaseHTTPRequestHandler):
 
     def _send_same_origin_cors(self) -> None:
         origin = self.headers.get("Origin")
-        if not origin:
-            return
-        parsed = urlparse(origin)
-        if parsed.scheme != "http" or parsed.netloc != self.headers.get("Host", ""):
+        if not origin or not self._is_same_origin(origin):
             return
         self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Vary", "Origin")
