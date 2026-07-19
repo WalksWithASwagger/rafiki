@@ -175,8 +175,7 @@ src/
 │   ├── page-header.tsx         Breadcrumb + right-side actions
 │   ├── shortcut-sheet.tsx      ?-triggered cheatsheet modal
 │   ├── thumbnail.tsx           Swatch tile w/ status + hover sheen
-│   └── state/                  Loading / Empty / Error / NotFound blocks
-├── data/mock.ts                Deterministic project/run/image fixtures
+│   └── state/                  Empty / Error / NotFound blocks
 ├── lib/
 │   ├── exporter.ts             Canvas → JSZip bundle
 │   ├── run-batch.ts            Sequential job runner + retryJob
