@@ -41,6 +41,12 @@ python generate.py serve --public
 Running `--public` without complete credentials is refused. Run without
 `--public` for solo localhost use.
 
+All portal mutation endpoints require `Content-Type: application/json`.
+Browser requests must also be same-origin: the `Origin` scheme and authority
+must exactly match the request host. Non-browser localhost clients remain
+supported without an `Origin` header when they send JSON. The server rejects
+invalid origins or content types before dispatching a mutation handler.
+
 ## Prompt Studio
 
 When running through `generate.py serve`, the library page includes a prompt

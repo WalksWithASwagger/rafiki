@@ -55,11 +55,20 @@ def http_get(url: str, auth: tuple[str, str] | None = None):
         return e
 
 
-def http_post_json(url: str, payload: dict, auth: tuple[str, str] | None = None):
+def http_post_json(
+    url: str,
+    payload: dict,
+    auth: tuple[str, str] | None = None,
+    *,
+    origin: str | None = None,
+):
+    headers = {"Content-Type": "application/json"}
+    if origin is not None:
+        headers["Origin"] = origin
     req = urllib.request.Request(
         url,
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     _auth_header(req, auth)
@@ -69,12 +78,24 @@ def http_post_json(url: str, payload: dict, auth: tuple[str, str] | None = None)
         return e
 
 
-def http_post_raw(url: str, body: bytes, auth: tuple[str, str] | None = None):
+def http_post_raw(
+    url: str,
+    body: bytes,
+    auth: tuple[str, str] | None = None,
+    *,
+    content_type: str | None = "application/json",
+    origin: str | None = None,
+):
     """POST an arbitrary (possibly non-JSON) body — for malformed-input paths."""
+    headers = {}
+    if content_type is not None:
+        headers["Content-Type"] = content_type
+    if origin is not None:
+        headers["Origin"] = origin
     req = urllib.request.Request(
         url,
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     _auth_header(req, auth)

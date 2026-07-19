@@ -27,6 +27,12 @@ allowlisted by fingerprint in `.gitleaksignore`, not ignored silently.
 
 `python generate.py serve` binds to `127.0.0.1` by default.
 
+Portal mutation endpoints accept JSON requests only. Browser requests must
+carry an `Origin` whose `http` scheme and authority exactly match the request
+host. Trusted non-browser localhost clients may omit `Origin`, but must still
+send `Content-Type: application/json`. Requests that fail this boundary are
+rejected before any mutation or provider-capable handler runs.
+
 If you expose the portal beyond localhost:
 
 - use `--public` intentionally
