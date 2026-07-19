@@ -1,7 +1,10 @@
 # Environment variables (contains API keys - NEVER commit)
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!.env.schema
+!tests/fixtures/varlock/values/.env.fixture-rafiki
+!tests/fixtures/varlock/values/.env.fixture-shared
 
 # macOS / local scratch
 .DS_Store

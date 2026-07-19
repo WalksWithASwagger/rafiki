@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 
@@ -67,3 +68,74 @@ def test_public_boundary_reports_actionable_local_paths() -> None:
         "data/media-registry.json",
         "lib/__pycache__/core.cpython-314.pyc",
     ]
+
+
+def test_public_boundary_rejects_environment_variants_by_basename() -> None:
+    checker = _load_checker()
+
+    violations = checker.public_boundary_violations(
+        [
+            ".env.development",
+            ".env.local",
+            ".env.production",
+            "frontend/.env.test",
+            "tools/worker/.env",
+        ]
+    )
+
+    assert violations == [
+        (".env.development", "environment files may contain secrets"),
+        (".env.local", "environment files may contain secrets"),
+        (".env.production", "environment files may contain secrets"),
+        ("frontend/.env.test", "environment files may contain secrets"),
+        ("tools/worker/.env", "environment files may contain secrets"),
+    ]
+
+
+def test_public_boundary_allows_environment_contract_files_anywhere() -> None:
+    checker = _load_checker()
+
+    violations = checker.public_boundary_violations(
+        [
+            ".env.example",
+            ".env.schema",
+            "frontend/.env.example",
+            "tools/worker/.env.schema",
+        ]
+    )
+
+    assert violations == []
+
+
+def test_gitignore_protects_environment_variants_and_allows_contracts() -> None:
+    ignored_paths = [
+        ".env",
+        ".env.local",
+        ".env.production",
+        "frontend/.env.development",
+        "tools/worker/.env.test",
+    ]
+    allowed_paths = [
+        ".env.example",
+        ".env.schema",
+        "frontend/.env.example",
+        "tools/worker/.env.schema",
+        "tests/fixtures/varlock/values/.env.fixture-rafiki",
+        "tests/fixtures/varlock/values/.env.fixture-shared",
+    ]
+
+    for path in ignored_paths:
+        result = subprocess.run(
+            ["git", "check-ignore", "--no-index", "--quiet", "--", path],
+            cwd=ROOT,
+            check=False,
+        )
+        assert result.returncode == 0, path
+
+    for path in allowed_paths:
+        result = subprocess.run(
+            ["git", "check-ignore", "--no-index", "--quiet", "--", path],
+            cwd=ROOT,
+            check=False,
+        )
+        assert result.returncode == 1, path
