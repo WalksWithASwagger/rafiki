@@ -18,6 +18,7 @@ from lib import video_jobs as video_jobs_module
 from lib.server import _RafikiHandler
 from tests.server_harness import http_get as _get
 from tests.server_harness import http_post_json as _post_json
+from tests.server_harness import http_post_raw as _post_raw
 
 
 def _get_with_origin(url: str, origin: str):
@@ -233,6 +234,72 @@ def test_cross_origin_cors_is_not_wildcard(server):
 
     assert resp.status == 200
     assert resp.headers.get("Access-Control-Allow-Origin") is None
+
+
+@pytest.mark.parametrize(
+    ("path", "handler_name", "origin", "content_type", "expected_status"),
+    [
+        ("/api/actions", "_run_action", "http://example.com", "text/plain", 403),
+        ("/api/regen", "_regen", "http://example.com", "application/json", 403),
+        ("/api/feedback", "_update_feedback", "wrong-scheme", "application/json", 403),
+        ("/api/media/selections", "_update_media_selection", "same-origin", "text/plain", 415),
+        ("/api/ratings", "_update_ratings", "same-origin", None, 415),
+    ],
+)
+def test_post_guard_rejects_before_mutation_handler(
+    server,
+    monkeypatch,
+    path,
+    handler_name,
+    origin,
+    content_type,
+    expected_status,
+):
+    called = []
+
+    def mutation_handler(self):
+        called.append(True)
+        self._respond(200, "application/json", b'{"unexpected":true}')
+
+    monkeypatch.setattr(_RafikiHandler, handler_name, mutation_handler)
+    if origin == "same-origin":
+        request_origin = server
+    elif origin == "wrong-scheme":
+        request_origin = server.replace("http://", "https://", 1)
+    else:
+        request_origin = origin
+
+    resp = _post_raw(
+        f"{server}{path}",
+        b"{}",
+        content_type=content_type,
+        origin=request_origin,
+    )
+
+    assert resp.status == expected_status
+    assert resp.headers.get("Content-Type") == "application/json"
+    assert "error" in json.loads(resp.read().decode("utf-8"))
+    assert called == []
+
+
+@pytest.mark.parametrize("include_origin", [False, True])
+def test_post_guard_allows_json_from_supported_clients(server, monkeypatch, include_origin):
+    called = []
+
+    def mutation_handler(self):
+        called.append(True)
+        self._respond(200, "application/json", b'{"ok":true}')
+
+    monkeypatch.setattr(_RafikiHandler, "_update_ratings", mutation_handler)
+
+    resp = _post_json(
+        f"{server}/api/ratings",
+        {},
+        origin=server if include_origin else None,
+    )
+
+    assert resp.status == 200
+    assert called == [True]
 
 
 def test_deploy_readiness_endpoint_is_secret_safe(server, monkeypatch):
