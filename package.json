@@ -21,7 +21,7 @@
     "render": "node index.js --render",
     "doctor": "node index.js --doctor",
     "env:validate": "varlock load --agent --show-all",
-    "env:audit": "varlock audit",
+    "env:audit": "varlock audit . --ignore node_modules --ignore frontend/node_modules --ignore .venv --ignore .pytest_cache --ignore .ruff_cache --ignore __pycache__ --ignore output --ignore outputs --ignore assets --ignore prompts --ignore examples/images --ignore .rafiki-cache --ignore frontend/.output --ignore frontend/.vinxi --ignore frontend/.wrangler --ignore frontend/src/routeTree.gen.ts",
     "env:scan": "varlock scan --staged",
     "env:smoke": "varlock run --inject vars -- node scripts/varlock-injection-smoke.mjs",
     "test": "node scripts/run-pytest.js",

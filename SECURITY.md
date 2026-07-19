@@ -5,8 +5,10 @@ control plane. Provider API keys stay on the operator's machine.
 
 ## Secrets
 
-- Keep keys in environment variables or an untracked `.env`.
-- `.env` is intentionally gitignored.
+- Keep keys in the user-managed `~/.agents/env/values/` convention or an
+  untracked repo-local value file.
+- `.env`, `.env.local`, and `.env.*.local` are intentionally gitignored. Agents
+  must not inspect any of those value files.
 - If a key was ever committed, rotate it immediately even if it has since been
   removed from the working tree.
 
@@ -15,7 +17,7 @@ Before changing repository visibility or publishing a release, run:
 ```bash
 gitleaks detect --source . --redact --no-banner --verbose
 trufflehog git file:///Users/kk/Code/rafiki --only-verified --no-update --json
-git check-ignore -v .env node_modules output .venv
+git check-ignore -v .env .env.local .env.rafiki.local node_modules output .venv
 ```
 
 Known false positives should be documented in the dated release checklist and
