@@ -8,6 +8,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+ENV_CONTRACT_FILES = frozenset({".env.example", ".env.schema"})
+ENV_FILE_REASON = "environment files may contain secrets"
+
 BANNED_PREFIXES: dict[str, str] = {
     ".pytest_cache/": "pytest cache is local state",
     ".rafiki-cache/": "thumbnail cache is local state",
@@ -23,7 +26,6 @@ BANNED_PREFIXES: dict[str, str] = {
 
 BANNED_FILES: dict[str, str] = {
     ".DS_Store": "macOS metadata is local state",
-    ".env": "environment files may contain secrets",
     "data/asset-registry.csv": "asset registry exports are local cache",
     "data/asset-registry.json": "asset registry exports are local cache",
     "data/billing-imports.json": "billing imports are private local state",
@@ -47,6 +49,8 @@ BANNED_SUFFIXES: dict[str, str] = {
 # Each entry is an intentional, reviewed exception to the tool-only boundary.
 ALLOWED_EXCEPTIONS: dict[str, str] = {
     "prompts/bcai/ed-ai-logo-variations.md": "public BC+AI ED+AI logo prompt kit, intentionally shipped",
+    "tests/fixtures/varlock/values/.env.fixture-rafiki": "sanitized Varlock test fixture",
+    "tests/fixtures/varlock/values/.env.fixture-shared": "sanitized Varlock test fixture",
 }
 
 
@@ -67,7 +71,12 @@ def public_boundary_violations(paths: list[str]) -> list[tuple[str, str]]:
         normalized = path.replace("\\", "/")
         if normalized in ALLOWED_EXCEPTIONS:
             continue
-        reason = BANNED_FILES.get(normalized)
+        basename = normalized.rsplit("/", 1)[-1]
+        reason = None
+        if basename not in ENV_CONTRACT_FILES and (basename == ".env" or basename.startswith(".env.")):
+            reason = ENV_FILE_REASON
+        if reason is None:
+            reason = BANNED_FILES.get(normalized)
         if reason is None:
             reason = next(
                 (prefix_reason for prefix, prefix_reason in BANNED_PREFIXES.items() if normalized.startswith(prefix)),
