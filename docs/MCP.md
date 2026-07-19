@@ -4,6 +4,11 @@ Rafiki ships a local MCP server at `mcp_server.py`. It exposes the common
 image-generation functions directly, typed wrappers for stable local workflows,
 and a constrained bridge to the canonical CLI for everything else.
 
+For **hosted narrative video generation** (prompt/script → finished video via
+Agent Opus), see [`AGENT-OPUS-MCP.md`](./AGENT-OPUS-MCP.md). That is a separate
+remote MCP — keep it next to Rafiki/Floyo in your mental model; do not confuse
+it with OpusClip long-form → shorts in kk-kb.
+
 The server uses the official Python MCP SDK's `FastMCP` API and runs over
 stdio by default, which is the right fit for local desktop tools.
 

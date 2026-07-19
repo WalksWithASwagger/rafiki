@@ -4,6 +4,9 @@ Rafiki can drive [Floyo](https://flowyo.ai) — a hosted ComfyUI service — to 
 video clips from a workflow template. This is the first slice of folding the
 [alex-samuel](PERSONAL-MEDIA-SUITE.md) film pipeline into Rafiki.
 
+Need a full narrative / explainer / promo video from a prompt or script instead?
+Use hosted **AgentOpus MCP** — see [`AGENT-OPUS-MCP.md`](./AGENT-OPUS-MCP.md).
+
 **Dry-run-first.** Nothing uploads, submits, or downloads unless you pass `--execute`. The
 only thing that spends FloTime is `--execute`.
 
