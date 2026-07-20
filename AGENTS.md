@@ -15,7 +15,7 @@
   `varlock run --inject vars -- <command>`.
 - Use `npm run env:audit` so generated and non-source paths stay excluded, and
   use staged-only `npm run env:scan` without `--include-ignored`.
-- Keep Rafiki's application runtime at Node 22.12+ unless a maintainer
+- Keep Rafiki's application runtime at Node 22.13+ unless a maintainer
   explicitly approves another change. Run Varlock 1.10 with the same runtime
   or the standalone CLI.
 - Do not change provider or platform values, rotate credentials, deploy, or

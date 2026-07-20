@@ -38,7 +38,7 @@ assets, and downstream web or social artifacts.
 
 ### 1. Clone and install
 
-Rafiki requires Node.js 22.12+ with npm 10+ and Python 3.11+.
+Rafiki requires Node.js 22.13+ with npm 10+ and Python 3.11+.
 
 ```bash
 git clone https://github.com/WalksWithASwagger/rafiki.git
@@ -88,7 +88,7 @@ Add at least one of:
 - `OPENAI_API_KEY` for OpenAI image models
 
 Varlock is intentionally kept outside Rafiki's Node dependency graph. Run
-Varlock 1.10 with Rafiki's Node 22.12+ runtime or use the standalone CLI, then
+Varlock 1.10 with Rafiki's Node 22.13+ runtime or use the standalone CLI, then
 inspect and audit the contract safely:
 
 ```bash

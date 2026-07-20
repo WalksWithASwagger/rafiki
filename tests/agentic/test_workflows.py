@@ -311,11 +311,11 @@ def test_verify_script_covers_every_deterministic_ci_gate():
         if step.get("name") == "Set up Node.js"
     )
 
-    assert package["engines"]["node"] == ">=22.12.0"
-    assert package_lock["packages"][""]["engines"]["node"] == ">=22.12.0"
-    assert frontend_package["engines"]["node"] == ">=22.12.0"
-    assert frontend_lock["packages"][""]["engines"]["node"] == ">=22.12.0"
-    assert setup_node["with"]["node-version"] == "22.12"
+    assert package["engines"]["node"] == ">=22.13.0"
+    assert package_lock["packages"][""]["engines"]["node"] == ">=22.13.0"
+    assert frontend_package["engines"]["node"] == ">=22.13.0"
+    assert frontend_lock["packages"][""]["engines"]["node"] == ">=22.13.0"
+    assert setup_node["with"]["node-version"] == "22.13"
     assert package["scripts"]["verify"].split(" && ") == [
         "npm run lint",
         "npm test",
