@@ -13,6 +13,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 ├── pytest.ini
 ├── requirements.txt
 ├── requirements-dev.txt
+├── requirements-ci.txt            ← hashed Python 3.11 Linux CI lock
 ├── .env.example                 # provider key template (copy to .env)
 ├── .github/
 │   ├── ISSUE_TEMPLATE/          # Agent-ready issue templates

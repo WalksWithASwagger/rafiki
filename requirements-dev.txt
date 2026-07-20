@@ -1,7 +1,8 @@
-# Test-only dependencies. Install with:
+# Cross-platform development source requirements. Install with:
 #   .venv/bin/python -m pip install -r requirements-dev.txt
 pytest>=8.0
 pytest-mock>=3.12
 jsonschema>=4.0
 pip-audit>=2.7.0
+pip-tools==7.6.0  # Pin the compiler so lock regeneration is stable.
 ruff>=0.15

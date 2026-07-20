@@ -150,6 +150,20 @@ def test_ci_runs_canonical_deterministic_verification():
     assert "npm run verify" in commands
 
 
+def test_ci_installs_and_checks_hashed_python_lock():
+    workflow = _workflow("ci.yml")
+    steps = workflow["jobs"]["test"]["steps"]
+    commands = [step.get("run") for step in steps if "run" in step]
+
+    assert "python -m pip install --require-hashes -r requirements-ci.txt" in commands
+    assert any(
+        "npm run lock:python-ci" in command
+        and "git diff --exit-code -- requirements-ci.txt" in command
+        for command in commands
+    )
+    assert "python -m pip_audit -r requirements-ci.txt" in commands
+
+
 def test_verify_script_covers_every_deterministic_ci_gate():
     package = json.loads((ROOT / "package.json").read_text())
     package_lock = json.loads((ROOT / "package-lock.json").read_text())
