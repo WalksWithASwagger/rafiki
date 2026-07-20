@@ -2,7 +2,7 @@ name: Agentic Issue Quality
 
 on:
   issues:
-    types: [labeled, edited, reopened]
+    types: [labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -10,6 +10,7 @@ on:
         required: true
 
 permissions:
+  actions: write
   contents: read
   issues: write
 
@@ -19,7 +20,13 @@ concurrency:
 
 jobs:
   gate:
-    if: ${{ github.event_name != 'issues' || github.event.action != 'labeled' || github.event.label.name != 'in-progress' }}
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        github.event.label.name == 'agent:ready' ||
+        github.event.label.name == 'auto-implement' ||
+        github.event.label.name == 'autonomous'
+      }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -38,43 +45,69 @@ jobs:
           gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(",")' > "$RUNNER_TEMP/labels.txt"
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
 
-      - name: Check for ready label
-        id: ready
+      - name: Evaluate ready transition
+        id: intake
+        env:
+          EVENT_ACTION: ${{ github.event.action || '' }}
+          EVENT_LABEL: ${{ github.event.label.name || '' }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          python3 -c "import sys; labels=set(open('$RUNNER_TEMP/labels.txt').read().strip().split(',')); ready={'agent:ready','auto-implement','autonomous'}; print('has_ready=' + str(bool(labels & ready)).lower())" >> "$GITHUB_OUTPUT"
-
-      - name: Run issue quality linter
-        if: steps.ready.outputs.has_ready == 'true'
-        id: lint
-        run: |
-          set +e
-          python3 scripts/agentic/issue_lint.py \
+          python3 scripts/agentic/intake_transition.py \
+            --event-name "$EVENT_NAME" \
+            --event-action "$EVENT_ACTION" \
+            --event-label "$EVENT_LABEL" \
             --issue-file "$RUNNER_TEMP/issue.md" \
             --labels "$(cat "$RUNNER_TEMP/labels.txt")" \
-            --json-output "$RUNNER_TEMP/lint.json"
+            --json-output "$RUNNER_TEMP/intake.json"
+          python3 -c "import json; print('action=' + json.load(open('$RUNNER_TEMP/intake.json'))['action'])" >> "$GITHUB_OUTPUT"
+
+      - name: Claim approved ready transition
+        if: steps.intake.outputs.action == 'dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 -c "import json; print('\n'.join(json.load(open('$RUNNER_TEMP/intake.json'))['ready_labels']))" > "$RUNNER_TEMP/ready-labels.txt"
+          while IFS= read -r label; do
+            [ -n "$label" ] || continue
+            gh issue edit "$ISSUE_NUMBER" --remove-label "$label" || true
+          done < "$RUNNER_TEMP/ready-labels.txt"
+
+      - name: Dispatch approved dev loop
+        if: steps.intake.outputs.action == 'dispatch'
+        id: dispatch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APPROVED_LABELS=$(python3 -c "import json; print(','.join(json.load(open('$RUNNER_TEMP/intake.json'))['approved_labels']))")
+          set +e
+          gh workflow run agentic-dev-loop.yml \
+            --ref "$GITHUB_REF_NAME" \
+            -f "issue_number=$ISSUE_NUMBER" \
+            -f "provider=noop" \
+            -f "quality_labels=$APPROVED_LABELS"
           rc=$?
           echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Normalize ready aliases
-        if: steps.ready.outputs.has_ready == 'true' && steps.lint.outputs.exit_code == '0'
+      - name: Escalate dispatch failure
+        if: steps.intake.outputs.action == 'dispatch' && steps.dispatch.outputs.exit_code != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh issue edit "$ISSUE_NUMBER" --add-label "agent:ready"
-          python3 -c "import json; print(' '.join(json.load(open('$RUNNER_TEMP/lint.json'))['alias_labels']))" > "$RUNNER_TEMP/aliases.txt"
-          for label in $(cat "$RUNNER_TEMP/aliases.txt"); do
-            gh issue edit "$ISSUE_NUMBER" --remove-label "$label" || true
-          done
+          gh issue edit "$ISSUE_NUMBER" --add-label "needs-human"
+          gh issue comment "$ISSUE_NUMBER" --body "Agentic issue quality passed, but the approved dev-loop dispatch failed. No provider was started."
+          exit 1
 
       - name: Block invalid ready issue
-        if: steps.ready.outputs.has_ready == 'true' && steps.lint.outputs.exit_code != '0'
+        if: steps.intake.outputs.action == 'escalate'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          for label in "agent:ready" "auto-implement" "autonomous"; do
+          python3 -c "import json; print('\n'.join(json.load(open('$RUNNER_TEMP/intake.json'))['ready_labels']))" > "$RUNNER_TEMP/ready-labels.txt"
+          while IFS= read -r label; do
+            [ -n "$label" ] || continue
             gh issue edit "$ISSUE_NUMBER" --remove-label "$label" || true
-          done
+          done < "$RUNNER_TEMP/ready-labels.txt"
           gh issue edit "$ISSUE_NUMBER" --add-label "needs-human"
-          python3 -c "import json; print('Agentic issue quality gate failed: ' + json.load(open('$RUNNER_TEMP/lint.json'))['message'])" > "$RUNNER_TEMP/comment.md"
+          python3 -c "import json; print('Agentic issue quality gate failed: ' + json.load(open('$RUNNER_TEMP/intake.json'))['lint']['message'])" > "$RUNNER_TEMP/comment.md"
           gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
