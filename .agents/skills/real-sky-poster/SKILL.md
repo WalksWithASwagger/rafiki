@@ -1,6 +1,6 @@
 ---
 name: real-sky-poster
-description: Replace invented constellations in artwork with the real sky for a given date and place, then export a full sized asset kit. Auto-triggers on "the constellations are wrong/fake/bullshit", "make the stars accurate", "real constellations", "what did the sky actually look like on <date>", "fix the sky in this poster", "build an asset kit from this artwork".
+description: Replace invented constellations in artwork with the real sky for a given date and place, then export a full sized asset kit. Auto-triggers on "the constellations are wrong/fake/bullshit", "make the stars accurate", "real constellations", "what did the sky actually look like on a specific date", "fix the sky in this poster", "build an asset kit from this artwork".
 ---
 
 # Real Sky Poster
@@ -110,10 +110,10 @@ curl -L -o ~/Code/ComfyUI/models/upscale_models/4x-UltraSharp.pth \
   https://huggingface.co/Kim2091/UltraSharp/resolve/main/4x-UltraSharp.pth
 
 # Type faces for stage 4 (swap for whatever the brand actually uses)
-mkdir -p .claude/skills/real-sky-poster/scripts/fonts
-curl -L -o .claude/skills/real-sky-poster/scripts/fonts/Inter.ttf \
+mkdir -p .agents/skills/real-sky-poster/scripts/fonts
+curl -L -o .agents/skills/real-sky-poster/scripts/fonts/Inter.ttf \
   'https://raw.githubusercontent.com/google/fonts/main/ofl/inter/Inter%5Bopsz,wght%5D.ttf'
-curl -L -o .claude/skills/real-sky-poster/scripts/fonts/Cormorant.ttf \
+curl -L -o .agents/skills/real-sky-poster/scripts/fonts/Cormorant.ttf \
   'https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf'
 ```
 
