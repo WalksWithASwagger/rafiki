@@ -31,6 +31,10 @@ def extract_branch_issue(branch: str, branch_prefix: str, issue_prefix: str) -> 
     return match.group(1) if match else None
 
 
+def parse_labels(raw: str | None) -> list[str]:
+    return [label.strip() for label in (raw or "").split(",") if label.strip()]
+
+
 def build_comment(payload: dict[str, Any]) -> str:
     lines = [
         "## Agentic Traceability",
@@ -96,18 +100,71 @@ def check_traceability(
     return payload
 
 
+def check_policy(
+    *,
+    contract: dict[str, Any],
+    pr_body: str,
+    head_ref: str,
+    labels: list[str],
+) -> dict[str, Any]:
+    traceability = check_traceability(
+        contract=contract,
+        pr_body=pr_body,
+        head_ref=head_ref,
+    )
+    policy_stop_labels = {"needs-human", "blocked"}
+    stop_labels = sorted(set(labels) & policy_stop_labels)
+    ok = traceability["ok"] and not stop_labels
+    errors = list(traceability["errors"])
+    if stop_labels:
+        errors.append(f"Remove stop labels only after human resolution: {', '.join(stop_labels)}.")
+
+    payload = {
+        **traceability,
+        "ok": ok,
+        "verdict": "pass" if ok else "blocked",
+        "stop_labels": stop_labels,
+        "errors": errors,
+        "checks": {
+            **traceability["checks"],
+            "traceability_ok": traceability["ok"],
+            "stop_labels_clear": not stop_labels,
+        },
+    }
+    payload["comment"] = build_policy_comment(payload)
+    return payload
+
+
+def build_policy_comment(payload: dict[str, Any]) -> str:
+    lines = [
+        "## Agentic Policy",
+        "",
+        f"Verdict: {'pass' if payload['ok'] else 'blocked'}",
+        "",
+        "Checks:",
+        f"- GitHub issue traceability: {'pass' if payload['checks']['traceability_ok'] else 'fail'}",
+        f"- Stop labels clear: {'yes' if payload['checks']['stop_labels_clear'] else 'no'}",
+    ]
+    if payload["errors"]:
+        lines.extend(["", "Required actions:"])
+        lines.extend(f"- {item}" for item in payload["errors"])
+    return "\n".join(lines)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pr-body-file", required=True)
     parser.add_argument("--head-ref", required=True)
+    parser.add_argument("--labels")
     parser.add_argument("--json-output", required=True)
     args = parser.parse_args()
 
     root = repo_root()
-    payload = check_traceability(
+    payload = check_policy(
         contract=load_contract(root),
         pr_body=read_text_arg(args.pr_body_file),
         head_ref=args.head_ref,
+        labels=parse_labels(args.labels),
     )
     write_json(Path(args.json_output), payload)
     print(json.dumps(payload, indent=2, sort_keys=True))
