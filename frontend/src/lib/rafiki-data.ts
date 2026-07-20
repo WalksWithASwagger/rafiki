@@ -125,6 +125,12 @@ export interface LibraryState {
   };
 }
 
+export type LibraryStatePayload = Omit<LibraryState, "ratings" | "totals" | "sourceWarnings"> & {
+  ratings?: Record<string, unknown>;
+  totals?: LibraryState["totals"];
+  sourceWarnings?: SourceWarning[];
+};
+
 let cachedState: LibraryState | null = null;
 
 function toUiRating(value: unknown): Rating {
@@ -133,13 +139,7 @@ function toUiRating(value: unknown): Rating {
   return null;
 }
 
-function normalizeState(
-  payload: Omit<LibraryState, "ratings" | "totals" | "sourceWarnings"> & {
-    ratings?: Record<string, unknown>;
-    totals?: LibraryState["totals"];
-    sourceWarnings?: SourceWarning[];
-  },
-): LibraryState {
+export function normalizeState(payload: LibraryStatePayload): LibraryState {
   const ratings: Record<string, Rating> = {};
   for (const [key, value] of Object.entries(payload.ratings ?? {})) {
     ratings[key] = toUiRating(value);
