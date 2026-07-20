@@ -288,11 +288,13 @@ def test_runner_marks_passing_change_ready_for_pr(tmp_path):
     assert changed_stats(repo)["changed_files"] >= 1
 
 
-def test_runner_prefixes_pr_title_and_body_with_linear_key(tmp_path):
+def test_runner_uses_github_issue_metadata_only(tmp_path):
     repo = copy_contract_repo(tmp_path)
     issue = complete_issue(tmp_path)
     issue.write_text(
-        issue.read_text(encoding="utf-8").replace("Make a tiny change.", "Make a tiny change for BC-42."),
+        issue.read_text(encoding="utf-8").replace(
+            "Make a tiny change.", "Make a tiny change for external reference ACME-42."
+        ),
         encoding="utf-8",
     )
     env = os.environ.copy()
@@ -324,7 +326,9 @@ def test_runner_prefixes_pr_title_and_body_with_linear_key(tmp_path):
 
     payload = json.loads((repo / "agentic-dev-loop-result.json").read_text(encoding="utf-8"))
     pr_body = (repo / "agentic-pr-body.md").read_text(encoding="utf-8")
+    retired_result_field = "_".join(("linear", "key"))
     assert result.returncode == 0
-    assert payload["linear_key"] == "BC-42"
-    assert payload["pr_title"] == "BC-42: Tighten PR metadata"
-    assert "Linear: BC-42" in pr_body
+    assert retired_result_field not in payload
+    assert payload["pr_title"] == "Tighten PR metadata"
+    assert "Closes #4" in pr_body
+    assert "Linear:" not in pr_body

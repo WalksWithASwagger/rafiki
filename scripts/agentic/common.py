@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 ROOT_MARKERS = ("agentic/contract.json", ".git")
-LINEAR_KEY_PATTERN = re.compile(r"\b([A-Z]{2,}-\d+)\b", re.IGNORECASE)
 ISSUE_LINK_PATTERN = re.compile(r"\b(Closes|Refs)\s+#(\d+)\b", re.IGNORECASE)
 
 
@@ -34,40 +33,6 @@ def slugify(value: str, max_length: int = 48) -> str:
     slug = re.sub(r"[^a-zA-Z0-9]+", "-", value.lower()).strip("-")
     slug = re.sub(r"-+", "-", slug)
     return (slug or "agentic-work")[:max_length].rstrip("-")
-
-
-def normalize_linear_key(value: str) -> str:
-    return value.upper()
-
-
-def extract_linear_keys(*texts: str | None, prefixes: set[str] | None = None) -> list[str]:
-    keys: list[str] = []
-    seen: set[str] = set()
-    allowed_prefixes = {prefix.upper() for prefix in prefixes or set()}
-    for text in texts:
-        if not text:
-            continue
-        for match in LINEAR_KEY_PATTERN.finditer(text):
-            key = normalize_linear_key(match.group(1))
-            if allowed_prefixes and key.split("-", 1)[0] not in allowed_prefixes:
-                continue
-            if key in seen:
-                continue
-            seen.add(key)
-            keys.append(key)
-    return keys
-
-
-def extract_linear_key(*texts: str | None) -> str | None:
-    keys = extract_linear_keys(*texts)
-    return keys[0] if keys else None
-
-
-def contract_linear_prefixes(contract: dict[str, Any]) -> set[str]:
-    team = str(contract.get("repo", {}).get("linear_team", "")).strip()
-    if not team:
-        return set()
-    return {team.split("-", 1)[0].upper()}
 
 
 def extract_issue_reference(
