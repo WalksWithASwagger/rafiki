@@ -5,7 +5,6 @@ Use this prompt for guarded PR review, repair, and merge decisions.
 ## Repository
 
 - GitHub: `WalksWithASwagger/rafiki`
-- Linear project: `Rafiki Roadmap Delivery`
 - Review skill: `.claude/skills/rafiki-github-pr-reviewer/SKILL.md`
 - Audit log: `meta/audits/dev-loop-log.csv`
 
@@ -65,6 +64,5 @@ Only merge when all of these are true:
 - first-10 autonomous PR human spot check rule is satisfied
 - no protected policy/security/private-content changes are present
 
-Use squash merge and delete the branch. Confirm the GitHub issue closes, then
-remove `review-ready` and update the linked Linear issue/project status if
-available.
+Use squash merge. Confirm the linked GitHub issue closes, then remove
+`review-ready` if it remains.

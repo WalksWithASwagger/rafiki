@@ -8,7 +8,6 @@ project:
 
 source_systems:
   github: "WalksWithASwagger/rafiki"
-  linear: "Rafiki Roadmap Delivery"
   docs:
     - "README.md"
     - "docs/ROADMAP.md"
@@ -21,19 +20,19 @@ loops:
   - name: "release_hygiene_sweep"
     cadence: "weekly or before public release work"
     agent: "ai-native-company-os"
-    trigger: "scheduled sweep, release-prep request, or GitHub/Linear queue review"
+    trigger: "scheduled sweep, release-prep request, or GitHub queue review"
     output_artifacts:
       - "triage brief"
       - "manifest or workflow proposals"
-      - "GitHub/Linear handoff notes when explicitly approved"
+      - "GitHub handoff notes when explicitly approved"
     approval_required_for:
       - "publishing public release changes"
       - "model-default policy decisions"
       - "public/private prompt or media boundary decisions"
 
-  - name: "github_linear_dev_loop"
+  - name: "github_dev_loop"
     cadence: "on demand"
-    agent: "github-linear-swarm"
+    agent: "agentic-swarm"
     trigger: "user asks to swarm Rafiki GitHub issues or PRs"
     output_artifacts:
       - "PR/issue map"
@@ -46,7 +45,6 @@ loops:
 memory:
   hot_sources:
     - "open GitHub issues and PRs"
-    - "Linear project: Rafiki Roadmap Delivery"
     - "docs/ROADMAP.md"
     - "docs/DELIVERY-PIPELINE.md"
     - "meta/routines/"

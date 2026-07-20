@@ -24,22 +24,12 @@ canonical source if these commands drift.
 
 Keep the existing roadmap labels for phase and work type.
 
-## Linear
+## GitHub Planning
 
-Project:
-
-- `Rafiki Roadmap Delivery`
-- URL: https://linear.app/bc-ai/project/rafiki-roadmap-delivery-faf493aca4ce
-
-Milestones:
-
-- `Phase 0: Pipeline + Stabilization`
-- `Phase 1: Public Release Hygiene`
-- `Phase 2: Workflow Reliability`
-- `Phase 3: Registry + Portal + Automation`
-
-Each active roadmap GitHub issue should have a matching Linear issue or a
-Linear link attached to the project.
+Every active delivery item lives in this repository as a GitHub issue. Use
+phase labels, milestones, and issue relationships for roadmap grouping,
+sequencing, and blockers. Do not create or synchronize a second planning
+record.
 
 ## Branch Protection
 

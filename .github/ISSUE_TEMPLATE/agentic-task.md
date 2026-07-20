@@ -29,7 +29,3 @@ assignees: ''
 ## Out of Scope
 
 <!-- What this issue is NOT doing. -->
-
-## Linear
-
-<!-- Linear key or project reference, when known. -->
