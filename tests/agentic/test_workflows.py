@@ -1,4 +1,5 @@
 import json
+import subprocess
 from pathlib import Path
 
 import yaml
@@ -151,11 +152,53 @@ def test_ci_runs_documented_contract_commands():
     assert "npm run doctor" in commands
 
 
-def test_traceability_workflow_listens_for_pr_events_only():
+def test_policy_workflow_covers_pr_lifecycle_and_label_changes():
     workflow = _workflow("agentic-traceability.yml")
 
-    pr_types = workflow["on"]["pull_request"]["types"]
+    pr_types = set(workflow["on"]["pull_request"]["types"])
 
-    assert "closed" in pr_types
-    assert "converted_to_draft" in pr_types
+    assert {
+        "opened",
+        "edited",
+        "synchronize",
+        "reopened",
+        "ready_for_review",
+        "converted_to_draft",
+        "closed",
+        "labeled",
+        "unlabeled",
+    } <= pr_types
     assert "issues" not in workflow["on"]
+    policy = workflow["jobs"]["policy"]
+    assert policy["name"] == "policy"
+    assert workflow["permissions"] == {
+        "contents": "read",
+        "issues": "write",
+        "pull-requests": "read",
+    }
+    names = [step.get("name") for step in policy["steps"]]
+    assert names.index("Comment traceability drift") < names.index("Enforce policy")
+
+
+def test_automation_never_removes_stop_labels():
+    workflows = (ROOT / ".github" / "workflows").glob("agentic-*.yml")
+
+    for workflow in workflows:
+        text = workflow.read_text()
+        assert '--remove-label "needs-human"' not in text, workflow.name
+        assert '--remove-label "blocked"' not in text, workflow.name
+
+
+def test_policy_workflow_shell_steps_parse():
+    workflow = _workflow("agentic-traceability.yml")
+
+    for step in workflow["jobs"]["policy"]["steps"]:
+        if "run" not in step:
+            continue
+        result = subprocess.run(
+            ["bash", "-n"],
+            input=step["run"],
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, f"{step['name']}: {result.stderr}"

@@ -4,7 +4,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "agentic"))
 
-from pr_traceability import check_traceability  # noqa: E402
+from pr_traceability import check_policy, check_traceability  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[2]
 CONTRACT = json.loads((ROOT / "agentic" / "contract.json").read_text(encoding="utf-8"))
@@ -64,3 +64,41 @@ def test_traceability_flags_noncanonical_branch():
 
     assert not result["ok"]
     assert "Use `codex/issue-<number>-<slug>`" in result["comment"]
+
+
+def test_policy_passes_traceable_pr_without_stop_labels():
+    result = check_policy(
+        contract=CONTRACT,
+        pr_body="Closes #77",
+        head_ref="codex/issue-77-harden-traceability",
+        labels=["review-ready"],
+    )
+
+    assert result["ok"]
+    assert result["checks"]["traceability_ok"] is True
+    assert result["checks"]["stop_labels_clear"] is True
+
+
+def test_policy_blocks_needs_human_and_blocked_labels():
+    result = check_policy(
+        contract=CONTRACT,
+        pr_body="Closes #77",
+        head_ref="codex/issue-77-harden-traceability",
+        labels=["blocked", "needs-human", "review-ready"],
+    )
+
+    assert not result["ok"]
+    assert result["stop_labels"] == ["blocked", "needs-human"]
+    assert result["checks"]["traceability_ok"] is True
+
+
+def test_policy_blocks_traceability_mismatch_without_stop_labels():
+    result = check_policy(
+        contract=CONTRACT,
+        pr_body="Closes #78",
+        head_ref="codex/issue-77-harden-traceability",
+        labels=[],
+    )
+
+    assert not result["ok"]
+    assert result["checks"]["traceability_ok"] is False

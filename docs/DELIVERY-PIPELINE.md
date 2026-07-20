@@ -66,7 +66,8 @@ Branch templates come from `agentic/contract.json`:
 |---|---|
 | Issue labeled `in-progress` | Work is claimed |
 | Linked PR opened | Diff, CI, and review become the durable handoff |
-| PR labeled `review-ready` | Acceptance review may begin |
+| PR labeled `review-ready` | Advisory acceptance review may begin |
+| PR has traceability drift, `needs-human`, or `blocked` | The stable `policy` check fails |
 | Linked PR merged with `Closes #N` | GitHub closes the issue |
 
 ## Retired Integration Cleanup
@@ -88,8 +89,10 @@ Automation must stop and leave `needs-human` when the next step depends on:
 - merge approval
 - proof that cannot be produced locally
 
-`needs-human` and `blocked` are sticky. `blocked` is for external dependencies;
-`needs-human` is for judgment or access.
+`needs-human` and `blocked` are sticky: automation may add them but never remove
+them. `blocked` is for external dependencies; `needs-human` is for judgment or
+access. Labels and comments remain advisory; only the `policy` check conclusion
+is suitable for branch-protection enforcement.
 
 ## Workspace Hygiene Report
 
