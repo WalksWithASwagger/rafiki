@@ -1,5 +1,5 @@
 ---
-name: github-issue-writer
+name: rafiki-github-issue-writer
 description: Write agent-ready GitHub issues for Rafiki with Linear links, acceptance criteria, tests, and human checkpoints.
 ---
 

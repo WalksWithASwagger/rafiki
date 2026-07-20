@@ -1,5 +1,5 @@
 ---
-name: github-pr-reviewer
+name: rafiki-github-pr-reviewer
 description: Review Rafiki pull requests against linked GitHub issue acceptance criteria, tests, docs, and local-first safety boundaries.
 ---
 
