@@ -1,7 +1,6 @@
 """Stage 2 -- upscale the clean plate with a local ESRGAN.
 
-Runs on ComfyUI's venv, which already carries torch + MPS + spandrel. No ComfyUI
-server, no API, no spend. Seconds on Apple silicon.
+Runs locally with torch and spandrel. No server, API, or provider call.
 
 Upscale the PLATE, not the finished poster. The stars get redrawn natively
 afterwards, so they stay razor sharp instead of becoming blurry blobs. The
@@ -11,26 +10,26 @@ sharpen into an artifact.
 Use an illustration-trained model (4x-UltraSharp, 4x_foolhardy_Remacri). Do NOT
 use RealESRGAN_x4plus: it is photo-trained and will plasticize brushwork.
 
-    /Users/kk/Code/ComfyUI/.venv/bin/python upscale.py <in.png> <out.png>
+    python3 upscale.py <in.png> <out.png> --model <weights.pth>
 """
 
 from __future__ import annotations
 
-import sys
+import argparse
 import time
+from pathlib import Path
 
-import numpy as np
-import torch
-from PIL import Image
-from spandrel import ModelLoader
-
-MODEL = "/Users/kk/Code/ComfyUI/models/upscale_models/4x-UltraSharp.pth"
 TILE, OVERLAP = 512, 32
 
 
-def upscale(src: str, dst: str, model_path: str = MODEL) -> None:
+def upscale(src: Path, dst: Path, model_path: Path) -> None:
+    import numpy as np
+    import torch
+    from PIL import Image
+    from spandrel import ModelLoader
+
     dev = "mps" if torch.backends.mps.is_available() else "cpu"
-    model = ModelLoader().load_from_file(model_path).eval().to(dev)
+    model = ModelLoader().load_from_file(str(model_path)).eval().to(dev)
     s = model.scale
     print(f"{model.architecture.name}  x{s}  on {dev}")
 
@@ -65,5 +64,21 @@ def upscale(src: str, dst: str, model_path: str = MODEL) -> None:
     print(f"{w}x{h} -> {arr.shape[1]}x{arr.shape[0]}  in {time.time() - t0:.1f}s  -> {dst}")
 
 
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Upscale a clean poster plate with local ESRGAN weights.")
+    parser.add_argument("input", type=Path, help="clean plate image")
+    parser.add_argument("output", type=Path, help="destination image")
+    parser.add_argument("--model", required=True, type=Path, help="ESRGAN model weights")
+    args = parser.parse_args()
+
+    if not args.input.is_file():
+        parser.error(f"input file not found: {args.input}")
+    if not args.model.is_file():
+        parser.error(f"model file not found: {args.model}")
+
+    upscale(args.input, args.output, args.model)
+    return 0
+
+
 if __name__ == "__main__":
-    upscale(sys.argv[1], sys.argv[2])
+    raise SystemExit(main())

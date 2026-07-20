@@ -106,7 +106,8 @@ Two assets are fetched, not committed (both are binaries, and the repo is tool-o
 
 ```bash
 # Upscale weights — an ILLUSTRATION model. Never RealESRGAN_x4plus on painted art.
-curl -L -o ~/Code/ComfyUI/models/upscale_models/4x-UltraSharp.pth \
+mkdir -p "$HOME/.local/share/rafiki/models"
+curl -L -o "$HOME/.local/share/rafiki/models/4x-UltraSharp.pth" \
   https://huggingface.co/Kim2091/UltraSharp/resolve/main/4x-UltraSharp.pth
 
 # Type faces for stage 4 (swap for whatever the brand actually uses)
@@ -117,7 +118,15 @@ curl -L -o .agents/skills/real-sky-poster/scripts/fonts/Cormorant.ttf \
   'https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/CormorantGaramond%5Bwght%5D.ttf'
 ```
 
-Stages 1–3 need only `opencv-python`, `pillow`, `numpy`. Stage 2 runs on ComfyUI's venv (torch + MPS + spandrel already there). **The smoke test needs none of this** — that is the point of keeping the astronomy in the standard library.
+Stages 1 and 3 need `opencv-python`, `pillow`, and `numpy`. Stage 2 also needs `torch` and `spandrel` in the Python environment you choose. Pass the model path explicitly:
+
+```bash
+python3 .agents/skills/real-sky-poster/scripts/upscale.py \
+  path/to/clean-plate.png path/to/upscaled-plate.png \
+  --model "$HOME/.local/share/rafiki/models/4x-UltraSharp.pth"
+```
+
+**The smoke test needs none of this** — that is the point of keeping the astronomy in the standard library.
 
 ## Reference
 
