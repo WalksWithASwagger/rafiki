@@ -31,8 +31,7 @@ cp .env.example .env
 ```bash
 npm run doctor
 npm test
-npm audit --omit=dev --audit-level=moderate
-./.venv/bin/python -m pip_audit -r requirements.txt
+npm run verify:security
 npm run pack:check
 python generate.py --help
 python generate.py serve --open
@@ -52,6 +51,18 @@ the dependencies installed above.
 It covers Python lint and tests, frontend checks, portal E2E, docs, the public
 boundary, dry-run smoke, package contents, and doctor. Registry-backed
 dependency audits remain separate networked CI and release checks.
+
+## Networked Dependency Verification
+
+Run the registry-backed security gate separately:
+
+```bash
+npm run verify:security
+```
+
+It audits the root production dependencies, the frontend production and full
+dependency trees, and the hashed Python CI lock. High-severity findings fail
+the command. The audits do not modify lockfiles or apply dependency fixes.
 
 ## Python CI Lock
 
@@ -87,6 +98,6 @@ process. Normal runtime commands include configured extra outputs by default.
 Before merging public-release work:
 
 - `python3 -m pytest -q`
-- `python3 -m pip_audit -r requirements.txt`
+- `npm run verify:security`
 - `npm pack --dry-run`
 - sanity-check `README.md`, `SECURITY.md`, and `docs/SCOPE.md`

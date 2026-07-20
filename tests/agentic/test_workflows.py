@@ -161,7 +161,37 @@ def test_ci_installs_and_checks_hashed_python_lock():
         and "git diff --exit-code -- requirements-ci.txt" in command
         for command in commands
     )
-    assert "python -m pip_audit -r requirements-ci.txt" in commands
+    assert "npm run verify:security" in commands
+
+
+def test_verify_security_script_covers_every_networked_dependency_gate():
+    package = json.loads((ROOT / "package.json").read_text())
+
+    assert package["scripts"]["verify:security"].split(" && ") == [
+        "npm audit --omit=dev --audit-level=high",
+        "npm --prefix frontend audit --omit=dev --audit-level=high",
+        "npm --prefix frontend audit --audit-level=high",
+        "python3 -m pip_audit -r requirements-ci.txt",
+    ]
+
+
+def test_ci_names_security_verification_and_runs_it_before_deterministic_checks():
+    workflow = _workflow("ci.yml")
+    steps = workflow["jobs"]["test"]["steps"]
+    names = [step.get("name") for step in steps]
+    security = next(
+        step
+        for step in steps
+        if step.get("name") == "Run dependency security verification"
+    )
+
+    assert security["run"] == "npm run verify:security"
+    assert names.index("Check Python CI lock") < names.index(
+        "Run dependency security verification"
+    )
+    assert names.index("Run dependency security verification") < names.index(
+        "Run deterministic verification"
+    )
 
 
 def test_verify_script_covers_every_deterministic_ci_gate():

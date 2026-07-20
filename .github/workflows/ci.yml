@@ -33,12 +33,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm --prefix frontend ci
 
-      - name: Audit Node runtime dependencies
-        # Gate on high+ only: the outstanding moderate is a js-yaml DoS reached
-        # solely via gray-matter frontmatter parsing of our own local prompt
-        # files — not an untrusted-input surface for this local-first CLI.
-        run: npm audit --omit=dev --audit-level=high
-
       - name: Install Python dependencies
         run: python -m pip install --require-hashes -r requirements-ci.txt
 
@@ -47,8 +41,8 @@ jobs:
           npm run lock:python-ci
           git diff --exit-code -- requirements-ci.txt
 
-      - name: Audit Python runtime dependencies
-        run: python -m pip_audit -r requirements-ci.txt
+      - name: Run dependency security verification
+        run: npm run verify:security
 
       - name: Run deterministic verification
         run: npm run verify
