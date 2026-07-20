@@ -230,7 +230,12 @@ def test_dependabot_groups_every_supported_dependency_surface_weekly():
     for entry in updates.values():
         assert entry["schedule"] == {"interval": "weekly"}
         assert len(entry["groups"]) == 1
-        assert next(iter(entry["groups"].values()))["patterns"] == ["*"]
+        group = next(iter(entry["groups"].values()))
+        assert group["patterns"] == ["*"]
+        assert group["update-types"] == ["minor", "patch"]
+
+    pip = updates[("pip", "/")]
+    assert pip["exclude-paths"] == ["requirements-ci.txt"]
 
     text = path.read_text().lower()
     assert "auto-merge" not in text
@@ -343,6 +348,9 @@ def test_policy_workflow_covers_pr_lifecycle_and_label_changes():
     assert "issues" not in workflow["on"]
     policy = workflow["jobs"]["policy"]
     assert policy["name"] == "policy"
+    assert policy["if"] == (
+        "${{ startsWith(github.event.pull_request.head.ref, 'codex/issue-') }}"
+    )
     assert workflow["permissions"] == {
         "contents": "read",
         "issues": "write",
