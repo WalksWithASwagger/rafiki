@@ -14,7 +14,6 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 from common import (  # noqa: E402
     changed_stats,
-    extract_linear_key,
     load_contract,
     read_text_arg,
     repo_root,
@@ -53,32 +52,22 @@ def has_pause_signal(root: Path) -> bool:
     }
 
 
-def build_pr_title(issue_title: str, linear_key: str | None) -> str:
-    if not linear_key or issue_title.startswith(f"{linear_key}:"):
-        return issue_title
-    return f"{linear_key}: {issue_title}"
-
-
 def build_pr_body(
     issue_number: str,
     provider_result: dict[str, Any],
     verification: list[dict[str, Any]],
-    linear_key: str | None,
 ) -> str:
     stats = provider_result.get("stats", {})
     checks = "\n".join(
         f"- [{'x' if item['ok'] else ' '}] `{item['command']}`" for item in verification
     )
-    related_lines = [f"Closes #{issue_number}"]
-    if linear_key:
-        related_lines.append(f"Linear: {linear_key}")
     return f"""## Summary
 
 {provider_result.get("summary", "Agent provider completed.")}
 
 ## Related Issues
 
-{chr(10).join(related_lines)}
+Closes #{issue_number}
 
 ## Agentic Delivery
 
@@ -112,15 +101,13 @@ def main() -> int:
     root = repo_root()
     contract = load_contract(root)
     issue_body = read_text_arg(args.issue_file)
-    linear_key = extract_linear_key(args.issue_title, issue_body)
     labels = parse_labels(args.labels)
     lint = lint_issue(issue_body, labels, contract)
     result: dict[str, Any] = {
         "ok": False,
         "issue_number": args.issue_number,
         "issue_title": args.issue_title,
-        "pr_title": build_pr_title(args.issue_title, linear_key),
-        "linear_key": linear_key,
+        "pr_title": args.issue_title,
         "slug": slugify(args.issue_title),
         "lint": lint,
         "provider": None,
@@ -179,7 +166,7 @@ def main() -> int:
         }
     )
     Path(args.pr_body_output).write_text(
-        build_pr_body(args.issue_number, provider_result, verification, linear_key),
+        build_pr_body(args.issue_number, provider_result, verification),
         encoding="utf-8",
     )
     write_json(Path(args.json_output), result)
