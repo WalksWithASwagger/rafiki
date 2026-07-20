@@ -53,6 +53,20 @@ It covers Python lint and tests, frontend checks, portal E2E, docs, the public
 boundary, dry-run smoke, package contents, and doctor. Registry-backed
 dependency audits remain separate networked CI and release checks.
 
+## Python CI Lock
+
+`requirements.txt` and `requirements-dev.txt` remain the readable,
+cross-platform source contracts. `requirements-ci.txt` is the fully pinned,
+hashed CPython 3.11 Linux x86_64 graph used only by CI.
+
+After installing the development requirements in an activated Python 3.11
+virtualenv, refresh and check the lock with:
+
+```bash
+npm run lock:python-ci
+git diff --exit-code -- requirements-ci.txt
+```
+
 For deterministic tooling contexts outside the committed smoke script, set
 `RAFIKI_DISABLE_EXTRA_OUTPUTS=1` to ignore
 `config/extra-outputs.json` and `config/extra-outputs.local.json` for that

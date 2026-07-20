@@ -53,6 +53,11 @@ python -m pip install -r requirements.txt
 python -m pip install -r requirements-dev.txt
 ```
 
+The ranged source requirements support local cross-platform installation. CI
+instead installs the reviewed, hashed `requirements-ci.txt` graph compiled for
+CPython 3.11 on Linux x86_64. Maintainers refresh it with
+`npm run lock:python-ci`; it is not a universal user lock.
+
 ### 2. Add provider keys
 
 Rafiki commits `.env.schema` as the agent-readable environment contract. Keep
