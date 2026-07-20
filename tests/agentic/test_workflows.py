@@ -26,17 +26,34 @@ def test_active_workflows_do_not_invoke_linear_sync():
     secret_name = "_".join(("LINEAR", "API", "KEY"))
     client_name = "_".join(("linear", "sync")) + ".py"
 
-    for name in ("agentic-dev-loop.yml", "agentic-traceability-sync.yml"):
+    for name in ("agentic-dev-loop.yml", "agentic-traceability.yml"):
         text = (ROOT / ".github" / "workflows" / name).read_text()
 
         assert secret_name not in text
         assert client_name not in text
 
 
-def test_contract_disables_linear_sync():
+def test_contract_uses_github_issue_traceability():
     contract = json.loads((ROOT / "agentic" / "contract.json").read_text())
+    retired_team_field = "_".join(("linear", "team"))
+    retired_project_field = "_".join(("linear", "project"))
 
-    assert contract["linear_sync"] == {"enabled": False}
+    assert contract["branch_template"] == "codex/issue-{issue_number}-{slug}"
+    assert contract["pr_requirements"] == {
+        "require_issue_link": True,
+        "issue_link_verbs": ["Closes", "Refs"],
+        "branch_prefix": "codex/",
+        "issue_prefix": "issue-",
+    }
+    assert retired_team_field not in contract["repo"]
+    assert retired_project_field not in contract["repo"]
+
+
+def test_retired_external_sync_remains_disabled():
+    contract = json.loads((ROOT / "agentic" / "contract.json").read_text())
+    retired_sync_field = "_".join(("linear", "sync"))
+
+    assert contract[retired_sync_field] == {"enabled": False}
 
 
 def test_issue_quality_only_accepts_ready_label_events():
@@ -75,6 +92,14 @@ def test_dev_loop_starts_only_from_dispatch_and_validates_before_progress():
     assert names.index("Validate approved intake") < names.index("Mark issue in progress")
 
 
+def test_dev_loop_branch_uses_only_the_github_issue_number():
+    workflow = _workflow("agentic-dev-loop.yml")
+    steps = workflow["jobs"]["run"]["steps"]
+    branch_step = next(step for step in steps if step.get("name") == "Create work branch")
+
+    assert 'ref = f"issue-{os.environ[\'ISSUE_NUMBER\']}"' in branch_step["run"]
+
+
 def test_intake_workflows_serialize_duplicate_deliveries_without_cancellation():
     for name in ("agentic-issue-quality.yml", "agentic-dev-loop.yml"):
         workflow = _workflow(name)
@@ -93,7 +118,7 @@ def test_ci_runs_documented_contract_commands():
 
 
 def test_traceability_workflow_listens_for_pr_events_only():
-    workflow = _workflow("agentic-traceability-sync.yml")
+    workflow = _workflow("agentic-traceability.yml")
 
     pr_types = workflow["on"]["pull_request"]["types"]
 

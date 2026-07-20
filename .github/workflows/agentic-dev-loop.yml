@@ -98,11 +98,10 @@ jobs:
           import sys
 
           sys.path.insert(0, "scripts/agentic")
-          from common import extract_linear_key, slugify
+          from common import slugify
 
           title = pathlib.Path(os.environ["RUNNER_TEMP"], "issue-title.txt").read_text(encoding="utf-8").strip()
-          body = pathlib.Path(os.environ["RUNNER_TEMP"], "issue.md").read_text(encoding="utf-8")
-          ref = extract_linear_key(title, body) or f"issue-{os.environ['ISSUE_NUMBER']}"
+          ref = f"issue-{os.environ['ISSUE_NUMBER']}"
           print(ref)
           print(slugify(title))
           PY

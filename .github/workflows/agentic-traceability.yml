@@ -1,4 +1,4 @@
-name: Agentic Traceability Sync
+name: Agentic Traceability
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  pr-sync:
+  traceability:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -25,44 +25,23 @@ jobs:
       - name: Ensure standard labels
         run: python3 scripts/agentic/ensure_labels.py
 
-      - name: Fetch PR and linked issue
+      - name: Fetch PR traceability metadata
         run: |
-          gh pr view "$PR_NUMBER" --json title --jq '.title' > "$RUNNER_TEMP/pr-title.txt"
           gh pr view "$PR_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/pr-body.md"
           gh pr view "$PR_NUMBER" --json headRefName --jq '.headRefName' > "$RUNNER_TEMP/head-ref.txt"
-          gh pr view "$PR_NUMBER" --json url --jq '.url' > "$RUNNER_TEMP/pr-url.txt"
-          ISSUE_NUMBER=$(python3 -c "import pathlib, re; match=re.search(r'\b(?:Closes|Refs)\s+#(\d+)', pathlib.Path('$RUNNER_TEMP/pr-body.md').read_text(), re.I); print(match.group(1) if match else '')")
-          echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
-          {
-            echo "PR_TITLE<<EOF"
-            cat "$RUNNER_TEMP/pr-title.txt"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
           {
             echo "HEAD_REF<<EOF"
             cat "$RUNNER_TEMP/head-ref.txt"
             echo "EOF"
           } >> "$GITHUB_ENV"
-          {
-            echo "PR_URL<<EOF"
-            cat "$RUNNER_TEMP/pr-url.txt"
-            echo "EOF"
-          } >> "$GITHUB_ENV"
-          if [ -n "$ISSUE_NUMBER" ]; then
-            gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/issue.md"
-          else
-            : > "$RUNNER_TEMP/issue.md"
-          fi
 
       - name: Check traceability
         id: traceability
         run: |
           set +e
           python3 scripts/agentic/pr_traceability.py \
-            --pr-title "$PR_TITLE" \
             --pr-body-file "$RUNNER_TEMP/pr-body.md" \
             --head-ref "$HEAD_REF" \
-            --issue-file "$RUNNER_TEMP/issue.md" \
             --json-output "$RUNNER_TEMP/pr-traceability.json"
           echo "exit_code=$?" >> "$GITHUB_OUTPUT"
           exit 0
