@@ -20,6 +20,7 @@
     "generate": "node index.js",
     "render": "node index.js --render",
     "doctor": "node index.js --doctor",
+    "lint": "python3 -m ruff check .",
     "env:validate": "varlock load --agent --show-all",
     "env:audit": "varlock audit . --ignore node_modules --ignore frontend/node_modules --ignore .venv --ignore .pytest_cache --ignore .ruff_cache --ignore __pycache__ --ignore output --ignore outputs --ignore assets --ignore prompts --ignore examples/images --ignore .rafiki-cache --ignore frontend/.output --ignore frontend/.vinxi --ignore frontend/.wrangler --ignore frontend/src/routeTree.gen.ts",
     "env:scan": "varlock scan --staged",
@@ -39,7 +40,7 @@
     "pack:check": "node scripts/check-package-boundary.mjs",
     "docs:check": "python3 scripts/check-doc-links.py",
     "public:check": "python3 scripts/check-public-boundary.py",
-    "verify": "npm test && npm run docs:check && npm run public:check && npm run smoke:dry-run && npm run pack:check"
+    "verify": "npm run lint && npm test && npm run frontend:verify && npm run e2e:portal && npm run docs:check && npm run public:check && npm run smoke:dry-run && npm run pack:check && npm run doctor"
   },
   "files": [
     "index.js",
@@ -74,7 +75,7 @@
     "docs/**/*.md"
   ],
   "engines": {
-    "node": ">=20.17.0",
+    "node": ">=22.12.0",
     "npm": ">=10.0.0"
   },
   "overrides": {

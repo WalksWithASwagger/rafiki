@@ -5,15 +5,19 @@ to review, and safe for users who store API keys on their own machines.
 
 ## Development Setup
 
+Use Node.js 22.12+ with npm 10+ and Python 3.11+.
+
 ```bash
 git clone https://github.com/WalksWithASwagger/rafiki.git
 cd rafiki
 
-npm install
+npm ci
+npm --prefix frontend ci
 
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install -r requirements-dev.txt
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 Create a local `.env` only if you need to hit real provider APIs:
@@ -36,12 +40,18 @@ python generate.py serve --open
 
 ## Deterministic Local Verification
 
-The committed test and portal smoke gates should pass from a stateful checkout:
+Run the canonical deterministic gate from the repository root:
 
 ```bash
-npm test
-npm run e2e:portal
+npm run verify
 ```
+
+Keep the development virtualenv active so the Python-backed npm scripts use
+the dependencies installed above.
+
+It covers Python lint and tests, frontend checks, portal E2E, docs, the public
+boundary, dry-run smoke, package contents, and doctor. Registry-backed
+dependency audits remain separate networked CI and release checks.
 
 For deterministic tooling contexts outside the committed smoke script, set
 `RAFIKI_DISABLE_EXTRA_OUTPUTS=1` to ignore

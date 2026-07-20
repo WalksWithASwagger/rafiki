@@ -82,7 +82,8 @@ def test_agent_guidance_requires_safe_varlock_commands() -> None:
     assert "varlock run --inject vars" in instructions
     assert "npm run env:audit" in instructions
     assert "staged-only `npm run env:scan`" in instructions
-    assert "Node 22.3+ or the standalone CLI" in instructions
+    assert "Node 22.12+" in instructions
+    assert "or the standalone CLI" in instructions
 
 
 @pytest.mark.skipif(VARLOCK is None, reason="standalone Varlock CLI is not installed")

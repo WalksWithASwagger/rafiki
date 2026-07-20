@@ -20,7 +20,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: "22.12"
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -47,29 +47,8 @@ jobs:
       - name: Audit Python runtime dependencies
         run: python -m pip_audit -r requirements.txt
 
-      - name: Lint Python
-        run: python -m ruff check .
-
-      - name: Run tests
-        run: npm test
-
-      - name: Verify frontend
-        run: npm run frontend:verify
-
-      - name: Run portal E2E smoke
-        run: npm run e2e:portal
-
-      - name: Check documentation links
-        run: npm run docs:check
-
-      - name: Check public repo boundary
-        run: npm run public:check
-
-      - name: Check npm package contents
-        run: npm run pack:check
-
-      - name: Run doctor
-        run: npm run doctor
+      - name: Run deterministic verification
+        run: npm run verify
 
   secret-scan:
     runs-on: ubuntu-latest
