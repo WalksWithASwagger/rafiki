@@ -1,11 +1,9 @@
 # Rafiki Delivery Pipeline
 
-Rafiki uses GitHub as execution truth and Linear as planning and status truth.
-The pipeline is intentionally conservative: it lints issues, opens branches and
-PRs, reviews acceptance shape, and syncs Linear status — but humans still own
-merge decisions and sensitive actions. There is no auto-merge.
-
-Linear project: <https://linear.app/bc-ai/project/rafiki-roadmap-delivery-faf493aca4ce>
+Rafiki uses GitHub as the sole planning, execution, review, and delivery source
+of truth. The pipeline is intentionally conservative: it lints issues, opens
+branches and PRs, and reviews acceptance shape, but humans still own merge
+decisions and sensitive actions. There is no auto-merge.
 
 Repo-local contract: `agentic/contract.json` (canonical source if this doc
 drifts).
@@ -13,25 +11,22 @@ drifts).
 ## Repo Identity
 
 - GitHub repo: `WalksWithASwagger/rafiki`
-- Linear team: `Bc-ai` (`BC`)
-- Linear project: `Rafiki Roadmap Delivery`
 - Canonical local root: the current Rafiki checkout
 
 ## Operating Model
 
 | Surface | Purpose |
 |---|---|
-| GitHub issues | Acceptance criteria, execution scope, and closure semantics |
+| GitHub issues | Priority, dependencies, acceptance criteria, execution scope, and closure semantics |
 | GitHub PRs | Review, CI, diff discussion, and merge history |
-| Linear project | Priority, sequencing, milestone status, and cross-repo planning |
-| `agentic/contract.json` | Repo-local automation contract (labels, limits, sync rules) |
+| GitHub labels and milestones | Queue state, sequencing, and roadmap grouping |
+| `agentic/contract.json` | Repo-local automation contract (labels, limits, and traceability rules) |
 
-## Active-Delivery Mirror Rule
+## Active Delivery Rule
 
-Mirror only active delivery work into the `Rafiki Roadmap Delivery` Linear
-project. Backlog, exploration, or intentionally GitHub-only follow-ups stay in
-GitHub without a Linear mirror and use the `codex/issue-<number>-<slug>`
-fallback branch shape.
+Every implementation starts from one GitHub issue. Use issue relationships,
+labels, and milestones for dependencies and sequencing. Branches use the
+`codex/issue-<number>-<slug>` shape.
 
 ## Labels
 
@@ -59,37 +54,28 @@ Acceptance criteria must include Markdown checkboxes.
 
 ## PR Traceability Contract
 
-Branch templates come from `agentic/contract.json`
-(`codex/{linear_key_or_issue}-{slug}`).
-
-If work has a Linear mirror:
-
-- Branch: `codex/BC-<number>-<slug>`
-- PR title: starts with `BC-<number>:`
-- PR body: `Closes #<github-issue>` or `Refs #<github-issue>`
-- PR body: `Linear: BC-<number>`
-
-If work is intentionally GitHub-only and outside the active delivery lane:
+Branch templates come from `agentic/contract.json`:
 
 - Branch: `codex/issue-<github-issue>-<slug>`
-- A Linear key is not required
-- PR body still includes `Closes #<github-issue>` or `Refs #<github-issue>`
+- PR title: describes the issue outcome
+- PR body: `Closes #<github-issue>` or `Refs #<github-issue>`
 
 ## Status Mapping
 
-| GitHub event | Linear result |
+| GitHub event | Repository result |
 |---|---|
-| Issue labeled `in-progress` | `In Progress` |
-| Any linked PR open or draft | `In Review` |
-| Linked PR merged | `Done` |
+| Issue labeled `in-progress` | Work is claimed |
+| Linked PR opened | Diff, CI, and review become the durable handoff |
+| PR labeled `review-ready` | Acceptance review may begin |
+| Linked PR merged with `Closes #N` | GitHub closes the issue |
 
-If Linear does not auto-attach the PR, the sync helper leaves a comment with
-the PR URL so the breadcrumb is still durable. If metadata does not resolve to
-exactly one Linear key, the workflow leaves a handoff note instead of forcing
-status changes. Draft PRs still count as `In Review`; draft status is the
-GitHub readiness signal.
+## Retired Integration Cleanup
 
-The sync workflow reads the token from `LINEAR_API_KEY`.
+The former external-planner integration is retired and must not be invoked or
+restored. A maintainer may remove the retired `LINEAR_API_KEY` repository
+Actions secret in GitHub settings without reading or revealing its value. That
+manual settings cleanup is not an agent task and is not required for local or
+CI verification.
 
 ## Human Gates
 
@@ -147,8 +133,8 @@ expected to report all configured checks or clearly explain what could not run.
 2. `.github/workflows/agentic-dev-loop.yml` checks pause controls, stop labels,
    clean worktree state, provider output, verification commands, and diff
    limits.
-3. `.github/workflows/agentic-traceability-sync.yml` checks branch, title, and
-   body metadata for every PR and syncs Linear status.
+3. `.github/workflows/agentic-traceability.yml` checks branch, title, and body
+   metadata for every PR.
 4. `.github/workflows/agentic-pr-review.yml` comments an acceptance verdict and
    applies `review-ready` or `needs-human`.
 5. Humans review and merge. The pipeline never auto-merges.
@@ -158,8 +144,7 @@ expected to report all configured checks or clearly explain what could not run.
 ```bash
 python3 scripts/agentic/issue_lint.py --issue-file issue.md --labels agent:ready
 python3 scripts/agentic/dev_loop.py --issue-number 1 --issue-title "Example" --issue-file issue.md --labels agent:ready --provider noop
-python3 scripts/agentic/pr_traceability.py --pr-title "BC-1: Example" --pr-body-file pr.md --head-ref "codex/BC-1-example" --issue-file issue.md --json-output /tmp/pr-traceability.json
-python3 scripts/agentic/linear_sync.py --event pr-open --pr-title "BC-1: Example" --pr-body-file pr.md --head-ref "codex/BC-1-example" --json-output /tmp/linear-sync.json
+python3 scripts/agentic/pr_traceability.py --pr-title "Example" --pr-body-file pr.md --head-ref "codex/issue-1-example" --issue-file issue.md --json-output /tmp/pr-traceability.json
 python3 scripts/agentic/ensure_labels.py --dry-run
 python3 -m pytest tests/agentic
 ```

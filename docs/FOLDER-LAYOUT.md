@@ -19,7 +19,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── PULL_REQUEST_TEMPLATE.md
 │   ├── branch-protection.md     # Recommended GitHub protection settings
 │   └── workflows/               # ci.yml + agentic-* (issue-quality, dev-loop,
-│                                #   traceability-sync, pr-review)
+│                                #   traceability, pr-review)
 ├── .claude/
 │   ├── commands/                # Slash commands (e.g. /agentic-intake)
 │   └── skills/                  # Relative adapters to canonical project skills
@@ -30,7 +30,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   └── project.yaml             # Company-OS project manifest (loops, memory, validation)
 ├── agentic/
 │   └── contract.json            # Repo-local agentic delivery contract (labels, limits,
-│                                #   linear_sync, verification commands)
+│                                #   GitHub traceability, verification commands)
 ├── meta/
 │   ├── audits/                  # Agent loop audit logs (dev-loop-log.csv)
 │   └── routines/                # Repeatable agent prompts (SETUP, dev-loop-runner,
@@ -63,7 +63,7 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   ├── run-pytest.js            # `npm test` wrapper
 │   ├── sync-kb-image-prompt-mirror.sh
 │   └── agentic/                 # Agentic pipeline scripts (issue_lint, dev_loop,
-│                                #   pr_traceability, linear_sync, ensure_labels,
+│                                #   pr_traceability, ensure_labels,
 │                                #   pr_review, provider_adapter, common)
 ├── styles/                      # styles.yaml + per-style markdown guides, plus
 │                                #   refs/ image plates for a few styles

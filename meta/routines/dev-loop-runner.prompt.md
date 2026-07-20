@@ -7,7 +7,6 @@ pull request.
 
 - GitHub: `WalksWithASwagger/rafiki`
 - Local path: use the current checkout
-- Linear project: `Rafiki Roadmap Delivery`
 - Roadmap: `docs/ROADMAP.md`
 - Delivery pipeline: `docs/DELIVERY-PIPELINE.md`
 
@@ -38,24 +37,16 @@ with:
 - no label `needs-human`
 - no label `blocked`
 
-Read the issue body, linked Linear issue, linked docs, and nearby code before
-editing.
+Read the issue body, linked GitHub dependencies, linked docs, and nearby code
+before editing.
 
 ## Branch
 
 Per `agentic/contract.json`, use:
 
 ```bash
-codex/{linear_key_or_issue}-{slug}
+codex/issue-<github-issue>-<slug>
 ```
-
-In practice:
-
-- With a Linear mirror: `codex/BC-<number>-<slug>`
-- GitHub-only fallback: `codex/issue-<github-issue>-<slug>`
-
-PR bodies and labels must follow the same contract regardless of which form
-the branch uses.
 
 ## Context To Load
 
@@ -64,8 +55,7 @@ Read only what is needed, starting with:
 - `README.md`
 - `docs/ROADMAP.md`
 - `docs/DELIVERY-PIPELINE.md`
-- `.claude/skills/rafiki.md`
-- the linked GitHub issue and Linear issue
+- the linked GitHub issue and its dependencies
 - the smallest code/docs files named by the issue
 
 ## Implementation Rules
@@ -97,7 +87,6 @@ Open a PR with:
 - title that matches the issue outcome
 - `Closes #<issue-number>` unless the PR intentionally delivers only part of
   the issue, in which case use `Refs #<issue-number>`
-- Linear issue identifier or project reference when present
 - acceptance criteria checklist
 - test/smoke output
 - risk notes and human checkpoints

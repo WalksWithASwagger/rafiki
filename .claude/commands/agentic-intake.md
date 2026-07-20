@@ -1,6 +1,7 @@
 # Agentic Intake
 
-Use this command to turn a rough bug report or feature request into a complete GitHub issue and linked Linear issue.
+Use this command to turn a rough bug report or feature request into a complete,
+agent-ready GitHub issue.
 
 ## Usage
 
@@ -19,11 +20,10 @@ Use this command to turn a rough bug report or feature request into a complete G
    - `## Verification`
    - `## Agent Instructions`
    - `## Out of Scope`
-   - `## Linear`
 4. Acceptance criteria must be Markdown checkboxes.
 5. Include the repo verification commands from `agentic/contract.json`.
-6. Create or link the Linear issue in the configured team/project.
-7. Create the GitHub issue and include the Linear key in the title, body, or first comment.
+6. Link blocking or related GitHub issues in the context when relevant.
+7. Create the GitHub issue.
 8. Run `python3 scripts/agentic/issue_lint.py` against the final issue body.
 9. Apply `agent:ready` only if the issue linter passes.
 
@@ -56,10 +56,4 @@ Use this command to turn a rough bug report or feature request into a complete G
 ## Out of Scope
 
 - <Explicit non-goals and likely overreach.>
-
-## Linear
-
-- Team: `<team>`
-- Project: `<project>`
-- Issue: `<linear key or pending link>`
 ```

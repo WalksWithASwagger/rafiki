@@ -56,6 +56,40 @@ def test_retired_external_sync_remains_disabled():
     assert contract[retired_sync_field] == {"enabled": False}
 
 
+def test_active_delivery_instructions_are_github_only():
+    active_paths = (
+        "docs/DELIVERY-PIPELINE.md",
+        "docs/INDEX.md",
+        "docs/ROADMAP.md",
+        "docs/FOLDER-LAYOUT.md",
+        "meta/routines/SETUP.md",
+        "meta/routines/dev-loop-runner.prompt.md",
+        "meta/routines/auto-merge-gate.prompt.md",
+        ".github/ISSUE_TEMPLATE/agentic-task.md",
+        ".agents/skills/rafiki-github-issue-writer/SKILL.md",
+        ".agents/skills/rafiki-github-pr-reviewer/SKILL.md",
+        ".claude/commands/agentic-intake.md",
+        ".company-os/project.yaml",
+    )
+    retired_secret = "_".join(("linear", "api", "key"))
+
+    for relative_path in active_paths:
+        text = (ROOT / relative_path).read_text().lower()
+        if relative_path == "docs/DELIVERY-PIPELINE.md":
+            assert text.count(retired_secret) == 1
+            text = text.replace(retired_secret, "")
+
+        assert "linear" not in text, relative_path
+
+
+def test_agentic_issue_template_matches_required_sections():
+    contract = json.loads((ROOT / "agentic" / "contract.json").read_text())
+    template = (ROOT / ".github/ISSUE_TEMPLATE/agentic-task.md").read_text()
+
+    for section in contract["issue_quality"]["required_sections"]:
+        assert f"## {section}" in template
+
+
 def test_issue_quality_only_accepts_ready_label_events():
     workflow = _workflow("agentic-issue-quality.yml")
 

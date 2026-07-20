@@ -87,8 +87,8 @@ deeper operating docs by surface area.
 - [CDN Publishing Research](CDN-PUBLISHING-RESEARCH.md) - decision memo on
   optional CDN-backed approved-asset publishing (#202); recommends defer.
 - [Delivery Pipeline](DELIVERY-PIPELINE.md) - canonical agentic delivery
-  contract: labels, required issue shape, branch/PR traceability, Linear sync,
-  pause controls, verification gates, and local commands.
+  contract: GitHub-only planning, labels, required issue shape, branch/PR
+  traceability, pause controls, verification gates, and local commands.
 
 ## Regeneration And Operator Workflows
 

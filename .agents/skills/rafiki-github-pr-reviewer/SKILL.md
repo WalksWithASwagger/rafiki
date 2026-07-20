@@ -13,7 +13,7 @@ Load:
 
 - PR title, body, files, and diff
 - linked GitHub issue and acceptance criteria
-- linked Linear issue, when present
+- linked GitHub dependencies, when relevant
 - relevant docs or tests named by the issue
 - CI status and reported local smoke checks
 
