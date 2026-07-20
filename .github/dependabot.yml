@@ -9,6 +9,9 @@ updates:
       root-npm:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: npm
     directory: /frontend
@@ -18,15 +21,23 @@ updates:
       frontend-npm:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
+    exclude-paths:
+      - requirements-ci.txt
     groups:
       python:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch
 
   - package-ecosystem: github-actions
     directory: /
@@ -36,3 +47,6 @@ updates:
       github-actions:
         patterns:
           - "*"
+        update-types:
+          - minor
+          - patch

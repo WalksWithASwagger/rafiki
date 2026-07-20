@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   policy:
+    if: ${{ startsWith(github.event.pull_request.head.ref, 'codex/issue-') }}
     name: policy
     runs-on: ubuntu-latest
     env:
