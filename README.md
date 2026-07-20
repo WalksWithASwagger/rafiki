@@ -145,6 +145,25 @@ For the keynote visual workflow fixture:
 npx rafiki examples/keynote-visual-workflow-prompt-pack.md --dry-run --no-viewer
 ```
 
+## Verification
+
+Run the deterministic local gate without registry access:
+
+```bash
+npm run verify
+```
+
+Run dependency vulnerability checks separately when network access is
+available:
+
+```bash
+npm run verify:security
+```
+
+The security gate audits the root production graph, the frontend production
+and full dependency trees, and the reviewed Python CI lock. It fails on
+high-severity findings and never applies dependency fixes.
+
 ## Common Workflows
 
 ### Single prompt

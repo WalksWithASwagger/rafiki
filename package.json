@@ -41,6 +41,7 @@
     "pack:check": "node scripts/check-package-boundary.mjs",
     "docs:check": "python3 scripts/check-doc-links.py",
     "public:check": "python3 scripts/check-public-boundary.py",
+    "verify:security": "npm audit --omit=dev --audit-level=high && npm --prefix frontend audit --omit=dev --audit-level=high && npm --prefix frontend audit --audit-level=high && python3 -m pip_audit -r requirements-ci.txt",
     "verify": "npm run lint && npm test && npm run frontend:verify && npm run e2e:portal && npm run docs:check && npm run public:check && npm run smoke:dry-run && npm run pack:check && npm run doctor"
   },
   "files": [
