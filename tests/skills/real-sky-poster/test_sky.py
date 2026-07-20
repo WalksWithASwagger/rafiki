@@ -16,7 +16,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]
-                       / ".claude/skills/real-sky-poster/scripts"))
+                       / ".agents/skills/real-sky-poster/scripts"))
 
 from sky import Sky, angular_separation  # noqa: E402
 

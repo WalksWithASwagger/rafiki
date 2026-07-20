@@ -171,12 +171,11 @@ For agents running the loop end to end:
 - `meta/routines/SETUP.md` — label setup and first-batch policy
 - `meta/routines/dev-loop-runner.prompt.md` — issue → PR runner
 - `meta/routines/auto-merge-gate.prompt.md` — guarded review/repair/merge
-- `.claude/skills/github-issue-writer/SKILL.md`
-- `.claude/skills/github-pr-reviewer/SKILL.md`
-- `.agents/skills/github-issue-writer/SKILL.md`
-- `.agents/skills/github-pr-reviewer/SKILL.md`
+- `.agents/skills/rafiki-github-issue-writer/SKILL.md`
+- `.agents/skills/rafiki-github-pr-reviewer/SKILL.md`
+- `.claude/skills/rafiki-github-issue-writer/SKILL.md` (relative adapter)
+- `.claude/skills/rafiki-github-pr-reviewer/SKILL.md` (relative adapter)
 - `.claude/commands/agentic-intake.md`
 
-Keep `.claude/skills/` as the Claude Code surface and `.agents/skills/` as the
-Codex surface. The issue-writer and PR-reviewer routines should stay equivalent
-across both directories so agents do not receive different delivery guidance.
+Keep physical project skill packages under `.agents/skills/`. Claude Code uses
+relative adapters under `.claude/skills/` so every client reads the same package.

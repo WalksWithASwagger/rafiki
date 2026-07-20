@@ -66,7 +66,7 @@ LoRA training and video generation jobs, reads the usage/spend summary, then
 calls the `rafiki_status` MCP tool. No keys, no spend.
 
 ```bash
-bash .claude/skills/run-rafiki/driver.sh
+bash .agents/skills/run-rafiki/driver.sh
 ```
 
 It prints a temp dir holding the artifacts below. Open the PNGs, or `Read`
@@ -95,7 +95,7 @@ Steps that write a manifest (Studio, LoRA, video) use throwaway projects
 them on the way out; `output/` is gitignored regardless. The server is torn
 down on exit.
 
-Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .claude/skills/run-rafiki/driver.sh`.
+Override Chrome if the auto-detect misses: `CHROME=/path/to/chrome bash .agents/skills/run-rafiki/driver.sh`.
 
 ### Build + screenshot a viewer by hand
 
@@ -199,7 +199,7 @@ npm test    # node scripts/run-pytest.js — 328 passed in ~27s
 
 ## The driver
 
-`.claude/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
+`.agents/skills/run-rafiki/driver.sh` — Bash. Detects Chrome, picks a free
 port, builds the index, launches `generate.py serve`, screenshots the portal
 and a run viewer, runs a Studio Dry Run via `/api/regen`, renders an HTML card
 to PNG, exports a Video Lab EDL via `/api/media/selections/edl`, dry-runs all

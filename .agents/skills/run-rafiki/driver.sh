@@ -8,7 +8,7 @@
 # PNG screenshots you can open and look at. No API keys, no image generation.
 #
 # Usage (run from repo root):
-#   bash .claude/skills/run-rafiki/driver.sh
+#   bash .agents/skills/run-rafiki/driver.sh
 #
 # Output: PNGs written to a temp dir, paths printed at the end.
 # Override Chrome with:  CHROME=/path/to/chrome bash .../driver.sh

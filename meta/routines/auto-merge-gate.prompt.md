@@ -6,7 +6,7 @@ Use this prompt for guarded PR review, repair, and merge decisions.
 
 - GitHub: `WalksWithASwagger/rafiki`
 - Linear project: `Rafiki Roadmap Delivery`
-- Review skill: `.claude/skills/github-pr-reviewer/SKILL.md`
+- Review skill: `.claude/skills/rafiki-github-pr-reviewer/SKILL.md`
 - Audit log: `meta/audits/dev-loop-log.csv`
 
 ## Eligible PRs
@@ -24,7 +24,7 @@ A PR is eligible for this gate only when:
 
 1. Load the linked issue and acceptance criteria.
 2. Inspect the PR diff, tests, docs, and package changes.
-3. Run the `github-pr-reviewer` skill in autonomous mode.
+3. Run the `rafiki-github-pr-reviewer` skill in autonomous mode.
 4. Wait for GitHub CI up to 15 minutes.
 5. Check local gates if CI does not cover the affected surface.
 6. Record the result in `meta/audits/dev-loop-log.csv`.

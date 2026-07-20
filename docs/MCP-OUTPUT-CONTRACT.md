@@ -149,7 +149,7 @@ constraint:
 | Consumer | Reads | Breaks if nested? |
 |---|---|---|
 | `scripts/dry-run-smoke.py` (:182–186) | `success`, `exit_code`, `json`, `mutating`; nested batch keys | Yes |
-| `.claude/skills/run-rafiki/driver.sh` (:289–290) | `repo_root`, `common_tools` from `rafiki_status` | Yes |
+| `.agents/skills/run-rafiki/driver.sh` (:289–290) | `repo_root`, `common_tools` from `rafiki_status` | Yes |
 | `tests/test_mcp_server.py` (23 tests) | `success`/`ok` + every tool-specific top-level key | Yes |
 | `tests/test_cli_surfaces.py` (:273–277) | `success`, `exit_code`, `json`, `stdout` | Yes |
 
