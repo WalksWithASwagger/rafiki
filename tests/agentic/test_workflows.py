@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import yaml
@@ -19,7 +20,23 @@ def test_dev_loop_maps_pause_variable_into_runner_env():
     env = workflow["jobs"]["run"]["env"]
 
     assert env["LOOP_PAUSED"] == "${{ vars.LOOP_PAUSED || 'false' }}"
-    assert env["LINEAR_API_KEY"] == "${{ secrets.LINEAR_API_KEY }}"
+
+
+def test_active_workflows_do_not_invoke_linear_sync():
+    secret_name = "_".join(("LINEAR", "API", "KEY"))
+    client_name = "_".join(("linear", "sync")) + ".py"
+
+    for name in ("agentic-dev-loop.yml", "agentic-traceability-sync.yml"):
+        text = (ROOT / ".github" / "workflows" / name).read_text()
+
+        assert secret_name not in text
+        assert client_name not in text
+
+
+def test_contract_disables_linear_sync():
+    contract = json.loads((ROOT / "agentic" / "contract.json").read_text())
+
+    assert contract["linear_sync"] == {"enabled": False}
 
 
 def test_issue_quality_skips_in_progress_label_event():
@@ -40,12 +57,11 @@ def test_ci_runs_documented_contract_commands():
     assert "npm run doctor" in commands
 
 
-def test_traceability_workflow_listens_for_pr_and_in_progress_events():
+def test_traceability_workflow_listens_for_pr_events_only():
     workflow = _workflow("agentic-traceability-sync.yml")
 
     pr_types = workflow["on"]["pull_request"]["types"]
-    issue_types = workflow["on"]["issues"]["types"]
 
     assert "closed" in pr_types
     assert "converted_to_draft" in pr_types
-    assert "labeled" in issue_types
+    assert "issues" not in workflow["on"]

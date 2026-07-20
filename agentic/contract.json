@@ -39,15 +39,7 @@
     "body_linear_prefix": "Linear:"
   },
   "linear_sync": {
-    "enabled": true,
-    "api_token_env": "LINEAR_API_KEY",
-    "comment_backfill": true,
-    "active_project_policy": "active_delivery_only",
-    "status_mapping": {
-      "issue-in-progress": "In Progress",
-      "pr-open": "In Review",
-      "pr-merged": "Done"
-    }
+    "enabled": false
   },
   "default_triage": {
     "baseline_labels": [
