@@ -1,8 +1,6 @@
 name: Agentic Dev Loop
 
 on:
-  issues:
-    types: [labeled]
   workflow_dispatch:
     inputs:
       issue_number:
@@ -12,6 +10,10 @@ on:
         description: Provider adapter name
         required: false
         default: noop
+      quality_labels:
+        description: Ready-label snapshot approved by the issue quality workflow
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -21,18 +23,18 @@ permissions:
   checks: read
 
 concurrency:
-  group: agentic-dev-loop-${{ github.event.issue.number || inputs.issue_number }}
+  group: agentic-dev-loop-${{ inputs.issue_number }}
   cancel-in-progress: false
 
 jobs:
   run:
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent:ready' }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      AGENTIC_PROVIDER: ${{ github.event.inputs.provider || vars.AGENTIC_PROVIDER || 'noop' }}
+      AGENTIC_PROVIDER: ${{ inputs.provider || vars.AGENTIC_PROVIDER || 'noop' }}
       AGENTIC_PROVIDER_COMMAND: ${{ secrets.AGENTIC_PROVIDER_COMMAND }}
       LOOP_PAUSED: ${{ vars.LOOP_PAUSED || 'false' }}
+      QUALITY_LABELS: ${{ inputs.quality_labels || '' }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -43,17 +45,49 @@ jobs:
 
       - name: Fetch issue
         env:
-          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
         run: |
           gh issue view "$ISSUE_NUMBER" --json title --jq '.title' > "$RUNNER_TEMP/issue-title.txt"
           gh issue view "$ISSUE_NUMBER" --json body --jq '.body // ""' > "$RUNNER_TEMP/issue.md"
-          gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(",")' > "$RUNNER_TEMP/labels.txt"
+          gh issue view "$ISSUE_NUMBER" --json labels --jq '[.labels[].name] | join(",")' > "$RUNNER_TEMP/live-labels.txt"
+          python3 - <<'PY' > "$RUNNER_TEMP/labels.txt"
+          import os
+          import pathlib
+
+          live = pathlib.Path(os.environ["RUNNER_TEMP"], "live-labels.txt").read_text(encoding="utf-8")
+          labels = []
+          for raw in (os.environ.get("QUALITY_LABELS", ""), live):
+              for label in raw.strip().split(","):
+                  if label and label not in labels:
+                      labels.append(label)
+          print(",".join(labels))
+          PY
           echo "ISSUE_NUMBER=$ISSUE_NUMBER" >> "$GITHUB_ENV"
           {
             echo "ISSUE_TITLE<<EOF"
             cat "$RUNNER_TEMP/issue-title.txt"
             echo "EOF"
           } >> "$GITHUB_ENV"
+
+      - name: Validate approved intake
+        id: intake
+        run: |
+          set +e
+          python3 scripts/agentic/issue_lint.py \
+            --issue-file "$RUNNER_TEMP/issue.md" \
+            --labels "$(cat "$RUNNER_TEMP/labels.txt")" \
+            --json-output "$RUNNER_TEMP/intake-lint.json"
+          rc=$?
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Escalate stale or invalid approved intake
+        if: steps.intake.outputs.exit_code != '0'
+        run: |
+          gh issue edit "$ISSUE_NUMBER" --add-label "needs-human"
+          python3 -c "import json; print('Agentic dev loop rejected the approved intake before work started: ' + json.load(open('$RUNNER_TEMP/intake-lint.json'))['message'])" > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE_NUMBER" --body-file "$RUNNER_TEMP/comment.md"
+          exit 1
 
       - name: Create work branch
         id: branch

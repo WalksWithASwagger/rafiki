@@ -179,6 +179,37 @@ def test_runner_refuses_dirty_worktree(tmp_path):
     assert payload["status"] == "dirty-worktree"
 
 
+def test_noop_runner_finishes_without_changes_or_pr(tmp_path):
+    repo = copy_contract_repo(tmp_path)
+    issue = complete_issue(tmp_path)
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(DEV_LOOP),
+            "--issue-number",
+            "1",
+            "--issue-title",
+            "Noop issue",
+            "--issue-file",
+            str(issue),
+            "--labels",
+            "agent:ready",
+            "--provider",
+            "noop",
+        ],
+        cwd=repo,
+        text=True,
+        capture_output=True,
+    )
+
+    payload = json.loads((repo / "agentic-dev-loop-result.json").read_text(encoding="utf-8"))
+    assert result.returncode == 0
+    assert payload["action"] == "comment-only"
+    assert payload["provider"]["provider"] == "noop"
+    assert payload["has_changes"] is False
+
+
 def test_runner_opens_no_pr_when_verification_fails(tmp_path):
     repo = copy_contract_repo(tmp_path)
     issue = complete_issue(tmp_path)

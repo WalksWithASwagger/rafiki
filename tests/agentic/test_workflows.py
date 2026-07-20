@@ -39,12 +39,47 @@ def test_contract_disables_linear_sync():
     assert contract["linear_sync"] == {"enabled": False}
 
 
-def test_issue_quality_skips_in_progress_label_event():
+def test_issue_quality_only_accepts_ready_label_events():
     workflow = _workflow("agentic-issue-quality.yml")
 
+    assert workflow["on"]["issues"]["types"] == ["labeled"]
     gate = workflow["jobs"]["gate"]
+    assert "agent:ready" in gate["if"]
+    assert "auto-implement" in gate["if"]
+    assert "autonomous" in gate["if"]
 
-    assert "github.event.label.name != 'in-progress'" in gate["if"]
+
+def test_issue_quality_claims_ready_before_dispatching_dev_loop():
+    workflow = _workflow("agentic-issue-quality.yml")
+    steps = workflow["jobs"]["gate"]["steps"]
+    names = [step.get("name") for step in steps]
+
+    assert workflow["permissions"]["actions"] == "write"
+    assert names.index("Claim approved ready transition") < names.index(
+        "Dispatch approved dev loop"
+    )
+    dispatch = next(step for step in steps if step.get("name") == "Dispatch approved dev loop")
+    assert "quality_labels" in dispatch["run"]
+    assert "provider=noop" in dispatch["run"]
+    assert "AGENTIC_PROVIDER" not in dispatch.get("env", {})
+
+
+def test_dev_loop_starts_only_from_dispatch_and_validates_before_progress():
+    workflow = _workflow("agentic-dev-loop.yml")
+
+    assert "issues" not in workflow["on"]
+    assert "quality_labels" in workflow["on"]["workflow_dispatch"]["inputs"]
+    steps = workflow["jobs"]["run"]["steps"]
+    names = [step.get("name") for step in steps]
+    assert names.index("Validate approved intake") < names.index("Create work branch")
+    assert names.index("Validate approved intake") < names.index("Mark issue in progress")
+
+
+def test_intake_workflows_serialize_duplicate_deliveries_without_cancellation():
+    for name in ("agentic-issue-quality.yml", "agentic-dev-loop.yml"):
+        workflow = _workflow(name)
+
+        assert workflow["concurrency"]["cancel-in-progress"] is False
 
 
 def test_ci_runs_documented_contract_commands():
