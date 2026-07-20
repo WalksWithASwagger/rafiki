@@ -5,7 +5,7 @@ to review, and safe for users who store API keys on their own machines.
 
 ## Development Setup
 
-Use Node.js 22.12+ with npm 10+ and Python 3.11+.
+Use Node.js 22.13+ with npm 10+ and Python 3.11+.
 
 ```bash
 git clone https://github.com/WalksWithASwagger/rafiki.git
