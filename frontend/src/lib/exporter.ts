@@ -101,7 +101,11 @@ function fieldValue(row: Enriched, field: ManifestField): unknown {
   }
 }
 
-function toManifestJson(rows: Enriched[], fields: ManifestField[], destination: string): string {
+export function toManifestJson(
+  rows: Enriched[],
+  fields: ManifestField[],
+  destination: string,
+): string {
   const items = rows.map((r) => {
     const o: Record<string, unknown> = {};
     for (const f of fields) o[f] = fieldValue(r, f);
@@ -117,7 +121,7 @@ function csvCell(v: unknown): string {
   return s;
 }
 
-function toCsv(rows: Enriched[], fields: ManifestField[], template: string): string {
+export function toCsv(rows: Enriched[], fields: ManifestField[], template: string): string {
   const header = ["file", ...fields].map(csvCell).join(",");
   const body = rows
     .map((r) =>

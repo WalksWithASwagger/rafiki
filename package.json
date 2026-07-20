@@ -33,6 +33,7 @@
     "frontend:build": "npm --prefix frontend run build",
     "frontend:typecheck": "npm --prefix frontend run typecheck",
     "frontend:lint": "npm --prefix frontend run lint",
+    "frontend:test": "npm --prefix frontend run test",
     "frontend:verify": "npm --prefix frontend run verify",
     "workspace:hygiene": "python3 scripts/workspace_hygiene.py",
     "pack:check": "node scripts/check-package-boundary.mjs",
