@@ -1,4 +1,5 @@
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -192,6 +193,103 @@ def test_ci_names_security_verification_and_runs_it_before_deterministic_checks(
     assert names.index("Run dependency security verification") < names.index(
         "Run deterministic verification"
     )
+
+
+def test_active_workflow_actions_use_immutable_release_pins():
+    pin = re.compile(
+        r"^\s*(?:-\s*)?uses:\s+[^@\s]+@(?P<sha>[0-9a-f]{40})\s+#\s+"
+        r"(?P<tag>v\d+\.\d+\.\d+)\s*$"
+    )
+    uses_lines = []
+
+    for path in sorted((ROOT / ".github" / "workflows").glob("*.yml")):
+        for line_number, line in enumerate(path.read_text().splitlines(), start=1):
+            if re.match(r"^\s*(?:-\s*)?uses:", line):
+                uses_lines.append((path, line_number, line))
+
+    assert uses_lines
+    for path, line_number, line in uses_lines:
+        assert pin.match(line), f"{path.name}:{line_number}: {line}"
+
+
+def test_dependabot_groups_every_supported_dependency_surface_weekly():
+    path = ROOT / ".github" / "dependabot.yml"
+    config = yaml.safe_load(path.read_text())
+    updates = {
+        (entry["package-ecosystem"], entry["directory"]): entry
+        for entry in config["updates"]
+    }
+
+    assert config["version"] == 2
+    assert set(updates) == {
+        ("npm", "/"),
+        ("npm", "/frontend"),
+        ("pip", "/"),
+        ("github-actions", "/"),
+    }
+    for entry in updates.values():
+        assert entry["schedule"] == {"interval": "weekly"}
+        assert len(entry["groups"]) == 1
+        assert next(iter(entry["groups"].values()))["patterns"] == ["*"]
+
+    text = path.read_text().lower()
+    assert "auto-merge" not in text
+    assert "automerge" not in text
+
+
+def test_codeql_scans_supported_languages_on_pr_main_and_weekly_schedule():
+    workflow = _workflow("codeql.yml")
+    analyze = workflow["jobs"]["analyze"]
+    steps = analyze["steps"]
+    init = next(step for step in steps if step.get("name") == "Initialize CodeQL")
+
+    assert workflow["on"]["push"]["branches"] == ["main"]
+    assert workflow["on"]["pull_request"]["branches"] == ["main"]
+    assert workflow["on"]["schedule"]
+    assert workflow["permissions"] == {"contents": "read"}
+    assert analyze["permissions"] == {
+        "contents": "read",
+        "security-events": "write",
+    }
+    assert analyze["strategy"] == {
+        "fail-fast": False,
+        "matrix": {"language": ["javascript-typescript", "python"]},
+    }
+    assert init["with"] == {
+        "languages": "${{ matrix.language }}",
+        "build-mode": "none",
+    }
+    assert any(
+        step.get("name") == "Analyze"
+        and step["uses"].startswith("github/codeql-action/analyze@")
+        for step in steps
+    )
+
+
+def test_dependency_review_runs_on_main_pull_requests_with_read_only_access():
+    workflow = _workflow("dependency-review.yml")
+    job = workflow["jobs"]["dependency-review"]
+    review = next(
+        step for step in job["steps"] if step.get("name") == "Review dependency changes"
+    )
+
+    assert workflow["on"] == {"pull_request": {"branches": ["main"]}}
+    assert workflow["permissions"] == {"contents": "read"}
+    assert "permissions" not in job
+    assert review["with"] == {"fail-on-severity": "high"}
+
+
+def test_security_monitoring_yaml_parses_without_provider_credentials():
+    paths = [ROOT / ".github" / "dependabot.yml"]
+    paths.extend(sorted((ROOT / ".github" / "workflows").glob("*.yml")))
+
+    for path in paths:
+        assert isinstance(yaml.safe_load(path.read_text()), dict), path.name
+
+    for name in ("codeql.yml", "dependency-review.yml"):
+        text = (ROOT / ".github" / "workflows" / name).read_text()
+        assert "secrets." not in text
+        assert "API_KEY" not in text
 
 
 def test_verify_script_covers_every_deterministic_ci_gate():

@@ -14,5 +14,9 @@ Recommended protection for `main`:
 `needs-human` / `blocked` gates. Applying these settings remains a separate,
 explicitly approved maintainer action.
 
+CodeQL and Dependency Review begin as reporting checks. A maintainer decides
+whether to require them only after their initial pull-request and `main` runs
+have succeeded.
+
 For autonomous PRs, keep maintainer spot checks enabled until at least 10
 Rafiki PRs have passed review, CI, and audit-log recording without scope drift.
