@@ -38,17 +38,19 @@ assets, and downstream web or social artifacts.
 
 ### 1. Clone and install
 
-Rafiki requires Node.js 20.17+ with npm 10+ and Python 3.11+.
+Rafiki requires Node.js 22.12+ with npm 10+ and Python 3.11+.
 
 ```bash
 git clone https://github.com/WalksWithASwagger/rafiki.git
 cd rafiki
 
-npm install
+npm ci
+npm --prefix frontend ci
 
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install -r requirements-dev.txt
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 ### 2. Add provider keys
@@ -80,10 +82,9 @@ Add at least one of:
 - `GOOGLE_API_KEY` for Gemini models
 - `OPENAI_API_KEY` for OpenAI image models
 
-Varlock is intentionally kept outside Rafiki's Node dependency graph because
-the app supports Node 20 while the Varlock CLI has its own runtime requirements.
-Keep the application runtime unchanged. Run Varlock 1.10 with Node 22.3+ or use
-the standalone CLI, then inspect and audit the contract safely:
+Varlock is intentionally kept outside Rafiki's Node dependency graph. Run
+Varlock 1.10 with Rafiki's Node 22.12+ runtime or use the standalone CLI, then
+inspect and audit the contract safely:
 
 ```bash
 npm run env:validate
@@ -211,8 +212,12 @@ Details: [docs/MCP.md](docs/MCP.md)
 Start the live portal shell:
 
 ```bash
+mkdir -p output
 python3 generate.py serve
 ```
+
+The output directory must already exist. To use another existing archive root,
+pass `--output-dir /path/to/output`.
 
 By default it runs on `http://localhost:7433/`. Open
 `http://localhost:7433/library` to use the current TypeScript image library or

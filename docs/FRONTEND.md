@@ -83,8 +83,13 @@ true cancellation, provider polling, and resumable runs is intentionally deferre
 Start the local portal from the repo root:
 
 ```bash
+mkdir -p output
 python3 generate.py serve
 ```
+
+`generate.py serve` does not create its archive root. The default `output/`
+directory must already exist, or pass an existing directory with
+`--output-dir /path/to/output`.
 
 Then open `http://localhost:7433/library`. The `/library` route is the new
 TypeScript library, backed by `GET /api/library-state` and image files from
@@ -124,5 +129,8 @@ checks rating persistence through `/api/ratings`, confirms present images load
 from `/output/*`, confirms missing records render placeholders, and captures
 desktop/mobile nonblank screenshot metrics.
 
-`npm run verify` remains the full repo closeout gate. It validates the package
-boundary but does not package the frontend into the npm tarball.
+`npm run verify` is the deterministic full-repository closeout gate. It runs
+Python lint and tests, frontend verification, portal E2E, docs, the public
+boundary, dry-run smoke, package checking, and doctor. It does not perform the
+networked dependency audits, and it does not package the frontend into the npm
+tarball.

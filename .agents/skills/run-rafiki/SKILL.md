@@ -23,7 +23,7 @@ actual image generation needs a provider key.
 
 ## Prerequisites
 
-- Node.js ≥ 20.17 (verified on v24.15.0) + npm ≥ 10.
+- Node.js ≥ 22.12 (verified on v22.22.3) + npm ≥ 10.
 - Python ≥ 3.11 (verified on 3.12.13).
 - Google Chrome (Puppeteer/headless). `--doctor` reports the path it found.
 
@@ -33,9 +33,11 @@ From a clean checkout (idempotent against the committed lockfile — ~5s for npm
 
 ```bash
 npm ci
+npm --prefix frontend ci
 python3 -m venv .venv
-./.venv/bin/pip install -r requirements.txt
-./.venv/bin/pip install -r requirements-dev.txt
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
 
 Optionally add provider keys for real generation (not needed for any of the

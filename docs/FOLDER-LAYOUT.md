@@ -1,6 +1,6 @@
 # Where everything lives
 
-**All Rafiki product code, config, and docs live in this single repository checkout** — one folder on disk, one `git clone`, one `npm install` + Python venv here.
+**All Rafiki product code, config, and docs live in this single repository checkout** — one folder on disk, one `git clone`, root and frontend `npm ci`, plus one Python venv here.
 
 ```
 rafiki/                          ← this repo (clone anywhere; name the folder rafiki/)

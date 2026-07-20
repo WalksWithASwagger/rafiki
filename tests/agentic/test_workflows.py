@@ -142,14 +142,44 @@ def test_intake_workflows_serialize_duplicate_deliveries_without_cancellation():
         assert workflow["concurrency"]["cancel-in-progress"] is False
 
 
-def test_ci_runs_documented_contract_commands():
+def test_ci_runs_canonical_deterministic_verification():
     workflow = _workflow("ci.yml")
     steps = workflow["jobs"]["test"]["steps"]
     commands = [step.get("run") for step in steps if "run" in step]
 
-    assert "npm test" in commands
-    assert "npm run pack:check" in commands
-    assert "npm run doctor" in commands
+    assert "npm run verify" in commands
+
+
+def test_verify_script_covers_every_deterministic_ci_gate():
+    package = json.loads((ROOT / "package.json").read_text())
+    package_lock = json.loads((ROOT / "package-lock.json").read_text())
+    frontend_package = json.loads((ROOT / "frontend" / "package.json").read_text())
+    frontend_lock = json.loads(
+        (ROOT / "frontend" / "package-lock.json").read_text()
+    )
+    workflow = _workflow("ci.yml")
+    setup_node = next(
+        step
+        for step in workflow["jobs"]["test"]["steps"]
+        if step.get("name") == "Set up Node.js"
+    )
+
+    assert package["engines"]["node"] == ">=22.12.0"
+    assert package_lock["packages"][""]["engines"]["node"] == ">=22.12.0"
+    assert frontend_package["engines"]["node"] == ">=22.12.0"
+    assert frontend_lock["packages"][""]["engines"]["node"] == ">=22.12.0"
+    assert setup_node["with"]["node-version"] == "22.12"
+    assert package["scripts"]["verify"].split(" && ") == [
+        "npm run lint",
+        "npm test",
+        "npm run frontend:verify",
+        "npm run e2e:portal",
+        "npm run docs:check",
+        "npm run public:check",
+        "npm run smoke:dry-run",
+        "npm run pack:check",
+        "npm run doctor",
+    ]
 
 
 def test_policy_workflow_covers_pr_lifecycle_and_label_changes():
