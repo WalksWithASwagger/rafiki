@@ -175,6 +175,18 @@ class NotionExportTests(unittest.TestCase):
                 )
         self.assertIn("NOTION_API_KEY", str(cm.exception))
 
+    def test_get_client_pins_notion_api_version(self):
+        # notion-client 3.x defaults to the 2025-09-03 data-source API, which
+        # changes database_id parent semantics. The exporter must pin the SDK
+        # to the same REST version its inline upload flow uses (2022-06-28).
+        with patch("notion_client.Client") as MockClient:
+            notion_export._get_client("secret_test")
+        MockClient.assert_called_once_with(
+            auth="secret_test",
+            notion_version=notion_export.NOTION_API_VERSION,
+        )
+        self.assertEqual(notion_export.NOTION_API_VERSION, "2022-06-28")
+
     def test_falls_back_to_latest_run_when_no_approved_dir(self):
         # Build a project with run-* dirs and no approved/
         proj = self.output_root / "run-only"
