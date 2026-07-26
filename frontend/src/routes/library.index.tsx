@@ -2,7 +2,6 @@ import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-r
 import { useMemo, useRef } from "react";
 import { Search, X, PackageOpen, CheckSquare, Square, ArrowUp, ArrowDown } from "lucide-react";
 import { z } from "zod";
-import { fallback, zodValidator } from "@tanstack/zod-adapter";
 import { retainSearchParams } from "@tanstack/react-router";
 import { AppShell } from "@/components/app-shell";
 import { PageHeader } from "@/components/page-header";
@@ -29,17 +28,17 @@ const SORTS = ["recent", "name", "images", "starred"] as const;
 const DIRS = ["asc", "desc"] as const;
 const VIEWS = ["grid", "list"] as const;
 
-const searchSchema = z.object({
-  q: fallback(z.string(), "").default(""),
-  status: fallback(z.enum(STATUSES), "all").default("all"),
-  tags: fallback(z.array(z.string()), []).default([]),
-  sort: fallback(z.enum(SORTS), "recent").default("recent"),
-  dir: fallback(z.enum(DIRS), "desc").default("desc"),
-  view: fallback(z.enum(VIEWS), "grid").default("grid"),
+export const searchSchema = z.object({
+  q: z.string().catch("").default(""),
+  status: z.enum(STATUSES).catch("all").default("all"),
+  tags: z.array(z.string()).catch([]).default([]),
+  sort: z.enum(SORTS).catch("recent").default("recent"),
+  dir: z.enum(DIRS).catch("desc").default("desc"),
+  view: z.enum(VIEWS).catch("grid").default("grid"),
 });
 
 export const Route = createFileRoute("/library/")({
-  validateSearch: zodValidator(searchSchema),
+  validateSearch: searchSchema,
   search: {
     middlewares: [retainSearchParams(["q", "status", "tags", "sort", "dir", "view"])],
   },
