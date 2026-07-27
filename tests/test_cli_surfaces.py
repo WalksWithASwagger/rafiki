@@ -143,7 +143,10 @@ def _assert_batch_json_contract(payload: dict, output_dir: Path) -> None:
     assert payload["model"] == "gpt-image-2"
     assert payload["aspect_ratio"] == "1:1"
     assert payload["style"] == "none"
-    assert payload["global_reference_images"] == ["/tmp/global-a.png", "/tmp/global-b.png"]
+    assert payload["global_reference_images"] == [
+        "/tmp/global-a.png",
+        "/tmp/global-b.png",
+    ]
     assert len(payload["images"]) == 2
     assert all(image["ok"] is True for image in payload["images"])
 
@@ -210,14 +213,18 @@ def test_python_cli_batch_dry_run_json_contract(tmp_path: Path) -> None:
     prompt_file = _prompt_file(tmp_path)
     output_dir = tmp_path / "python-output"
 
-    proc = _run([sys.executable, "generate.py", *_python_batch_args(prompt_file, output_dir)])
+    proc = _run(
+        [sys.executable, "generate.py", *_python_batch_args(prompt_file, output_dir)]
+    )
     payload = json.loads(proc.stdout)
 
     assert "[DRY RUN]" in proc.stderr
     _assert_batch_json_contract(payload, output_dir)
 
 
-def test_python_cli_approve_refreshes_registry_cache(tmp_path: Path, monkeypatch, capsys) -> None:
+def test_python_cli_approve_refreshes_registry_cache(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
     data_dir = _isolate_registry_cache(tmp_path, monkeypatch)
     output_root = tmp_path / "output"
     run_dir = output_root / "demo" / "run-20260101-100000"
@@ -257,6 +264,53 @@ def test_node_cli_batch_dry_run_json_contract(tmp_path: Path) -> None:
     assert "Rafiki" in proc.stderr
     assert "[DRY RUN]" in proc.stderr
     _assert_batch_json_contract(payload, output_dir)
+
+
+def _run_no_check(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        command,
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
+def test_node_cli_help_lists_commands_and_options() -> None:
+    proc = _run(["node", "index.js", "--help"])
+
+    assert proc.returncode == 0
+    assert "Usage: rafiki" in proc.stdout
+    assert "view [options] <project>" in proc.stdout
+    assert "--no-style" in proc.stdout
+
+
+def test_node_cli_version_reports_semver() -> None:
+    proc = _run(["node", "index.js", "--version"])
+
+    assert proc.returncode == 0
+    assert proc.stdout.strip() == "1.1.0"
+
+
+def test_node_cli_view_subcommand_help() -> None:
+    proc = _run(["node", "index.js", "view", "--help"])
+
+    assert proc.returncode == 0
+    assert "Usage: rafiki view [options] <project>" in proc.stdout
+
+
+def test_node_cli_unknown_option_exits_one() -> None:
+    proc = _run_no_check(["node", "index.js", "--bogus-flag"])
+
+    assert proc.returncode == 1
+    assert "unknown option '--bogus-flag'" in proc.stderr
+
+
+def test_node_cli_view_missing_required_arg_exits_one() -> None:
+    proc = _run_no_check(["node", "index.js", "view"])
+
+    assert proc.returncode == 1
+    assert "missing required argument 'project'" in proc.stderr
 
 
 def test_mcp_cli_bridge_preserves_dry_run_json_contract(tmp_path: Path) -> None:

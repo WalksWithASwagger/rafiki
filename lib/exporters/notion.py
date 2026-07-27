@@ -48,10 +48,17 @@ class NotionExportError(RuntimeError):
 
 def _get_client(api_key: str) -> Any:
     """Lazy import keeps ``notion_client`` optional at module-import time
-    (so tests can patch this function without the SDK installed)."""
+    (so tests can patch this function without the SDK installed).
+
+    Pin ``notion_version`` to ``NOTION_API_VERSION`` so the SDK's page
+    creation targets the same Notion REST version as the inline file-upload
+    flow. notion-client 3.x defaults to the ``2025-09-03`` data-source API,
+    which changes ``database_id`` parent semantics for ``pages.create``;
+    pinning preserves the exporter's 2.x behavior across the SDK bump.
+    """
     from notion_client import Client  # type: ignore[import-not-found]
 
-    return Client(auth=api_key)
+    return Client(auth=api_key, notion_version=NOTION_API_VERSION)
 
 
 def _resolve_source_dir(project_root: Path) -> tuple[Path, str]:
