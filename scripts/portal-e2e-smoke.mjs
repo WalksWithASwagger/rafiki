@@ -602,7 +602,7 @@ async function main() {
     assert(!JSON.stringify(readiness).toLowerCase().includes('secret'), 'deploy readiness leaked a secret-like value');
 
     browser = await puppeteer.launch({
-      headless: 'new',
+      headless: true,
       executablePath: getBrowserExecutable(),
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
