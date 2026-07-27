@@ -78,12 +78,12 @@ def test_audit_and_scan_scripts_exclude_non_source_artifacts() -> None:
 def test_agent_guidance_requires_safe_varlock_commands() -> None:
     instructions = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
 
-    assert "secret-dependent child commands" in instructions
+    assert "secret-dependent commands" in instructions
     assert "varlock run --inject vars" in instructions
+    assert "varlock load --agent" in instructions
     assert "npm run env:audit" in instructions
     assert "staged-only `npm run env:scan`" in instructions
     assert "Node 22.13+" in instructions
-    assert "or the standalone CLI" in instructions
 
 
 @pytest.mark.skipif(VARLOCK is None, reason="standalone Varlock CLI is not installed")

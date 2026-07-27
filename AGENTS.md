@@ -1,24 +1,227 @@
-# Agent Instructions
+# Agent Operating Guide
 
-## Environment Safety
+This file defines how coding agents should work in this repository.
 
-- Treat `.env.schema`, `.env.example`, committed documentation, and code
-  references and sanitized fixtures as the only agent-readable environment
-  contract.
-- Never read, open, copy, search, or print `.env*` value files, including the
-  user-managed files under `~/.agents/env/values/`.
-- Never run `env`, `printenv`, `varlock encrypt`, `varlock reveal`, raw
-  `varlock load`, or code that dumps `process.env` or `os.environ`.
-- Every Varlock load must use `varlock load --agent`; add `--show-all` when a
-  complete redacted validation report is needed.
-- Run secret-dependent child commands through
-  `varlock run --inject vars -- <command>`.
-- Use `npm run env:audit` so generated and non-source paths stay excluded, and
-  use staged-only `npm run env:scan` without `--include-ignored`.
-- Keep Rafiki's application runtime at Node 22.13+ unless a maintainer
-  explicitly approves another change. Run Varlock 1.10 with the same runtime
-  or the standalone CLI.
-- Do not change provider or platform values, rotate credentials, deploy, or
-  cross a `needs-human` gate.
+## Engineering Loop
 
-Stop and report a blocker if validation requires a real value or human unlock.
+Follow this loop:
+
+Audit → Prioritize → Plan → Implement → Verify → Report
+
+Do not skip directly from a vague request to implementation.
+
+## Core Principles
+
+* Evidence over guesses
+* Simplicity over ceremony
+* Small changes over heroic rewrites
+* Existing primitives over new abstractions
+* Tests and evals over confidence theater
+* Preservation before cleanup
+* Clear ownership and handoffs
+* Documentation must describe reality
+
+## Repository Entry
+
+When beginning work:
+
+* Inspect the current branch
+* Inspect the working tree
+* Check the upstream relationship
+* Identify uncommitted and untracked work
+* Review relevant issues and PRs
+* Locate project entry points
+* Locate tests, evals, CI, and documentation
+* Identify the relevant source of truth
+
+Do not modify files during initial orientation unless the task is trivial and explicitly authorized.
+
+## Planning
+
+Before non-trivial implementation, create a focused work packet containing:
+
+* Goal
+* Why it matters
+* Evidence
+* Scope
+* Non-goals
+* Likely files
+* Proposed approach
+* Behavior to preserve
+* Tests and evals
+* Risks
+* Validation commands
+* Definition of done
+
+Ask for approval before implementation when the work is risky, broad, ambiguous, destructive, or architecture-changing.
+
+## Implementation
+
+* Make the smallest useful change.
+* Keep the diff focused.
+* Do not fix unrelated issues.
+* Do not silently expand scope.
+* Preserve public behavior unless change is explicitly required.
+* Add tests for important behavior.
+* Add regression tests for bugs.
+* Add evals when AI or agent behavior changes.
+* Update docs when user or developer behavior changes.
+
+## Git And Worktree Safety
+
+Do not perform destructive Git operations without explicit approval.
+
+Never assume a branch, worktree, stash, or untracked file is disposable.
+
+Before deleting or consolidating work:
+
+* Inventory it
+* Determine its purpose
+* Compare it with `main`
+* Identify duplicate or superseding work
+* Preserve anything uncertain
+* Verify tests and CI
+* Require human approval
+
+## Issue And PR Discipline
+
+* Reuse existing issues when possible.
+* Do not create duplicate issues.
+* One focused issue should usually map to one focused PR.
+* Split broad or unrelated work.
+* Use research or decision issues when requirements are unresolved.
+* Do not open a PR until implementation and validation are complete.
+
+Every implementation issue should contain:
+
+* Summary
+* Why it matters
+* Scope
+* Non-goals
+* Acceptance criteria
+* Tests
+* Evals, when relevant
+* Dependencies
+* Risks
+* Definition of done
+
+## Code Quality
+
+Look for:
+
+* Duplicate logic
+* Dead code
+* Unused imports and dependencies
+* Debug output
+* Temporary files
+* Commented-out code
+* Stale feature flags
+* Misleading names
+* Oversized modules
+* Fragile scripts
+* Unnecessary abstraction layers
+
+Do not declare code dead based only on appearance.
+
+Check imports, dynamic registration, configuration, tests, builds, scripts, and runtime entry points first.
+
+Refactoring must unlock something concrete.
+
+## Skills, Workflows, And Automations
+
+Use this model:
+
+* Skills define reusable capabilities.
+* Workflows coordinate skills.
+* Automations trigger workflows.
+* Issues define approved work.
+* PRs deliver focused implementation.
+
+Every active skill, workflow, or automation should have:
+
+* A clear purpose
+* A clear trigger
+* Clear inputs
+* Clear outputs
+* A clear owner
+* A safety boundary
+* A validation method
+* A known consumer
+
+Anything lacking these should be fixed, merged, paused, archived, replaced, or removed after approval.
+
+## Configuration And Secrets
+
+When Varlock is present:
+
+* Treat its schema as the configuration contract.
+* Prefer Varlock-based runtime and validation paths.
+* Identify legacy configuration paths that bypass it.
+* Never reveal resolved secrets.
+* Never commit secret-bearing files.
+* Report suspected leaks without reproducing values.
+
+## Documentation
+
+Documentation is part of the implementation.
+
+Keep accurate:
+
+* README files
+* Setup instructions
+* Architecture docs
+* Changelogs
+* Configuration docs
+* Skill and workflow docs
+* Automation docs
+* Testing and eval instructions
+
+Do not invent changelog history.
+
+## Verification
+
+Run relevant checks after changes.
+
+Report:
+
+* Commands run
+* Results
+* Commands not run
+* Reason they were not run
+* Remaining uncertainty
+
+A task is not complete merely because code was written.
+
+## End Of Session
+
+Leave the repository easier to resume.
+
+Report:
+
+* Current branch and working state
+* Work completed
+* Files changed
+* Validation results
+* Remaining risks
+* Follow-up work
+* Exact recommended next step
+
+
+## Secrets (Varlock)
+
+- Local secrets for agent/tool use live in gitignored plaintext `.env` / `.env.local` (mode `0600`). Varlock owns `.env.schema` + `load`/`run` injection — not macOS Keychain or Touch ID.
+- Agents inspect with `varlock load --agent` and run tools with `varlock run --inject vars -- <command>`.
+- Never `cat` `.env` / `.env.local`, never `printenv` secrets, never `varlock reveal` in agent sessions.
+- Canonical contract docs: `/Users/kk/Code/kk-kb/docs/AGENT-SECRETS-VARLOCK.md`.
+
+---
+
+## This repository (rafiki)
+
+- Env contract: `.env.schema`, `.env.example`, committed docs, code refs, sanitized fixtures only.
+- Never read/print `.env*` value files (including `~/.agents/env/values/`).
+- Use `varlock load --agent` (add `--show-all` for full redacted report). Run secret-dependent commands via `varlock run --inject vars -- <command>`.
+- Never `env`/`printenv`, `varlock encrypt`/`reveal`, raw `varlock load`, or dumps of `process.env`.
+- Prefer `npm run env:audit` and staged-only `npm run env:scan` without `--include-ignored`.
+- App runtime: Node 22.13+ unless a maintainer approves otherwise.
+- Do not rotate credentials, change provider/platform values, deploy, or cross a `needs-human` gate without approval. Stop and report if validation needs a real unlock.
