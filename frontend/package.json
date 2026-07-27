@@ -26,7 +26,7 @@
     "@tanstack/router-plugin": "^1.168.18",
     "clsx": "^2.1.1",
     "jszip": "^3.10.1",
-    "lucide-react": "^1.26.0",
+    "lucide-react": "^1.27.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.5.0",
