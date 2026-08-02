@@ -73,6 +73,9 @@ deeper operating docs by surface area.
 
 ## Export, Deployment, And Delivery
 
+- [BC + AI Builders Fellowship Reading Room Handoff](BCAI-FELLOWSHIP-READING-ROOM-HANDOFF-2026-07.md) -
+  local launch-set inventory, selected variations, source provenance, QA
+  evidence, and the public/private media boundary.
 - [Canva Export](CANVA-EXPORT.md) - approved-image export layout and metadata
   enrichment for Canva handoff packages.
 - [RAP Capstone Thumbnail And YouTube Handoff](RAP-CAPSTONE-THUMBNAILS-YOUTUBE-HANDOFF-2026-07-01.md) -
