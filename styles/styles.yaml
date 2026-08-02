@@ -95,6 +95,16 @@ styles:
     suffix: |
       Style guidelines: New God Flow industrial minimalist luxury. Build a premium book-cover or record-sleeve object, not a glossy commercial poster. Substrate: stark matte ground, either deep soft-touch matte black or pure non-reflective matte white, with subtle premium paper or card grain; optional clear translucent plastic slipcase texture. Accent discipline: use exactly one color-shifting iridescent, holographic, dichroic, or oil-spill foil accent, applied sparingly to a single focal element so it reads as precious and otherworldly. Subject: reverent anatomical or medical-chart imagery such as linework figures, historical anatomical engraving, heart, jaw, spine, nervous system, or a body-as-instrument metaphor, rendered with scientific precision and liturgical seriousness. Typography: restrained classical serif, small caps, generous spacing, crisp white or foil; title at the top, author at the bottom, nothing crowded. Composition: extreme negative space, centered balance, gallery-grade calm. Tone: sacred, scientific, premium, otherworldly, contemporary art monograph meets luxury record sleeve. Avoid glitch, datamosh, RGB split, neon gradients, drop shadows, photographs of real people, busy collage, stock-tech cliches, cartoons, and any second accent color competing with the iridescence.
 
+  # --- kriskrug.co personal / Aurora brand (NOT BC+AI) ---
+  # Default lane for Kris's personal site art. Compose with kk-blocks / kk-acid / cmvan kits.
+  # NEVER confuse with `kk` (BC + AI teal/purple).
+
+  kriskrug:
+    name: "KrisKrug / Aurora Editorial"
+    description: "kriskrug.co personal brand — cream paper + burnt orange + acid yellow, punk-editorial grit; NOT BC+AI kk"
+    suffix: |
+      Style guidelines: KrisKrug personal / Aurora editorial visual language for kriskrug.co. Grounds: cream newsprint paper (#efe6d2 to #e6dcc2) OR deep warm ink/black (#171310) — never pure #ffffff, never BC+AI purple void (#0f0f1a/#1a1a2e with teal+purple). Accents: burnt orange / signal red (#d94a1f, #9a2f14) plus acid lime/yellow wildcard (#e8b53a); neon CMYK clash is allowed when the piece is type-forward. Texture: risograph grain, halftone dots, xerox scars, chromatic edge misregistration — handmade grit, not SaaS polish. Typography when text is requested: massive condensed gothic or slab capitals that can BE the image; type must stay phone-readable. Mood: punk-editorial, dark humor, both-hands tension, civic grit — protest energy without greenwashed tech brochure vibes. People: when a face is requested, use high-contrast / halftone-treated likeness of Kris Krüg ONLY (full beard, septum ring, tattoos) from brand face refs — NEVER Stewart Muir (bald, short grey beard, thin glasses, plaid). Documentary protest photography is OUT OF SCOPE for this style — use real WordPress media for that lane. HARD BANS: purple→blue/pink gradients; Rafiki-`kk` teal (#00c8b4) + purple (#9333ea) recipe; glowing brains, robots, fake dashboards; greenwashed server farms; presenting generated crowds as documentary protest evidence; Inter / soft brochure look; pure white grounds.
+
   # --- KK signature protest-sign styles (data-center "both hands full" series) ---
   # Type-forward poster artwork, NOT a photo of a sign, NOT cartoon, NOT art-history pastiche.
 
