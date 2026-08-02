@@ -20,6 +20,12 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // react-hooks 7 promotes set-state-in-effect to an error in its recommended
+      // set. This SSR app (TanStack Start) intentionally initializes state from
+      // browser-only APIs and external stores inside mount effects, which the rule
+      // flags. Keep it as a warning so the tooling upgrade stays behavior-neutral;
+      // adopting it as an error is a separate follow-up.
+      "react-hooks/set-state-in-effect": "warn",
       "no-restricted-imports": [
         "error",
         {
