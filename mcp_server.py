@@ -63,7 +63,7 @@ def _load_dotenv(path) -> None:
 
 _load_dotenv(_ROOT / ".env")
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 from lib.core import generate_image
 from lib.batch import run_batch
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
@@ -124,7 +124,7 @@ _CLI_MUTATING_SUBCOMMANDS = {
     "keyframes",
 }
 
-mcp = FastMCP(
+mcp = MCPServer(
     "rafiki",
     instructions=(
         "AI image generation via Gemini and OpenAI. "
