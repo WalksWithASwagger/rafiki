@@ -254,7 +254,16 @@ generous negative space, no readable text,
 
 ### Batch commands (after local files exist)
 
-Dry-run first:
+Style plates are already in-repo and dry-run clean (6/6, 2026-08-21):
+
+```bash
+python3 generate.py --prompt-file examples/slingsby-advisors-style-plates.md \
+  --style slingsby \
+  --output-dir output/slingsby-advisors \
+  --dry-run --no-viewer
+```
+
+Likeness batch, after local files exist — dry-run first:
 
 ```bash
 npx rafiki prompts/slingsby-advisors-proposal.md \
