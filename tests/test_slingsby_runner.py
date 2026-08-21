@@ -37,6 +37,7 @@ def test_status_reports_blocked_gates_without_leaking_values(tmp_path: Path) -> 
         env={
             "SLINGSBY_ENV_FILE": str(env_file),
             "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
         },
     )
     assert result.returncode == 0, result.stderr
