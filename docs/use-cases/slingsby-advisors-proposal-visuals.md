@@ -315,7 +315,12 @@ bash scripts/slingsby-proposal-generate.sh --execute
 bash scripts/slingsby-proposal-generate.sh --train-lora-plan
 ```
 
-It loads `.env` / `.env.local` the same way `generate.py` does (setdefault,
+If `varlock` is on `PATH`, the runner re-execs through
+`varlock run --inject vars` before dotenv. That is how Mac value files in
+`~/.agents/env/values/` reach spend. Cloud agents do not have that directory
+unless it is copied onto the VM or `GOOGLE_API_KEY` is set on the environment.
+
+It also loads `.env` / `.env.local` the same way `generate.py` does (setdefault,
 never prints values). It reads gitignored `assets/slingsby/style-refs/` and
 `assets/slingsby/likeness/`. Style plates run always. Likeness jobs run only
 when portraits are present, `--reference-role likeness` is set, and

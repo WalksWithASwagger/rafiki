@@ -15,6 +15,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# Rafiki's contract: inject via Varlock, never read ~/.agents/env/values.
+# Re-exec once when the CLI is on PATH. Cloud VMs without Mac value files
+# still come back with an empty GOOGLE_API_KEY.
+if [[ -z "${SLINGSBY_VARLOCK_WRAPPED:-}" && -z "${SLINGSBY_SKIP_VARLOCK:-}" ]]; then
+  if command -v varlock >/dev/null 2>&1; then
+    export SLINGSBY_VARLOCK_WRAPPED=1
+    exec varlock run --inject vars --path "$ROOT" -- bash "$0" "$@"
+  fi
+fi
+
 # Load local dotenv the same way generate.py does: setdefault, never print values.
 _load_dotenv() {
   local file="$1"

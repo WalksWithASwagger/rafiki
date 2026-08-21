@@ -18,6 +18,7 @@ def _run(args: list[str], *, env: dict[str, str] | None = None) -> subprocess.Co
     merged.pop("GEMINI_API_KEY", None)
     merged.pop("REPLICATE_API_TOKEN", None)
     merged.pop("SLINGSBY_LIKENESS_CONSENT", None)
+    merged.setdefault("SLINGSBY_SKIP_VARLOCK", "1")
     if env:
         merged.update(env)
     return subprocess.run(
@@ -95,6 +96,36 @@ def test_status_reports_overridden_likeness_pack(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert str(private) in result.stdout
+
+
+def test_execute_reexecs_through_varlock(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake = fake_bin / "varlock"
+    fake.write_text(
+        "#!/usr/bin/env bash\n"
+        "echo varlock-wrapped\n"
+        "while [[ $# -gt 0 && \"$1\" != -- ]]; do shift; done\n"
+        "shift || true\n"
+        "export GOOGLE_API_KEY=should-never-be-printed-varlock\n"
+        'exec "$@"\n'
+    )
+    fake.chmod(0o755)
+    result = _run(
+        ["--status"],
+        env={
+            "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}",
+            "SLINGSBY_SKIP_VARLOCK": "",
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "varlock-wrapped" in result.stdout
+    assert "GOOGLE_API_KEY: set" in result.stdout
+    assert "should-never-be-printed-varlock" not in result.stdout
+    assert "should-never-be-printed-varlock" not in result.stderr
 
 
 def test_status_accepts_gemini_api_key_alias(tmp_path: Path) -> None:
