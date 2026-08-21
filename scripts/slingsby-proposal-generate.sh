@@ -7,6 +7,7 @@
 #   bash scripts/slingsby-proposal-generate.sh --execute
 #   bash scripts/slingsby-proposal-generate.sh --execute --style-only
 #   bash scripts/slingsby-proposal-generate.sh --train-lora-plan
+#   bash scripts/slingsby-proposal-generate.sh --review
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -40,6 +41,7 @@ STATUS=0
 TRAIN_LORA_PLAN=0
 STYLE_ONLY=0
 LIKENESS_ONLY=0
+REVIEW=0
 
 for arg in "$@"; do
   case "$arg" in
@@ -48,6 +50,7 @@ for arg in "$@"; do
     --train-lora-plan) TRAIN_LORA_PLAN=1 ;;
     --style-only) STYLE_ONLY=1 ;;
     --likeness-only) LIKENESS_ONLY=1 ;;
+    --review) REVIEW=1 ;;
     -h|--help)
       sed -n '2,12p' "$0"
       exit 0
@@ -67,6 +70,8 @@ fi
 LIKENESS_DIR="${SLINGSBY_LIKENESS_DIR:-$ROOT/assets/slingsby/likeness}"
 if [[ -n "${SLINGSBY_STYLE_DIR:-}" ]]; then
   STYLE_DIR="$SLINGSBY_STYLE_DIR"
+elif [[ -d "$ROOT/assets/slingsby/style-refs/moodboard/selected" ]]; then
+  STYLE_DIR="$ROOT/assets/slingsby/style-refs/moodboard/selected"
 elif [[ -d "$ROOT/assets/slingsby/style-refs/moodboard" ]]; then
   STYLE_DIR="$ROOT/assets/slingsby/style-refs/moodboard"
 else
@@ -183,6 +188,20 @@ if [[ "$TRAIN_LORA_PLAN" -eq 1 ]]; then
   exit 0
 fi
 
+build_viewer() {
+  if [[ -d "$OUT_DIR" ]]; then
+    "$PY" generate.py view "$OUT_DIR"
+  else
+    echo "No run dir yet at $OUT_DIR"
+    return 1
+  fi
+}
+
+if [[ "$REVIEW" -eq 1 && "$EXECUTE" -eq 0 && "$STYLE_ONLY" -eq 0 && "$LIKENESS_ONLY" -eq 0 ]]; then
+  build_viewer
+  exit 0
+fi
+
 will_style=1
 will_likeness=1
 [[ "$LIKENESS_ONLY" -eq 1 ]] && will_style=0
@@ -231,23 +250,23 @@ if [[ "$will_style" -eq 1 ]]; then
   "${style_cmd[@]}"
 fi
 
-if [[ "$will_likeness" -eq 0 ]]; then
-  if [[ "$STYLE_ONLY" -eq 0 && ${#likeness_refs[@]} -eq 0 ]]; then
-    echo "Likeness jobs skipped: no photos in $LIKENESS_DIR"
-    echo "Drop authorized portraits there, then re-run."
-  fi
-  exit 0
+if [[ "$will_likeness" -eq 1 ]]; then
+  likeness_cmd=(
+    "$PY" generate.py
+    --prompt-file examples/slingsby-advisors-likeness-jobs.md
+    --style slingsby
+    --reference-role likeness
+    --global-reference-images "$(join_csv "${likeness_refs[@]}")"
+    --output-dir "$OUT_DIR"
+    "${dry_flag[@]}"
+  )
+  echo "Likeness jobs: ${likeness_cmd[*]}"
+  "${likeness_cmd[@]}"
+elif [[ "$STYLE_ONLY" -eq 0 && ${#likeness_refs[@]} -eq 0 ]]; then
+  echo "Likeness jobs skipped: no photos in $LIKENESS_DIR"
+  echo "Drop authorized portraits there, then re-run."
 fi
 
-likeness_cmd=(
-  "$PY" generate.py
-  --prompt-file examples/slingsby-advisors-likeness-jobs.md
-  --style slingsby
-  --reference-role likeness
-  --global-reference-images "$(join_csv "${likeness_refs[@]}")"
-  --output-dir "$OUT_DIR"
-  "${dry_flag[@]}"
-)
-
-echo "Likeness jobs: ${likeness_cmd[*]}"
-"${likeness_cmd[@]}"
+if [[ "$EXECUTE" -eq 1 || "$REVIEW" -eq 1 ]]; then
+  build_viewer || true
+fi

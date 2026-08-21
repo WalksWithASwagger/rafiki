@@ -311,9 +311,11 @@ never prints values). It reads gitignored `assets/slingsby/style-refs/` and
 when portraits are present, `--reference-role likeness` is set, and
 `assets/slingsby/CONSENT.md` (or `SLINGSBY_LIKENESS_CONSENT=1`) exists.
 
-The runner prefers `assets/slingsby/style-refs/moodboard/` when present
-(page screenshots first, then tiles). Public painting `_orig` plates stay
-as a fallback only. Do not commit either set.
+The runner prefers `assets/slingsby/style-refs/moodboard/selected/` when
+present (5 page screenshots plus two face-free urban tiles). Full tiles
+stay next to it. Public painting `_orig` plates are fallback only. Do
+not commit any of those sets. After a spend, `bash scripts/slingsby-proposal-generate.sh --review`
+rebuilds `output/slingsby-advisors/viewer.html`.
 Intake templates: `examples/slingsby-advisors-intake/`.
 
 Generate only after the dry-run parse looks right and spend is approved:

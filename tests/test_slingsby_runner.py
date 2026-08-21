@@ -136,6 +136,16 @@ def test_style_ref_cap_keeps_one_plate_per_locked_series(tmp_path: Path) -> None
     assert "artInSitu01.jpg" in cmd
 
 
+def test_review_builds_viewer_from_existing_output(tmp_path: Path) -> None:
+    out = tmp_path / "slingsby-advisors"
+    run = out / "run-20260821-review"
+    run.mkdir(parents=True)
+    (run / "run.json").write_text('{"prompts": []}\n')
+    result = _run(["--review"], env={"SLINGSBY_OUTPUT_DIR": str(out)})
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (out / "viewer.html").exists() or "viewer" in result.stdout.lower()
+
+
 def test_train_lora_plan_is_dry_run() -> None:
     result = _run(["--train-lora-plan"])
     assert result.returncode == 0, result.stderr + result.stdout
