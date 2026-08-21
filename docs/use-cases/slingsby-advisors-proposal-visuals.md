@@ -447,6 +447,8 @@ Nothing below should be committed to Rafiki.
 - [ ] `GOOGLE_API_KEY` is available and style plates have been generated
 - [x] First-batch shot list exists (`examples/slingsby-advisors-style-plates.md` +
       `examples/slingsby-advisors-likeness-jobs.md`)
+- [x] Local appearance-locked pack can live at `prompts/slingsby-advisors-proposal.md`
+      (gitignored; runner prefers it)
 - [ ] Fast-lane comps exist and have been reviewed
 - [ ] LoRA training was either skipped with a reason, or trained with consent and a zip that is not in git
 - [ ] Final approved images are exported for the proposal
