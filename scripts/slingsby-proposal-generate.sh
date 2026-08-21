@@ -6,6 +6,7 @@
 #   bash scripts/slingsby-proposal-generate.sh --status
 #   bash scripts/slingsby-proposal-generate.sh --execute
 #   bash scripts/slingsby-proposal-generate.sh --execute --style-only
+#   bash scripts/slingsby-proposal-generate.sh --execute --smoke --style-only
 #   bash scripts/slingsby-proposal-generate.sh --train-lora-plan
 #   bash scripts/slingsby-proposal-generate.sh --review
 #   python3 scripts/slingsby-proposal-prep-refs.py
@@ -49,6 +50,7 @@ TRAIN_LORA_PLAN=0
 STYLE_ONLY=0
 LIKENESS_ONLY=0
 REVIEW=0
+SMOKE=0
 
 for arg in "$@"; do
   case "$arg" in
@@ -58,8 +60,9 @@ for arg in "$@"; do
     --style-only) STYLE_ONLY=1 ;;
     --likeness-only) LIKENESS_ONLY=1 ;;
     --review) REVIEW=1 ;;
+    --smoke) SMOKE=1 ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,13p' "$0"
       exit 0
       ;;
     *)
@@ -97,6 +100,7 @@ OUT_DIR="${SLINGSBY_OUTPUT_DIR:-$ROOT/output/slingsby-advisors}"
 CONSENT_FILE="${SLINGSBY_CONSENT_FILE:-$ASSETS_ROOT/CONSENT.md}"
 PY="${RAFIKI_DOCTOR_PYTHON:-python3}"
 MAX_STYLE_REFS="${SLINGSBY_MAX_STYLE_REFS:-16}"
+MAX_LIKENESS_REFS="${SLINGSBY_MAX_LIKENESS_REFS:-6}"
 STYLE_PACK="${SLINGSBY_STYLE_PACK:-$ROOT/examples/slingsby-advisors-style-plates.md}"
 if [[ -n "${SLINGSBY_LIKENESS_PACK:-}" ]]; then
   LIKENESS_PACK="$SLINGSBY_LIKENESS_PACK"
@@ -175,6 +179,62 @@ join_csv() {
   printf '%s' "$*"
 }
 
+# Full-face identity plates first. Eyes-only 086 is last so a default
+# cap of 6 does not send a forehead crop as a likeness lock.
+prefer_likeness() {
+  local max="$1"
+  shift
+  if [[ "$#" -eq 0 ]]; then
+    return 0
+  fi
+  if [[ "$max" -le 0 || "$#" -le "$max" ]]; then
+    printf '%s\n' "$@"
+    return 0
+  fi
+  "$PY" -c '
+import os, sys
+
+limit = int(sys.argv[1])
+paths = sys.argv[2:]
+ORDER = [
+    "014-front-smile-crop.jpg",
+    "070-front-white-blouse-down.jpg",
+    "045-threequarter-stage-black.jpg",
+    "075-threequarter-white-blouse.jpg",
+    "024-profile-stage-black.jpg",
+    "146-front-smile-blue-coat-crop.jpg",
+    "015-front-smile-outdoor-crop.jpg",
+    "130-profile-stage-mic.jpg",
+    "133-threequarter-tanya-slingsby-tag.jpg",
+    "086-threequarter-white-mic.jpg",
+]
+rank = {name: index for index, name in enumerate(ORDER)}
+paths.sort(key=lambda path: (rank.get(os.path.basename(path), 99), os.path.basename(path)))
+print("\n".join(paths[:limit]))
+' "$max" "$@"
+}
+
+# Keep the pack header and the first N numbered jobs.
+slice_pack() {
+  local src="$1"
+  local dest="$2"
+  local count="$3"
+  "$PY" -c '
+import re, sys
+from pathlib import Path
+
+src = Path(sys.argv[1])
+dest = Path(sys.argv[2])
+limit = int(sys.argv[3])
+text = src.read_text(encoding="utf-8")
+parts = re.split(r"(?=^## \d+[a-z]?\.)", text, flags=re.MULTILINE)
+header = parts[0]
+jobs = [part for part in parts[1:] if part.startswith("##")]
+dest.parent.mkdir(parents=True, exist_ok=True)
+dest.write_text(header + "".join(jobs[:limit]), encoding="utf-8")
+' "$src" "$dest" "$count"
+}
+
 style_refs=()
 while IFS= read -r file; do
   [[ -n "$file" ]] && style_refs+=("$file")
@@ -187,13 +247,17 @@ likeness_refs=()
 while IFS= read -r file; do
   [[ -n "$file" ]] && likeness_refs+=("$file")
 done < <(list_images "$LIKENESS_DIR")
+likeness_found=${#likeness_refs[@]}
+if [[ ${#likeness_refs[@]} -gt 0 ]]; then
+  mapfile -t likeness_refs < <(prefer_likeness "$MAX_LIKENESS_REFS" "${likeness_refs[@]}")
+fi
 
 if [[ "$STATUS" -eq 1 ]]; then
   echo "Slingsby Advisors generation gates"
   echo "  style pack:     $STYLE_PACK"
   echo "  likeness pack:  $LIKENESS_PACK"
   echo "  style refs:     ${#style_refs[@]} file(s) in $STYLE_DIR (cap $MAX_STYLE_REFS)"
-  echo "  likeness refs:  ${#likeness_refs[@]} file(s) in $LIKENESS_DIR"
+  echo "  likeness refs:  $likeness_found file(s) in $LIKENESS_DIR (using ${#likeness_refs[@]}, cap $MAX_LIKENESS_REFS)"
   echo "  GOOGLE_API_KEY: $(has_gemini_key && echo set || echo unset)"
   echo "  REPLICATE_API_TOKEN: $(has_replicate_key && echo set || echo unset)"
   echo "  likeness consent: $(consent_ok && echo present || echo missing)"
@@ -266,6 +330,22 @@ fi
 dry_flag=(--dry-run --no-viewer)
 if [[ "$EXECUTE" -eq 1 ]]; then
   dry_flag=(--no-viewer)
+fi
+
+if [[ "$SMOKE" -eq 1 ]]; then
+  smoke_dir="${SLINGSBY_SMOKE_DIR:-$OUT_DIR/.smoke-packs}"
+  mkdir -p "$smoke_dir"
+  if [[ "$will_style" -eq 1 ]]; then
+    STYLE_PACK="$smoke_dir/style-smoke.md"
+    slice_pack "${SLINGSBY_STYLE_PACK:-$ROOT/examples/slingsby-advisors-style-plates.md}" \
+      "$STYLE_PACK" 1
+  fi
+  if [[ "$will_likeness" -eq 1 ]]; then
+    original_likeness="$LIKENESS_PACK"
+    LIKENESS_PACK="$smoke_dir/likeness-smoke.md"
+    slice_pack "$original_likeness" "$LIKENESS_PACK" 1
+  fi
+  echo "Smoke: first job only"
 fi
 
 if [[ "$will_style" -eq 1 ]]; then

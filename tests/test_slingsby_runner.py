@@ -113,6 +113,50 @@ def test_status_accepts_gemini_api_key_alias(tmp_path: Path) -> None:
     assert "should-never-be-printed-alias" not in result.stderr
 
 
+def test_likeness_ref_cap_prefers_full_face_plates(tmp_path: Path) -> None:
+    likeness = tmp_path / "likeness"
+    likeness.mkdir()
+    for name in (
+        "014-front-smile-crop.jpg",
+        "070-front-white-blouse-down.jpg",
+        "045-threequarter-stage-black.jpg",
+        "075-threequarter-white-blouse.jpg",
+        "024-profile-stage-black.jpg",
+        "146-front-smile-blue-coat-crop.jpg",
+        "086-threequarter-white-mic.jpg",
+        "133-threequarter-tanya-slingsby-tag.jpg",
+    ):
+        (likeness / name).write_bytes(b"x")
+    result = _run(
+        ["--likeness-only"],
+        env={
+            "SLINGSBY_LIKENESS_DIR": str(likeness),
+            "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "consent.md"),
+            "SLINGSBY_MAX_LIKENESS_REFS": "6",
+        },
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    cmd = result.stdout
+    assert "014-front-smile-crop.jpg" in cmd
+    assert "146-front-smile-blue-coat-crop.jpg" in cmd
+    assert "086-threequarter-white-mic.jpg" not in cmd
+    assert "133-threequarter-tanya-slingsby-tag.jpg" not in cmd
+
+
+def test_smoke_runs_first_style_job_only(tmp_path: Path) -> None:
+    result = _run(
+        ["--style-only", "--smoke"],
+        env={
+            "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
+            "SLINGSBY_SMOKE_DIR": str(tmp_path / "smoke"),
+        },
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "Smoke: first job only" in result.stdout
+    assert "Generated 1/1 images" in result.stdout
+
+
 def test_execute_without_key_exits_2() -> None:
     result = _run(["--execute", "--style-only"])
     assert result.returncode == 2

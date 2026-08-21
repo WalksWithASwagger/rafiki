@@ -475,10 +475,14 @@ VM is snapshotted after intake, or the authorized album is re-ingested.
 
 ```bash
 bash scripts/slingsby-proposal-generate.sh --status
+bash scripts/slingsby-proposal-generate.sh --execute --smoke --style-only
 bash scripts/slingsby-proposal-generate.sh --execute --style-only
 bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
 bash scripts/slingsby-proposal-generate.sh --review
 ```
+
+`--smoke` spends the first job only. The runner attaches at most six
+full-face likeness plates by default (drops the eyes-only 086 crop).
 
 Do not train a LoRA first. Inspect style plates for stock-face leakage
 before accepting likeness comps.
