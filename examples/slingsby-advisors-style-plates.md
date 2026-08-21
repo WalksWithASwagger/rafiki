@@ -48,3 +48,17 @@ have a room to sit in. Private likeness prompts stay in the local
 **Style:** slingsby
 **Prompt:**
 > A nearly empty square: warm titanium-white ground, one precise ellipse of jewel colour sitting slightly off-center, resin depth and a faint sanded tooth. Colour completing space. No figure, no frame, no typography.
+
+## 7. Mutual Fields
+**For:** Duality / partnership section plate
+**Aspect Ratio:** 1:1
+**Style:** slingsby
+**Prompt:**
+> Two stacked complementary colour fields on luminous white, Mutual language: a terracotta or ochre wash above a turquoise field with palette-knife striations, a thin white gap between them, organic irregular edges. No figure, no text, no third colour fighting the pair.
+
+## 8. Shoru Circle
+**For:** Material / practice section plate
+**Aspect Ratio:** 1:1
+**Style:** slingsby
+**Prompt:**
+> One impasto crimson circle, Shoru language, on a bronze-gold ground with an etched grid and heavy materiality. Spare, tactile, uncrowded. No figure, no invented title, no collage.

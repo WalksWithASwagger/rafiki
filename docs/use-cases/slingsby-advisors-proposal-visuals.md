@@ -254,7 +254,7 @@ generous negative space, no readable text,
 
 ### Batch commands (after local files exist)
 
-Style plates are already in-repo and dry-run clean (6/6, 2026-08-21):
+Style plates are already in-repo and dry-run clean (8 plates; last verified 2026-08-21):
 
 ```bash
 python3 generate.py --prompt-file examples/slingsby-advisors-style-plates.md \
@@ -289,6 +289,10 @@ bash scripts/slingsby-proposal-generate.sh --execute
 It reads gitignored `assets/slingsby/style-refs/` and
 `assets/slingsby/likeness/`. Style plates run always. Likeness jobs run only
 when portraits are present.
+
+Public series thumbs from tanyaslingsby.com (paintings and sculpture only,
+never the Shoru photography set) may be cached in `style-refs/` so Gemini
+has her actual surfaces when a key arrives. Do not commit them.
 
 Generate only after the dry-run parse looks right and spend is approved:
 

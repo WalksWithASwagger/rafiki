@@ -22,7 +22,7 @@ def test_slingsby_style_is_registered() -> None:
 
 def test_slingsby_style_plates_parse_without_likeness() -> None:
     prompts = parse_image_prompts_md(STYLE_PLATES)
-    assert len(prompts) == 6
+    assert len(prompts) == 8
     banned = ("tanya", "slingsby", "portrait of", "headshot", "likeness")
     for item in prompts:
         assert item["style"] == "slingsby"
