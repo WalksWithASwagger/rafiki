@@ -25,6 +25,7 @@ attached with `--reference-role likeness`.
 - Tech-bro navy, dashboards, glowing brains, robots
 - Mystical crystal / chakra pastiche
 - Invented letterhead, logos, or fake Sanskrit/Latin/Arabic titles
+- Nametags, event badges, Vancouver AI / MAC slides
 - Copying stock faces from the mood-board tiles
 - Any likeness job without an authorized reference set
 

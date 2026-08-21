@@ -17,14 +17,19 @@ Related:
 
 ## Status
 
-**Blocked on a Gemini key and an authorized likeness set.** Pipeline,
-style pack, public-safe prompt packs, and the local runner are ready.
+**Blocked only on `GOOGLE_API_KEY`.** Pipeline, style pack, prompt packs,
+authorized likeness (10 Gemini / 22 LoRA), written consent, and the local
+runner are ready. Full mood-board pages stay archived; Gemini style refs
+default to face-free crops so stock faces do not leak. Likeness refs
+default to nametag-cropped face plates.
 
-The operator mood board (`SLA Images 2`) is ingested locally as gitignored
-page screenshots + tiles under `assets/slingsby/style-refs/moodboard/`.
+```bash
+python3 scripts/slingsby-proposal-prep-refs.py
+```
+
 That photographic register — through-glass, golden hour, candid counsel —
-is now the locked `--style slingsby` language. Style plates can generate
-the moment `GOOGLE_API_KEY` is set:
+is the locked `--style slingsby` language. Style plates can generate the
+moment `GOOGLE_API_KEY` is set:
 
 ```bash
 bash scripts/slingsby-proposal-generate.sh --status
@@ -311,11 +316,16 @@ never prints values). It reads gitignored `assets/slingsby/style-refs/` and
 when portraits are present, `--reference-role likeness` is set, and
 `assets/slingsby/CONSENT.md` (or `SLINGSBY_LIKENESS_CONSENT=1`) exists.
 
-The runner prefers `assets/slingsby/style-refs/moodboard/selected/` when
-present (5 page screenshots plus two face-free urban tiles). Full tiles
-stay next to it. Public painting `_orig` plates are fallback only. Do
-not commit any of those sets. After a spend, `bash scripts/slingsby-proposal-generate.sh --review`
-rebuilds `output/slingsby-advisors/viewer.html`.
+The runner prefers sanitized local dirs when present:
+
+1. `assets/slingsby/style-refs/moodboard/face-free/` (architecture/light crops)
+2. else `moodboard/selected/` (full pages — stock faces, archive only)
+3. else public painting `_orig` plates
+
+Likeness prefers `assets/slingsby/likeness-clean/` (nametag-cropped) over
+the raw `likeness/` album picks. Do not commit any of those sets. After a
+spend, `bash scripts/slingsby-proposal-generate.sh --review` rebuilds
+`output/slingsby-advisors/viewer.html`.
 Intake templates: `examples/slingsby-advisors-intake/`.
 Likeness PDF / zip / folder:
 
@@ -427,17 +437,25 @@ Nothing below should be committed to Rafiki.
 - [x] `--style slingsby` locked to that photographic register
 - [x] Likeness job list, consent gate, and LoRA dry-run plan exist
 - [x] Authorized likeness set is on disk locally (gitignored; Gemini 10 + LoRA 22)
-- [ ] Written consent file is present
+- [x] Written consent file is present (local `assets/slingsby/CONSENT.md`)
+- [x] Face-free style crops and nametag-cropped likeness plates can be built locally
 - [ ] `GOOGLE_API_KEY` is available and style plates have been generated
-- [ ] Proposal shot list exists as a local prompt pack (or the in-repo
-      likeness jobs are accepted as the first batch)
+- [x] First-batch shot list exists (`examples/slingsby-advisors-style-plates.md` +
+      `examples/slingsby-advisors-likeness-jobs.md`)
 - [ ] Fast-lane comps exist and have been reviewed
 - [ ] LoRA training was either skipped with a reason, or trained with consent and a zip that is not in git
 - [ ] Final approved images are exported for the proposal
-- [ ] Nothing private was committed to Rafiki
+- [x] Nothing private was committed to Rafiki
 
 ## Next operator action
 
-Send the intake packet. First concrete generation step after that is a
-dry-run of the local prompt pack, then a small Gemini reference-image comp
-set — not a training job.
+Add `GOOGLE_API_KEY` to this environment. Then:
+
+```bash
+bash scripts/slingsby-proposal-generate.sh --execute --style-only
+bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
+bash scripts/slingsby-proposal-generate.sh --review
+```
+
+Do not train a LoRA first. Inspect style plates for stock-face leakage
+before accepting likeness comps.

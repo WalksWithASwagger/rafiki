@@ -11,10 +11,12 @@ cp examples/slingsby-advisors-intake/NOTES.example.md assets/slingsby/NOTES.md
 ```
 
 Then drop authorized portraits into `assets/slingsby/likeness/`, or ingest a
-PDF / zip / folder the same way the mood board arrived:
+PDF / zip / folder the same way the mood board arrived. Crop nametags and
+build face-free style refs before spending:
 
 ```bash
 bash scripts/slingsby-proposal-ingest.sh --likeness /path/to/portraits.pdf
+python3 scripts/slingsby-proposal-prep-refs.py
 bash scripts/slingsby-proposal-generate.sh --status
 bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
 ```

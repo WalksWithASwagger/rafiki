@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -81,6 +82,70 @@ def test_likeness_only_without_photos_skips(tmp_path: Path) -> None:
     )
     assert result.returncode == 0
     assert "no photos" in result.stdout
+
+
+def test_prep_refs_writes_face_free_and_likeness_clean(tmp_path: Path) -> None:
+    from PIL import Image
+
+    likeness = tmp_path / "likeness"
+    tiles = tmp_path / "tiles"
+    likeness.mkdir()
+    tiles.mkdir()
+    Image.new("RGB", (200, 300), (40, 40, 40)).save(likeness / "014-front-smile-crop.jpg", "JPEG")
+    Image.new("RGB", (400, 300), (80, 80, 90)).save(tiles / "tile-039.jpg", "JPEG")
+    Image.new("RGB", (400, 500), (20, 20, 20)).save(tiles / "tile-040.jpg", "JPEG")
+    clean = tmp_path / "likeness-clean"
+    face_free = tmp_path / "face-free"
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "slingsby-proposal-prep-refs.py")],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "SLINGSBY_LIKENESS_DIR": str(likeness),
+            "SLINGSBY_LIKENESS_CLEAN_DIR": str(clean),
+            "SLINGSBY_STYLE_TILES_DIR": str(tiles),
+            "SLINGSBY_FACE_FREE_DIR": str(face_free),
+        },
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (clean / "014-front-smile-crop.jpg").exists()
+    assert (face_free / "glass-geometry.jpg").exists()
+    assert (face_free / "urban-canyon.jpg").exists()
+    cropped = Image.open(clean / "014-front-smile-crop.jpg")
+    assert cropped.size[1] < 300
+
+
+def test_runner_prefers_face_free_and_likeness_clean(tmp_path: Path) -> None:
+    from PIL import Image
+
+    assets = tmp_path / "slingsby"
+    face_free = assets / "style-refs" / "moodboard" / "face-free"
+    selected = assets / "style-refs" / "moodboard" / "selected"
+    clean = assets / "likeness-clean"
+    raw = assets / "likeness"
+    for folder in (face_free, selected, clean, raw):
+        folder.mkdir(parents=True)
+    Image.new("RGB", (80, 80), (10, 10, 10)).save(face_free / "glass-geometry.jpg", "JPEG")
+    Image.new("RGB", (80, 80), (200, 10, 10)).save(selected / "page-1.jpg", "JPEG")
+    Image.new("RGB", (80, 80), (10, 200, 10)).save(clean / "014-front-smile-crop.jpg", "JPEG")
+    Image.new("RGB", (80, 80), (10, 10, 200)).save(raw / "tagged.jpg", "JPEG")
+    result = _run(
+        ["--status"],
+        env={
+            "SLINGSBY_ASSETS_ROOT": str(assets),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    out = result.stdout
+    assert "glass-geometry.jpg" in out or "face-free" in out
+    assert str(face_free) in out
+    assert str(clean) in out
+    assert str(selected) not in out
+    assert "tagged.jpg" not in out
 
 
 def test_style_ref_cap_prefers_moodboard_pages(tmp_path: Path) -> None:

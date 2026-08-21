@@ -8,6 +8,7 @@
 #   bash scripts/slingsby-proposal-generate.sh --execute --style-only
 #   bash scripts/slingsby-proposal-generate.sh --train-lora-plan
 #   bash scripts/slingsby-proposal-generate.sh --review
+#   python3 scripts/slingsby-proposal-prep-refs.py
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -67,18 +68,27 @@ if [[ "$STYLE_ONLY" -eq 1 && "$LIKENESS_ONLY" -eq 1 ]]; then
   exit 1
 fi
 
-LIKENESS_DIR="${SLINGSBY_LIKENESS_DIR:-$ROOT/assets/slingsby/likeness}"
+ASSETS_ROOT="${SLINGSBY_ASSETS_ROOT:-$ROOT/assets/slingsby}"
+if [[ -n "${SLINGSBY_LIKENESS_DIR:-}" ]]; then
+  LIKENESS_DIR="$SLINGSBY_LIKENESS_DIR"
+elif [[ -d "$ASSETS_ROOT/likeness-clean" ]]; then
+  LIKENESS_DIR="$ASSETS_ROOT/likeness-clean"
+else
+  LIKENESS_DIR="$ASSETS_ROOT/likeness"
+fi
 if [[ -n "${SLINGSBY_STYLE_DIR:-}" ]]; then
   STYLE_DIR="$SLINGSBY_STYLE_DIR"
-elif [[ -d "$ROOT/assets/slingsby/style-refs/moodboard/selected" ]]; then
-  STYLE_DIR="$ROOT/assets/slingsby/style-refs/moodboard/selected"
-elif [[ -d "$ROOT/assets/slingsby/style-refs/moodboard" ]]; then
-  STYLE_DIR="$ROOT/assets/slingsby/style-refs/moodboard"
+elif [[ -d "$ASSETS_ROOT/style-refs/moodboard/face-free" ]]; then
+  STYLE_DIR="$ASSETS_ROOT/style-refs/moodboard/face-free"
+elif [[ -d "$ASSETS_ROOT/style-refs/moodboard/selected" ]]; then
+  STYLE_DIR="$ASSETS_ROOT/style-refs/moodboard/selected"
+elif [[ -d "$ASSETS_ROOT/style-refs/moodboard" ]]; then
+  STYLE_DIR="$ASSETS_ROOT/style-refs/moodboard"
 else
-  STYLE_DIR="$ROOT/assets/slingsby/style-refs"
+  STYLE_DIR="$ASSETS_ROOT/style-refs"
 fi
 OUT_DIR="${SLINGSBY_OUTPUT_DIR:-$ROOT/output/slingsby-advisors}"
-CONSENT_FILE="${SLINGSBY_CONSENT_FILE:-$ROOT/assets/slingsby/CONSENT.md}"
+CONSENT_FILE="${SLINGSBY_CONSENT_FILE:-$ASSETS_ROOT/CONSENT.md}"
 PY="${RAFIKI_DOCTOR_PYTHON:-python3}"
 MAX_STYLE_REFS="${SLINGSBY_MAX_STYLE_REFS:-16}"
 
@@ -97,7 +107,8 @@ consent_ok() {
     1|yes|true|ok) return 0 ;;
   esac
   [[ -f "$CONSENT_FILE" ]] && return 0
-  [[ -f "$ROOT/assets/slingsby/CONSENT" ]] && return 0
+  [[ -f "$ASSETS_ROOT/CONSENT.md" ]] && return 0
+  [[ -f "$ASSETS_ROOT/CONSENT" ]] && return 0
   return 1
 }
 

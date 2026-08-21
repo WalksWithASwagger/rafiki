@@ -47,6 +47,8 @@ def test_slingsby_likeness_jobs_require_attached_refs_and_do_not_invent_appearan
         lowered = item["prompt"].lower()
         assert "attached authorized reference" in lowered
         assert "do not invent" in lowered
+        assert "youth-wash" in lowered or "match age from the refs" in lowered
+        assert "nametag" in lowered
         for token in invented:
             assert token not in lowered, f"{item['name']} invents {token!r}"
 
