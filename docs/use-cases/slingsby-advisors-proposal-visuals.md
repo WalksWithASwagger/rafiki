@@ -461,7 +461,10 @@ Nothing below should be committed to Rafiki.
 
 ## Next operator action
 
-**The only remaining gate is `GOOGLE_API_KEY`.** Authorized likeness,
+**The remaining gate is a stills key.** Gemini (`GOOGLE_API_KEY`) is
+preferred. OpenAI (`OPENAI_API_KEY` → `gpt-image-2`) is the fallback
+when Gemini is unset. Floyo is video-only and is not used for these
+plates. Authorized likeness,
 consent, face-free style refs, and the appearance-locked prompt pack are
 already on the agent VM that ingested them (`assets/slingsby/`, gitignored).
 A brand-new agent on this branch will **not** see those files unless the

@@ -124,8 +124,34 @@ has_gemini_key() {
   [[ -n "${GOOGLE_API_KEY:-}${GEMINI_API_KEY:-}" ]]
 }
 
+has_openai_key() {
+  [[ -n "${OPENAI_API_KEY:-}" ]]
+}
+
+has_image_key() {
+  has_gemini_key || has_openai_key
+}
+
 has_replicate_key() {
   [[ -n "${REPLICATE_API_TOKEN:-}" ]]
+}
+
+# Gemini first (better multi-ref likeness). OpenAI gpt-image-2 if that is
+# the only stills key. Floyo is video-only and is never selected here.
+image_model() {
+  if [[ -n "${SLINGSBY_MODEL:-}" ]]; then
+    printf '%s' "$SLINGSBY_MODEL"
+    return 0
+  fi
+  if has_gemini_key; then
+    printf '%s' "flash"
+    return 0
+  fi
+  if has_openai_key; then
+    printf '%s' "gpt"
+    return 0
+  fi
+  printf '%s' "flash"
 }
 
 consent_ok() {
@@ -269,22 +295,25 @@ if [[ "$STATUS" -eq 1 ]]; then
   echo "  style refs:     ${#style_refs[@]} file(s) in $STYLE_DIR (cap $MAX_STYLE_REFS)"
   echo "  likeness refs:  $likeness_found file(s) in $LIKENESS_DIR (using ${#likeness_refs[@]}, cap $MAX_LIKENESS_REFS)"
   echo "  GOOGLE_API_KEY: $(has_gemini_key && echo set || echo unset)"
+  echo "  OPENAI_API_KEY: $(has_openai_key && echo set || echo unset)"
   echo "  REPLICATE_API_TOKEN: $(has_replicate_key && echo set || echo unset)"
+  echo "  model:          $(image_model)"
   echo "  likeness consent: $(consent_ok && echo present || echo missing)"
-  if has_gemini_key; then
+  if has_image_key; then
     echo "  style plates:   ready (bash $0 --execute --style-only)"
   else
-    echo "  style plates:   blocked — need GOOGLE_API_KEY"
+    echo "  style plates:   blocked — need GOOGLE_API_KEY or OPENAI_API_KEY"
   fi
-  if has_gemini_key && [[ ${#likeness_refs[@]} -gt 0 ]] && consent_ok; then
+  if has_image_key && [[ ${#likeness_refs[@]} -gt 0 ]] && consent_ok; then
     echo "  likeness jobs:  ready (bash $0 --execute --likeness-only)"
   else
     missing=()
-    has_gemini_key || missing+=("GOOGLE_API_KEY")
+    has_image_key || missing+=("GOOGLE_API_KEY or OPENAI_API_KEY")
     [[ ${#likeness_refs[@]} -gt 0 ]] || missing+=("authorized portraits")
     consent_ok || missing+=("written consent")
     echo "  likeness jobs:  blocked — need ${missing[*]}"
   fi
+  echo "  Floyo:          video only — not used for stills"
   echo "  LoRA fallback:  dry-run via bash $0 --train-lora-plan (needs zip URL + REPLICATE to execute)"
   exit 0
 fi
@@ -325,8 +354,8 @@ if [[ "$will_likeness" -eq 1 && ${#likeness_refs[@]} -eq 0 ]]; then
 fi
 
 if [[ "$EXECUTE" -eq 1 ]]; then
-  if [[ "$will_style" -eq 1 || "$will_likeness" -eq 1 ]] && ! has_gemini_key; then
-    echo "Error: --execute needs GOOGLE_API_KEY (or GEMINI_API_KEY). Use --status." >&2
+  if [[ "$will_style" -eq 1 || "$will_likeness" -eq 1 ]] && ! has_image_key; then
+    echo "Error: --execute needs GOOGLE_API_KEY or OPENAI_API_KEY. Use --status." >&2
     exit 2
   fi
   if [[ "$will_likeness" -eq 1 ]] && ! consent_ok; then
@@ -358,11 +387,14 @@ if [[ "$SMOKE" -eq 1 ]]; then
   echo "Smoke: first job only"
 fi
 
+IMAGE_MODEL="$(image_model)"
+
 if [[ "$will_style" -eq 1 ]]; then
   style_cmd=(
     "$PY" generate.py
     --prompt-file "$STYLE_PACK"
     --style slingsby
+    --model "$IMAGE_MODEL"
     --reference-role style
     --output-dir "$OUT_DIR"
     "${dry_flag[@]}"
@@ -379,6 +411,7 @@ if [[ "$will_likeness" -eq 1 ]]; then
     "$PY" generate.py
     --prompt-file "$LIKENESS_PACK"
     --style slingsby
+    --model "$IMAGE_MODEL"
     --reference-role likeness
     --global-reference-images "$(join_csv "${likeness_refs[@]}")"
     --output-dir "$OUT_DIR"

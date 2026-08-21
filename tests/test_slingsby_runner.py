@@ -16,6 +16,7 @@ def _run(args: list[str], *, env: dict[str, str] | None = None) -> subprocess.Co
     # Isolate secrets so the test asserts the runner's own detection.
     merged.pop("GOOGLE_API_KEY", None)
     merged.pop("GEMINI_API_KEY", None)
+    merged.pop("OPENAI_API_KEY", None)
     merged.pop("REPLICATE_API_TOKEN", None)
     merged.pop("SLINGSBY_LIKENESS_CONSENT", None)
     merged.setdefault("SLINGSBY_SKIP_VARLOCK", "1")
@@ -188,10 +189,44 @@ def test_smoke_runs_first_style_job_only(tmp_path: Path) -> None:
     assert "Generated 1/1 images" in result.stdout
 
 
+def test_status_accepts_openai_as_stills_fallback(tmp_path: Path) -> None:
+    result = _run(
+        ["--status"],
+        env={
+            "OPENAI_API_KEY": "should-never-be-printed-openai",
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "OPENAI_API_KEY: set" in result.stdout
+    assert "model:          gpt" in result.stdout
+    assert "style plates:   ready" in result.stdout
+    assert "should-never-be-printed-openai" not in result.stdout
+    assert "Floyo:" in result.stdout
+    assert "video only" in result.stdout
+
+
+def test_openai_dry_run_passes_gpt_model(tmp_path: Path) -> None:
+    result = _run(
+        ["--style-only"],
+        env={
+            "OPENAI_API_KEY": "dummy-not-used",
+            "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
+            "SLINGSBY_STYLE_DIR": str(tmp_path / "empty-style"),
+        },
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert "--model gpt" in result.stdout
+    assert "Provider: OpenAI" in result.stdout
+
+
 def test_execute_without_key_exits_2() -> None:
     result = _run(["--execute", "--style-only"])
     assert result.returncode == 2
     assert "GOOGLE_API_KEY" in result.stderr
+    assert "OPENAI_API_KEY" in result.stderr
 
 
 def test_likeness_execute_without_consent_exits_3(tmp_path: Path) -> None:
