@@ -276,6 +276,19 @@ python3 generate.py --prompt-file examples/slingsby-advisors-likeness-jobs.md \
 
 `--reference-role likeness` is required. The default `style` role tells Gemini
 to treat photos as texture only, which will invent a different woman.
+Execute without authorized photos now fails closed; dry-run still works so
+the pack can be reviewed.
+
+One-shot local runner (dry-run by default; `--execute` spends):
+
+```bash
+bash scripts/slingsby-proposal-generate.sh
+bash scripts/slingsby-proposal-generate.sh --execute
+```
+
+It reads gitignored `assets/slingsby/style-refs/` and
+`assets/slingsby/likeness/`. Style plates run always. Likeness jobs run only
+when portraits are present.
 
 Generate only after the dry-run parse looks right and spend is approved:
 

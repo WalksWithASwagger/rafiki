@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from lib.core import generate_image, likeness_requires_references
 from lib.prompts import parse_image_prompts_md
 from lib.styles import load_styles, resolve_style_suffix
 
@@ -46,3 +47,26 @@ def test_slingsby_likeness_jobs_require_attached_refs_and_do_not_invent_appearan
         assert "do not invent" in lowered
         for token in invented:
             assert token not in lowered, f"{item['name']} invents {token!r}"
+
+
+def test_likeness_role_requires_authorized_references(tmp_path) -> None:
+    assert likeness_requires_references("style") is None
+    assert (
+        likeness_requires_references("likeness", reference_image=str(tmp_path / "a.jpg"))
+        is None
+    )
+    assert likeness_requires_references("likeness") is not None
+    ok = generate_image(
+        prompt="exact likeness",
+        output_path=str(tmp_path / "out.png"),
+        reference_role="likeness",
+        dry_run=False,
+    )
+    assert ok is False
+    ok_dry = generate_image(
+        prompt="exact likeness",
+        output_path=str(tmp_path / "out.png"),
+        reference_role="likeness",
+        dry_run=True,
+    )
+    assert ok_dry is True

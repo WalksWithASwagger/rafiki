@@ -14,6 +14,24 @@ from lib.usage import log_generation
 from lib.providers import get_provider
 
 
+def likeness_requires_references(
+    reference_role: str,
+    *,
+    reference_image: str | None = None,
+    reference_images: list[str] | None = None,
+) -> str | None:
+    """Return an error if likeness was requested without authorized photos."""
+    if reference_role != "likeness":
+        return None
+    refs = [ref for ref in [reference_image, *(reference_images or [])] if ref]
+    if refs:
+        return None
+    return (
+        "reference_role 'likeness' requires at least one authorized reference "
+        "image (--reference-image or --global-reference-images)"
+    )
+
+
 def generate_image(
     prompt: str,
     output_path: str,
@@ -52,6 +70,17 @@ def generate_image(
 
     if style is None:
         style = get_default_style()
+
+    likeness_error = likeness_requires_references(
+        reference_role,
+        reference_image=reference_image,
+        reference_images=reference_images,
+    )
+    if likeness_error:
+        print(f"Error: {likeness_error}")
+        if not dry_run:
+            return False
+        print("Warning: dry-run continues so the prompt can be reviewed")
 
     if dry_run:
         provider_name = "OpenAI" if model.startswith(("gpt-image", "dall-e")) else "Gemini"
