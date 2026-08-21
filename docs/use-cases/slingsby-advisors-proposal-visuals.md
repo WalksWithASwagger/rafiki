@@ -17,9 +17,22 @@ Related:
 
 ## Status
 
-**Blocked on source materials.** Pipeline research and the prompting system
-are ready. No likeness dataset, mood board, or proposal shot list is in this
-checkout. Do not scrape public photos. Do not train. Do not generate.
+**Blocked on a Gemini key and an authorized likeness set.** Pipeline,
+style pack, public-safe prompt packs, and the local runner are ready.
+
+Public painting / sculpture refs from tanyaslingsby.com (not photography)
+may already be cached in gitignored `assets/slingsby/style-refs/` as
+`_orig` plates. Style plates can generate the moment `GOOGLE_API_KEY` is
+set:
+
+```bash
+bash scripts/slingsby-proposal-generate.sh --status
+bash scripts/slingsby-proposal-generate.sh --execute --style-only
+```
+
+Likeness jobs stay fail-closed until authorized portraits and written
+consent are on disk. Do not scrape public photos of Tanya. Do not train
+two LoRAs first.
 
 ## Goal
 
@@ -282,17 +295,23 @@ the pack can be reviewed.
 One-shot local runner (dry-run by default; `--execute` spends):
 
 ```bash
+bash scripts/slingsby-proposal-generate.sh --status
 bash scripts/slingsby-proposal-generate.sh
+bash scripts/slingsby-proposal-generate.sh --execute --style-only
 bash scripts/slingsby-proposal-generate.sh --execute
+bash scripts/slingsby-proposal-generate.sh --train-lora-plan
 ```
 
-It reads gitignored `assets/slingsby/style-refs/` and
+It loads `.env` / `.env.local` the same way `generate.py` does (setdefault,
+never prints values). It reads gitignored `assets/slingsby/style-refs/` and
 `assets/slingsby/likeness/`. Style plates run always. Likeness jobs run only
-when portraits are present.
+when portraits are present, `--reference-role likeness` is set, and
+`assets/slingsby/CONSENT.md` (or `SLINGSBY_LIKENESS_CONSENT=1`) exists.
 
-Public series thumbs from tanyaslingsby.com (paintings and sculpture only,
-never the Shoru photography set) may be cached in `style-refs/` so Gemini
-has her actual surfaces when a key arrives. Do not commit them.
+Public series `_orig` plates from tanyaslingsby.com (paintings and sculpture
+only, never the Shoru photography set) may be cached in `style-refs/` so
+Gemini has her actual surfaces when a key arrives. Do not commit them.
+Intake templates: `examples/slingsby-advisors-intake/`.
 
 Generate only after the dry-run parse looks right and spend is approved:
 
@@ -391,8 +410,14 @@ Nothing below should be committed to Rafiki.
 ## Definition of done
 
 - [x] Draft `slingsby` style is registered and face-free style plates parse
-- [ ] Authorized likeness set and mood board are on disk (gitignored)
-- [ ] Proposal shot list exists as a local prompt pack
+- [x] Public painting refs can be ingested locally (gitignored); runner
+      attaches them as style refs
+- [x] Likeness job list, consent gate, and LoRA dry-run plan exist
+- [ ] Authorized likeness set and operator mood board are on disk (gitignored)
+- [ ] Written consent file is present
+- [ ] `GOOGLE_API_KEY` is available and style plates have been generated
+- [ ] Proposal shot list exists as a local prompt pack (or the in-repo
+      likeness jobs are accepted as the first batch)
 - [ ] Style lane is locked (presence / Haute Peinture / transition-office, or a named stack)
 - [ ] Fast-lane comps exist and have been reviewed
 - [ ] LoRA training was either skipped with a reason, or trained with consent and a zip that is not in git
