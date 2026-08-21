@@ -468,6 +468,7 @@ Branch: `cursor/slingsby-proposal-visuals-prep-516d`
 PR: https://github.com/WalksWithASwagger/rafiki/pull/444
 Prior agent: https://cursor.com/agents/bc-01a025f5-ea25-799e-a8e6-59c4337a516d
 Environment: https://cursor.com/dashboard/cloud-agents/environments/e/e9a8081b-9d9c-11f1-a7d1-d6b4613131ce
+Snapshot of the intake VM (ready): `snapshot-20260821-a42fdc82-2278-4083-977f-bf3a245718c2`
 
 **Do this first**
 
