@@ -181,18 +181,15 @@ Hard ban until Tanya or Kris override: glowing brains, robots, dashboards,
 gold-serif "family office" clichés, invented sacred-geometry cosmograms that
 are not her forms, and any nation-specific cultural symbols.
 
-### Draft style suffix (hypothesis only)
+### Draft style suffix (registered, revisable)
 
-Do not add this to `styles/styles.yaml` until the mood board confirms it.
-Ready to paste as `slingsby` after that review:
+`slingsby` is now a live `--style` key. The suffix lives in
+`styles/styles.yaml` and the guide in `styles/slingsby.md`. It is a draft
+from public artist language. The mood board can still replace it.
 
-```yaml
-slingsby:
-  name: "Slingsby / Haute Peinture Editorial"
-  description: "Quiet family-office editorial grounded in Tanya Slingsby's abstract language — open space, chromatic purity, arcs and ellipses, sanded resin light. Draft until mood board lock."
-  suffix: |
-    Style guidelines: Slingsby / Haute Peinture editorial. The image should feel like colour completing a room, not like a wealth-management brochure. Grounds: open, luminous negative space; warm titanium-white, bone, or quiet dusk rather than pure #ffffff or SaaS charcoal. Surfaces: slow, hand-worked, slightly sanded; resin depth; pigment that has been layered and revealed, not airbrushed. Geometry: arcs, ellipses, meridians, and a few iconic forms — spare, not a sacred-geometry explosion. Colour: chromatic purity; jewel tones used as load-bearing fields (one or two), not a rainbow. Light is the subject as much as the person. People: present, unhurried, exact; editorial portraiture that could hang in the same room as the paintings. Tone: stewardship, transition, heart-led governance, studio intelligence. HARD BANS: generic marble-and-gold family-office stock; tech-bro navy gradients; glowing brains, robots, dashboards, fake UI; mystic-woo crystals/chakras; invented nation-specific symbols; crowded collage; readable fake letterhead or forged logos.
-```
+Face-free style plates (dry-runnable, no likeness):
+
+`examples/slingsby-advisors-style-plates.md`
 
 If the mood board is photographic and wardrobe-led rather than painterly,
 drop the Haute Peinture geometry and write a tighter presence pack instead.
@@ -357,10 +354,13 @@ Nothing below should be committed to Rafiki.
 - Training two LoRAs before a shot list exists
 - Inventing a wordmark or letterhead
 - Video, lip-sync, or Floyo unless a later brief asks for motion
-- Adding `slingsby` to the public style registry before mood-board lock
+- Shipping Tanya's face, the unpublished proposal, or a likeness prompt pack
+  in this public repo
+- Treating the draft `slingsby` suffix as final before the mood board
 
 ## Definition of done
 
+- [x] Draft `slingsby` style is registered and face-free style plates parse
 - [ ] Authorized likeness set and mood board are on disk (gitignored)
 - [ ] Proposal shot list exists as a local prompt pack
 - [ ] Style lane is locked (presence / Haute Peinture / transition-office, or a named stack)
