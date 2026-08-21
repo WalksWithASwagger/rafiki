@@ -136,6 +136,26 @@ def test_style_ref_cap_keeps_one_plate_per_locked_series(tmp_path: Path) -> None
     assert "artInSitu01.jpg" in cmd
 
 
+def test_ingest_likeness_from_folder(tmp_path: Path) -> None:
+    from PIL import Image
+
+    src = tmp_path / "drop"
+    src.mkdir()
+    Image.new("RGB", (400, 400), (20, 20, 20)).save(src / "tanya-front.jpg", "JPEG")
+    dest = tmp_path / "likeness"
+    ingest = REPO_ROOT / "scripts" / "slingsby-proposal-ingest.sh"
+    result = subprocess.run(
+        ["bash", str(ingest), "--likeness", str(src)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "SLINGSBY_LIKENESS_DIR": str(dest)},
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert (dest / "tanya-front.jpg").exists()
+
+
 def test_review_builds_viewer_from_existing_output(tmp_path: Path) -> None:
     out = tmp_path / "slingsby-advisors"
     run = out / "run-20260821-review"

@@ -10,11 +10,13 @@ cp examples/slingsby-advisors-intake/CONSENT.example.md assets/slingsby/CONSENT.
 cp examples/slingsby-advisors-intake/NOTES.example.md assets/slingsby/NOTES.md
 ```
 
-Then drop authorized portraits into `assets/slingsby/likeness/` and run:
+Then drop authorized portraits into `assets/slingsby/likeness/`, or ingest a
+PDF / zip / folder the same way the mood board arrived:
 
 ```bash
+bash scripts/slingsby-proposal-ingest.sh --likeness /path/to/portraits.pdf
 bash scripts/slingsby-proposal-generate.sh --status
-bash scripts/slingsby-proposal-generate.sh --execute
+bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
 ```
 
 Do not scrape LinkedIn, HFF, CreativeMornings, or Tanya's Shoru photography

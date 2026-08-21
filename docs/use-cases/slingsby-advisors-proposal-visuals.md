@@ -317,6 +317,11 @@ stay next to it. Public painting `_orig` plates are fallback only. Do
 not commit any of those sets. After a spend, `bash scripts/slingsby-proposal-generate.sh --review`
 rebuilds `output/slingsby-advisors/viewer.html`.
 Intake templates: `examples/slingsby-advisors-intake/`.
+Likeness PDF / zip / folder:
+
+```bash
+bash scripts/slingsby-proposal-ingest.sh --likeness /path/to/portraits.pdf
+```
 
 Generate only after the dry-run parse looks right and spend is approved:
 
