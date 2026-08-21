@@ -106,6 +106,11 @@ consent_ok() {
   case "$flag" in
     1|yes|true|ok) return 0 ;;
   esac
+  # An explicit path wins so tests (and operators) can fail closed.
+  if [[ -n "${SLINGSBY_CONSENT_FILE:-}" ]]; then
+    [[ -f "$SLINGSBY_CONSENT_FILE" ]] && return 0
+    return 1
+  fi
   [[ -f "$CONSENT_FILE" ]] && return 0
   [[ -f "$ASSETS_ROOT/CONSENT.md" ]] && return 0
   [[ -f "$ASSETS_ROOT/CONSENT" ]] && return 0

@@ -37,6 +37,7 @@ def test_status_reports_blocked_gates_without_leaking_values(tmp_path: Path) -> 
         ["--status"],
         env={
             "SLINGSBY_ENV_FILE": str(env_file),
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
             "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
             "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
         },
@@ -64,6 +65,7 @@ def test_likeness_execute_without_consent_exits_3(tmp_path: Path) -> None:
         ["--execute", "--likeness-only"],
         env={
             "GOOGLE_API_KEY": "dummy-not-used",
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
             "SLINGSBY_LIKENESS_DIR": str(tmp_path),
             "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
         },
