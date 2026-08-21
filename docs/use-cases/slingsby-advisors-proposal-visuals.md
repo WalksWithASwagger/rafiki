@@ -20,10 +20,11 @@ Related:
 **Blocked on a Gemini key and an authorized likeness set.** Pipeline,
 style pack, public-safe prompt packs, and the local runner are ready.
 
-Public painting / sculpture refs from tanyaslingsby.com (not photography)
-may already be cached in gitignored `assets/slingsby/style-refs/` as
-`_orig` plates. Style plates can generate the moment `GOOGLE_API_KEY` is
-set:
+The operator mood board (`SLA Images 2`) is ingested locally as gitignored
+page screenshots + tiles under `assets/slingsby/style-refs/moodboard/`.
+That photographic register — through-glass, golden hour, candid counsel —
+is now the locked `--style slingsby` language. Style plates can generate
+the moment `GOOGLE_API_KEY` is set:
 
 ```bash
 bash scripts/slingsby-proposal-generate.sh --status
@@ -194,11 +195,13 @@ Hard ban until Tanya or Kris override: glowing brains, robots, dashboards,
 gold-serif "family office" clichés, invented sacred-geometry cosmograms that
 are not her forms, and any nation-specific cultural symbols.
 
-### Draft style suffix (registered, revisable)
+### Locked style suffix
 
-`slingsby` is now a live `--style` key. The suffix lives in
-`styles/styles.yaml` and the guide in `styles/slingsby.md`. It is a draft
-from public artist language. The mood board can still replace it.
+`slingsby` is a live `--style` key. The suffix lives in
+`styles/styles.yaml` and the guide in `styles/slingsby.md`. It is locked
+to the operator mood board (candid high-end advisory photography), not
+to Tanya's public painting series. Haute Peinture remains useful as art
+on a wall only if a later plate asks for it.
 
 Face-free style plates (dry-runnable, no likeness):
 
@@ -308,9 +311,9 @@ never prints values). It reads gitignored `assets/slingsby/style-refs/` and
 when portraits are present, `--reference-role likeness` is set, and
 `assets/slingsby/CONSENT.md` (or `SLINGSBY_LIKENESS_CONSENT=1`) exists.
 
-Public series `_orig` plates from tanyaslingsby.com (paintings and sculpture
-only, never the Shoru photography set) may be cached in `style-refs/` so
-Gemini has her actual surfaces when a key arrives. Do not commit them.
+The runner prefers `assets/slingsby/style-refs/moodboard/` when present
+(page screenshots first, then tiles). Public painting `_orig` plates stay
+as a fallback only. Do not commit either set.
 Intake templates: `examples/slingsby-advisors-intake/`.
 
 Generate only after the dry-run parse looks right and spend is approved:
@@ -405,20 +408,22 @@ Nothing below should be committed to Rafiki.
 - Video, lip-sync, or Floyo unless a later brief asks for motion
 - Shipping Tanya's face, the unpublished proposal, or a likeness prompt pack
   in this public repo
-- Treating the draft `slingsby` suffix as final before the mood board
+- Treating Tanya's public painting series as the proposal's primary camera
+  language after the operator mood board locked a photographic register
 
 ## Definition of done
 
 - [x] Draft `slingsby` style is registered and face-free style plates parse
 - [x] Public painting refs can be ingested locally (gitignored); runner
-      attaches them as style refs
+      attaches them as style refs when no mood board is present
+- [x] Operator mood board ingested locally as page screenshots + tiles
+- [x] `--style slingsby` locked to that photographic register
 - [x] Likeness job list, consent gate, and LoRA dry-run plan exist
-- [ ] Authorized likeness set and operator mood board are on disk (gitignored)
+- [ ] Authorized likeness set is on disk (gitignored)
 - [ ] Written consent file is present
 - [ ] `GOOGLE_API_KEY` is available and style plates have been generated
 - [ ] Proposal shot list exists as a local prompt pack (or the in-repo
       likeness jobs are accepted as the first batch)
-- [ ] Style lane is locked (presence / Haute Peinture / transition-office, or a named stack)
 - [ ] Fast-lane comps exist and have been reviewed
 - [ ] LoRA training was either skipped with a reason, or trained with consent and a zip that is not in git
 - [ ] Final approved images are exported for the proposal

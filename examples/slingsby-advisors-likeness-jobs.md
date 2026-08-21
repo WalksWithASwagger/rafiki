@@ -20,35 +20,35 @@ set. The default style role would treat the photos as texture, not identity.
 **Aspect Ratio:** 4:5
 **Style:** slingsby
 **Prompt:**
-> The woman in the attached authorized reference photographs, exact likeness, three-quarter portrait, quiet eyeline, unhurried. A luminous room finished by one large abstract painting. Generous negative space, no readable text, no logos. Do not invent a different person.
+> The woman in the attached authorized reference photographs, exact likeness, three-quarter portrait, quiet eyeline, unhurried. Photographed in a luminous modern office, soft window light, shallow depth of field. Generous negative space, no readable text, no logos. Do not invent a different person.
 
 ## 2. Bio still
 **For:** About / bio page
 **Aspect Ratio:** 4:5
 **Style:** slingsby
 **Prompt:**
-> The woman in the attached authorized reference photographs, exact likeness, seated, rest expression, hands visible and still. Quiet advisory room, paper on the table, one painting on the wall. No readable letterhead. Do not invent a different person.
+> The woman in the attached authorized reference photographs, exact likeness, seated, rest expression, hands visible and still. Quiet advisory room, paper on the table, city soft through glass. No readable letterhead. Do not invent a different person.
 
 ## 3. Stewardship table
 **For:** Working scene
 **Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> The woman in the attached authorized reference photographs, exact likeness, at a table with a closed folder and a glass of water, listening more than performing. Wide editorial crop. The room is finished by one abstract. No other people, no readable text. Do not invent a different person.
+> The woman in the attached authorized reference photographs, exact likeness, at a table with a closed folder and a glass of water, listening more than performing. Wide editorial crop through glass or a doorway, golden-hour haze. No other people, no readable text. Do not invent a different person.
 
 ## 4. Studio
 **For:** Painter / practice page
 **Aspect Ratio:** 4:5
 **Style:** slingsby
 **Prompt:**
-> The woman in the attached authorized reference photographs, exact likeness, standing in a working studio beside a large sanded or impasto abstract, not posing like a catalogue model. Daylight, pigment, quiet labour. No readable titles on the paintings. Do not invent a different person.
+> The woman in the attached authorized reference photographs, exact likeness, standing at a sunlit window desk in a modern office, not posing like a catalogue model. Backlight, quiet labour, no other faces. No readable text on screens or paper. Do not invent a different person.
 
 ## 5. Counsel
 **For:** Conversation / two-chair page
 **Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> The woman in the attached authorized reference photographs, exact likeness, in a two-chair conversation room; the second chair is empty. She is present and exact, not theatrical. Slow light, one painting, no other faces, no logos. Do not invent a different person.
+> The woman in the attached authorized reference photographs, exact likeness, in a two-chair conversation room; the second chair is empty. She is present and exact, not theatrical. Through-glass crop, slow window light, no other faces, no logos. Do not invent a different person.
 
 ## 6. Hands and material
 **For:** Detail plate

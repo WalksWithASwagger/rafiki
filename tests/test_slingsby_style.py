@@ -15,9 +15,11 @@ def test_slingsby_style_is_registered() -> None:
     styles = load_styles()
     assert "slingsby" in styles
     suffix = resolve_style_suffix("slingsby", styles)
-    assert "Haute Peinture" in suffix
-    assert "Meridians" in suffix
+    lowered = suffix.lower()
+    assert "through glass" in lowered or "through-glass" in lowered
+    assert "golden-hour" in lowered or "golden hour" in lowered
     assert "HARD BANS" in suffix
+    assert "stock face" in lowered or "stock faces" in lowered
 
 
 def test_slingsby_style_plates_parse_without_likeness() -> None:

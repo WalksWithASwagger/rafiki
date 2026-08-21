@@ -65,11 +65,17 @@ if [[ "$STYLE_ONLY" -eq 1 && "$LIKENESS_ONLY" -eq 1 ]]; then
 fi
 
 LIKENESS_DIR="${SLINGSBY_LIKENESS_DIR:-$ROOT/assets/slingsby/likeness}"
-STYLE_DIR="${SLINGSBY_STYLE_DIR:-$ROOT/assets/slingsby/style-refs}"
+if [[ -n "${SLINGSBY_STYLE_DIR:-}" ]]; then
+  STYLE_DIR="$SLINGSBY_STYLE_DIR"
+elif [[ -d "$ROOT/assets/slingsby/style-refs/moodboard" ]]; then
+  STYLE_DIR="$ROOT/assets/slingsby/style-refs/moodboard"
+else
+  STYLE_DIR="$ROOT/assets/slingsby/style-refs"
+fi
 OUT_DIR="${SLINGSBY_OUTPUT_DIR:-$ROOT/output/slingsby-advisors}"
 CONSENT_FILE="${SLINGSBY_CONSENT_FILE:-$ROOT/assets/slingsby/CONSENT.md}"
 PY="${RAFIKI_DOCTOR_PYTHON:-python3}"
-MAX_STYLE_REFS="${SLINGSBY_MAX_STYLE_REFS:-12}"
+MAX_STYLE_REFS="${SLINGSBY_MAX_STYLE_REFS:-16}"
 
 has_gemini_key() {
   [[ -n "${GOOGLE_API_KEY:-}${GEMINI_API_KEY:-}" ]]
@@ -109,35 +115,23 @@ cap_images() {
   fi
   "$PY" -c '
 import os, sys
-from collections import defaultdict
 
 limit = int(sys.argv[1])
 paths = sys.argv[2:]
+SERIES = ("meridians", "mutual", "shoru", "arcana", "artinsitu", "hautepeinture")
 
-def series(path: str) -> str:
-    name = os.path.basename(path).lower()
-    for key in ("meridians", "mutual", "shoru", "arcana", "artinsitu", "hautepeinture"):
+def sort_key(path: str):
+    norm = path.replace("\\\\", "/").lower()
+    name = os.path.basename(norm)
+    if "/pages/" in norm:
+        return (0, name, 0)
+    for index, key in enumerate(SERIES):
         if key in name:
-            return key
-    return "other"
+            return (1, index, -os.path.getsize(path))
+    return (2, 99, -os.path.getsize(path))
 
-groups: dict[str, list[str]] = defaultdict(list)
-for path in paths:
-    groups[series(path)].append(path)
-for bucket in groups.values():
-    bucket.sort(key=os.path.getsize, reverse=True)
-
-selected: list[str] = []
-for key in ("meridians", "mutual", "shoru", "arcana", "artinsitu", "hautepeinture", "other"):
-    if groups[key] and len(selected) < limit:
-        selected.append(groups[key].pop(0))
-rest = [path for bucket in groups.values() for path in bucket]
-rest.sort(key=os.path.getsize, reverse=True)
-for path in rest:
-    if len(selected) >= limit:
-        break
-    selected.append(path)
-print("\n".join(selected))
+paths.sort(key=sort_key)
+print("\n".join(paths[:limit]))
 ' "$max" "$@"
 }
 

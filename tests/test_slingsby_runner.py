@@ -82,6 +82,28 @@ def test_likeness_only_without_photos_skips(tmp_path: Path) -> None:
     assert "no photos" in result.stdout
 
 
+def test_style_ref_cap_prefers_moodboard_pages(tmp_path: Path) -> None:
+    style_dir = tmp_path / "moodboard"
+    (style_dir / "pages").mkdir(parents=True)
+    (style_dir / "tiles").mkdir()
+    (style_dir / "pages" / "page-1.jpg").write_bytes(b"p" * 50)
+    (style_dir / "pages" / "page-2.jpg").write_bytes(b"p" * 50)
+    (style_dir / "tiles" / "tile-huge.jpg").write_bytes(b"y" * 400)
+    result = _run(
+        ["--style-only"],
+        env={
+            "SLINGSBY_STYLE_DIR": str(style_dir),
+            "SLINGSBY_MAX_STYLE_REFS": "2",
+            "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    cmd = result.stdout.splitlines()[0]
+    assert "page-1.jpg" in cmd
+    assert "page-2.jpg" in cmd
+    assert "tile-huge.jpg" not in cmd
+
+
 def test_style_ref_cap_keeps_one_plate_per_locked_series(tmp_path: Path) -> None:
     style_dir = tmp_path / "style-refs"
     style_dir.mkdir()

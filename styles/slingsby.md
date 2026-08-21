@@ -1,34 +1,23 @@
-# Slingsby / Haute Peinture Editorial
+# Slingsby Advisors Editorial
 
-Draft style for Slingsby Advisors proposal plates and, later, authorized
-portraits of Tanya Slingsby. The language comes from her public artist
-statement and series names, not from private photos.
+Locked from the operator mood board (`SLA Images 2`): candid high-end
+advisory photography. Not a painting LoRA. Not generic UHNW marble.
 
 Use-case: [Slingsby Advisors proposal visuals](../docs/use-cases/slingsby-advisors-proposal-visuals.md).
 
 ## Overview
 
-Tanya's studio practice is abstract: colour, form, line, and surface. She
-calls site-specific commissions **Haute Peinture** — "The Completion of
-Space." Proposal images should feel like that room, not like a bank brochure.
-
-Public series that lock the suffix (from tanyaslingsby.com/portfolio, not
-committed here):
-
-- **Meridians (2012)** — matte black, one metallic-gold nested sweep, vertical
-  impasto ridges
-- **Mutual (2017)** — two stacked complementary fields on white (terracotta
-  over turquoise)
-- **Shoru (2011)** — one impasto crimson circle on bronze-gold, etched grid
-- **Arcana (2010)** — imperfect off-white ring, cracked plaster greys
-- **Art In Situ** — the painting finishes a real quiet room
+Proposal images should feel like a fly-on-the-wall in a luminous modern
+office: through-glass frames, soft reflections, golden-hour haze, shallow
+depth of field. People, when requested, are mid-conversation — not posed
+catalogue portraits. Tanya's likeness only when authorized refs are
+attached with `--reference-role likeness`.
 
 ## When To Use
 
-- Abstract section plates for a family-office / legacy proposal
-- Rooms, tables, and landscapes that should share a wall with her paintings
-- Authorized portraits **only** when likeness refs or a subject LoRA are
-  attached — this style does not invent a face
+- Counsel, stewardship, and bio stills for the family-office proposal
+- Empty rooms and urban plates that share the same light
+- Authorized portraits of Tanya placed into this register
 
 ## When Not To Use
 
@@ -36,25 +25,27 @@ committed here):
 - Tech-bro navy, dashboards, glowing brains, robots
 - Mystical crystal / chakra pastiche
 - Invented letterhead, logos, or fake Sanskrit/Latin/Arabic titles
+- Copying stock faces from the mood-board tiles
 - Any likeness job without an authorized reference set
 
-## Palette
+## Palette And Light
 
-- Grounds: warm titanium-white, bone, quiet dusk
-- Load-bearing colour: one or two jewel tones, used as fields
-- Light: slow, spatial, the subject as much as the object
+- Warm neutrals: oak, cream, bone, soft grey
+- Cool glass and distant city blue
+- Natural window light, backlight, occasional lens flare
 - Avoid: pure #ffffff, SaaS charcoal, rainbow accents
 
-## Geometry And Surface
+## Camera
 
-- A few arcs, ellipses, meridians, or iconic forms
-- Sanded resin depth; pigment revealed, not airbrushed
-- Generous open space (Salt Spring / "purity of open space")
-- Never a dense sacred-geometry poster
+- Shoot through glass, doorways, or a blurred foreground shoulder
+- Shallow depth of field; subjects rarely look at camera
+- Floor-to-ceiling windows, long tables, quiet architecture
+- Page-5 register: cinematic urban canyon, high contrast, golden distance
 
 ## Example
 
 ```bash
+bash scripts/slingsby-proposal-generate.sh --status
 npx rafiki examples/slingsby-advisors-style-plates.md \
   --style slingsby \
   --output-dir output/slingsby-advisors \

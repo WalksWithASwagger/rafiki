@@ -3,62 +3,62 @@
 Public-safe style-lock pack for the [Slingsby Advisors proposal visuals](../docs/use-cases/slingsby-advisors-proposal-visuals.md) use case.
 
 These prompts do **not** request Tanya Slingsby's likeness. They lock the
-Haute Peinture / transition-office register so later authorized portraits
-have a room to sit in. Private likeness prompts stay in the local
+operator mood board: through-glass advisory rooms, golden-hour haze, and
+cinematic urban plates. Private likeness prompts stay in the local
 `prompts/` directory.
 
-## 1. Colour Completing A Room
+## 1. Through Glass Counsel
 **For:** Proposal cover atmosphere / section opener
 **Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> A quiet interior where one jewel-tone colour field completes the space the way a commissioned abstract painting would: warm titanium-white walls, a single large canvas of sanded resin and pigment emulsion, slow daylight, generous empty floor. No people, no readable text, no logos. The room should feel like stewardship and open space, not a bank or a yacht.
+> A luminous modern advisory room photographed through a glass partition: soft reflections, a long wood table, two empty chairs pulled in, floor-to-ceiling windows and a muted city beyond. Shallow depth of field, fly-on-the-wall. No people, no faces, no readable text, no logos.
 
-## 2. Pigment Emulsion Plate
-**For:** Abstract section plate
-**Aspect Ratio:** 1:1
+## 2. Golden Hour Table
+**For:** Stewardship / working-scene plate without a portrait
+**Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> A square abstract plate in the Arcana / pigment-emulsion language: layered titanium-white and resin, hand-sanded so one imperfect ring or organic form has expanded and fine-crackled through grey plaster. Slow light in the depth. No figure, no sacred-geometry explosion, no title text.
+> Golden-hour light across a quiet counsel table: closed folder, a glass of water, one chair pushed back. Warm haze and a faint lens flare from the window. No faces, no readable letterhead, no marble-and-gold wealth clichés.
 
-## 3. Meridians Field
-**For:** Kinetic section plate
+## 3. High-Key Boardroom
+**For:** Collaborative-space plate
+**Aspect Ratio:** 16:9
+**Style:** slingsby
+**Prompt:**
+> A high-key empty boardroom, white table, pale chairs, city high-rises soft through glass. Bright natural light, clean architecture, generous negative space. No people, no figures, no screens with UI, no logos.
+
+## 4. Sunlit Window Desk
+**For:** Solo-work atmosphere
 **Aspect Ratio:** 4:5
 **Style:** slingsby
 **Prompt:**
-> A vertical abstract field in the Meridians language: deep matte black ground, one metallic-gold nested sweep or teardrop curve, vertical impasto ridges, matte against gloss. Spare, kinetic, uncrowded. No people, no invented titles, no collage.
+> A sun-drenched window desk, closed laptop, paper in a shallow stack, backlight and a soft flare. Observational crop, no figure, no face, no readable text.
 
-## 4. Stewardship Table
-**For:** Working-scene plate without a portrait
+## 5. Frosted Corridor
+**For:** Arrival / in-between plate
 **Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> A quiet advisory table in a luminous room: paper, a closed folder, a glass of water, one chair pulled back. On the wall behind, a large sanded abstract with a single ellipse of jewel colour. No faces, no readable letterhead, no marble-and-gold wealth clichés. The mood is transition, care, and exactness.
+> Looking down a bright office corridor through frosted glass banding: empty small table in the distance, cool daylight, layered reflections. No people, no faces, no signage.
 
-## 5. Open Coastal Light
-**For:** Landscape / breath plate
+## 6. Dusk City Lounge
+**For:** Evening / transition plate
 **Aspect Ratio:** 16:9
 **Style:** slingsby
 **Prompt:**
-> An open coastal or island light study — pale water, a long horizon, titanium-white sky, one slow colour shift toward a jewel dusk at the edge. Purity of open space. No figures, no houses, no text, no mystic symbols.
+> Dusk lounge at a high window: city lights as bokeh, warm interior wood, two empty lounge chairs. Moody but quiet. No figures, no readable skyline logos.
 
-## 6. Ellipse In Titanium White
-**For:** End-matter / quiet closer
+## 7. Urban Canyon
+**For:** Architectural / city plate
+**Aspect Ratio:** 4:5
+**Style:** slingsby
+**Prompt:**
+> A cinematic urban canyon: towering facades in deep shadow, a distant building in golden-hour light, high contrast, no readable signs, no people, no cars in focus.
+
+## 8. Glass Geometry
+**For:** Abstract closer
 **Aspect Ratio:** 1:1
 **Style:** slingsby
 **Prompt:**
-> A nearly empty square: warm titanium-white ground, one precise ellipse of jewel colour sitting slightly off-center, resin depth and a faint sanded tooth. Colour completing space. No figure, no frame, no typography.
-
-## 7. Mutual Fields
-**For:** Duality / partnership section plate
-**Aspect Ratio:** 1:1
-**Style:** slingsby
-**Prompt:**
-> Two stacked complementary colour fields on luminous white, Mutual language: a terracotta or ochre wash above a turquoise field with palette-knife striations, a thin white gap between them, organic irregular edges. No figure, no text, no third colour fighting the pair.
-
-## 8. Shoru Circle
-**For:** Material / practice section plate
-**Aspect Ratio:** 1:1
-**Style:** slingsby
-**Prompt:**
-> One impasto crimson circle, Shoru language, on a bronze-gold ground with an etched grid and heavy materiality. Spare, tactile, uncrowded. No figure, no invented title, no collage.
+> Abstract architectural glass: intersecting planes, dark teal and gold fragments of a city reflection, grain like still photography, no figure, no typography, no invented brand marks.
