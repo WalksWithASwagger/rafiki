@@ -175,7 +175,11 @@ if [[ "$STATUS" -eq 1 ]]; then
   if has_gemini_key && [[ ${#likeness_refs[@]} -gt 0 ]] && consent_ok; then
     echo "  likeness jobs:  ready (bash $0 --execute --likeness-only)"
   else
-    echo "  likeness jobs:  blocked — need key, authorized portraits, and written consent"
+    missing=()
+    has_gemini_key || missing+=("GOOGLE_API_KEY")
+    [[ ${#likeness_refs[@]} -gt 0 ]] || missing+=("authorized portraits")
+    consent_ok || missing+=("written consent")
+    echo "  likeness jobs:  blocked — need ${missing[*]}"
   fi
   echo "  LoRA fallback:  dry-run via bash $0 --train-lora-plan (needs zip URL + REPLICATE to execute)"
   exit 0

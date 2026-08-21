@@ -426,7 +426,7 @@ Nothing below should be committed to Rafiki.
 - [x] Operator mood board ingested locally as page screenshots + tiles
 - [x] `--style slingsby` locked to that photographic register
 - [x] Likeness job list, consent gate, and LoRA dry-run plan exist
-- [ ] Authorized likeness set is on disk (gitignored)
+- [x] Authorized likeness set is on disk locally (gitignored; Gemini 10 + LoRA 22)
 - [ ] Written consent file is present
 - [ ] `GOOGLE_API_KEY` is available and style plates have been generated
 - [ ] Proposal shot list exists as a local prompt pack (or the in-repo
