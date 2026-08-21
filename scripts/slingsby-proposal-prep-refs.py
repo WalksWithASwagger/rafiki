@@ -31,7 +31,7 @@ LIKENESS_CROPS: dict[str, tuple[float, float, float, float]] = {
     "086-threequarter-white-mic.jpg": (0.12, 0.00, 0.88, 0.30),
     "130-profile-stage-mic.jpg": (0.18, 0.00, 0.82, 0.88),
     "133-threequarter-tanya-slingsby-tag.jpg": (0.02, 0.00, 0.62, 0.68),
-    "146-front-smile-blue-coat-crop.jpg": (0.36, 0.00, 1.00, 0.50),
+    "146-front-smile-blue-coat-crop.jpg": (0.36, 0.00, 0.82, 0.48),
 }
 
 # Source tile → (crop or None for copy) → destination name.

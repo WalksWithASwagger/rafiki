@@ -97,6 +97,22 @@ def test_status_reports_overridden_likeness_pack(tmp_path: Path) -> None:
     assert str(private) in result.stdout
 
 
+def test_status_accepts_gemini_api_key_alias(tmp_path: Path) -> None:
+    result = _run(
+        ["--status"],
+        env={
+            "GEMINI_API_KEY": "should-never-be-printed-alias",
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "GOOGLE_API_KEY: set" in result.stdout
+    assert "should-never-be-printed-alias" not in result.stdout
+    assert "should-never-be-printed-alias" not in result.stderr
+
+
 def test_execute_without_key_exits_2() -> None:
     result = _run(["--execute", "--style-only"])
     assert result.returncode == 2

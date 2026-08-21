@@ -456,9 +456,25 @@ Nothing below should be committed to Rafiki.
 
 ## Next operator action
 
-Add `GOOGLE_API_KEY` to this environment. Then:
+**The only remaining gate is `GOOGLE_API_KEY`.** Authorized likeness,
+consent, face-free style refs, and the appearance-locked prompt pack are
+already on the agent VM that ingested them (`assets/slingsby/`, gitignored).
+A brand-new agent on this branch will **not** see those files unless the
+VM is snapshotted after intake, or the authorized album is re-ingested.
+
+1. Create a Gemini key at https://aistudio.google.com/app/apikey
+2. Save it on this Cloud Agent environment as **`GOOGLE_API_KEY`**
+   (not `GEMINI_API_KEY` — generation reads `GOOGLE_API_KEY`. The local
+   runner now copies the alias if that is what lands.)
+3. Do **not** start a bare new agent on the branch and expect the faces
+   to be there. Either:
+   - keep working on the VM that already has `assets/slingsby/`, or
+   - snapshot that VM, then start a new agent from the saved environment
+     so the gitignored intake and the key arrive together
+4. Then spend:
 
 ```bash
+bash scripts/slingsby-proposal-generate.sh --status
 bash scripts/slingsby-proposal-generate.sh --execute --style-only
 bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
 bash scripts/slingsby-proposal-generate.sh --review

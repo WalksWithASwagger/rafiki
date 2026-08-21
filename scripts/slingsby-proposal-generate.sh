@@ -37,6 +37,12 @@ _load_dotenv() {
 _load_dotenv "${SLINGSBY_ENV_FILE:-$ROOT/.env}"
 _load_dotenv "$ROOT/.env.local"
 
+# Generation reads GOOGLE_API_KEY only (lib/providers/gemini.py).
+# GEMINI_API_KEY is the documented readiness alias — copy it, never print it.
+if [[ -z "${GOOGLE_API_KEY:-}" && -n "${GEMINI_API_KEY:-}" ]]; then
+  export GOOGLE_API_KEY="${GEMINI_API_KEY}"
+fi
+
 EXECUTE=0
 STATUS=0
 TRAIN_LORA_PLAN=0
