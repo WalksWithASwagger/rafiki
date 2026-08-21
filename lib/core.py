@@ -40,7 +40,8 @@ def generate_image(
         style: Style preset name, composed spec (e.g. "kk+bcai"), "none", or None.
         reference_image: Path to a reference image.
         reference_images: Additional reference image paths.
-        reference_role: "style" (look-and-feel), "brand" (preserve referenced marks when prompted), or "mockup" (preserve garment).
+        reference_role: "style" (look-and-feel), "brand" (preserve referenced marks when prompted),
+            "mockup" (preserve garment), or "likeness" (match an authorized person).
         composition_references: Extra ref image paths (mockup mode).
         dry_run: Log intent without calling any API.
 

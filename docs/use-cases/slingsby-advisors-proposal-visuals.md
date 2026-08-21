@@ -263,15 +263,19 @@ python3 generate.py --prompt-file examples/slingsby-advisors-style-plates.md \
   --dry-run --no-viewer
 ```
 
-Likeness batch, after local files exist — dry-run first:
+Likeness jobs (in-repo template; still needs authorized photos):
 
 ```bash
-npx rafiki prompts/slingsby-advisors-proposal.md \
+python3 generate.py --prompt-file examples/slingsby-advisors-likeness-jobs.md \
   --style slingsby \
-  --global-reference-images assets/slingsby/likeness/a.jpg,assets/slingsby/likeness/b.jpg,assets/slingsby/style-refs/mood-01.jpg \
+  --reference-role likeness \
+  --global-reference-images assets/slingsby/likeness/a.jpg,assets/slingsby/likeness/b.jpg \
   --output-dir output/slingsby-advisors \
   --dry-run --no-viewer
 ```
+
+`--reference-role likeness` is required. The default `style` role tells Gemini
+to treat photos as texture only, which will invent a different woman.
 
 Generate only after the dry-run parse looks right and spend is approved:
 

@@ -19,14 +19,14 @@ have a room to sit in. Private likeness prompts stay in the local
 **Aspect Ratio:** 1:1
 **Style:** slingsby
 **Prompt:**
-> A square abstract plate in the pigment-emulsion language: layered titanium-white and resin, hand-sanded so a single organic form has expanded and fine-crackled through the surface. Chromatic purity, one jewel-tone core, slow light in the depth of the resin. No figure, no sacred-geometry explosion, no title text.
+> A square abstract plate in the Arcana / pigment-emulsion language: layered titanium-white and resin, hand-sanded so one imperfect ring or organic form has expanded and fine-crackled through grey plaster. Slow light in the depth. No figure, no sacred-geometry explosion, no title text.
 
 ## 3. Meridians Field
 **For:** Kinetic section plate
 **Aspect Ratio:** 4:5
 **Style:** slingsby
 **Prompt:**
-> A vertical abstract field in the Meridians language: bold spare lines and flat jewel-toned colour, one or two arcs or meridians crossing an open ground. Vibrant and kinetic but uncrowded. Colour as form. No people, no invented titles, no collage.
+> A vertical abstract field in the Meridians language: deep matte black ground, one metallic-gold nested sweep or teardrop curve, vertical impasto ridges, matte against gloss. Spare, kinetic, uncrowded. No people, no invented titles, no collage.
 
 ## 4. Stewardship Table
 **For:** Working-scene plate without a portrait

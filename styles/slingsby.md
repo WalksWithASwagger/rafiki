@@ -12,11 +12,16 @@ Tanya's studio practice is abstract: colour, form, line, and surface. She
 calls site-specific commissions **Haute Peinture** — "The Completion of
 Space." Proposal images should feel like that room, not like a bank brochure.
 
-Two public series inform the suffix:
+Public series that lock the suffix (from tanyaslingsby.com/portfolio, not
+committed here):
 
-- **Pigment emulsion** — titanium-white and resin layers, built up and
-  hand-sanded; forms expand and crackle over time
-- **Meridians** — bold lines, flat jewel-toned colour, kinetic but spare
+- **Meridians (2012)** — matte black, one metallic-gold nested sweep, vertical
+  impasto ridges
+- **Mutual (2017)** — two stacked complementary fields on white (terracotta
+  over turquoise)
+- **Shoru (2011)** — one impasto crimson circle on bronze-gold, etched grid
+- **Arcana (2010)** — imperfect off-white ring, cracked plaster greys
+- **Art In Situ** — the painting finishes a real quiet room
 
 ## When To Use
 
