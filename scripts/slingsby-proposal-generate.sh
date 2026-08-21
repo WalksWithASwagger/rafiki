@@ -91,6 +91,14 @@ OUT_DIR="${SLINGSBY_OUTPUT_DIR:-$ROOT/output/slingsby-advisors}"
 CONSENT_FILE="${SLINGSBY_CONSENT_FILE:-$ASSETS_ROOT/CONSENT.md}"
 PY="${RAFIKI_DOCTOR_PYTHON:-python3}"
 MAX_STYLE_REFS="${SLINGSBY_MAX_STYLE_REFS:-16}"
+STYLE_PACK="${SLINGSBY_STYLE_PACK:-$ROOT/examples/slingsby-advisors-style-plates.md}"
+if [[ -n "${SLINGSBY_LIKENESS_PACK:-}" ]]; then
+  LIKENESS_PACK="$SLINGSBY_LIKENESS_PACK"
+elif [[ -f "$ROOT/prompts/slingsby-advisors-proposal.md" ]]; then
+  LIKENESS_PACK="$ROOT/prompts/slingsby-advisors-proposal.md"
+else
+  LIKENESS_PACK="$ROOT/examples/slingsby-advisors-likeness-jobs.md"
+fi
 
 has_gemini_key() {
   [[ -n "${GOOGLE_API_KEY:-}${GEMINI_API_KEY:-}" ]]
@@ -176,8 +184,8 @@ done < <(list_images "$LIKENESS_DIR")
 
 if [[ "$STATUS" -eq 1 ]]; then
   echo "Slingsby Advisors generation gates"
-  echo "  style pack:     examples/slingsby-advisors-style-plates.md"
-  echo "  likeness pack:  examples/slingsby-advisors-likeness-jobs.md"
+  echo "  style pack:     $STYLE_PACK"
+  echo "  likeness pack:  $LIKENESS_PACK"
   echo "  style refs:     ${#style_refs[@]} file(s) in $STYLE_DIR (cap $MAX_STYLE_REFS)"
   echo "  likeness refs:  ${#likeness_refs[@]} file(s) in $LIKENESS_DIR"
   echo "  GOOGLE_API_KEY: $(has_gemini_key && echo set || echo unset)"
@@ -257,7 +265,7 @@ fi
 if [[ "$will_style" -eq 1 ]]; then
   style_cmd=(
     "$PY" generate.py
-    --prompt-file examples/slingsby-advisors-style-plates.md
+    --prompt-file "$STYLE_PACK"
     --style slingsby
     --reference-role style
     --output-dir "$OUT_DIR"
@@ -273,7 +281,7 @@ fi
 if [[ "$will_likeness" -eq 1 ]]; then
   likeness_cmd=(
     "$PY" generate.py
-    --prompt-file examples/slingsby-advisors-likeness-jobs.md
+    --prompt-file "$LIKENESS_PACK"
     --style slingsby
     --reference-role likeness
     --global-reference-images "$(join_csv "${likeness_refs[@]}")"

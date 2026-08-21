@@ -52,6 +52,51 @@ def test_status_reports_blocked_gates_without_leaking_values(tmp_path: Path) -> 
     assert "likeness jobs:  blocked" in out
 
 
+def test_runner_prefers_private_likeness_pack(tmp_path: Path) -> None:
+    from PIL import Image
+
+    private = tmp_path / "proposal.md"
+    private.write_text(
+        "## 1. Hero\n"
+        "**For:** cover\n"
+        "**Aspect Ratio:** 4:5\n"
+        "**Style:** slingsby\n"
+        "**Prompt:**\n"
+        "> The woman in the attached authorized reference photographs, exact likeness.\n"
+    )
+    likeness = tmp_path / "likeness"
+    likeness.mkdir()
+    Image.new("RGB", (64, 64), (30, 30, 30)).save(likeness / "face.jpg", "JPEG")
+    result = _run(
+        ["--likeness-only"],
+        env={
+            "SLINGSBY_LIKENESS_PACK": str(private),
+            "SLINGSBY_LIKENESS_DIR": str(likeness),
+            "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr + result.stdout
+    assert str(private) in result.stdout
+    assert "examples/slingsby-advisors-likeness-jobs.md" not in result.stdout
+
+
+def test_status_reports_overridden_likeness_pack(tmp_path: Path) -> None:
+    private = tmp_path / "local-proposal.md"
+    private.write_text("# local\n")
+    result = _run(
+        ["--status"],
+        env={
+            "SLINGSBY_LIKENESS_PACK": str(private),
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert str(private) in result.stdout
+
+
 def test_execute_without_key_exits_2() -> None:
     result = _run(["--execute", "--style-only"])
     assert result.returncode == 2

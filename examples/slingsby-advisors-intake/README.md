@@ -8,6 +8,9 @@ mkdir -p assets/slingsby/likeness assets/slingsby/wardrobe \
   assets/slingsby/style-refs assets/slingsby/proposal-refs
 cp examples/slingsby-advisors-intake/CONSENT.example.md assets/slingsby/CONSENT.md
 cp examples/slingsby-advisors-intake/NOTES.example.md assets/slingsby/NOTES.md
+mkdir -p prompts
+cp examples/slingsby-advisors-intake/PROPOSAL.example.md \
+  prompts/slingsby-advisors-proposal.md
 ```
 
 Then drop authorized portraits into `assets/slingsby/likeness/`, or ingest a

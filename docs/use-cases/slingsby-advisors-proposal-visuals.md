@@ -222,6 +222,11 @@ Private working file (create locally, never commit):
 
 `prompts/slingsby-advisors-proposal.md`
 
+The runner prefers that file for likeness jobs when it exists. Fill it from
+`assets/slingsby/NOTES.md` (hair, jewelry, age, bans). Public-safe fallback:
+`examples/slingsby-advisors-likeness-jobs.md`. Template:
+`examples/slingsby-advisors-intake/PROPOSAL.example.md`.
+
 Use the existing numbered Markdown contract from `lib/prompts.py`:
 
 ```markdown
