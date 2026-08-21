@@ -17,11 +17,14 @@ Related:
 
 ## Status
 
-**Blocked only on `GOOGLE_API_KEY`.** Pipeline, style pack, prompt packs,
+**Handoff — stills not generated.** Pipeline, style pack, prompt packs,
 authorized likeness (10 Gemini / 22 LoRA), written consent, and the local
-runner are ready. Full mood-board pages stay archived; Gemini style refs
-default to face-free crops so stock faces do not leak. Likeness refs
-default to nametag-cropped face plates.
+runner are ready. **0 PNGs** in `output/slingsby-advisors/`. Blocked on a
+stills key: `GOOGLE_API_KEY` (preferred) or `OPENAI_API_KEY` (`gpt-image-2`
+fallback). Floyo is video-only. This cloud VM does not have Mac Varlock
+value files (`~/.agents/env/values/`). Full mood-board pages stay archived;
+style refs default to face-free crops; likeness refs default to
+nametag-cropped face plates.
 
 ```bash
 python3 scripts/slingsby-proposal-prep-refs.py
@@ -459,27 +462,31 @@ Nothing below should be committed to Rafiki.
 - [ ] Final approved images are exported for the proposal
 - [x] Nothing private was committed to Rafiki
 
-## Next operator action
+## Next agent
 
-**The remaining gate is a stills key.** Gemini (`GOOGLE_API_KEY`) is
-preferred. OpenAI (`OPENAI_API_KEY` → `gpt-image-2`) is the fallback
-when Gemini is unset. Floyo is video-only and is not used for these
-plates. Authorized likeness,
-consent, face-free style refs, and the appearance-locked prompt pack are
-already on the agent VM that ingested them (`assets/slingsby/`, gitignored).
-A brand-new agent on this branch will **not** see those files unless the
-VM is snapshotted after intake, or the authorized album is re-ingested.
+Branch: `cursor/slingsby-proposal-visuals-prep-516d`
+PR: https://github.com/WalksWithASwagger/rafiki/pull/444
+Prior agent: https://cursor.com/agents/bc-01a025f5-ea25-799e-a8e6-59c4337a516d
+Environment: https://cursor.com/dashboard/cloud-agents/environments/e/e9a8081b-9d9c-11f1-a7d1-d6b4613131ce
 
-1. Create a Gemini key at https://aistudio.google.com/app/apikey
-2. Save it on this Cloud Agent environment as **`GOOGLE_API_KEY`**
-   (not `GEMINI_API_KEY` — generation reads `GOOGLE_API_KEY`. The local
-   runner now copies the alias if that is what lands.)
-3. Do **not** start a bare new agent on the branch and expect the faces
-   to be there. Either:
-   - keep working on the VM that already has `assets/slingsby/`, or
-   - snapshot that VM, then start a new agent from the saved environment
-     so the gitignored intake and the key arrive together
-4. Then spend:
+**Do this first**
+
+1. Confirm `assets/slingsby/likeness-clean/` has 10 jpgs and
+   `assets/slingsby/CONSENT.md` exists. If not, this is a bare checkout —
+   re-ingest the authorized Google Photos album (operator has the share;
+   do not scrape LinkedIn/HFF) into `assets/slingsby/album/raw/`, pick
+   plates, run `python3 scripts/slingsby-proposal-prep-refs.py`, and copy
+   `examples/slingsby-advisors-intake/CONSENT.example.md` to
+   `assets/slingsby/CONSENT.md`. Local appearance lock:
+   `assets/slingsby/NOTES.md` + `prompts/slingsby-advisors-proposal.md`
+   (gitignored).
+2. Confirm a stills key with
+   `varlock run --inject vars -- python3 -c 'import os; print(bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")))'`
+   Do not `cat` `.env` or `varlock reveal`. Mac
+   `~/.agents/env/values/.env.shared.local` is **not** on cloud VMs.
+   Save `GOOGLE_API_KEY` (preferred) or `OPENAI_API_KEY` on the
+   environment above. Floyo is video-only.
+3. Spend:
 
 ```bash
 bash scripts/slingsby-proposal-generate.sh --status
@@ -489,8 +496,20 @@ bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
 bash scripts/slingsby-proposal-generate.sh --review
 ```
 
-`--smoke` spends the first job only. The runner attaches at most six
-full-face likeness plates by default (drops the eyes-only 086 crop).
+**Hard rules**
 
-Do not train a LoRA first. Inspect style plates for stock-face leakage
-before accepting likeness comps.
+- `--reference-role likeness` on likeness jobs. Default `style` invents
+  another woman.
+- Do not attach moodboard pages/selected tiles (stock faces).
+- Do not attach the raw 150-photo album (other people).
+- Do not train a LoRA first. Replicate zip URL + token only if Gemini/OpenAI
+  cannot hold her face.
+- Do not invent Tanya's face. Do not generate nametags / Vancouver AI / MAC.
+- Confirm "Slingsby Advisors" vs "Slingsby Legacy Advisors Inc." before
+  wordmarks.
+- CI `test` is red on `main` too (`js-yaml` / `nanoid` frontend audit).
+  Do not bump the lockfile on this PR.
+
+`--smoke` spends the first job only. The runner attaches at most six
+full-face likeness plates (drops eyes-only 086). It re-execs through
+`varlock run --inject vars` when `varlock` is on `PATH`.
