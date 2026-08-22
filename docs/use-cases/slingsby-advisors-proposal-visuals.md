@@ -482,12 +482,14 @@ PR: https://github.com/WalksWithASwagger/rafiki/pull/444
 Prior agent: https://cursor.com/agents/bc-01a025f5-ea25-799e-a8e6-59c4337a516d
 Environment: https://cursor.com/dashboard/cloud-agents/environments/e/e9a8081b-9d9c-11f1-a7d1-d6b4613131ce
 Snapshot of the intake VM (ready): `snapshot-20260821-a42fdc82-2278-4083-977f-bf3a245718c2`
+Snapshot after first spend + taste-gate page (ready):
+`snapshot-20260822-22ed1f26-6112-4faf-96dd-c3eb8318a13e`
 
 **Do this first**
 
 First Gemini spend already landed on this VM (see Status). A bare new
 agent will not see `assets/slingsby/` or `output/slingsby-advisors/`
-unless it boots from the snapshot above or re-ingests.
+unless it boots from the spend snapshot above or re-ingests.
 
 1. Open `output/slingsby-advisors/taste-gate.html` (or rebuild with
    `bash scripts/slingsby-proposal-generate.sh --review`) and taste-gate
