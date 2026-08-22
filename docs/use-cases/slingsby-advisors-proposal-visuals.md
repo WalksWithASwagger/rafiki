@@ -24,6 +24,7 @@ Related:
 - style: `run-20260822-170441/` — 8/8 plates
 - likeness: `run-20260822-170604/` — 6/6 plates
 - viewer: `output/slingsby-advisors/viewer.html`
+- taste gate: `output/slingsby-advisors/taste-gate.html`
 
 Human taste gate still required: confirm Tanya's face against
 `assets/slingsby/likeness-clean/`. Agent review of the first spend:
@@ -488,10 +489,12 @@ First Gemini spend already landed on this VM (see Status). A bare new
 agent will not see `assets/slingsby/` or `output/slingsby-advisors/`
 unless it boots from the snapshot above or re-ingests.
 
-1. Human taste-gate likeness vs `assets/slingsby/likeness-clean/`.
-   Reject stock-face leakage, youth-wash, nametags, letterhead, readable
-   text. Optionally regen `07-urban-canyon` (silhouette), studio (open
-   laptop), and hands (not a tight crop).
+1. Open `output/slingsby-advisors/taste-gate.html` (or rebuild with
+   `bash scripts/slingsby-proposal-generate.sh --review`) and taste-gate
+   likeness vs `assets/slingsby/likeness-clean/`. Reject stock-face
+   leakage, youth-wash, nametags, letterhead, readable text. Optionally
+   regen `07-urban-canyon` (silhouette), studio (open laptop), and hands
+   (not a tight crop).
 2. If this is a bare checkout: confirm `likeness-clean/` has 10 jpgs and
    `CONSENT.md` exists. If not, re-ingest the authorized Google Photos
    album (operator has the share; do not scrape LinkedIn/HFF) into

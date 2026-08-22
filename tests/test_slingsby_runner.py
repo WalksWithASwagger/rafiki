@@ -416,9 +416,18 @@ def test_review_builds_viewer_from_existing_output(tmp_path: Path) -> None:
     run = out / "run-20260821-review"
     run.mkdir(parents=True)
     (run / "run.json").write_text('{"prompts": []}\n')
-    result = _run(["--review"], env={"SLINGSBY_OUTPUT_DIR": str(out)})
+    result = _run(
+        ["--review"],
+        env={
+            "SLINGSBY_OUTPUT_DIR": str(out),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+        },
+    )
     assert result.returncode == 0, result.stderr + result.stdout
     assert (out / "viewer.html").exists() or "viewer" in result.stdout.lower()
+    assert (out / "taste-gate.html").is_file()
+    assert "should-never-be-printed" not in result.stdout
+    assert "should-never-be-printed" not in (out / "taste-gate.html").read_text()
 
 
 def test_train_lora_plan_is_dry_run() -> None:

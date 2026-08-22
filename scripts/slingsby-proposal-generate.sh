@@ -10,6 +10,7 @@
 #   bash scripts/slingsby-proposal-generate.sh --train-lora-plan
 #   bash scripts/slingsby-proposal-generate.sh --review
 #   python3 scripts/slingsby-proposal-prep-refs.py
+#   python3 scripts/slingsby-proposal-taste-gate.py --output-dir output/slingsby-advisors --likeness-dir assets/slingsby/likeness-clean
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -335,6 +336,9 @@ fi
 build_viewer() {
   if [[ -d "$OUT_DIR" ]]; then
     "$PY" generate.py view "$OUT_DIR"
+    "$PY" "$ROOT/scripts/slingsby-proposal-taste-gate.py" \
+      --output-dir "$OUT_DIR" \
+      --likeness-dir "$LIKENESS_DIR"
   else
     echo "No run dir yet at $OUT_DIR"
     return 1
