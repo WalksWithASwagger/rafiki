@@ -212,7 +212,7 @@ def test_openai_dry_run_passes_gpt_model(tmp_path: Path) -> None:
     result = _run(
         ["--style-only"],
         env={
-            "OPENAI_API_KEY": "dummy-not-used",
+            "OPENAI_API_KEY": "dummy-not-used-xxxxxx",
             "SLINGSBY_OUTPUT_DIR": str(tmp_path / "out"),
             "SLINGSBY_STYLE_DIR": str(tmp_path / "empty-style"),
         },
@@ -220,6 +220,22 @@ def test_openai_dry_run_passes_gpt_model(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr + result.stdout
     assert "--model gpt" in result.stdout
     assert "Provider: OpenAI" in result.stdout
+
+
+def test_status_treats_redacted_stub_as_unset(tmp_path: Path) -> None:
+    result = _run(
+        ["--status"],
+        env={
+            "GOOGLE_API_KEY": "x" + ("\u2592" * 5),
+            "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
+            "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty-likeness"),
+            "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
+        },
+    )
+    assert result.returncode == 0, result.stderr
+    assert "GOOGLE_API_KEY: unset" in result.stdout
+    assert "style plates:   blocked" in result.stdout
+    assert "\u2592" not in result.stdout
 
 
 def test_execute_without_key_exits_2() -> None:
@@ -235,7 +251,7 @@ def test_likeness_execute_without_consent_exits_3(tmp_path: Path) -> None:
     result = _run(
         ["--execute", "--likeness-only"],
         env={
-            "GOOGLE_API_KEY": "dummy-not-used",
+            "GOOGLE_API_KEY": "dummy-not-used-xxxxxx",
             "SLINGSBY_ASSETS_ROOT": str(tmp_path / "empty-assets"),
             "SLINGSBY_LIKENESS_DIR": str(tmp_path),
             "SLINGSBY_CONSENT_FILE": str(tmp_path / "missing-consent.md"),
@@ -249,7 +265,7 @@ def test_likeness_only_without_photos_skips(tmp_path: Path) -> None:
     result = _run(
         ["--execute", "--likeness-only"],
         env={
-            "GOOGLE_API_KEY": "dummy-not-used",
+            "GOOGLE_API_KEY": "dummy-not-used-xxxxxx",
             "SLINGSBY_LIKENESS_DIR": str(tmp_path / "empty"),
         },
     )

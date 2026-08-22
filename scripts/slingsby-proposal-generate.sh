@@ -120,12 +120,19 @@ else
   LIKENESS_PACK="$ROOT/examples/slingsby-advisors-likeness-jobs.md"
 fi
 
+# Reject redacted stubs (e.g. "x▒▒▒▒▒") that bool(env) treats as set.
+_secret_looks_real() {
+  local val="$1"
+  [[ -n "$val" && ${#val} -ge 20 ]] || return 1
+  V="$val" "$PY" -c 'import os,sys; v=os.environ.get("V",""); sys.exit(0 if v.isascii() and len(v) >= 20 else 1)'
+}
+
 has_gemini_key() {
-  [[ -n "${GOOGLE_API_KEY:-}${GEMINI_API_KEY:-}" ]]
+  _secret_looks_real "${GOOGLE_API_KEY:-}" || _secret_looks_real "${GEMINI_API_KEY:-}"
 }
 
 has_openai_key() {
-  [[ -n "${OPENAI_API_KEY:-}" ]]
+  _secret_looks_real "${OPENAI_API_KEY:-}"
 }
 
 has_image_key() {

@@ -17,14 +17,26 @@ Related:
 
 ## Status
 
-**Handoff — stills not generated.** Pipeline, style pack, prompt packs,
-authorized likeness (10 Gemini / 22 LoRA), written consent, and the local
-runner are ready. **0 PNGs** in `output/slingsby-advisors/`. Blocked on a
-stills key: `GOOGLE_API_KEY` (preferred) or `OPENAI_API_KEY` (`gpt-image-2`
-fallback). Floyo is video-only. This cloud VM does not have Mac Varlock
-value files (`~/.agents/env/values/`). Full mood-board pages stay archived;
-style refs default to face-free crops; likeness refs default to
-nametag-cropped face plates.
+**First Gemini spend landed (2026-08-22).** Local-only under
+`output/slingsby-advisors/` (gitignored):
+
+- smoke: `run-20260822-170415/` — 1/1 style plate
+- style: `run-20260822-170441/` — 8/8 plates
+- likeness: `run-20260822-170604/` — 6/6 plates
+- viewer: `output/slingsby-advisors/viewer.html`
+
+Human taste gate still required: confirm Tanya's face against
+`assets/slingsby/likeness-clean/`. Agent review of the first spend:
+
+- style `07-urban-canyon`: soft foreground head/shoulder silhouette
+- likeness bio still: paper present, text looks blurred
+- likeness studio: laptop is open (prompt asked closed); papers look
+  unreadable
+- likeness hands: over-shoulder + pigment, not a tight hands-only crop
+- no nametags, no Vancouver AI / MAC slides, no invented wordmarks
+
+The runner now treats redacted Varlock stubs as unset so a mask cannot
+be sent as `GOOGLE_API_KEY`.
 
 ```bash
 python3 scripts/slingsby-proposal-prep-refs.py
@@ -472,22 +484,28 @@ Snapshot of the intake VM (ready): `snapshot-20260821-a42fdc82-2278-4083-977f-bf
 
 **Do this first**
 
-1. Confirm `assets/slingsby/likeness-clean/` has 10 jpgs and
-   `assets/slingsby/CONSENT.md` exists. If not, this is a bare checkout —
-   re-ingest the authorized Google Photos album (operator has the share;
-   do not scrape LinkedIn/HFF) into `assets/slingsby/album/raw/`, pick
-   plates, run `python3 scripts/slingsby-proposal-prep-refs.py`, and copy
+First Gemini spend already landed on this VM (see Status). A bare new
+agent will not see `assets/slingsby/` or `output/slingsby-advisors/`
+unless it boots from the snapshot above or re-ingests.
+
+1. Human taste-gate likeness vs `assets/slingsby/likeness-clean/`.
+   Reject stock-face leakage, youth-wash, nametags, letterhead, readable
+   text. Optionally regen `07-urban-canyon` (silhouette), studio (open
+   laptop), and hands (not a tight crop).
+2. If this is a bare checkout: confirm `likeness-clean/` has 10 jpgs and
+   `CONSENT.md` exists. If not, re-ingest the authorized Google Photos
+   album (operator has the share; do not scrape LinkedIn/HFF) into
+   `assets/slingsby/album/raw/`, pick plates, run
+   `python3 scripts/slingsby-proposal-prep-refs.py`, and copy
    `examples/slingsby-advisors-intake/CONSENT.example.md` to
    `assets/slingsby/CONSENT.md`. Local appearance lock:
    `assets/slingsby/NOTES.md` + `prompts/slingsby-advisors-proposal.md`
    (gitignored).
-2. Confirm a stills key with
+3. Confirm a stills key with
    `varlock run --inject vars -- python3 -c 'import os; print(bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")))'`
    Do not `cat` `.env` or `varlock reveal`. Mac
    `~/.agents/env/values/.env.shared.local` is **not** on cloud VMs.
-   Save `GOOGLE_API_KEY` (preferred) or `OPENAI_API_KEY` on the
-   environment above. Floyo is video-only.
-3. Spend:
+   Floyo is video-only. Re-spend only if the human rejects plates:
 
 ```bash
 bash scripts/slingsby-proposal-generate.sh --status
