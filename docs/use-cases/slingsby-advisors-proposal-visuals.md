@@ -501,9 +501,12 @@ unless it boots from the spend snapshot above or re-ingests.
 1. Open `output/slingsby-advisors/taste-gate.html` (or rebuild with
    `bash scripts/slingsby-proposal-generate.sh --review`) and taste-gate
    likeness vs `assets/slingsby/likeness-clean/`. Reject stock-face
-   leakage, youth-wash, nametags, letterhead, readable text. Optionally
-   regen `07-urban-canyon` (silhouette), studio (open laptop), and hands
-   (not a tight crop).
+   leakage, youth-wash, nametags, letterhead, readable text. Six
+   face-free style plates are already in `approved/` + `canva-export/`.
+   Style held: `04` (laptop-lid mark), `07` (silhouette). Optionally
+   regen those plus studio (open laptop) and hands (not a tight crop).
+   After face approval:
+   `python3 generate.py approve slingsby-advisors --run 20260822-170604`.
 2. If this is a bare checkout: confirm `likeness-clean/` has 10 jpgs and
    `CONSENT.md` exists. If not, re-ingest the authorized Google Photos
    album (operator has the share; do not scrape LinkedIn/HFF) into
