@@ -25,11 +25,16 @@ Related:
 - likeness: `run-20260822-170604/` — 6/6 plates
 - viewer: `output/slingsby-advisors/viewer.html`
 - taste gate: `output/slingsby-advisors/taste-gate.html`
+- agent-staged style (no faces): `approved/` + `canva-export/`
+  (6 plates; Canva MCP still unauthenticated, so this is a local bundle)
 
 Human taste gate still required: confirm Tanya's face against
-`assets/slingsby/likeness-clean/`. Agent review of the first spend:
+`assets/slingsby/likeness-clean/`. Likeness plates are **not** in
+`approved/`. Agent review of the first spend:
 
-- style `07-urban-canyon`: soft foreground head/shoulder silhouette
+- style staged: `01`, `02`, `03`, `05`, `06`, `08` — empty rooms, no people
+- style held: `04-sunlit-window-desk` (laptop-lid mark), `07-urban-canyon`
+  (foreground silhouette)
 - likeness bio still: paper present, text looks blurred
 - likeness studio: laptop is open (prompt asked closed); papers look
   unreadable
@@ -470,9 +475,11 @@ Nothing below should be committed to Rafiki.
       `examples/slingsby-advisors-likeness-jobs.md`)
 - [x] Local appearance-locked pack can live at `prompts/slingsby-advisors-proposal.md`
       (gitignored; runner prefers it)
-- [ ] Fast-lane comps exist and have been reviewed
-- [ ] LoRA training was either skipped with a reason, or trained with consent and a zip that is not in git
-- [ ] Final approved images are exported for the proposal
+- [x] Fast-lane comps exist (15 PNGs). Style subset agent-staged;
+      likeness still needs a human face gate
+- [x] LoRA training skipped: Gemini + refs first; Replicate still unset
+- [ ] Final approved images are exported for the proposal (local style
+      bundle only; likeness not approved; Canva upload blocked)
 - [x] Nothing private was committed to Rafiki
 
 ## Next agent
