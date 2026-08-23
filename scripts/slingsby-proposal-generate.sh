@@ -284,7 +284,11 @@ while IFS= read -r file; do
   [[ -n "$file" ]] && style_refs+=("$file")
 done < <(list_images "$STYLE_DIR")
 if [[ ${#style_refs[@]} -gt 0 ]]; then
-  mapfile -t style_refs < <(cap_images "$MAX_STYLE_REFS" "${style_refs[@]}")
+  capped_style_refs=()
+  while IFS= read -r file; do
+    [[ -n "$file" ]] && capped_style_refs+=("$file")
+  done < <(cap_images "$MAX_STYLE_REFS" "${style_refs[@]}")
+  style_refs=("${capped_style_refs[@]}")
 fi
 
 likeness_refs=()
@@ -293,7 +297,11 @@ while IFS= read -r file; do
 done < <(list_images "$LIKENESS_DIR")
 likeness_found=${#likeness_refs[@]}
 if [[ ${#likeness_refs[@]} -gt 0 ]]; then
-  mapfile -t likeness_refs < <(prefer_likeness "$MAX_LIKENESS_REFS" "${likeness_refs[@]}")
+  capped_likeness_refs=()
+  while IFS= read -r file; do
+    [[ -n "$file" ]] && capped_likeness_refs+=("$file")
+  done < <(prefer_likeness "$MAX_LIKENESS_REFS" "${likeness_refs[@]}")
+  likeness_refs=("${capped_likeness_refs[@]}")
 fi
 
 if [[ "$STATUS" -eq 1 ]]; then

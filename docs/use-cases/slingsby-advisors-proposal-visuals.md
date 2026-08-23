@@ -28,9 +28,10 @@ Related:
 - agent-staged style (no faces): `approved/` + `canva-export/`
   (6 plates; Canva MCP still unauthenticated, so this is a local bundle)
 
-Human taste gate still required: confirm Tanya's face against
-`assets/slingsby/likeness-clean/`. Likeness plates are **not** in
-`approved/`. Agent review of the first spend:
+The operator approved the visible likeness gallery on 2026-08-23. The six
+likeness plates are approved for this proposal round; promotion into the
+private `approved/` and `canva-export/` bundles remains a local-only action.
+Agent review of the first spend:
 
 - style staged: `01`, `02`, `03`, `05`, `06`, `08` — empty rooms, no people
 - style held: `04-sunlit-window-desk` (laptop-lid mark), `07-urban-canyon`
@@ -42,7 +43,8 @@ Human taste gate still required: confirm Tanya's face against
 - no nametags, no Vancouver AI / MAC slides, no invented wordmarks
 
 The runner now treats redacted Varlock stubs as unset so a mask cannot
-be sent as `GOOGLE_API_KEY`.
+be sent as `GOOGLE_API_KEY`, and it remains compatible with the Bash 3.2
+shipped on macOS.
 
 ```bash
 python3 scripts/slingsby-proposal-prep-refs.py
@@ -470,67 +472,37 @@ Nothing below should be committed to Rafiki.
 - [x] Authorized likeness set is on disk locally (gitignored; Gemini 10 + LoRA 22)
 - [x] Written consent file is present (local `assets/slingsby/CONSENT.md`)
 - [x] Face-free style crops and nametag-cropped likeness plates can be built locally
-- [ ] `GOOGLE_API_KEY` is available and style plates have been generated
+- [x] First paid generation completed through an injected image credential;
+      no credential value was committed
 - [x] First-batch shot list exists (`examples/slingsby-advisors-style-plates.md` +
       `examples/slingsby-advisors-likeness-jobs.md`)
 - [x] Local appearance-locked pack can live at `prompts/slingsby-advisors-proposal.md`
       (gitignored; runner prefers it)
-- [x] Fast-lane comps exist (15 PNGs). Style subset agent-staged;
-      likeness still needs a human face gate
+- [x] Fast-lane comps exist (15 PNGs). Style subset agent-staged; the
+      operator approved the visible likeness gallery on 2026-08-23
 - [x] LoRA training skipped: Gemini + refs first; Replicate still unset
-- [ ] Final approved images are exported for the proposal (local style
-      bundle only; likeness not approved; Canva upload blocked)
+- [ ] Operator-approved likeness run is promoted into the private approved
+      and Canva export bundles
 - [x] Nothing private was committed to Rafiki
 
-## Next agent
+## Continuation checklist
 
-Branch: `cursor/slingsby-proposal-visuals-prep-516d`
-PR: https://github.com/WalksWithASwagger/rafiki/pull/444
-Prior agent: https://cursor.com/agents/bc-01a025f5-ea25-799e-a8e6-59c4337a516d
-Environment: https://cursor.com/dashboard/cloud-agents/environments/e/e9a8081b-9d9c-11f1-a7d1-d6b4613131ce
-Snapshot of the intake VM (ready): `snapshot-20260821-a42fdc82-2278-4083-977f-bf3a245718c2`
-Snapshot after first spend + taste-gate page (ready):
-`snapshot-20260822-22ed1f26-6112-4faf-96dd-c3eb8318a13e`
+The first spend and all private source material live only in the operator's
+approved project workspace. A bare clone does not contain the source photos,
+proposal, prompt pack, generated images, ratings, or export bundles.
 
-**Do this first**
+1. Confirm the private workspace still contains the authorized refs,
+   consent record, `run-20260822-170604/`, and the approved style bundle.
+2. Promote the operator-approved likeness run with
+   `python3 generate.py approve slingsby-advisors --run 20260822-170604`,
+   then refresh the private Canva export.
+3. Turn the remaining website and proposal page list into numbered jobs in
+   `prompts/slingsby-advisors-proposal.md`. Generate only jobs with a known
+   destination, aspect ratio, and safe area.
+4. Check gates with `bash scripts/slingsby-proposal-generate.sh --status`,
+   run one paid smoke job, inspect it, and only then run the bounded batch.
 
-First Gemini spend already landed on this VM (see Status). A bare new
-agent will not see `assets/slingsby/` or `output/slingsby-advisors/`
-unless it boots from the spend snapshot above or re-ingests.
-
-1. Open `output/slingsby-advisors/taste-gate.html` (or rebuild with
-   `bash scripts/slingsby-proposal-generate.sh --review`) and taste-gate
-   likeness vs `assets/slingsby/likeness-clean/`. Reject stock-face
-   leakage, youth-wash, nametags, letterhead, readable text. Six
-   face-free style plates are already in `approved/` + `canva-export/`.
-   Style held: `04` (laptop-lid mark), `07` (silhouette). Optionally
-   regen those plus studio (open laptop) and hands (not a tight crop).
-   After face approval:
-   `python3 generate.py approve slingsby-advisors --run 20260822-170604`.
-2. If this is a bare checkout: confirm `likeness-clean/` has 10 jpgs and
-   `CONSENT.md` exists. If not, re-ingest the authorized Google Photos
-   album (operator has the share; do not scrape LinkedIn/HFF) into
-   `assets/slingsby/album/raw/`, pick plates, run
-   `python3 scripts/slingsby-proposal-prep-refs.py`, and copy
-   `examples/slingsby-advisors-intake/CONSENT.example.md` to
-   `assets/slingsby/CONSENT.md`. Local appearance lock:
-   `assets/slingsby/NOTES.md` + `prompts/slingsby-advisors-proposal.md`
-   (gitignored).
-3. Confirm a stills key with
-   `varlock run --inject vars -- python3 -c 'import os; print(bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("OPENAI_API_KEY")))'`
-   Do not `cat` `.env` or `varlock reveal`. Mac
-   `~/.agents/env/values/.env.shared.local` is **not** on cloud VMs.
-   Floyo is video-only. Re-spend only if the human rejects plates:
-
-```bash
-bash scripts/slingsby-proposal-generate.sh --status
-bash scripts/slingsby-proposal-generate.sh --execute --smoke --style-only
-bash scripts/slingsby-proposal-generate.sh --execute --style-only
-bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
-bash scripts/slingsby-proposal-generate.sh --review
-```
-
-**Hard rules**
+Hard rules:
 
 - `--reference-role likeness` on likeness jobs. Default `style` invents
   another woman.
@@ -541,8 +513,6 @@ bash scripts/slingsby-proposal-generate.sh --review
 - Do not invent Tanya's face. Do not generate nametags / Vancouver AI / MAC.
 - Confirm "Slingsby Advisors" vs "Slingsby Legacy Advisors Inc." before
   wordmarks.
-- CI `test` is red on `main` too (`js-yaml` / `nanoid` frontend audit).
-  Do not bump the lockfile on this PR.
 
 `--smoke` spends the first job only. The runner attaches at most six
 full-face likeness plates (drops eyes-only 086). It re-execs through
