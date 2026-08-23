@@ -148,6 +148,7 @@ def test_generate_options_endpoint_returns_defaults(server):
     assert "gemini-2.5-flash-image" in [model["id"] for model in payload["models"]]
     assert "linkedin" in [preset["key"] for preset in payload["aspectPresets"]]
     assert "style" in payload["referenceRoles"]
+    assert "likeness" in payload["referenceRoles"]
     assert any(style["key"] == "none" for style in payload["styles"])
 
 

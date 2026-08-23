@@ -89,7 +89,7 @@ def run_batch(
         style: Default style preset or composed spec (e.g. "kk+bcai").
         ref_paths: Per-prompt reference image paths (aligned with prompts).
         global_reference_images: Reference images reused for every prompt.
-        reference_role: "style", "brand", or "mockup".
+        reference_role: "style", "brand", "mockup", or "likeness".
         composition_references: Extra ref paths for mockup mode.
         dry_run: Preview without calling any API.
         workers: Parallel generation workers (1 = sequential).
