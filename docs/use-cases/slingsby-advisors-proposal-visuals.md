@@ -42,6 +42,49 @@ Agent review of the first spend:
 - likeness hands: over-shoulder + pigment, not a tight hands-only crop
 - no nametags, no Vancouver AI / MAC slides, no invented wordmarks
 
+### Session handoff — 2026-08-25
+
+The private Better Giving Foundation proposal package now includes a
+30-image review set. Generated images, likeness references, and working
+prompts remain local and gitignored; this section records only the operational
+handoff.
+
+Private workspace:
+
+- `output/slingsby-gbf-teams-events-round3/index.html` — the operator's
+  working viewer, updated to show 10 round-three images plus 20 round-four
+  A/B images
+- `output/slingsby-gbf-quiet-hybrid-round4/review/` — the curated round-four
+  set: 20 PNGs with 20 unique SHA-256 hashes
+- `output/slingsby-gbf-rounds3-4-combined-viewer-30/` — self-contained
+  30-image viewer package
+- `prompts/slingsby-advisors-gbf-round4/` — private work packets, quiet-hybrid
+  prompt set, smoke batch, A/B batch, and three targeted repair prompts
+
+Desktop handoff:
+
+- `Slingsby-GBF-Round3-Google-Photos-10.zip` — 10 PNGs; archive integrity
+  verified
+- `Slingsby-GBF-Round4-AB-Google-Photos-20.zip` — 20 PNGs; archive integrity
+  verified
+- `Slingsby-Advisors-Image-Package-2026-08-24/GBF-Rounds3-4-Combined-Viewer-30/`
+  — portable viewer with all 30 images
+
+Round-four provider evidence:
+
+- `run-20260824-205737` — smoke, 2/2 successful, estimated $0.078
+- `run-20260824-210838` — A/B batch, 20/20 successful, estimated $0.780
+- `run-20260825-090559` — three targeted repairs, 3/3 successful, estimated
+  $0.117
+- total successful provider estimate: $0.975; provider billing remains
+  authoritative
+
+The curated viewer substitutes the three repair outputs for frames with a
+written notebook/monitor surface, an extra person, and a briefcase mark. Final
+checks found 30 unique viewer images, no missing image paths, and valid ZIP
+archives. A sandboxed preflight failed at DNS before generation and is not
+included in the successful-run estimate.
+
 The runner now treats redacted Varlock stubs as unset so a mask cannot
 be sent as `GOOGLE_API_KEY`, and it remains compatible with the Bash 3.2
 shipped on macOS.
@@ -480,7 +523,11 @@ Nothing below should be committed to Rafiki.
       (gitignored; runner prefers it)
 - [x] Fast-lane comps exist (15 PNGs). Style subset agent-staged; the
       operator approved the visible likeness gallery on 2026-08-23
+- [x] Better Giving Foundation rounds three and four are packaged as a
+      private 30-image viewer; both Google Photos ZIPs are on the Desktop
 - [x] LoRA training skipped: Gemini + refs first; Replicate still unset
+- [ ] Operator selects the preferred A/B frames and identifies any website or
+      proposal slots that still need a distinct scene
 - [ ] Operator-approved likeness run is promoted into the private approved
       and Canva export bundles
 - [x] Nothing private was committed to Rafiki
@@ -491,16 +538,18 @@ The first spend and all private source material live only in the operator's
 approved project workspace. A bare clone does not contain the source photos,
 proposal, prompt pack, generated images, ratings, or export bundles.
 
-1. Confirm the private workspace still contains the authorized refs,
-   consent record, `run-20260822-170604/`, and the approved style bundle.
-2. Promote the operator-approved likeness run with
-   `python3 generate.py approve slingsby-advisors --run 20260822-170604`,
-   then refresh the private Canva export.
-3. Turn the remaining website and proposal page list into numbered jobs in
-   `prompts/slingsby-advisors-proposal.md`. Generate only jobs with a known
-   destination, aspect ratio, and safe area.
-4. Check gates with `bash scripts/slingsby-proposal-generate.sh --status`,
-   run one paid smoke job, inspect it, and only then run the bounded batch.
+1. Open `output/slingsby-gbf-teams-events-round3/index.html` or the portable
+   combined viewer and select the preferred A/B frames from round four.
+2. Map the selected images to concrete website or proposal slots. Record
+   aspect ratio and safe-area needs before requesting another generation.
+3. Start the next private prompt round from
+   `prompts/slingsby-advisors-gbf-round4/GENERATION-WORK-PACKET.md`, keeping
+   the quiet hybrid register while introducing genuinely different scenes.
+4. Check gates with `bash scripts/slingsby-proposal-generate.sh --status`, run
+   a bounded paid smoke, inspect it, and only then run the approved batch.
+5. If the earlier six-image likeness run is needed for Canva, promote it with
+   `python3 generate.py approve slingsby-advisors --run 20260822-170604` and
+   refresh the private Canva export.
 
 Hard rules:
 
