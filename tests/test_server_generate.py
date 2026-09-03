@@ -360,6 +360,31 @@ def test_run_portal_job_accepts_brand_reference_role(tmp_path, monkeypatch):
     assert captured["reference_role"] == "brand"
 
 
+def test_run_portal_job_accepts_likeness_reference_role(tmp_path, monkeypatch):
+    output_root = tmp_path / "output"
+    captured: dict = {}
+
+    def fake_run_batch(**kwargs):
+        captured.update(kwargs)
+        return _fake_batch_result(kwargs["project_dir"])
+
+    monkeypatch.setattr(server, "run_batch", fake_run_batch)
+
+    result = server._run_portal_job(
+        {
+            "mode": "single",
+            "project": "Likeness",
+            "prompt": "authorized portrait",
+            "reference_role": "likeness",
+            "dry_run": True,
+        },
+        output_root=output_root,
+    )
+
+    assert result["ok"] is True
+    assert captured["reference_role"] == "likeness"
+
+
 def test_safe_error_text_preserves_provider_message_without_control_chars():
     text = server._safe_error_text("provider said nope\x00\ntry a smaller prompt")
 

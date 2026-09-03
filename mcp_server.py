@@ -559,7 +559,7 @@ def rafiki_generate(
         style: kk | hopecode | bcai | upgrade | none | composed (e.g. kk+bcai).
         reference_image: Optional path to a reference image.
         global_reference_images: Additional reference image paths reused for this generation.
-        reference_role: style | brand | mockup.
+        reference_role: style | brand | mockup | likeness.
         composition_references: Extra reference paths for mockup composition.
         dry_run: Preview without calling any API.
 
@@ -644,7 +644,7 @@ def rafiki_batch(
         reference_image: Optional reference image reused for every prompt.
         reference_images: Optional per-prompt reference image paths.
         global_reference_images: Additional reference image paths reused for every prompt.
-        reference_role: style | brand | mockup.
+        reference_role: style | brand | mockup | likeness.
         composition_references: Extra reference paths for mockup composition.
         workers: Parallel generation workers (1 = sequential, 4 = fast).
         dry_run: Preview without generating any images.
