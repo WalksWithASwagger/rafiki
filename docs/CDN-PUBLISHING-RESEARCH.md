@@ -1,8 +1,10 @@
 # CDN-Backed Approved Asset Publishing — Research Memo
 
-Status: **proposed — pending maintainer decision** (issue #202). Research/spike only; this
-memo recommends *whether* to proceed. No implementation, uploads, or new vendor
-integration are in scope.
+Status: **decision recorded 2026-06-28 — defer** (issue #202 closed after
+PR #262). Research/spike only; this memo recommended *whether* to proceed.
+No implementation, uploads, or new vendor integration followed. The live
+recommendation remains Option 3 (status quo) until a concrete cross-site
+URL need appears.
 
 ## Question
 

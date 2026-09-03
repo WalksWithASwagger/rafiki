@@ -1,6 +1,6 @@
 # Rafiki Library And Archive Roadmap
 
-Last reviewed: 2026-06-09
+Last reviewed: 2026-09-03
 
 ## Goal
 
