@@ -1,12 +1,14 @@
 # Rafiki Roadmap
 
-Last reviewed: 2026-07-01
+Last reviewed: 2026-09-03
 
-Latest audit: [MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md)
-Prior audit: [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
+Latest audit: [Main Sweep And PR Disposition (2026-09-03)](../meta/audits/2026-09-03-main-docs-and-pr-disposition.md)
+Prior audits: [MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md),
+[Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
-That audit is a dated snapshot. The active roadmap below reflects the later
-lineage comparison and Curriculum Atlas story-mode work on `main`.
+Those audits are dated snapshots. The active roadmap below reflects later
+lineage comparison, Curriculum Atlas story-mode work, the August deps
+batches, and the 2026-09-03 queue sweep on `main`.
 
 This roadmap is the maintainers' working plan for Rafiki. It is intentionally
 forward-looking: current product surface lives in `README.md` and the per-area
@@ -52,7 +54,7 @@ prompt pack at `examples/keynote-visual-workflow-prompt-pack.md`.
 | Agent access | `mcp_server.py`, `scripts/dry-run-smoke.py`, `docs/MCP.md` | MCP server exposes direct generation tools plus a constrained `generate.py` bridge for local clients; `npm run smoke:dry-run` verifies the spend-free Node CLI, MCP status, MCP bridge, and archive-health path. |
 | Delivery pipeline | `docs/DELIVERY-PIPELINE.md`, `meta/routines/`, `.claude/skills/rafiki-github-*`, `.agents/skills/rafiki-github-*` | GitHub-only issue-to-PR planning, traceability, and review are documented for Claude Code, Codex, and maintainers. |
 | Prompt collections | `styles/`, `examples/` | The tool ships `styles/` presets and `examples/` tutorials; generated prompt packs (`prompts/`) and output assets (`assets/`) are kept in a private knowledge base and gitignored, per the tool/output separation. |
-| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 300+ collected Python tests in this checkout, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
+| Tests and CI | `tests/`, `.github/workflows/ci.yml` | 570+ Python test functions across 71 files in this checkout, plus CI for Python tests, portal E2E, docs links, npm package contents, and doctor. |
 
 ## Roadmap Themes
 
@@ -231,6 +233,11 @@ Standalone open work outside the epic:
    controls (#201, blocked on #200).
 9. Verify Notion signed upload against a live workspace (#69, needs-human,
    credential-gated).
+10. Remaining dependency pile (#448 / #420): land #429 (google-genai 2.16)
+    then #430 (mcp 2.x) only after the live Gemini dry-run and live MCP
+    client smoke those PRs require; hold TypeScript 7 (#388 / #428) until
+    typescript-eslint supports TS ≥7.1. Safe minors that are green and
+    up to date may continue to land one at a time.
 
 ## Non-Goals For Now
 
