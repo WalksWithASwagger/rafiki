@@ -1025,8 +1025,15 @@ def main() -> None:
             "Combinable with --reference-image or --reference-images."
         ),
     )
-    parser.add_argument("--reference-role", choices=["style", "brand", "mockup"], default="style",
-                        help="'style' (look-and-feel), 'brand' (preserve referenced marks when prompted), or 'mockup' (preserve garment + add print)")
+    parser.add_argument(
+        "--reference-role",
+        choices=["style", "brand", "mockup", "likeness"],
+        default="style",
+        help=(
+            "'style' (look-and-feel), 'brand' (preserve referenced marks when prompted), "
+            "'mockup' (preserve garment + add print), or 'likeness' (match an authorized person)"
+        ),
+    )
     parser.add_argument("--composition-references", metavar="PATHS",
                         help="Extra comma-separated ref images for mockup mode")
     parser.add_argument("--workers", "-w", type=int, default=1, metavar="N",

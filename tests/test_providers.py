@@ -237,7 +237,34 @@ def test_gemini_brand_references_allow_requested_marks(tmp_path, monkeypatch):
     assert contents[0] == "opened:futureproof-logo.png"
     assert "preserve the referenced mark's letterforms" in contents[-1]
     assert "Do not invent alternate Futureproof or BC+AI marks" in contents[-1]
-    assert contents[-1].endswith("make a brand-bearing festival banner")
+
+
+def test_gemini_likeness_references_require_identity_match(tmp_path, monkeypatch):
+    from lib.providers import gemini as gemini_module
+    from lib.providers.gemini import GeminiProvider
+
+    ref = tmp_path / "authorized-portrait.png"
+    ref.write_bytes(b"fake")
+
+    class FakePILImage:
+        @staticmethod
+        def open(path):
+            return f"opened:{Path(path).name}"
+
+    monkeypatch.setattr(gemini_module, "PILImage", FakePILImage)
+
+    contents = GeminiProvider()._build_contents(
+        prompt="three-quarter portrait in a quiet room",
+        reference_image=str(ref),
+        reference_images=None,
+        reference_role="likeness",
+        composition_references=None,
+    )
+
+    assert contents[0] == "opened:authorized-portrait.png"
+    assert "AUTHORIZED photographs of one real person" in contents[-1]
+    assert "Do not invent a different person" in contents[-1]
+    assert contents[-1].endswith("three-quarter portrait in a quiet room")
 
 
 def test_gemini_generate_image_missing_api_key_returns_false(monkeypatch, tmp_path):

@@ -18,6 +18,9 @@ deeper operating docs by surface area.
 - [Keynote Visual Workflow Use Case](use-cases/keynote-visual-workflow.md) -
   public use case for turning talk notes into prompt packs, reviewable image
   candidates, slides, and downstream publishing assets.
+- [Slingsby Advisors Proposal Visuals](use-cases/slingsby-advisors-proposal-visuals.md) -
+  public-safe prep for likeness + style generation of Tanya Slingsby for a
+  family-office proposal; private photos and the working prompt pack stay local.
 
 ## Runtime Surfaces
 
