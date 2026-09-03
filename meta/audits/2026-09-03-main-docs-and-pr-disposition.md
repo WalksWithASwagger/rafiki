@@ -20,7 +20,8 @@ docs describe the current tree.
 
 - Tip at audit start: `368be75` (`docs: record Slingsby GBF image handoff`, #446).
 - This session squash-merged #440 onto that tip (`01e8413`, CodeQL action
-  pins `v4.37.3` → `v4.37.8`).
+  pins `v4.37.3` → `v4.37.8`), then #431 (`fa50982`, puppeteer 25.4.0 →
+  25.9.0) after the post-rebase `test` gate went green.
 - Required protection on `main` remains `test` + `secret-scan`.
 - The delivery pipeline still does not auto-merge. Humans own merge of
   core-runtime majors and anything labeled `needs-human`.
@@ -51,11 +52,10 @@ Related already-merged batches that #420 still listed as open:
 | PR | Kind | Why it was safe |
 |---|---|---|
 | #440 CodeQL action pins v4.37.8 | patch, SHA-pinned | Green, up to date with `main`, no product code |
+| #431 puppeteer 25.4.0 → 25.9.0 | same-major runtime tool | Rebased onto post-#440 `main`; `test` + `secret-scan` green |
 
-#431 (puppeteer 25.4.0 → 25.9.0) was rebased onto the post-#440 `main`.
-It is a same-major runtime-tool bump with prior puppeteer-25 E2E
-validation in #391. Merge only after the post-rebase `test` gate is
-green. Do not treat a stale pre-rebase green as sufficient.
+#429 and #430 were then re-updated onto the post-#431 `main` so they
+stay review-ready.
 
 ## Rebased, Still Human-Gated
 
@@ -130,10 +130,9 @@ environment can run them.
 
 ## Recommended Next Step
 
-1. After #431's post-rebase `test` is green, squash-merge it.
-2. After #429 and #430 are green on current `main`, Kris runs the
+1. After #429 and #430 are green on the post-#431 `main`, Kris runs the
    live Gemini dry-run and live MCP client smoke named in those PRs,
    then squash-merges in that order (#429 then #430).
-3. Close #421 / #422 / #435 / #448 only after those merges.
-4. Leave TypeScript 7 and the red Dependabot majors closed or held
+2. Close #421 / #422 / #435 / #448 only after those merges.
+3. Leave TypeScript 7 and the red Dependabot majors closed or held
    until each has a dedicated green migration PR.
