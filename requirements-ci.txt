@@ -17,6 +17,7 @@ anyio==4.14.2 \
     # via
     #   google-genai
     #   httpx
+    #   httpx2
     #   mcp
     #   openai
     #   sse-starlette
@@ -300,9 +301,7 @@ defusedxml==0.7.1 \
     # via py-serializable
 distro==1.9.0 \
     --hash=sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2
-    # via
-    #   google-genai
-    #   openai
+    # via google-genai
 filelock==3.31.1 \
     --hash=sha256:9ea33146c780161bf67cb20c7cb26b651566820d65ad8dfdd79422602a2dcfc0
     # via cachecontrol
@@ -316,25 +315,32 @@ h11==0.16.0 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
     # via
     #   httpcore
+    #   httpcore2
     #   uvicorn
 httpcore==1.0.9 \
     --hash=sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55
     # via httpx
+httpcore2==2.12.0 \
+    --hash=sha256:7e04258ce01013d7d615e5b910a3b27fac937d7a95038227e79652b4ba3b4ceb
+    # via httpx2
 httpx==0.28.1 \
     --hash=sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad
     # via
     #   google-genai
     #   mcp
     #   notion-client
-    #   openai
 httpx-sse==0.4.3 \
     --hash=sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc
     # via mcp
+httpx2==2.12.0 \
+    --hash=sha256:cc8b6eecb8661c146b8f89a60e97456ee086e91a784ed31ac450c3a9e613dd36
+    # via openai
 idna==3.18 \
     --hash=sha256:7f952cbe720b688055e3f87de14f5c3e5fdaa8bc3928985c4077ca689de849a2
     # via
     #   anyio
     #   httpx
+    #   httpx2
     #   requests
 iniconfig==2.3.0 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
@@ -535,8 +541,8 @@ msgpack==1.2.1 \
 notion-client==3.1.0 \
     --hash=sha256:7e3935f4dbc11231d8ad1fe404112e278501520342eaa35f86456f0df44a8aca
     # via -r requirements.txt
-openai==2.48.0 \
-    --hash=sha256:c98df30aaaf93c51979f64d3e7c5b76464f8be0173368266229eb8fe6bd30f2c
+openai==3.8.0 \
+    --hash=sha256:514736aa1e4ef1033c1209ad53897392845ccd4f2c4fae6413b2cf5f91c2c926
     # via -r requirements.txt
 packageurl-python==0.17.6 \
     --hash=sha256:31a85c2717bc41dd818f3c62908685ff9eebcb68588213745b14a6ee9e7df7c9
@@ -1135,9 +1141,11 @@ tomli==2.4.1 \
 tomli-w==1.2.0 \
     --hash=sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90
     # via pip-audit
-tqdm==4.69.0 \
-    --hash=sha256:9979978912be667a6ef21fd5d8abf54e324e63d82f7f43c360792ebc2bc4e622
-    # via openai
+truststore==0.10.4 \
+    --hash=sha256:adaeaecf1cbb5f4de3b1959b42d41f6fab57b2b1666adb59e89cb0b53361d981
+    # via
+    #   httpcore2
+    #   httpx2
 typer==0.27.0 \
     --hash=sha256:6f4b27631e47f077871b7dc30e933ec0131c1390fbe0e387ea5574b5bac9ccf1
     # via mcp
@@ -1147,6 +1155,7 @@ typing-extensions==4.16.0 \
     #   anyio
     #   cyclonedx-python-lib
     #   google-genai
+    #   httpx2
     #   mcp
     #   openai
     #   pydantic
