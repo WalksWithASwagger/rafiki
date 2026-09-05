@@ -38,6 +38,7 @@ deeper operating docs by surface area.
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
+- [Real Sky Lesson](REAL-SKY-LESSON.md) - offline teaching pilot and independent astronomy checks.
 - [Frontend Shell](FRONTEND.md) - TypeScript portal shell, Python proxy/API
   boundary, rollback routes, local build behavior, and verification commands.
 - [Generate UI Next Work Plan](GENERATE-UI-NEXT-WORK-PLAN-2026-07.md) -
