@@ -6,7 +6,7 @@ Providers:
   Gemini (Google)  — gemini-2.5-flash-image, gemini-3-pro-image-preview
   OpenAI           — gpt-image-2, gpt-image-1, dall-e-3, dall-e-2
 
-Model aliases: flash, nano, pro (Gemini) · gpt, gpt1, dalle3, dalle2 (OpenAI)
+Model aliases: flash, nano, pro (Gemini) · gpt, gpt2, dalle2 (OpenAI)
 Style composition: --style kk+bcai stacks both style suffixes
 
 Usage:
@@ -986,8 +986,8 @@ def main() -> None:
         "--model", "-m", default=DEFAULT_IMAGE_MODEL,
         help=(
             f"Model ID or alias (default: {DEFAULT_IMAGE_MODEL}). "
-            "Aliases: flash/nano/pro (Gemini), gpt/gpt1/dalle3 (OpenAI). "
-            "Full IDs: gpt-image-2, dall-e-3, gemini-3-pro-image-preview."
+            "Aliases: flash/nano/pro (Gemini), gpt/gpt2 (OpenAI). "
+            "Full IDs: gpt-image-2, gemini-3-pro-image-preview."
         ),
     )
     parser.add_argument("--quality", "-q", default="high",
@@ -1025,8 +1025,15 @@ def main() -> None:
             "Combinable with --reference-image or --reference-images."
         ),
     )
-    parser.add_argument("--reference-role", choices=["style", "brand", "mockup"], default="style",
-                        help="'style' (look-and-feel), 'brand' (preserve referenced marks when prompted), or 'mockup' (preserve garment + add print)")
+    parser.add_argument(
+        "--reference-role",
+        choices=["style", "brand", "mockup", "likeness"],
+        default="style",
+        help=(
+            "'style' (look-and-feel), 'brand' (preserve referenced marks when prompted), "
+            "'mockup' (preserve garment + add print), or 'likeness' (match an authorized person)"
+        ),
+    )
     parser.add_argument("--composition-references", metavar="PATHS",
                         help="Extra comma-separated ref images for mockup mode")
     parser.add_argument("--workers", "-w", type=int, default=1, metavar="N",

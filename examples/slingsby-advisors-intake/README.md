@@ -1,0 +1,29 @@
+# Slingsby Advisors Intake (public templates)
+
+Fill these **locally**. Copied files live under gitignored `assets/slingsby/`
+and are never committed.
+
+```bash
+mkdir -p assets/slingsby/likeness assets/slingsby/wardrobe \
+  assets/slingsby/style-refs assets/slingsby/proposal-refs
+cp examples/slingsby-advisors-intake/CONSENT.example.md assets/slingsby/CONSENT.md
+cp examples/slingsby-advisors-intake/NOTES.example.md assets/slingsby/NOTES.md
+mkdir -p prompts
+cp examples/slingsby-advisors-intake/PROPOSAL.example.md \
+  prompts/slingsby-advisors-proposal.md
+```
+
+Then drop authorized portraits into `assets/slingsby/likeness/`, or ingest a
+PDF / zip / folder the same way the mood board arrived. Crop nametags and
+build face-free style refs before spending:
+
+```bash
+bash scripts/slingsby-proposal-ingest.sh --likeness /path/to/portraits.pdf
+python3 scripts/slingsby-proposal-prep-refs.py
+bash scripts/slingsby-proposal-generate.sh --status
+bash scripts/slingsby-proposal-generate.sh --execute --likeness-only
+```
+
+Do not scrape LinkedIn, HFF, CreativeMornings, or Tanya's Shoru photography
+set. Public painting refs may already be cached locally in
+`assets/slingsby/style-refs/` for style plates only.
