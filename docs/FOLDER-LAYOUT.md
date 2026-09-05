@@ -22,7 +22,6 @@ rafiki/                          ← this repo (clone anywhere; name the folder 
 │   └── workflows/               # ci.yml + agentic-* (issue-quality, dev-loop,
 │                                #   traceability, pr-review)
 ├── .claude/
-│   ├── commands/                # Slash commands (e.g. /agentic-intake)
 │   └── skills/                  # Relative adapters to canonical project skills
 ├── .agents/
 │   └── skills/                  # Canonical project skills: Rafiki GitHub issue/review,

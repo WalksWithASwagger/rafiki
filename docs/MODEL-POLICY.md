@@ -36,8 +36,9 @@ separate `gpt-image-1` Streamlit workflow documented in the operator guides.
 Useful aliases:
 
 - `gpt`, `gpt2`: `gpt-image-2`
-- `gpt1`: `gpt-image-1`
-- `dalle3`: `dall-e-3`
+
+Older OpenAI models (`gpt-image-1`, `dall-e-3`) have no alias; pass the full
+model ID if a legacy prompt set still needs one.
 
 Always pass OpenAI models explicitly with `--model`; do not rely on old
 roadmap examples as the default policy.
