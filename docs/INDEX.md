@@ -45,6 +45,9 @@ deeper operating docs by surface area.
   reference selection, and future job handling.
 - [Frontend design handoff](../frontend/docs/HANDOFF.md) - imported portal
   shell routes, jobs, and industrial-utilitarian interaction notes.
+- [September 4 Docs Audit](../meta/audits/2026-09-04-docs-audit.md) -
+  markdown-wide drift, duplication, and contradiction sweep with the
+  follow-up issues #458-#462.
 - [September 3 Main Sweep](../meta/audits/2026-09-03-main-docs-and-pr-disposition.md) -
   current open-PR disposition, what is safe to merge, what stays
   `needs-human`, and the docs corrections from this sweep.
