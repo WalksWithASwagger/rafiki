@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>@@title@@</title>
+<style>
+:root { --paper:#efe5cb; --ink:#142e3d; --muted:#47565a; --red:#a82c20; --star:#ffd48c; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:18px/1.5 Arial,sans-serif; }
+header,main,footer,nav { max-width:1320px; margin:auto; padding:24px 5vw; }
+header { border-bottom:1px solid var(--ink); display:flex; justify-content:space-between; gap:24px; align-items:baseline; }
+h1 { font:normal clamp(24px,3vw,42px)/1.05 Georgia,serif; margin:0; }
+h2 { font:normal clamp(44px,6vw,88px)/.98 Georgia,serif; letter-spacing:-.04em; margin:16px 0 28px; }
+.eyebrow { font:12px/1.5 Arial,sans-serif; letter-spacing:.12em; }
+section { display:grid; grid-template-columns:1fr 1fr; gap:5vw; align-items:center; min-height:590px; border-bottom:1px solid var(--ink); }
+.words { padding:32px 0; } .words>p:not(.eyebrow) { max-width:42ch; }
+.visual { min-width:0; } svg { display:block; width:100%; height:auto; }
+.poster { text-align:center; font:22px/1.2 Georgia,serif; letter-spacing:.1em; }
+svg circle { fill:var(--star); } svg .sky { fill:var(--ink); }
+svg .grid { fill:none; stroke:var(--paper); stroke-opacity:.25; }
+svg text { fill:var(--paper); text-anchor:middle; font:12px Arial,sans-serif; }
+svg .correction { fill:var(--red); stroke:var(--paper); stroke-width:3; r:11px; }
+button { font:inherit; padding:12px 18px; border:1px solid var(--ink); background:transparent; color:var(--ink); cursor:pointer; transition:background .15s,color .15s; }
+button:hover { background:var(--ink); color:var(--paper); }
+:focus-visible { outline:3px solid var(--red); outline-offset:5px; }
+button:disabled { opacity:.4; cursor:default; }
+nav { display:flex; gap:16px; align-items:center; border-top:1px solid var(--ink); }
+nav #progress { margin-right:auto; } .choices { display:flex; flex-wrap:wrap; gap:12px; }
+input { display:block; width:100%; margin:24px 0; accent-color:var(--red); }
+.frame>p,details,footer { font-size:13px; } details p { overflow-wrap:anywhere; }
+footer { color:var(--muted); } footer p { margin:8px 0; } .revision { overflow-wrap:anywhere; font-size:10px; }
+.interactive { display:none; } .js .interactive { display:block; } .js .choices { display:flex; }
+[hidden] { display:none !important; }
+.still header { padding:18px 40px; } .still main { padding:0 40px; }
+.still section { min-height:420px; border:0; grid-template-columns:1.2fr 1fr; gap:30px; }
+.still h2 { font-size:62px; margin:8px 0 20px; } .still .words { padding:0; }
+.still svg { height:360px; } .still nav,.still section:not(:last-child),.still .interactive { display:none !important; }
+.still footer { padding:8px 40px; } .still footer p { margin:4px 0; }
+@media(max-width:700px) { header { display:block; } section { grid-template-columns:1fr; gap:0; } .words { padding-bottom:0; } nav { flex-wrap:wrap; } }
+@media(prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<header><h1>@@title@@</h1><p class="eyebrow">@@series@@</p></header>
+<main aria-label="@@subtitle@@">@@sections@@</main>
+<nav hidden aria-label="Lesson navigation"><span id="progress" aria-live="polite"></span><button id="back">@@back@@</button><button id="next">@@next@@</button><button id="restart" hidden>@@restart@@</button></nav>
+<footer><p id="answer" hidden aria-live="polite" data-prefix="@@answer@@"></p><p>@@constructed@@</p><p>@@limits@@</p><p>@@sources@@</p><p class="revision">@@revision@@@@hash@@</p></footer>
+<script>
+if (!document.body.classList.contains('still')) {
+  document.documentElement.classList.add('js');
+  const sections = [...document.querySelectorAll('section')];
+  const back = document.querySelector('#back'), next = document.querySelector('#next');
+  const restart = document.querySelector('#restart'), answer = document.querySelector('#answer');
+  let current = 0;
+  function show(index, focus = true) {
+    current = Math.max(0, Math.min(4, index));
+    sections.forEach((section, i) => { section.hidden = i !== current; });
+    back.disabled = current === 0; next.hidden = current === 4; restart.hidden = current !== 4;
+    document.querySelector('#progress').textContent = `${current + 1} / 5`;
+    if (focus) sections[current].querySelector('h2').focus();
+  }
+  document.querySelector('nav').hidden = false;
+  back.onclick = () => show(current - 1); next.onclick = () => show(current + 1);
+  restart.onclick = () => { answer.hidden = true; slider.value = 1; setTime(); show(0); };
+  document.querySelectorAll('.choices button').forEach(button => {
+    button.onclick = () => { answer.textContent = answer.dataset.prefix + button.textContent; answer.hidden = false; show(2); };
+  });
+  document.addEventListener('keydown', event => {
+    if (event.target.closest('input,button,summary') || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (['ArrowRight', 'ArrowLeft'].includes(event.key)) {
+      event.preventDefault(); show(current + (event.key === 'ArrowRight' ? 1 : -1));
+    }
+  });
+  const slider = document.querySelector('#time'), frames = [...document.querySelectorAll('.frame')];
+  slider.onclick = () => slider.focus();
+  function setTime() {
+    frames.forEach((frame, i) => { frame.hidden = i !== Number(slider.value); });
+    slider.setAttribute('aria-valuetext', frames[Number(slider.value)].dataset.time);
+  }
+  slider.oninput = setTime; setTime(); show(0, false);
+}
+</script>
+</body>
+</html>

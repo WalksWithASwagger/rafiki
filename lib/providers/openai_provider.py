@@ -77,6 +77,14 @@ class OpenAIProvider:
                         "alternate logos or extra typography.\n\n"
                         f"{prompt}"
                     )
+                elif reference_role == "likeness":
+                    prompt = (
+                        "The attached images are authorized photographs of one real person. "
+                        "Match that person's face, age, hair, skin, and presence exactly. "
+                        "Do not invent a different person or youth-wash the likeness. "
+                        "Wardrobe, room, and lighting may change as requested below.\n\n"
+                        f"{prompt}"
+                    )
                 print(f"  Reference images: {len(ref_paths)} (via images.edit)")
                 return self._generate_edit(client, prompt, output_path, model, size, quality, ref_paths)
 

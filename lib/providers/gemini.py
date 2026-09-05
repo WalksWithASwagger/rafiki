@@ -175,6 +175,16 @@ class GeminiProvider:
                 "explicitly requested in the prompt.\n\n"
                 f"{prompt}"
             )
+        elif reference_role == "likeness":
+            contents.append(
+                "IMPORTANT: The provided image(s) are AUTHORIZED photographs of one real person. "
+                "Match that person's face, age, hair, skin, and presence exactly. This is a "
+                "likeness job, not a style-moodboard job. Do not invent a different person, "
+                "do not youth-wash, and do not genericize features. Wardrobe, room, and lighting "
+                "may change as the prompt requests. Do not copy readable text from the references "
+                "unless the prompt asks for it.\n\n"
+                f"{prompt}"
+            )
         else:
             contents.append(
                 "IMPORTANT: Use the provided image(s) ONLY as visual style and brand references "

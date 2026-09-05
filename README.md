@@ -321,8 +321,6 @@ Rafiki supports both Gemini and OpenAI image models through the same CLI.
 - `gemini-2.5-flash-image`: fast iteration
 - `gemini-3-pro-image-preview`: higher-end Gemini image generation
 - `gpt-image-2`: strong general-purpose OpenAI image generation
-- `gpt-image-1`
-- `dall-e-3`
 
 The CLI, portal, and MCP default is `gemini-2.5-flash-image`. Pass `--model`
 to select another provider or model explicitly. Choose Gemini for fast local

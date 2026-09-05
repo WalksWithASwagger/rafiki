@@ -552,14 +552,14 @@ def rafiki_generate(
     Args:
         prompt: Text description of the desired image.
         output_path: Where to save the PNG (absolute or relative to cwd).
-        model: Model ID or alias. Aliases: flash/nano/pro (Gemini), gpt/gpt1/dalle3 (OpenAI).
+        model: Model ID or alias. Aliases: flash/nano/pro (Gemini), gpt/gpt2 (OpenAI).
         aspect_ratio: 16:9 | 1:1 | 9:16 | linkedin | instagram | story | square.
         resolution: 1K | 2K | 4K — Gemini Pro only.
         quality: low | medium | high — OpenAI only.
         style: kk | hopecode | bcai | upgrade | none | composed (e.g. kk+bcai).
         reference_image: Optional path to a reference image.
         global_reference_images: Additional reference image paths reused for this generation.
-        reference_role: style | brand | mockup.
+        reference_role: style | brand | mockup | likeness.
         composition_references: Extra reference paths for mockup composition.
         dry_run: Preview without calling any API.
 
@@ -644,7 +644,7 @@ def rafiki_batch(
         reference_image: Optional reference image reused for every prompt.
         reference_images: Optional per-prompt reference image paths.
         global_reference_images: Additional reference image paths reused for every prompt.
-        reference_role: style | brand | mockup.
+        reference_role: style | brand | mockup | likeness.
         composition_references: Extra reference paths for mockup composition.
         workers: Parallel generation workers (1 = sequential, 4 = fast).
         dry_run: Preview without generating any images.
