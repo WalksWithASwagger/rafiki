@@ -6,7 +6,20 @@ description: Write agent-ready GitHub issues for Rafiki with acceptance criteria
 # GitHub Issue Writer
 
 Use this skill when creating or rewriting Rafiki GitHub issues for the
-GitHub-only delivery pipeline.
+GitHub-only delivery pipeline, including turning a rough bug report or feature
+request into an agent-ready issue.
+
+## Intake Steps
+
+1. Read `agentic/contract.json` for the repo's verification commands and diff
+   limits.
+2. Ask one clarifying question only when the expected outcome is genuinely
+   ambiguous.
+3. Draft the issue using the structure below, linking blocking or related
+   issues in the context.
+4. Create the GitHub issue.
+5. Run `python3 scripts/agentic/issue_lint.py` against the final issue body.
+6. Apply `agent:ready` only if the linter passes.
 
 ## Goal
 
@@ -86,7 +99,8 @@ Default verification choices:
 
 ## Label Guidance
 
-Add `agent:ready` only when scope, files, criteria, and verification are clear.
+Add `agent:ready` only when scope, files, criteria, and verification are clear
+and `scripts/agentic/issue_lint.py` passes on the issue body.
 `autonomous` and `auto-implement` are accepted as legacy aliases and are
 normalized back to `agent:ready` by the issue-quality workflow — prefer
 `agent:ready` on new issues.
