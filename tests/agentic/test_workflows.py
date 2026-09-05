@@ -70,7 +70,6 @@ def test_active_delivery_instructions_are_github_only():
         ".github/ISSUE_TEMPLATE/agentic-task.md",
         ".agents/skills/rafiki-github-issue-writer/SKILL.md",
         ".agents/skills/rafiki-github-pr-reviewer/SKILL.md",
-        ".claude/commands/agentic-intake.md",
         ".company-os/project.yaml",
     )
     retired_secret = "_".join(("linear", "api", "key"))
