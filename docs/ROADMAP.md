@@ -2,8 +2,9 @@
 
 Last reviewed: 2026-09-03
 
-Latest audit: [Main Sweep And PR Disposition (2026-09-03)](../meta/audits/2026-09-03-main-docs-and-pr-disposition.md)
-Prior audits: [MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md),
+Latest audit: [Docs Audit (2026-09-04)](../meta/audits/2026-09-04-docs-audit.md)
+Prior audits: [Main Sweep And PR Disposition (2026-09-03)](../meta/audits/2026-09-03-main-docs-and-pr-disposition.md),
+[MCP Output Contract Ratified (2026-06-28)](../meta/audits/2026-06-28-mcp-output-contract-ratified.md),
 [Rafiki E2E And Showpiece Roadmap Audit (2026-05-19)](../meta/audits/2026-05-19-e2e-roadmap-showpiece-audit.md)
 
 Those audits are dated snapshots. The active roadmap below reflects later

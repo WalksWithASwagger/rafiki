@@ -89,7 +89,7 @@ See [MCP.md](MCP.md).
 
 ## Claude Code skill
 
-`.claude/skills/rafiki.md` (in this repo) teaches Claude Code when and how to invoke Rafiki from any project that has this checkout on the path.
+The `rafiki` skill that teaches Claude Code when and how to invoke Rafiki from other projects lives in the user-global skill library (`~/.agents/skills/rafiki`), not in this repo. Repo-scoped skills under `.agents/skills/` cover running and smoke-testing Rafiki itself (`run-rafiki`) plus the GitHub issue/PR workflow.
 
 ## Future extension
 

@@ -88,7 +88,7 @@
     "commander": "^15.0.0",
     "dotenv": "^17.4.2",
     "puppeteer": "^25.9.0",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.4"
   },
   "keywords": [
     "rafiki",
