@@ -19,3 +19,9 @@ def test_default_image_model_policy_is_gemini_flash() -> None:
 def test_mcp_generation_defaults_match_policy() -> None:
     assert inspect.signature(mcp_server.rafiki_generate).parameters["model"].default == DEFAULT_IMAGE_MODEL
     assert inspect.signature(mcp_server.rafiki_batch).parameters["model"].default == DEFAULT_IMAGE_MODEL
+
+
+def test_retired_openai_aliases_are_not_expanded() -> None:
+    assert resolve_model("gpt1") == "gpt1"
+    assert resolve_model("dalle3") == "dalle3"
+    assert resolve_model("gpt2") == "gpt-image-2"
