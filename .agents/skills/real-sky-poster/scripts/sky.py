@@ -4,12 +4,12 @@ Standard library only, on purpose: the astronomy is the part that must be
 verifiable without an image, a GPU, or a network call.
 
 Coordinates are J2000 from the Bright Star Catalogue. Reduction is the classic
-one -- local sidereal time, hour angle, then alt/az -- which is accurate to well
-under a degree for this era. That is far tighter than any poster needs.
+one -- local sidereal time, hour angle, then alt/az. The lesson's 60 fixed
+positions are tested within 1 degree of independent Skyfield reference data.
 
-The gate that proves the reduction: Polaris sits at an altitude equal to the
-observer's latitude, anywhere on Earth. `python3 tests/skills/real-sky-poster/
-test_sky.py` asserts exactly that.
+Polaris altitude is approximately the observer's latitude: a sanity check,
+not proof of sidereal time. No precession, nutation, refraction or proper motion
+is applied here; no accuracy guarantee is made outside the lesson fixtures.
 """
 
 from __future__ import annotations
@@ -188,7 +188,7 @@ class Sky:
         return math.degrees(math.asin(vz / n)), math.degrees(math.atan2(vy, vx)) % 360.0
 
     def is_up(self, group: str, horizon: float = 5.0) -> bool:
-        """Below the horizon means below the horizon. Do not draw it."""
+        """Whether the group's mean exceeds the threshold; not per-star visibility."""
         return self.bearing(group)[0] > horizon
 
     def project(self, names: list[str], px_per_degree: float) -> dict[str, tuple[float, float]]:

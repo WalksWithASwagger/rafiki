@@ -20,19 +20,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]
 
 from sky import Sky, angular_separation  # noqa: E402
 
-FAILURES: list[str] = []
-
-
 def check(name: str, ok: bool, detail: str) -> None:
     print(f"  {'PASS' if ok else 'FAIL'}  {name}: {detail}")
-    if not ok:
-        FAILURES.append(name)
+    assert ok, f"{name}: {detail}"
 
 
 def test_polaris_altitude_equals_latitude() -> None:
-    """The load-bearing gate. Polaris sits within ~0.7 deg of the celestial
-    pole, so its altitude equals the observer's latitude -- anywhere, any night.
-    If the sidereal-time or alt/az reduction is wrong, this breaks first."""
+    """A latitude sanity check, not an independent sidereal-time oracle."""
     print("\nPolaris altitude == observer latitude")
     for place, lat, lon in [("Vancouver", 49.2827, -123.1207),
                             ("Reykjavik", 64.1466, -21.9426),
@@ -112,7 +106,4 @@ if __name__ == "__main__":
     test_futureproof_opening_night()
 
     print()
-    if FAILURES:
-        print(f"FAILED: {', '.join(FAILURES)}")
-        sys.exit(1)
-    print("All astronomy gates passed. The sky is real.")
+    print("Astronomy sanity checks passed; independent lesson fixtures run under pytest.")
