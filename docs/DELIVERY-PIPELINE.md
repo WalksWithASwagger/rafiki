@@ -163,7 +163,6 @@ For agents running the loop end to end:
 - `.agents/skills/rafiki-github-pr-reviewer/SKILL.md`
 - `.claude/skills/rafiki-github-issue-writer/SKILL.md` (relative adapter)
 - `.claude/skills/rafiki-github-pr-reviewer/SKILL.md` (relative adapter)
-- `.claude/commands/agentic-intake.md`
 
 Keep physical project skill packages under `.agents/skills/`. Claude Code uses
 relative adapters under `.claude/skills/` so every client reads the same package.

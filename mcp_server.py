@@ -552,7 +552,7 @@ def rafiki_generate(
     Args:
         prompt: Text description of the desired image.
         output_path: Where to save the PNG (absolute or relative to cwd).
-        model: Model ID or alias. Aliases: flash/nano/pro (Gemini), gpt/gpt1/dalle3 (OpenAI).
+        model: Model ID or alias. Aliases: flash/nano/pro (Gemini), gpt/gpt2 (OpenAI).
         aspect_ratio: 16:9 | 1:1 | 9:16 | linkedin | instagram | story | square.
         resolution: 1K | 2K | 4K — Gemini Pro only.
         quality: low | medium | high — OpenAI only.

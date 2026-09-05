@@ -1,0 +1,25 @@
+{
+  "title": "Looks right. Is it right?",
+  "series": "RAFIKI / FIELD LESSON 01",
+  "subtitle": "A three-minute lesson in creative judgment.",
+  "poster": "EVERY STAR IN ITS PLACE.",
+  "constructed": "Constructed teaching example — not an observed model output.",
+  "moments": [
+    {"heading": "A beautiful claim.", "body": "A poster promises the sky over Vancouver at 21:00 PDT on October 28, 2026. Its stars have been arranged by hand. Look closely before you turn the page."},
+    {"heading": "Would you publish it?", "body": "Decide whether this image is ready to carry that claim. Your choice stays in this visit; nothing is recorded or sent."},
+    {"heading": "Beauty is not evidence.", "body": "The marked stars belong to Orion. At the stated time all four are below the geometric horizon, yet this constructed poster places them in the sky. The mistake was deliberately authored to make the distinction visible."},
+    {"heading": "Let the evidence move.", "body": "Advance the time. The four Orion stars rise individually. This compass diagram uses calculated positions for twelve selected stars, not an artist's placement. North is at the top; azimuth increases clockwise."},
+    {"heading": "Keep the art. Compute the claim.", "body": "The production decision: preserve the illustration as art, replace its factual star layer with calculated positions, and keep the approved words exact. Composition remains an artistic choice. A faithful sky claim needs a labelled diagram and a stated time."}
+  ],
+  "publish": "Publish as it stands",
+  "review": "Check the sky first",
+  "answer": "Your first decision: ",
+  "next": "Continue →",
+  "back": "← Back",
+  "restart": "Start again",
+  "time": "Time in Vancouver (PDT, UTC−07:00)",
+  "positions": "Read positions and sources",
+  "limits": "Corrected diagram: twelve selected catalogue stars · symbolic brightness · no atmospheric refraction. Positions checked within 1° against an independent reference. Not a photographic view or a complete sky.",
+  "sources": "Bright Star Catalogue V/50, J2000 · Skyfield 1.54 / JPL DE421 reference · observer: WGS84 49.2827°, −123.1207°, 0 m.",
+  "revision": "Authored source SHA-256: "
+}
