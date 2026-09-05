@@ -48,7 +48,7 @@ PORTAL_MODEL_OPTIONS = (
 )
 QUALITY_OPTIONS = ("low", "medium", "high")
 RESOLUTION_OPTIONS = ("1K", "2K", "4K")
-REFERENCE_ROLES = ("style", "brand", "mockup")
+REFERENCE_ROLES = ("style", "brand", "mockup", "likeness")
 
 
 def _basic_auth_credentials() -> tuple[str, str] | None:
@@ -529,7 +529,7 @@ def _run_portal_job(
     )
     reference_role = _coerce_str(payload.get("reference_role"), field="reference_role") or "style"
     if reference_role not in set(REFERENCE_ROLES):
-        raise ValueError("reference_role must be 'style', 'brand', or 'mockup'")
+        raise ValueError("reference_role must be 'style', 'brand', 'mockup', or 'likeness'")
     composition_references = _resolve_reference_sources(
         payload.get("composition_references"),
         field="composition_references",

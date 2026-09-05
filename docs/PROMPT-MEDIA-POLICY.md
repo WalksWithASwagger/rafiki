@@ -28,7 +28,12 @@ use-case discussion:
 ```bash
 npx rafiki examples/quickstart-image-prompts.md --dry-run --no-viewer
 npx rafiki examples/keynote-visual-workflow-prompt-pack.md --dry-run --no-viewer
+npx rafiki examples/slingsby-advisors-style-plates.md --style slingsby --dry-run --no-viewer
 ```
+
+`examples/slingsby-advisors-style-plates.md` is a repo-only public-safe style
+fixture. It does not request a likeness and is not in the npm package
+allowlist. Private likeness prompt packs stay in gitignored `prompts/`.
 
 ## Private Prompt Libraries
 

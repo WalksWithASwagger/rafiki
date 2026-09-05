@@ -18,12 +18,15 @@ deeper operating docs by surface area.
 - [Keynote Visual Workflow Use Case](use-cases/keynote-visual-workflow.md) -
   public use case for turning talk notes into prompt packs, reviewable image
   candidates, slides, and downstream publishing assets.
+- [Slingsby Advisors Proposal Visuals](use-cases/slingsby-advisors-proposal-visuals.md) -
+  public-safe prep for likeness + style generation of Tanya Slingsby for a
+  family-office proposal; private photos and the working prompt pack stay local.
 
 ## Runtime Surfaces
 
 - [MCP](MCP.md) - local MCP installation, tool surface, CLI bridge examples,
   and safety notes.
-- [MCP Output Contract](MCP-OUTPUT-CONTRACT.md) - proposed stable JSON envelope
+- [MCP Output Contract](MCP-OUTPUT-CONTRACT.md) - ratified stable JSON envelope
   for typed tool outputs (paths, URLs, counts, errors, mutation flags).
 - [AgentOpus MCP](AGENT-OPUS-MCP.md) - hosted generative-video MCP (prompt/script
   → finished video); same lane as Rafiki/Floyo, not OpusClip clipping.
@@ -35,16 +38,24 @@ deeper operating docs by surface area.
   notes for `rafiki --render`.
 - [Presentation Viewer](PRESENTATION-VIEWER.md) - JSON-driven deck viewer,
   portable single-file mode, wrappers, schema, and content-series workflow.
+- [Real Sky Lesson](REAL-SKY-LESSON.md) - offline teaching pilot and independent astronomy checks.
 - [Frontend Shell](FRONTEND.md) - TypeScript portal shell, Python proxy/API
   boundary, rollback routes, local build behavior, and verification commands.
 - [Generate UI Next Work Plan](GENERATE-UI-NEXT-WORK-PLAN-2026-07.md) -
   stabilization plan for the React generation workspace, dry-run safety,
   reference selection, and future job handling.
+- [Frontend design handoff](../frontend/docs/HANDOFF.md) - imported portal
+  shell routes, jobs, and industrial-utilitarian interaction notes.
+- [September 4 Docs Audit](../meta/audits/2026-09-04-docs-audit.md) -
+  markdown-wide drift, duplication, and contradiction sweep with the
+  follow-up issues #458-#462.
+- [September 3 Main Sweep](../meta/audits/2026-09-03-main-docs-and-pr-disposition.md) -
+  current open-PR disposition, what is safe to merge, what stays
+  `needs-human`, and the docs corrections from this sweep.
 - [July 3 Issue-Crush Audit](../meta/audits/2026-07-03-issue-crush-audit.md) -
-  open-issue disposition, close candidates, blocked issues, and recommended
-  implementation order after Generate UI stabilization.
-- [July 3 Closeout](../meta/audits/2026-07-03-rafiki-closeout.md) - merged PRs,
-  stale branch cleanup proof, verification, and next work.
+  historical open-issue disposition after Generate UI stabilization.
+- [July 3 Closeout](../meta/audits/2026-07-03-rafiki-closeout.md) - historical
+  merged-PR and stale-branch closeout.
 - [Portal Command Center](PORTAL-COMMAND-CENTER.md) - local portal spend
   summary, legacy rollback surfaces, feedback, evaluation, archive metadata
   state, revision staging, Curriculum Atlas surface, and API endpoints.

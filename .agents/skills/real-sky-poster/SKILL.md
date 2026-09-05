@@ -11,9 +11,9 @@ Take artwork with a made-up night sky, give it the sky that was actually there, 
 
 Done when all of these hold:
 
-- [ ] **The sky is real.** Every star is a catalogue star at its true magnitude; every figure has its true shape and its true rotation against the horizon for the stated date, time and location.
-- [ ] **The astronomy gate passes.** `python3 tests/skills/real-sky-poster/test_sky.py` is green. Polaris altitude equals the observer's latitude, or the reduction is wrong.
-- [ ] **Nothing below the horizon is drawn.** If a constellation had not risen, it is not in the picture. Say so rather than faking it.
+- [ ] **Claims match the surface.** Poster figures use projected catalogue coordinates with composed placement and decorative random field stars. Only the lesson diagram uses one shared projection without invented stars; dot sizes are symbolic.
+- [ ] **The astronomy checks pass.** Run the direct sanity checks and the independent lesson fixtures with `python3 -m pytest tests/skills/real-sky-poster`. Polaris altitude is only approximately latitude.
+- [ ] **Check visibility per star.** The poster's `is_up()` gate checks a group mean, not every member. Inspect individual altitudes before claiming a visible sky. The lesson excludes each below-horizon star.
 - [ ] **The artwork is untouched.** `plate.disturbance()` returns a number in the low hundreds. Thousands means the wipe ate somebody's painting — stop and fix the geometry.
 - [ ] **Stars are native at every size.** No output contains an upscaled star.
 - [ ] **No crop discards constellations.** Tall formats extend the sky; they do not centre-crop.
@@ -101,6 +101,8 @@ Human reviews:
 Rafiki's public repo is **tool-only**. Artwork, generated assets and campaign copy are gitignored and live in the private knowledge base. This skill ships **code and geometry**; profiles reference artwork by path and never embed it. The smoke test runs with no image, no GPU and no network — which is also why the astronomy is standard-library only.
 
 ## Setup
+
+For the offline teaching pilot, see [Real Sky Lesson](../../../docs/REAL-SKY-LESSON.md). It uses synthetic artwork, requires no imaging/GPU libraries, and keeps the following poster stages separate.
 
 Two assets are fetched, not committed (both are binaries, and the repo is tool-only):
 
