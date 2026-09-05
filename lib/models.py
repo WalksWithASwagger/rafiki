@@ -12,8 +12,6 @@ ALIASES: dict[str, str] = {
     "pro":    "gemini-3-pro-image-preview",
     "gpt":    "gpt-image-2",
     "gpt2":   "gpt-image-2",
-    "gpt1":   "gpt-image-1",
-    "dalle3": "dall-e-3",
     "dalle2": "dall-e-2",
 }
 
