@@ -305,11 +305,11 @@ distro==1.9.0 \
 filelock==3.31.1 \
     --hash=sha256:9ea33146c780161bf67cb20c7cb26b651566820d65ad8dfdd79422602a2dcfc0
     # via cachecontrol
-google-auth==2.55.2 \
-    --hash=sha256:d715f265f2cafc6a5f1bf0dc19870d20e3119f6f6682785a250bce3d03d38a3b
+google-auth==2.58.0 \
+    --hash=sha256:8a9c4645bb4c8e91668fb1934b95ae6a8687084232753639220ba9bf04a1610d
     # via google-genai
-google-genai==2.12.1 \
-    --hash=sha256:686d5ec39bda345151d3ed1bac3915f01f49138b1ea519af2eb98f11cc55ebc4
+google-genai==2.24.0 \
+    --hash=sha256:59e5f2d88bc2d6ed04aa1aa14cb5629090cfe9458401745e620b24d1fe9893d7
     # via -r requirements.txt
 h11==0.16.0 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
@@ -541,8 +541,8 @@ msgpack==1.2.1 \
 notion-client==3.1.0 \
     --hash=sha256:7e3935f4dbc11231d8ad1fe404112e278501520342eaa35f86456f0df44a8aca
     # via -r requirements.txt
-openai==3.8.0 \
-    --hash=sha256:514736aa1e4ef1033c1209ad53897392845ccd4f2c4fae6413b2cf5f91c2c926
+openai==3.16.2 \
+    --hash=sha256:660a7f8307e6605342ae84ff4425412e7cd19e5e9b298f975502df2a1a9a5d5f
     # via -r requirements.txt
 packageurl-python==0.17.6 \
     --hash=sha256:31a85c2717bc41dd818f3c62908685ff9eebcb68588213745b14a6ee9e7df7c9
