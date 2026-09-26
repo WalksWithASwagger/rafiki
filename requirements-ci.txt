@@ -541,8 +541,8 @@ msgpack==1.2.1 \
 notion-client==3.1.0 \
     --hash=sha256:7e3935f4dbc11231d8ad1fe404112e278501520342eaa35f86456f0df44a8aca
     # via -r requirements.txt
-openai==3.16.2 \
-    --hash=sha256:660a7f8307e6605342ae84ff4425412e7cd19e5e9b298f975502df2a1a9a5d5f
+openai==3.19.2 \
+    --hash=sha256:66247fcd07266e72536e90656dc27f3b0bb1e9d8696d4013fc55402c0b96a5c2
     # via -r requirements.txt
 packageurl-python==0.17.6 \
     --hash=sha256:31a85c2717bc41dd818f3c62908685ff9eebcb68588213745b14a6ee9e7df7c9
