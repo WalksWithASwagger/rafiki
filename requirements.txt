@@ -2,7 +2,7 @@
 #   python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 google-genai>=2.24.0
 python-dotenv>=1.2.3
-mcp[cli]>=1.0.0
+mcp[cli]>=2.2.0
 openai>=3.17.0
 pillow>=12.3.0
 pyyaml>=6.0.3
