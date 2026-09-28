@@ -10,6 +10,7 @@ runs from a local checkout; API keys never leave your machine. No hosted service
 ## Key files
 - [README](README.md): what it is and the quickstart
 - [AGENTS.md](AGENTS.md): how agents should operate in this repo
+- [CHANGELOG](CHANGELOG.md): merged PRs since the last GitHub release
 - docs/use-cases/keynote-visual-workflow.md: the main public workflow
 - docs/ROADMAP.md: where it is going
 
