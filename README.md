@@ -60,6 +60,9 @@ CPython 3.11 on Linux x86_64. Maintainers refresh it with
 
 ### 2. Add provider keys
 
+Secrets are loaded with Varlock. There is no 1Password path in this repo —
+do not add `op://` references, `op read`, or vault steps.
+
 Rafiki commits `.env.schema` as the agent-readable environment contract. Keep
 real values in your shell environment, an untracked repo-local value file, or
 the user-managed shared directory at `~/.agents/env/values/`. Agents validate
@@ -432,7 +435,8 @@ Contribution guide: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## Docs
 
-Start with the [docs index](docs/INDEX.md) for the full map.
+Start with the [docs index](docs/INDEX.md) for the full map. Shipped history
+since the last GitHub release lives in [CHANGELOG.md](CHANGELOG.md).
 
 Key references:
 

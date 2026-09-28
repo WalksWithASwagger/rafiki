@@ -5,6 +5,8 @@ deeper operating docs by surface area.
 
 ## Product And System Shape
 
+- [Changelog](../CHANGELOG.md) - merged PRs and the published v1.1.0 GitHub
+  release. Nothing invented.
 - [Scope](SCOPE.md) - what belongs in Rafiki v1, what stays out of scope, and
   the boundaries for portal auth, Prompt Studio, MCP, and future extensions.
 - [Folder Layout](FOLDER-LAYOUT.md) - where generated runs, registered assets,
