@@ -21,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import generate
 from lib import registry
 
-
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 
 

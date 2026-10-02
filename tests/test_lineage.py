@@ -15,7 +15,6 @@ from lib.lineage import (
 )
 from lib.registry import AssetEntry
 
-
 # ── unit helpers ─────────────────────────────────────────────────────────────
 
 def test_slug_base_strips_version_suffix():

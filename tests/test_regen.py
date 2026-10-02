@@ -21,7 +21,6 @@ from lib.regen import (
     run_job,
 )
 
-
 SAMPLE_CONFIG = [
     {
         "name": "newsletter-heroes",

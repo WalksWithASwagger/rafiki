@@ -10,7 +10,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Iterable
 
-from lib.media_types import MediaEntry, MediaImportResult, StyleProfile, SubjectProfile, VideoEdit
+from lib.media_types import (
+    MediaEntry,
+    MediaImportResult,
+    StyleProfile,
+    SubjectProfile,
+    VideoEdit,
+)
 
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".m4v", ".webm"}

@@ -5,7 +5,11 @@ from pathlib import Path
 
 import pytest
 
-from lib.archive_metadata import load_archive_metadata, stamp_archive_state, update_archive_metadata
+from lib.archive_metadata import (
+    load_archive_metadata,
+    stamp_archive_state,
+    update_archive_metadata,
+)
 
 
 def test_update_archive_metadata_persists_title_tags_and_states(tmp_path: Path):

@@ -6,8 +6,8 @@ Set OPENAI_API_KEY. Run: streamlit run diagram_gen_ui.py
 from __future__ import annotations
 
 import base64
-import json
 import io
+import json
 import os
 import zipfile
 from pathlib import Path

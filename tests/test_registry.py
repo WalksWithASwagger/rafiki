@@ -13,8 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lib import extra_outputs
-from lib import registry
+from lib import extra_outputs, registry
 
 
 def _make_png(path: Path) -> None:
