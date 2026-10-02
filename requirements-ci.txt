@@ -308,8 +308,8 @@ filelock==3.31.1 \
 google-auth==2.58.0 \
     --hash=sha256:8a9c4645bb4c8e91668fb1934b95ae6a8687084232753639220ba9bf04a1610d
     # via google-genai
-google-genai==2.24.0 \
-    --hash=sha256:59e5f2d88bc2d6ed04aa1aa14cb5629090cfe9458401745e620b24d1fe9893d7
+google-genai==2.28.0 \
+    --hash=sha256:cdee15e2fbfea08ea61bce6e5bfbb3301db4bd13a52dccfa8c8d1167e37ca1cc
     # via -r requirements.txt
 h11==0.16.0 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
