@@ -6,7 +6,6 @@ from pathlib import Path
 
 from lib.renderers.viewer import generate_comparison_viewer, generate_viewer
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 

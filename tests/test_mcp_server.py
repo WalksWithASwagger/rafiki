@@ -8,9 +8,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import mcp_server
-from lib.batch import BatchResult
 from lib import extra_outputs, registry
-
+from lib.batch import BatchResult
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 

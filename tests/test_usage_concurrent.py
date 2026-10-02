@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib import usage  # noqa: E402
 
-
 THREADS = 4
 PER_THREAD = 10
 TOTAL = THREADS * PER_THREAD

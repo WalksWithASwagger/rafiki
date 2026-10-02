@@ -10,8 +10,8 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lib.batch import BatchResult
 from lib import registry, server
+from lib.batch import BatchResult
 
 
 def _fake_batch_result(project_dir: Path, *, success_count: int = 1, total: int = 1) -> BatchResult:

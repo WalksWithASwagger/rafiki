@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]
 
 from sky import Sky, angular_separation  # noqa: E402
 
+
 def check(name: str, ok: bool, detail: str) -> None:
     print(f"  {'PASS' if ok else 'FAIL'}  {name}: {detail}")
     assert ok, f"{name}: {detail}"

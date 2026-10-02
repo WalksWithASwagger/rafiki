@@ -4,7 +4,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 SCRIPT = (
     Path(__file__).resolve().parents[3]
     / ".agents/skills/real-sky-poster/scripts/upscale.py"

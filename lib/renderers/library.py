@@ -8,16 +8,20 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
-from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
+from lib import registry
+from lib.archive_metadata import (
+    archive_metadata_path,
+    load_archive_metadata,
+    metadata_for_key,
+)
 from lib.curriculum import build_curriculum_atlas
 from lib.evaluations import evaluations_path, load_evaluations
-from lib import registry
 from lib.extra_outputs import load_extra_outputs
 from lib.lineage import annotate_lineage_comparisons
 from lib.renderers.library_atlas import _atlas_panel_html
 from lib.renderers.library_styles import _library_extra_css
+from lib.renderers.viewer import _lightbox_html, _lightbox_js, _shared_css
 from lib.styles import get_default_style, load_styles
-from lib.renderers.viewer import _shared_css, _lightbox_html, _lightbox_js
 from lib.thumbnail_cache import DEFAULT_WIDTH, build_thumbnail_cache
 
 

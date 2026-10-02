@@ -64,11 +64,12 @@ def _load_dotenv(path) -> None:
 _load_dotenv(_ROOT / ".env")
 
 from mcp.server.fastmcp import FastMCP
-from lib.core import generate_image
+
 from lib.batch import run_batch
+from lib.core import generate_image
+from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
 from lib.styles import load_styles
-from lib.models import DEFAULT_IMAGE_MODEL, resolve_model
 from lib.usage import load_usage_log
 
 _CLI_SUBCOMMANDS = {

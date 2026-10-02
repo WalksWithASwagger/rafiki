@@ -75,12 +75,12 @@ class NotionExportTests(unittest.TestCase):
     # ── helpers ──────────────────────────────────────────────────────────
 
     def _run(self, **kw):
-        defaults = dict(
-            project=self.project,
-            database_id="db-123",
-            output_root=self.output_root,
-            api_key="secret_test",
-        )
+        defaults = {
+            "project": self.project,
+            "database_id": "db-123",
+            "output_root": self.output_root,
+            "api_key": "secret_test",
+        }
         defaults.update(kw)
         return notion_export.export(**defaults)
 

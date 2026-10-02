@@ -15,19 +15,18 @@ import sys
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
-
 from plate import load, sky_mask
 from sky import GROUPS, STARS, Sky
 
 STYLES = {
     # The default. No connecting lines: accurate positions, nothing else. Reads
     # as sky rather than as an infographic, and never fights the artwork.
-    "stars": dict(line=None, line_a=0, line_w=0, star_gain=1.05, halo=1.25,
-                  spikes=True, field=300),
-    "lines": dict(line=(226, 245, 248), line_a=74, line_w=1.25, star_gain=1.10,
-                  halo=1.35, spikes=True, field=250),
-    "delicate": dict(line=(214, 236, 240), line_a=50, line_w=1.0, star_gain=0.90,
-                     halo=0.85, spikes=False, field=230),
+    "stars": {"line": None, "line_a": 0, "line_w": 0, "star_gain": 1.05,
+              "halo": 1.25, "spikes": True, "field": 300},
+    "lines": {"line": (226, 245, 248), "line_a": 74, "line_w": 1.25,
+              "star_gain": 1.10, "halo": 1.35, "spikes": True, "field": 250},
+    "delicate": {"line": (214, 236, 240), "line_a": 50, "line_w": 1.0,
+                 "star_gain": 0.90, "halo": 0.85, "spikes": False, "field": 230},
 }
 
 EDGES = {
