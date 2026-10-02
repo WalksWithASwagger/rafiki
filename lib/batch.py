@@ -360,7 +360,7 @@ def run_batch(
 
     viewer_path_str = ""
     if generate_viewer_html:
-        from lib.renderers.viewer import generate_viewer, generate_comparison_viewer
+        from lib.renderers.viewer import generate_comparison_viewer, generate_viewer
 
         title = (
             Path(prompt_file).stem.replace("-", " ").replace("_", " ").title()

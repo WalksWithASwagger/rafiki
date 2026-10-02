@@ -22,8 +22,12 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from lib.archive_metadata import archive_metadata_path, load_archive_metadata, metadata_for_key
 from lib import extra_outputs
+from lib.archive_metadata import (
+    archive_metadata_path,
+    load_archive_metadata,
+    metadata_for_key,
+)
 
 logger = logging.getLogger(__name__)
 

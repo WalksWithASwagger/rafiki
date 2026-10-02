@@ -21,13 +21,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lib import server as server_module
 from lib.frontend_state import build_library_state
 from tests.server_harness import (
-    make_handler_class,
     http_get,
     http_post_json,
     http_post_raw,
+    make_handler_class,
     raw_get,
 )
-
 
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"
 

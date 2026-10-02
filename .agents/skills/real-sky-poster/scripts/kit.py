@@ -20,7 +20,6 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
-
 from plate import load
 from render import STYLES, StarPainter, place, radius, supersample_for
 from sky import STARS, Sky

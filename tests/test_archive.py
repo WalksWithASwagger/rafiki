@@ -12,8 +12,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
-from lib import archive  # noqa: E402
-from lib import extra_outputs  # noqa: E402
+from lib import archive, extra_outputs  # noqa: E402
 
 
 def _make_run(

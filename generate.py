@@ -53,11 +53,6 @@ def _load_dotenv(path: Path) -> None:
 
 _load_dotenv(Path(__file__).parent / ".env")
 
-from lib.core import generate_image
-from lib.models import DEFAULT_IMAGE_MODEL, resolve_model, ALIASES
-from lib.prompts import parse_image_prompts_md, ASPECT_RATIOS
-from lib.styles import load_styles, get_default_style
-from lib.usage import load_usage_log
 from lib.batch import run_batch
 from lib.commands import (
     _cmd_approve,
@@ -70,6 +65,11 @@ from lib.commands import (
     _parse_days,
     _refresh_registry_after_mutation,
 )
+from lib.core import generate_image
+from lib.models import ALIASES, DEFAULT_IMAGE_MODEL, resolve_model
+from lib.prompts import ASPECT_RATIOS, parse_image_prompts_md
+from lib.styles import get_default_style, load_styles
+from lib.usage import load_usage_log
 
 # Re-export for MCP server and other importers that do `import generate`
 __all__ = [
@@ -116,7 +116,7 @@ def _cmd_library(argv: list[str]) -> None:
         print(f"Error: output dir not found: {output_root}")
         sys.exit(1)
 
-    from lib.renderers.library import generate_library_viewer, _records_from_registry
+    from lib.renderers.library import _records_from_registry, generate_library_viewer
     lp = generate_library_viewer(
         output_root,
         open_browser=args.open,
@@ -320,7 +320,7 @@ def _cmd_canva_export(argv: list[str]) -> None:
     )
     args = p.parse_args(argv)
 
-    from lib.exporters.canva import export, apply_preset
+    from lib.exporters.canva import apply_preset, export
 
     kwargs: dict = {}
     if args.preset:
@@ -356,7 +356,7 @@ def _cmd_regen(argv: list[str]) -> None:
     repo_root = Path(__file__).parent
     config_path = Path(args.config) if args.config else repo_root / "config" / "scheduled-regen.json"
 
-    from lib.regen import load_config, due_jobs, latest_run_age_days, run_job
+    from lib.regen import due_jobs, latest_run_age_days, load_config, run_job
 
     try:
         jobs = load_config(config_path)
@@ -423,7 +423,7 @@ def _cmd_deploy(argv: list[str]) -> None:
     p.add_argument("--dry-run", action="store_true", help="Print the command without running it")
     args = p.parse_args(argv)
 
-    from lib.deploy.vercel import deploy, VercelNotInstalledError, ViewerNotFoundError
+    from lib.deploy.vercel import VercelNotInstalledError, ViewerNotFoundError, deploy
 
     viewer_dir = Path(args.viewer_dir) if args.viewer_dir else None
     try:
@@ -489,7 +489,7 @@ def _cmd_notion_export(argv: list[str]) -> None:
                    help="Root output directory (default: output/)")
     args = p.parse_args(argv)
 
-    from lib.exporters.notion import export, NotionExportError
+    from lib.exporters.notion import NotionExportError, export
 
     output_root = Path(args.output_dir) if args.output_dir else Path(__file__).parent / "output"
     try:

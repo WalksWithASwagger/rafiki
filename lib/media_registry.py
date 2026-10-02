@@ -13,7 +13,13 @@ from urllib.parse import urlencode
 
 from lib.importers import alex_samuel
 from lib.media_roots import MediaRoot, load_media_roots
-from lib.media_types import MediaEntry, MediaImportResult, StyleProfile, SubjectProfile, VideoEdit
+from lib.media_types import (
+    MediaEntry,
+    MediaImportResult,
+    StyleProfile,
+    SubjectProfile,
+    VideoEdit,
+)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = REPO_ROOT / "data"

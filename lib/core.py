@@ -9,9 +9,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from lib.models import resolve_model
-from lib.styles import resolve_style_suffix, get_default_style
-from lib.usage import log_generation
 from lib.providers import get_provider
+from lib.styles import get_default_style, resolve_style_suffix
+from lib.usage import log_generation
 
 
 def likeness_requires_references(
