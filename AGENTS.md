@@ -218,10 +218,97 @@ Report:
 
 ## This repository (rafiki)
 
+Rafiki is a local-first image-generation and review tool. One checkout. Node
+CLI (`index.js`, bins `rafiki` / `image-gen`), Python engine (`generate.py`),
+TypeScript portal under `frontend/`, MCP server (`mcp_server.py`). No hosted
+service.
+
+There is no `pyproject.toml`. Python install and test config live in
+`requirements.txt` (runtime), `requirements-dev.txt` (local/dev),
+`requirements-ci.txt` (hashed CPython 3.11 Linux lock for CI), `pytest.ini`,
+and `ruff.toml`.
+
+### Layout
+
+Verified against the tree on 2026-09-28. Longer map: `docs/FOLDER-LAYOUT.md`
+(known stale in places — it still omits `frontend/` and several `lib/`
+modules). Trust the tree and this section over that file until #459 lands.
+
+- `index.js` — Node CLI and HTML-to-PNG renderer
+- `generate.py` — Python dispatcher (generate, view, library, serve, archive,
+  registry, media, video, floyo, and the other subcommands listed below)
+- `generate-presentation-viewer.py` — JSON-driven deck viewer
+- `mcp_server.py` — MCP tools
+- `lib/` — Python library (providers, portal, archive, exporters, jobs)
+- `frontend/` — TypeScript portal shell. Not in the public npm package.
+- `styles/` — `styles.yaml` plus markdown guides. Live list:
+  `npx rafiki --list-styles`
+- `examples/` — public prompt fixtures
+- `docs/` — operating docs. Start at `docs/INDEX.md`
+- `tests/` — pytest, including `tests/agentic/`
+- `scripts/` — verify helpers and the agentic pipeline
+- `.github/workflows/` — CI and agentic gates
+- `agentic/contract.json` — delivery contract (labels, limits, verify cmds)
+- `.env.schema` / `.env.example` — env contract. Values stay untracked.
+- `CHANGELOG.md` — merged-PR history since the last GitHub release
+
+### Commands
+
+From root `package.json`. Do not invent extras.
+
+- `npm ci` and `npm --prefix frontend ci` — install
+- `npm run doctor` — local readiness (`npx rafiki --doctor`)
+- `npm test` / `npm run test:python` — pytest via `scripts/run-pytest.js`
+- `npm run lint` — `ruff check .`
+- `npm run verify` — lint, tests, `frontend:verify`, `e2e:portal`,
+  `docs:check`, `public:check`, `smoke:dry-run`, `pack:check`, doctor
+- `npm run verify:security` — npm audit + `pip_audit` on the CI lock
+  (needs network)
+- `npm run frontend:dev|build|typecheck|lint|test|verify`
+- `npm run env:validate|audit|scan|smoke` — Varlock. No 1Password.
+- `npm run lock:python-ci` — refresh the hashed Python CI lock
+- `npm run e2e:portal`, `smoke:dry-run`, `accept:video-lab`
+- `npm run pack:check`, `docs:check`, `public:check`, `workspace:hygiene`
+
+`generate.py` subcommands (from the dispatcher in `generate.py`): `view`,
+`library`, `serve`, `link-projects`, `approve`, `canva-export`, `clean`,
+`deploy`, `notion-export`, `regen`, `registry`, `billing`, `archive-health`,
+`archive-repair`, `archive-thumbnails`, `social-expand`, `media`, `import`,
+`subjects`, `train`, `video`, `floyo`, `keyframes`, `style`.
+
+App runtime: Node 22.13+ and npm 10+. Python 3.11+ locally. CI pins Node
+22.13 and Python 3.11.
+
+Default agent verification from `agentic/contract.json`: `npm test`,
+`npm run pack:check`, `npm run doctor`.
+
+### CI
+
+Workflows under `.github/workflows/`. Do not edit them from a docs PR.
+
+- `ci.yml` — job `test` (Node 22.13, Python 3.11, hashed
+  `requirements-ci.txt`, lock drift check, `npm run verify:security`,
+  `npm run verify`) and job `secret-scan` (gitleaks). Runs on `main`
+  pushes and every PR.
+- `codeql.yml` — CodeQL for `javascript-typescript` and `python`
+- `dependency-review.yml` — PR dependency review, fails on high severity
+- `agentic-issue-quality.yml` — lints issues labeled `agent:ready`
+- `agentic-dev-loop.yml` — dispatched agent loop
+- `agentic-traceability.yml` — `policy` check for `codex/issue-*` PRs
+- `agentic-pr-review.yml` — advisory acceptance review for those PRs
+
+Recommended required checks in `.github/branch-protection.md`: `test`,
+`secret-scan`, `policy`. Applying GitHub protection settings is a
+maintainer action, not an agent task. CodeQL and Dependency Review start
+as reporting checks. `policy` only runs for `codex/issue-*` head branches.
+
+### Secrets
+
 - Env contract: `.env.schema`, `.env.example`, committed docs, code refs, sanitized fixtures only.
 - Never read/print `.env*` value files (including `~/.agents/env/values/`).
 - Use `varlock load --agent` (add `--show-all` for full redacted report). Run secret-dependent commands via `varlock run --inject vars -- <command>`.
 - Never `env`/`printenv`, `varlock encrypt`/`reveal`, raw `varlock load`, or dumps of `process.env`.
 - Prefer `npm run env:audit` and staged-only `npm run env:scan` without `--include-ignored`.
+- Do not introduce `op://`, `op read`, or 1Password vault steps. Varlock owns this repo's secret path.
 - App runtime: Node 22.13+ unless a maintainer approves otherwise.
 - Do not rotate credentials, change provider/platform values, deploy, or cross a `needs-human` gate without approval. Stop and report if validation needs a real unlock.
