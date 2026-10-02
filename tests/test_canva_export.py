@@ -14,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from lib.exporters import canva  # noqa: E402
 
-
 PNG_HEADER = b"\x89PNG\r\n\x1a\n"  # enough for "is this a PNG?" smoke checks
 
 

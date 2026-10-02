@@ -5,9 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts" / "agenti
 
 from common import load_contract  # noqa: E402
 from intake_transition import evaluate_intake  # noqa: E402
-
 from test_issue_lint import complete_issue
-
 
 ROOT = Path(__file__).resolve().parents[2]
 

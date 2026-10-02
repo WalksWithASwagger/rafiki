@@ -1681,8 +1681,8 @@ def serve(
     public: bool = False,
 ) -> None:
     """Start the Rafiki portal server and block until Ctrl-C."""
-    from lib.renderers.library import load_extra_outputs
     from lib.media_roots import load_media_roots
+    from lib.renderers.library import load_extra_outputs
     output_root = Path(output_root).resolve()
     ratings_file = output_root / "ratings.json"
     feedback_file = output_root / "feedback.json"

@@ -12,7 +12,6 @@ from lib.renderers.library import generate_library_viewer
 from lib.renderers.viewer import generate_comparison_viewer, generate_viewer
 from lib.thumbnail_cache import build_thumbnail_cache, thumbnail_cache_stats
 
-
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 

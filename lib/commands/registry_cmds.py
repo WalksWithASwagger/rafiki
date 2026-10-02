@@ -44,7 +44,9 @@ def _cmd_registry(argv: list[str]) -> None:
 
     args = p.parse_args(argv)
 
-    from lib.registry import index as registry_index, search as registry_search, export as registry_export
+    from lib.registry import export as registry_export
+    from lib.registry import index as registry_index
+    from lib.registry import search as registry_search
 
     if args.action == "index":
         entries = registry_index(scope="all-runs" if args.all_runs else "curated")

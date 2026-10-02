@@ -16,7 +16,6 @@ import pytest
 
 from lib.providers.openai_provider import OpenAIProvider
 
-
 # --- helpers --------------------------------------------------------------
 
 # 1x1 transparent PNG, base64-encoded — small valid payload for save tests.

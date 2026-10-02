@@ -19,7 +19,6 @@ from lib.training import build_training_preview
 from lib.video_jobs import build_video_preview
 from tests.server_harness import http_post_json
 
-
 # ---------------------------------------------------------------------------
 # Training preview — unit
 # ---------------------------------------------------------------------------
