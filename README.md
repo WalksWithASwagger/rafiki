@@ -1,3 +1,6 @@
+> **Archived 2026-10-04. Rafiki now lives in [`WalksWithASwagger/kk-kb`](https://github.com/WalksWithASwagger/kk-kb) at `tools/rafiki/` (private).**
+> This repo is read-only. Its 34 open issues moved to kk-kb (label `area:rafiki`, tracked in kk-kb#3949). Local setup: `cd tools/rafiki && npm run setup:local`.
+
 # Rafiki
 
 Rafiki is a local-first workflow for AI image generation, batch prompt runs,
